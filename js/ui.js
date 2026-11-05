@@ -1350,7 +1350,7 @@ function fightModal(evs) {
   const CARD_KEYS = ['Q', 'W', 'E'];
   const isBuf = x => !!(FT.bufferedAct && FT.bufferedAct === x);
   const fab = (attrs, icon, name, sub, cls = '', dis = false, kbd = '', actKey = '') =>
-    `<button class="fab ${cls}${actKey && isBuf(actKey) ? ' buffered' : ''}" ${attrs} ${dis && (!play || FT.spectating) ? 'disabled' : ''} aria-label="${name}${kbd ? ' [' + kbd + ']' : ''}"><span class="fi">${icon}${kbd ? `<kbd class="fkbd">[${kbd}]</kbd>` : ''}</span><span class="ftx"><b>${name}${kbd ? ` <kbd class="fkbd-in">[${kbd}]</kbd>` : ''}</b><small>${sub}</small></span></button>`;
+    `<button class="fab ${cls}${actKey && isBuf(actKey) ? ' buffered' : ''}" ${attrs} ${(dis && (!play || FT.spectating)) || (FT.waitingForOpponent && !FT.spectating) ? 'disabled' : ''} aria-label="${name}${kbd ? ' [' + kbd + ']' : ''}"><span class="fi">${icon}${kbd ? `<kbd class="fkbd">[${kbd}]</kbd>` : ''}</span><span class="ftx"><b>${name}${kbd ? ` <kbd class="fkbd-in">[${kbd}]</kbd>` : ''}</b><small>${sub}</small></span></button>`;
   const cardIc = k => { const a = asset('card-' + k) || asset('ic-card'); if (a) return `<img src="${a}" class="aic aicimg card-ic-img" alt="">`; return `<svg viewBox="0 0 48 48" class="aic" aria-hidden="true"><rect x="13" y="7" width="22" height="32" rx="4" fill="${cardColor(k)}" opacity=".9" transform="rotate(-8 24 23)"/><rect x="15" y="9" width="22" height="32" rx="4" fill="#160a0c" stroke="${cardColor(k)}" stroke-width="2.5" transform="rotate(6 24 25)"/><path d="M26 17 l2.4 5 5.4.6-4 3.7 1.1 5.3-4.9-2.7-4.9 2.7 1.1-5.3-4-3.7 5.4-.6z" fill="${cardColor(k)}" transform="rotate(6 24 25)"/></svg>`; };
   let acts = '';
   if (!F.over || play) {
@@ -1374,14 +1374,14 @@ function fightModal(evs) {
     }
   }
   const logHtml = FT.log.slice(-3).map(l => `<li class="${l.c || ''}">${l.t}</li>`).join('');
-  const done = F.over && !play ? `<div class="fend ${F.winner === 'p' ? 'win' : 'lose'}"><h3>${FT.spectating ? 'Karşılaşma Sona Erdi' : F.winner === 'p' ? 'Zafer' : F.surrender ? 'Teslim' : 'Yenilgi'}</h3><ul>${(FT.result || []).map(l => `<li>${l}</li>`).join('')}</ul><button class="btn primary big" data-a="fight-done">Devam <kbd class="fkbd-in">[Boşluk]</kbd></button></div>` : '';
+  const done = F.over && !play ? `<div class="fend ${F.draw ? 'draw' : F.winner === 'p' ? 'win' : 'lose'}"><h3>${FT.spectating ? 'Karşılaşma Sona Erdi' : F.draw ? 'Berabere' : F.winner === 'p' ? 'Zafer' : F.surrender ? 'Teslim' : 'Yenilgi'}</h3><ul>${(FT.result || []).map(l => `<li>${l}</li>`).join('')}</ul><button class="btn primary big" data-a="fight-done">Devam <kbd class="fkbd-in">[Boşluk]</kbd></button></div>` : '';
   const bgScene = FT.mode === 'kule' ? sceneOr('kule', scenePit()) : FT.tier === 'cukur' ? sceneOr('pit', scenePit()) : sceneOr('arena', sceneArena());
   const specTag = FT.spectators ? ` · <span>Tribün: ${FT.spectators} ocak izliyor</span>` : '';
   const needIntroCut = !FT.introShown && F.round <= 1 && !play && !FT.spectating;
   if (needIntroCut) FT.introShown = true;
   showModal(`<div class="fbg">${bgScene}</div>
     <div class="fight v2 ${FT.lethal ? 'lethal' : ''} ${F.round <= 1 ? 'fight-dramatic-entry' : ''}">
-      <div class="fhead"><span>${FT.title}</span><span>${play ? `<button class="fskip" data-a="fskip">${ui('fast')} Atla</button>` : ''}Tur ${F.round}${specTag}${FT.lethal ? ` · ${ui('skull')} yenilgide %${FT.risk}` : ''}</span></div>
+      <div class="fhead"><span>${FT.title}</span><span>${play ? `<button class="fskip" data-a="fskip">${ui('fast')} Atla</button>` : ''}Tur ${F.round}${FT.waitingForOpponent ? ' · Hamlen alındı, rakip bekleniyor' : ''}${specTag}${FT.lethal ? ` · ${ui('skull')} yenilgide %${FT.risk}` : ''}</span></div>
       <div class="plates">${plate(F.p, 'p', play && FT.pre.p)}<div class="vs">VS</div>${plate(F.e, 'e', play && FT.pre.e)}</div>
 
       <div class="arena-floor"><div class="fbanner" id="fbanner"></div>${typeof renderChibiDoll === "function" ? `<div class="arena-tamer p">${renderChibiDoll(null, { cls: "arena-doll", battle: true, anim: (F.over && !play && F.winner === 'p') ? 'victory' : 'idle', el: F.p.el })}</div><div class="arena-tamer e">${renderChibiDoll(typeof peerChibiConfig === "function" ? peerChibiConfig((typeof FT !== "undefined" && FT && FT.peer) || opp, opp && opp.peerIdx != null ? opp.peerIdx : undefined) : null, { cls: "arena-doll", flip: true, battle: true, anim: (F.over && !play && F.winner === 'e') ? 'victory' : 'idle', el: F.e.el })}</div>` : ""}<div class="fart fdr p${F.over && !play && !F.surrender && F.winner !== 'p' ? ' ko done' : ''}" id="fa-p">${dragonSVG(d)}</div><div class="fart fdr e${F.over && !play && !F.surrender && F.winner !== 'e' ? ' ko done' : ''}" id="fa-e">${dragonSVG(opp, { flip: true })}</div></div>
@@ -1592,7 +1592,7 @@ async function playRound(evs) {
   endPlayback();
 }
 function canUseFightAction(x) {
-  if (!FT || !FT.F || FT.F.over || FT.spectating) return false;
+  if (!FT || !FT.F || FT.F.over || FT.spectating || FT.waitingForOpponent) return false;
   const p = FT.F.p;
   if (x === 'pence' || x === 'savun' || x === 'teslim') return true;
   if (x === 'nefes') return p.sta >= NEFES_COST;
@@ -1617,7 +1617,7 @@ function endPlayback() {
   fightModal();
   if (FT.F.over) {
     FT.bufferedAct = null;
-    setTimeout(() => SFX.play(FT && FT.F.winner === 'p' ? 'win' : 'lose'), 200);
+    setTimeout(() => SFX.play(FT && FT.F.draw ? 'gasp' : FT && FT.F.winner === 'p' ? 'win' : 'lose'), 200);
   } else if (FT.bufferedAct) {
     const nextAct = FT.bufferedAct;
     FT.bufferedAct = null;
@@ -1636,6 +1636,10 @@ function fightAction(x) {
   }
   if (!canUseFightAction(x)) {
     SFX.play('error');
+    return;
+  }
+  if (FT.mode === 'mp' && FT.mpRoomId && typeof mpSubmitDragonDuelAction === 'function') {
+    mpSubmitDragonDuelAction(x);
     return;
   }
   FT.busy = true;

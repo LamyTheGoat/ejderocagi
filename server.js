@@ -20,6 +20,7 @@ const https = require('https');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { createDragonDuelServer } = require('./js/duel_server.js');
 
 const PORT = process.env.PORT || 3000;
 const X_CLIENT_ID = process.env.X_CLIENT_ID || '';
@@ -406,6 +407,8 @@ function wsBroadcast(obj, excludeSocket = null) {
   }
 }
 
+const DUEL_SERVER = createDragonDuelServer({ crypto, WS_CLIENTS, WORLD, encodeWsFrame });
+
 const NPC_HANDLES = new Set(['@kuzey_ruzgari', '@leydi_sureyya', '@altin_kervan']);
 
 function getActiveHubPeers() {
@@ -443,11 +446,14 @@ function handleWsUpgrade(req, socket) {
   ].join('\r\n');
 
   socket.write(headers);
-  socket.playerInfo = { handle: '@gezgin_' + Math.floor(100 + Math.random() * 900), x: 35, y: 60, pose: 'P1', chat: 'Meydana katıldı!' };
+  const authenticatedHandle = getSessionHandle(req);
+  socket.playerInfo = { handle: authenticatedHandle || ('@gezgin_' + Math.floor(100 + Math.random() * 900)), authenticated: !!authenticatedHandle, x: 35, y: 60, pose: 'P1', chat: 'Meydana katıldı!' };
   WS_CLIENTS.add(socket);
 
   socket.write(encodeWsFrame({
     type: 'welcome',
+    handle: socket.playerInfo.handle,
+    authenticated: socket.playerInfo.authenticated,
     onlineCount: WS_CLIENTS.size,
     worldBoss: WORLD.worldBoss,
     banners: WORLD.banners,
@@ -458,6 +464,7 @@ function handleWsUpgrade(req, socket) {
   }));
 
   wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size });
+  DUEL_SERVER.onConnect(socket);
 
   socket.on('data', buffer => {
     const { close, messages } = decodeWsFrames(buffer);
@@ -474,18 +481,21 @@ function handleWsUpgrade(req, socket) {
 
   socket.on('close', () => {
     WS_CLIENTS.delete(socket);
+    DUEL_SERVER.onDisconnect(socket);
     wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size });
   });
   socket.on('error', () => {
     WS_CLIENTS.delete(socket);
+    DUEL_SERVER.onDisconnect(socket);
   });
 }
 
 function handleWsMessage(socket, msg) {
   if (!msg || !msg.type) return;
+  if (DUEL_SERVER.onMessage(socket, msg)) return;
 
   if (msg.type === 'hub_update' || msg.type === 'hub_actor') {
-    const h = msg.handle || socket.playerInfo.handle;
+    const h = socket.playerInfo.authenticated ? socket.playerInfo.handle : (msg.handle || socket.playerInfo.handle);
     socket.playerInfo.handle = h;
     if (WORLD.players[h]) {
       if (msg.x != null) WORLD.players[h].hubX = msg.x;
@@ -926,10 +936,10 @@ const server = http.createServer(async (req, res) => {
   // 4. POST /api/sync — Oyuncunun ocağını, savunma bonusunu, yıldız ejderhasını ve sancağını senkronize et
   if (pathname === '/api/sync' && req.method === 'POST') {
     const body = await readJsonBody(req);
-    const rawH = String(body.handle || '@ejder_ocagi').trim();
+    const sessionHandle = getSessionHandle(req);
+    const rawH = String(sessionHandle || body.handle || '@ejder_ocagi').trim();
     const handle = rawH.startsWith('@') ? rawH : '@' + rawH;
     const existing = WORLD.players[handle] || {};
-    const sessionHandle = getSessionHandle(req);
     const ownsHandle = !!sessionHandle && sessionHandle.toLowerCase() === handle.toLowerCase();
     // X ile doğrulanmış (veya tohum) bir handle'ı yalnızca oturum sahibi güncelleyebilir
     if (existing.verified && !ownsHandle) {
@@ -945,6 +955,7 @@ const server = http.createServer(async (req, res) => {
       wins: Number(body.wins) || existing.wins || 0,
       defenseBonus: Number(body.defenseBonus) || existing.defenseBonus || 12,
       star: body.star || existing.star || null,
+      duelFighter: DUEL_SERVER.cleanFighter(body.duelFighter, body.star || existing.star) || existing.duelFighter || null,
       chibi: body.chibi || existing.chibi || null,
       hubChat: body.hubChat || existing.hubChat || null,
       hubPose: body.hubPose || existing.hubPose || 'P1',

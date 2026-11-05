@@ -585,15 +585,11 @@ function socStartVsTopcu(handle) {
 function socStartVsDuel(handle) {
   const star = (typeof byId === 'function' && byId(S.star)) || (S.dragons && S.dragons[0]);
   if (!star) { toast('Düello için bir ejderhan olmalı.'); return; }
-  const info = socInfo(handle);
-  const H = ensureHub();
-  const peer = (info.peer) || Object.assign({}, H.peers[0] || {}, { handle });
-  if (!peer || !peer.d) { toast('Rakibin ejderhası bulunamadı.'); return; }
-  if (info.real) socSend({ type: 'social_invite', to: handle, kind: 'vs_duel', chibi: socInfo(socMe()).chibi });
+  if (typeof mpSendDragonDuelInvite !== 'function') { toast('Gerçek Er Meydanı modülü yüklenemedi.'); return; }
   SOC_UI.open = false;
   socRender();
   if (typeof closeModal === 'function' && typeof modalOn !== 'undefined' && modalOn) closeModal();
-  if (typeof startLiveDuelRoom === 'function') startLiveDuelRoom(star, peer);
+  mpSendDragonDuelInvite(handle);
 }
 
 /* ───────────────────────── Lobi Eşitlemeleri (parti → zindan / PvP / konvoy) ───────────────────────── */
@@ -786,8 +782,8 @@ Object.assign(ACT, {
       socGoTable(inv.from);
     } else if (inv.kind === 'vs_topcu') {
       socStartVsTopcu(inv.from);
-    } else {
-      socStartVsDuel(inv.from);
+    } else if (inv.kind === 'vs_duel') {
+      mpReplyDragonDuelInvite(inv.id, true);
     }
     if (typeof saveGame === 'function') saveGame();
     socRefresh();
@@ -797,6 +793,7 @@ Object.assign(ACT, {
     const inv = s.invites.find(i => i.id === el.dataset.id);
     s.invites = s.invites.filter(i => i.id !== el.dataset.id);
     if (inv && inv.kind === 'party') socSend({ type: 'party_reply', to: inv.from, accept: false });
+    else if (inv && inv.kind === 'vs_duel') mpReplyDragonDuelInvite(inv.id, false);
     socRefresh();
   },
   'soc-pick-cancel'() { SOC_UI.pick = null; socRender(); },

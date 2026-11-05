@@ -137,11 +137,16 @@ function mpOpenWs(baseWs) {
           MP.onlineCount = msg.count || 1;
           if (UI.view === 'meydan') render();
         } else if (msg.type === 'welcome') {
+          MP.authenticated = !!msg.authenticated;
+          MP.authHandle = msg.authenticated ? (msg.handle || null) : null;
+          if (MP.authHandle && S && S.handle !== MP.authHandle) { S.handle = MP.authHandle; S.xVerified = true; if (typeof saveGame === 'function') saveGame(); }
           MP.onlineCount = msg.onlineCount || 1;
           if (msg.worldBoss) MP.worldBoss = msg.worldBoss;
           if (msg.caravans) MP.caravans = msg.caravans;
           if (msg.chatLog) MP.chatLog = msg.chatLog;
           if (msg.marketListings) MP.marketListings = msg.marketListings;
+        } else if (['duel_invite', 'duel_invite_sent', 'duel_invite_result', 'duel_room_start', 'duel_room_resume', 'duel_waiting', 'duel_room_state', 'duel_opponent_disconnected', 'duel_opponent_reconnected', 'duel_error'].includes(msg.type) && typeof handleDragonDuelNetMessage === 'function') {
+          handleDragonDuelNetMessage(msg);
         } else if (msg.type === 'market_update') {
           if (msg.listings) {
             MP.marketListings = msg.listings;
@@ -257,18 +262,18 @@ function mpSendWs(obj) {
   if (MP.ws && MP.ws.readyState === 1) {
     try { MP.ws.send(JSON.stringify(obj)); } catch (e) {}
   }
-  if (MP.bc) {
+  if (MP.bc && !(obj && ['duel_invite', 'duel_invite_reply', 'duel_action', 'duel_leave'].includes(obj.type))) {
     try { MP.bc.postMessage(obj); } catch (e) {}
   }
 }
 
 function mpSyncState() {
-  if (!S || typeof fetch === 'undefined' || MP.staticServer || !MP.connected) return;
+  if (!S || typeof fetch === 'undefined' || MP.staticServer || !MP.connected) return Promise.resolve(false);
   const isHttp = typeof location !== 'undefined' && location.protocol.startsWith('http');
   const baseHttp = isHttp ? location.origin : 'http://localhost:3000';
   const star = byId(S.star) || S.dragons[0];
   const defBonus = typeof calcOcakDefenseBonus === 'function' ? calcOcakDefenseBonus().total : 12;
-  fetch(`${baseHttp}/api/sync`, {
+  return fetch(`${baseHttp}/api/sync`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -279,6 +284,7 @@ function mpSyncState() {
       wins: (S.st && S.st.wins) || 0,
       defenseBonus: defBonus,
       star: star || null,
+      duelFighter: star && typeof fighterFromDragon === 'function' ? { ...fighterFromDragon(star), seasonMult: typeof seasonMult === 'function' ? seasonMult(star.el) : 1 } : null,
       chibi: typeof ensureChibi === 'function' ? ensureChibi() : null,
       codex: S.codex || {},
       regionCount: S.regionCount || {},
@@ -443,6 +449,7 @@ function startLiveDuelRoom(myD, peer, opts = {}) {
 function finishMpFight() {
   const { F, d, opp, peer, mpOpts } = FT;
   const won = F.winner === 'p';
+  const drawn = F.winner == null;
   const opts = mpOpts || {};
   FT.result = [];
   d.fat = clamp(d.fat + 10, 0, 100);
@@ -452,7 +459,10 @@ function finishMpFight() {
   const baseGold = opts.rewardGold || 85;
   const totalGold = Math.round(baseGold * (wEv.raidMult || 1) * divanMult) + (won && FT.bet ? FT.bet * 2 : 0);
 
-  if (won) {
+  if (drawn) {
+    S.gold += 35;
+    FT.result.push('<b>Berabere!</b> İki ejderha da meydandan sağ çıktı. +35 altın.');
+  } else if (won) {
     S.gold += totalGold;
     S.un += 3;
     d.w = (d.w || 0) + 1;
@@ -474,12 +484,13 @@ function finishMpFight() {
     S.gold += 20;
     FT.result.push(F.surrender ? 'Meydandan çekildin.' : `<span class="bad">${esc(opp.name)} bu karşılaşmadan üstün çıktı. Teselli: +20 altın.</span>`);
   }
-  mpRecordRaid(peer.handle, opp.name, d.name, won, totalGold, opts.revengeId);
+  if (!opts.serverRoom) mpRecordRaid(peer.handle, opp.name, d.name, won, totalGold, opts.revengeId);
   chron(`${d.name}, ${peer.handle} ocağından ${opp.name} ile kapıştı (${won ? `Zafer: +${totalGold} altın` : 'Yenilgi'}).`);
   saveGame();
 }
 
 function doneMpFight() {
+  if (FT && FT.mpOpts && FT.mpOpts.serverRoom && FT.mpRoomId) mpSendWs({ type: 'duel_leave', roomId: FT.mpRoomId });
   FT = null;
   afterAction(true);
   closeModal();
