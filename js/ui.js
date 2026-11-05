@@ -195,6 +195,7 @@ function hud() {
       <button class="icb" data-a="sound" title="Ses" aria-label="Ses">${ui(SFX.on ? 'sound' : 'mute')}</button>
       <button class="icb" data-a="chron" title="Ocak defteri" aria-label="Ocak defteri">${ui('book')}</button>
       <button class="icb" data-a="help" title="Nasıl oynanır ve ayarlar" aria-label="Nasıl oynanır">${ui('q')}</button>
+      <button class="mob-hub-btn" data-a="mob-hub-menu" title="Komuta Merkezi · Tüm Özellikler" aria-label="Tüm Özellikler Menüsü"><span>⊞</span><b>Menü</b></button>
     </div>${typeof partyBarHtml === 'function' ? partyBarHtml() : ''}`;
 }
 function dock() {
@@ -439,7 +440,19 @@ function ahirView() {
   const roster = n > 1 ? `<div class="roster">${pager('roster', S.dragons, 8, x => `<button class="rcell ${x.id === d.id ? 'on' : ''} ${needsOrder(x) ? 'idle' : 'set'} ${isStar(x) ? 'star' : ''}" data-a="sel" data-id="${x.id}" title="${esc(x.name)}${isStar(x) ? ' · yıldız' : supporting(x) ? ' · ' + ROLES[x.role].ad : needsOrder(x) ? ' · görev bekliyor' : ''}">${dragonSVG(x, { still: true })}<span>${esc(x.name)}</span>${x.wish ? '<i class="wdot" title="Bir dileği var"></i>' : ''}</button>`)}</div>` : '';
   const ct = d.task && d.task.t;
   const idleCount = S.dragons.filter(x => needsOrder(x)).length;
-  return `<div class="ahir">
+  const mobTab = UI.mobAhirTab || 'actions';
+  const mobQuickStats = `<div class="mob-ahir-quickstats">
+    <span><b>GÜÇ</b> ${d.st.gu}<small>/${capOf(d, 'gu')}</small></span>
+    <span><b>ÇEV</b> ${d.st.ce}<small>/${capOf(d, 'ce')}</small></span>
+    <span><b>DAY</b> ${d.st.da}<small>/${capOf(d, 'da')}</small></span>
+    <span><b>ZEK</b> ${d.st.ze}<small>/${capOf(d, 'ze')}</small></span>
+    <span class="${d.fat >= 60 ? 'bad' : d.fat >= 35 ? 'warn' : 'good'}">${ui('flame')}${d.fat}</span>
+  </div>`;
+  const mobTabs = `<div class="mob-ahir-tabs" role="tablist">
+    <button class="mob-ahir-tab ${mobTab === 'actions' ? 'on' : ''}" data-a="mob-ahir-tab" data-tab="actions" role="tab">⚡ Eylemler & Talim</button>
+    <button class="mob-ahir-tab ${mobTab === 'kunye' ? 'on' : ''}" data-a="mob-ahir-tab" data-tab="kunye" role="tab">📊 Künye, Genler & Evrim</button>
+  </div>`;
+  return `<div class="ahir mob-tab-${mobTab}">
     <div class="showroom">
       ${n > 1 ? `<button class="arrow l" data-a="sel" data-id="${prev.id}" aria-label="Önceki">${ui('left')}</button><button class="arrow r" data-a="sel" data-id="${next.id}" aria-label="Sonraki">${ui('right')}</button>` : ''}
       <div class="nameplate"><h2 data-a="rename-start" title="Adını değiştirmek için dokun">${esc(d.name)}</h2>${starBadge(d)}${titleTag(d)}
@@ -450,6 +463,8 @@ function ahirView() {
       <div class="ribbon ${busy ? 'busy' : tt || supporting(d) ? 'set' : 'idle'}"><span>${tt ? esc(tt) : supporting(d) ? `Destek: ${ROLES[d.role].ad} · her hafta` : 'Bu hafta görev bekliyor'}</span>${idleCount > 0 ? ` <button class="btn primary sm btn-auto-order" data-a="auto-assign-idle" title="Boştaki tüm ejderhalara yorgunluk ve potansiyellerine göre otomatik talim veya dinlenme nöbeti ata">Nöbet Dağıt (${idleCount})</button>` : ''}</div>
       ${roster}
     </div>
+    ${mobTabs}
+    ${mobQuickStats}
     <aside class="kunye">
       <div class="gauges">
         <div><span>Bağ</span>${heartGauge(d.bond)}</div>
@@ -2151,6 +2166,89 @@ ACT['title-zindan-go'] = () => {
 
 ACT.orders = () => { UI.view = 'pazar'; UI.stall = 'ejder'; UI.stallTab = 'sip'; UI.vsay = null; UI.sellArm = null; SFX.play('tab'); render(); };
 ACT['drawer-career'] = () => { const C = career(); if (!C) return; UI.view = 'ahir'; UI.sel = C.id; UI.drawer = 'career'; UI.tile = null; SFX.play('tab'); render(); };
+ACT['mob-ahir-tab'] = el => {
+  const tab = el.dataset.tab || 'actions';
+  UI.mobAhirTab = tab;
+  SFX.play('tab');
+  render();
+};
+function mobHubModal() {
+  if (!S) return;
+  const idle = S.dragons.filter(d => needsOrder(d)).length;
+  const chFc = typeof calcChibiStats === 'function' ? calcChibiStats().totalFc : 0;
+  const places = [
+    ['ocak', 'Ocak', 'İnşa & Parseller', ''],
+    ['ahir', 'Ahır', 'Talim & Bakım', idle ? `${idle} boşta` : ''],
+    ['yuva', 'Yuva', 'Kuluçka & Çiftler', S.eggs.length ? `${S.eggs.length} yumurta` : ''],
+    ['arena', 'Arena', 'Dövüş, Yarış & Saray', S.tour && !S.tour.done ? 'Turnuva!' : ''],
+    ['sefer', 'Sefer', 'Harita & Keşif', !S.flags.sefer ? 'Kilitli' : ''],
+    ['pazar', 'Pazar', 'Çarşı, Mezat & Han', ''],
+    ['meydan', 'Meydan', 'Canlı Kervansaray', ''],
+    ['kasaba', 'Kasaba', 'Diyar & Şehir', ''],
+    ['zindan', 'Zindan', 'Şahmeran & Kalgarot', '']
+  ];
+  showModal(`<div class="mob-cmd-sheet">
+    <header class="mob-cmd-head">
+      <div><small>KOMUTA MERKEZİ · TÜM ÖZELLİKLER</small><h3>Hafta ${S.week}/${SEASON} · ${seasonOf().ad}</h3></div>
+      <button class="icb" data-a="mclose" aria-label="Kapat">${ui('x')}</button>
+    </header>
+    <div class="mob-cmd-res">
+      <span>${ui('gold')} <b>${S.gold}</b> <small>(−${upkeepNow()}/hf)</small></span>
+      <span>${ui('un')} <b>${S.un}</b> <small>Ün</small></span>
+      <span>${ui('heart')} <b>${S.dragons.length}/${capacity()}</b> <small>İn</small></span>
+    </div>
+    <div class="mob-cmd-sec">Hızlı Komutlar & Karakter Sistemleri</div>
+    <div class="mob-cmd-grid2">
+      <button class="mob-cmd-card hi" data-a="mob-hub-act" data-act="chibi-open">
+        <span class="mc-ic">${ui('anvil')}</span>
+        <div><b>Terbiyeci & Kor Örsü</b><small>Kuşanma, +Basma · Kudret ${chFc}</small></div>
+      </button>
+      <button class="mob-cmd-card" data-a="mob-hub-act" data-act="bag-open">
+        <span class="mc-ic">${ui('gold')}</span>
+        <div><b>Sırt Çantası & Kiler</b><small>Eşyalar, İksirler & Yemler</small></div>
+      </button>
+      <button class="mob-cmd-card" data-a="mob-hub-act" data-act="soc-open">
+        <span class="mc-ic">${ui('crown')}</span>
+        <div><b>Sosyal & Lonca</b><small>Oyuncular, Parti & Dostlar</small></div>
+      </button>
+      <button class="mob-cmd-card ${idle ? 'hi' : ''}" data-a="mob-hub-act" data-act="auto-assign-idle">
+        <span class="mc-ic">${ui('train')}</span>
+        <div><b>Seyisbaşı Oto-Nöbet</b><small>${idle ? `${idle} boşta ejderhaya görev ata` : 'Tüm ejderhalar görevde'}</small></div>
+      </button>
+      <button class="mob-cmd-card" data-a="mob-hub-act" data-act="mp-card">
+        <span class="mc-ic">${ui('un')}</span>
+        <div><b>Ocak Fermanı & Sancak</b><small>Soy Kütüğü & Terbiyeci Kartı</small></div>
+      </button>
+      <button class="mob-cmd-card" data-a="mob-hub-act" data-act="codex-open">
+        <span class="mc-ic">${ui('book')}</span>
+        <div><b>Keşif Albümü & Kütük</b><small>Elementler, Genler & Koleksiyon</small></div>
+      </button>
+    </div>
+    <div class="mob-cmd-sec">9 Mekân & Diyar Geçişi</div>
+    <div class="mob-cmd-places">
+      ${places.map(([k, n, sub, b]) => `
+        <button class="mob-cmd-place ${UI.view === k ? 'on' : ''}" data-a="go" data-v="${k}" ${k === 'sefer' && !S.flags.sefer ? 'disabled' : ''}>
+          <span class="mcp-ic">${placeIcon(k)}</span>
+          <div class="mcp-txt"><b>${n}</b><small>${sub}</small></div>
+          ${b ? `<em class="mcp-badge">${b}</em>` : ''}
+        </button>
+      `).join('')}
+    </div>
+    <div class="mob-cmd-sec">Sistem, Defter & Ayarlar</div>
+    <div class="mob-cmd-foot">
+      <button class="btn ghost sm" data-a="mob-hub-act" data-act="chron">${ui('book')} Ocak Defteri</button>
+      <button class="btn ghost sm" data-a="mob-hub-act" data-act="sound">${ui(SFX.on ? 'sound' : 'mute')} Ses: ${SFX.on ? 'Açık' : 'Kapalı'}</button>
+      <button class="btn ghost sm" data-a="mob-hub-act" data-act="help">${ui('q')} Kayıt & Ayarlar</button>
+    </div>
+  </div>`, 'mob-cmd-modal');
+}
+ACT['mob-hub-menu'] = () => { SFX.play('tab'); mobHubModal(); };
+ACT['mob-hub-act'] = el => {
+  const act = el.dataset.act;
+  if (act === 'sound') { SFX.toggle(); mobHubModal(); render(); return; }
+  closeModal();
+  if (ACT[act]) ACT[act](el);
+};
 ACT_IC.role = '<path d="M24 5 L29.5 18 L43.5 19 L32.8 28.2 L36.2 42 L24 34.6 L11.8 42 L15.2 28.2 L4.5 19 L18.5 18 Z" fill="#f4c24a" stroke="#6a4a14" stroke-width="2.5" stroke-linejoin="round"/>';
 function clearPartner(d) { if (d.task && d.task.p) { const P = byId(d.task.p); if (P && P.task && P.task.p === d.id) P.task = null; } }
 function pairTask(x, y, kind) {
@@ -2254,6 +2352,19 @@ document.addEventListener('touchstart', e => { if (UI.view === 'ahir' && e.targe
 document.addEventListener('touchend', e => {
   if (TX == null) return; const dx = e.changedTouches[0].clientX - TX; TX = null;
   if (Math.abs(dx) > 50 && S && S.dragons.length > 1) { const i = S.dragons.findIndex(d => d.id === UI.sel), n = S.dragons.length; const j = dx > 0 ? (i - 1 + n) % n : (i + 1) % n; ACT.sel({ dataset: { id: S.dragons[j].id } }); }
+});
+// Mobil dokunmatik ekranlarda basılı tutunca mavi metin seçimi / sağ tık menüsü çıkmasını engelle
+document.addEventListener('selectstart', e => {
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if (e.cancelable) e.preventDefault();
+});
+document.addEventListener('contextmenu', e => {
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if (window.matchMedia('(max-width: 1024px), (pointer: coarse)').matches || e.target?.closest?.('.racem, .cstage, .fight, .saraym, canvas')) {
+    if (e.cancelable) e.preventDefault();
+  }
 });
 
 /* ---------- açılış ---------- */

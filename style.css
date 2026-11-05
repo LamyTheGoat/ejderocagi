@@ -28,7 +28,18 @@
   --f-ui: 'Alegreya Sans', 'Segoe UI', system-ui, sans-serif;
   color-scheme: dark;
 }
-* { box-sizing: border-box; }
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+.mob-hub-btn, .mob-ahir-tabs, .mob-ahir-quickstats { display: none; }
 html, body { height: 100%; }
 body { background: var(--night); color: var(--ink); font-family: var(--f-ui); font-size: 16px; line-height: 1.4; overflow: hidden; }
 button, input { font: inherit; color: inherit; }
@@ -1407,13 +1418,17 @@ button.roleb:hover, button.starb:hover { filter: brightness(1.15); transform: tr
 .rgaps { position: absolute; z-index: 5; top: 64px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; pointer-events: none; }
 .rgaps span { padding: 2px 10px; border-radius: 99px; background: rgba(10, 4, 6, .72); font-size: 13px; color: #f4e6d0; } .rgaps span:empty { display: none; }
 .rgaps span.hot { background: #6a1a0e; box-shadow: 0 0 10px rgba(255, 120, 60, .7); }
-.rhirs { position: absolute; z-index: 5; left: 16px; bottom: 18px; display: flex; align-items: center; gap: 8px; pointer-events: none; }
+.rhirs { position: absolute; z-index: 5; left: 16px; bottom: 116px; display: flex; align-items: center; gap: 8px; pointer-events: none; }
 .rhirs b { font-family: var(--f-disp); font-size: 20px; color: #fff3dc; text-shadow: 0 2px 4px #000; }
 .rhirs span { position: relative; width: clamp(140px, 18vw, 240px); height: 14px; border-radius: 99px; background: rgba(10, 4, 6, .75); border: 2px solid #8a6a36; overflow: hidden; }
 .rhirs i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, #c8462a, #ffb04a); transition: width .1s; }
 .rhirs s { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 2px; background: #fff3dc; opacity: .7; }
 .rhirs.ready i { background: linear-gradient(90deg, #ff7a3a, #ffe07a); box-shadow: 0 0 10px #ffd23a; } .rhirs.no { animation: shakeX .3s; }
 @keyframes shakeX { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.rhold { position: absolute; z-index: 6; left: 16px; bottom: 14px; width: 92px; height: 92px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: radial-gradient(circle at 40% 35%, #384e78, #19243a); border: 3px solid #7aa6e8; color: #e8f2ff; font-family: var(--f-disp); cursor: pointer; touch-action: none; transition: transform .1s, box-shadow .15s, border-color .15s; text-align: center; padding: 4px; }
+.rhold b { font-size: 16px; line-height: 1.05; } .rhold small { font-family: system-ui, sans-serif; font-size: 9.5px; opacity: .88; line-height: 1.1; }
+.rhold.holding, .racem.holding .rhold { transform: scale(.93); background: radial-gradient(circle at 40% 35%, #5894e8, #284c8a); border-color: #ffe07a; color: #fff; box-shadow: 0 0 26px rgba(120, 195, 255, .95), inset 0 0 12px rgba(255, 230, 140, .55); }
 .rdash { position: absolute; z-index: 6; right: 16px; bottom: 14px; width: 92px; height: 92px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   background: radial-gradient(circle at 40% 35%, #5a3a28, #2a1a12); border: 3px solid #6a5034; color: #a89070; font-family: var(--f-disp); cursor: pointer; touch-action: none; transition: transform .1s; }
 .rdash b { font-size: 26px; line-height: 1; } .rdash small { font-family: system-ui, sans-serif; font-size: 10px; opacity: .8; }
@@ -1466,7 +1481,9 @@ button.roleb:hover, button.starb:hover { filter: brightness(1.15); transform: tr
 @media (max-width: 760px), (max-height: 520px) {
   .rdr { width: clamp(150px, 30vw, 260px); } .rrv { width: clamp(120px, 24vw, 210px); }
   .rgaps { top: 54px; } .rgaps span { font-size: 11px; } .rrank b { font-size: 28px; } .rrank small { font-size: 14px; }
-  .rdash { width: 74px; height: 74px; } .rdash b { font-size: 20px; } .rdash small { display: none; }
+  .rhirs { bottom: 98px; left: 12px; }
+  .rhold { width: 78px; height: 78px; left: 12px; bottom: 12px; } .rhold b { font-size: 13.5px; } .rhold small { font-size: 8.5px; }
+  .rdash { width: 78px; height: 78px; right: 12px; bottom: 12px; } .rdash b { font-size: 20px; } .rdash small { display: none; }
   .rcom { bottom: 50px; max-width: 70vw; } .rcom span { font-size: 12px; }
   .rsay { font-size: 12px; padding: 3px 8px; } .rtag { font-size: 10px; }
   .rhint { bottom: 100px; font-size: 12px; }
@@ -11112,11 +11129,184 @@ button.kir-die{cursor:pointer}
     position: relative !important;
     top: 0 !important;
     z-index: 5 !important;
-    padding: 10px 14px 12px !important;
+    padding: 14px 14px 10px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
     gap: 10px !important;
+  }
+  .drawer > header::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 5px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 38px !important;
+    height: 4px !important;
+    border-radius: 99px !important;
+    background: rgba(217, 176, 98, 0.55) !important;
+    pointer-events: none !important;
+  }
+  .modal.mob-cmd-modal {
+    width: min(98vw, 560px) !important;
+    max-width: calc(100vw - 12px) !important;
+    max-height: calc(100dvh - 18px) !important;
+    padding: 14px 12px !important;
+    border-radius: 16px !important;
+    background: linear-gradient(180deg, rgba(28, 19, 13, 0.98), rgba(14, 9, 6, 0.99)) !important;
+    border: 1.5px solid #d9b062 !important;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.92), inset 0 1px 0 rgba(255, 224, 160, 0.25) !important;
+  }
+  .mob-cmd-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .mob-cmd-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(217, 176, 98, 0.28);
+  }
+  .mob-cmd-head small {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--brass);
+    font-weight: 800;
+  }
+  .mob-cmd-head h3 {
+    font-family: var(--f-disp);
+    font-size: 22px;
+    color: #fff3dc;
+    margin: 0;
+  }
+  .mob-cmd-res {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .mob-cmd-res > span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.42);
+    border: 1px solid rgba(217, 176, 98, 0.3);
+    font-size: 13px;
+  }
+  .mob-cmd-res small {
+    font-size: 10px;
+    color: var(--mute);
+  }
+  .mob-cmd-sec {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--brass);
+    margin-top: 2px;
+  }
+  .mob-cmd-grid2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+  .mob-cmd-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(38, 25, 16, 0.9);
+    border: 1px solid rgba(196, 148, 74, 0.4);
+    text-align: left;
+    color: var(--ink);
+  }
+  .mob-cmd-card.hi {
+    background: linear-gradient(135deg, rgba(78, 42, 18, 0.95), rgba(42, 22, 10, 0.95));
+    border-color: #f0b85a;
+  }
+  .mob-cmd-card .mc-ic {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(217, 176, 98, 0.35);
+    display: grid;
+    place-items: center;
+    flex: none;
+  }
+  .mob-cmd-card b {
+    display: block;
+    font-size: 13px;
+    line-height: 1.15;
+    color: #fff3dc;
+  }
+  .mob-cmd-card small {
+    display: block;
+    font-size: 10.5px;
+    color: var(--ink2);
+    line-height: 1.15;
+  }
+  .mob-cmd-places {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .mob-cmd-place {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 8px 6px;
+    border-radius: 10px;
+    background: rgba(26, 18, 12, 0.92);
+    border: 1px solid rgba(196, 148, 74, 0.35);
+    text-align: center;
+  }
+  .mob-cmd-place.on {
+    background: linear-gradient(180deg, rgba(88, 50, 20, 0.96), rgba(44, 24, 10, 0.98));
+    border-color: #ffd26a;
+  }
+  .mob-cmd-place .mcp-ic {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+  }
+  .mob-cmd-place b {
+    display: block;
+    font-size: 12.5px;
+    color: #fff3dc;
+  }
+  .mob-cmd-place small {
+    display: block;
+    font-size: 9.5px;
+    color: var(--mute);
+    line-height: 1.1;
+  }
+  .mob-cmd-place .mcp-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-style: normal;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 99px;
+    background: #c8462a;
+    color: #fff;
+  }
+  .mob-cmd-foot {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
   }
   .drawer > header h3 {
     font-size: 20px !important;
@@ -11328,42 +11518,41 @@ button.kir-die{cursor:pointer}
 /* 2. Telefon ve Dar Ekranlar (Dikey <= 760px) — HUD, Dock, Sahne ve Tüm Görünümler */
 @media (max-width: 760px) {
   :root {
-    --mob-hud-h: 82px;
-    --mob-dock-h: 98px;
+    --mob-hud-h: 48px;
+    --mob-dock-h: 74px;
   }
 
-  /* --- Üst HUD: Sıkı, 2 Satırlı, Birbirine Girmeyen Düzen --- */
+  /* --- Üst HUD: Modern Mobil RPG Tarzı Tek Satır Kompakt Durum Çubuğu + ⊞ Menü --- */
   #hud {
     padding: calc(4px + env(safe-area-inset-top, 0px)) 6px 4px !important;
-    gap: 4px 6px !important;
-    flex-wrap: wrap !important;
+    gap: 4px !important;
+    flex-wrap: nowrap !important;
     align-items: center !important;
     justify-content: space-between !important;
-    min-height: 0 !important;
+    min-height: 44px !important;
   }
   .hud-l {
     gap: 4px !important;
-    flex: 0 1 auto !important;
+    flex: 0 0 auto !important;
     min-width: 0 !important;
     flex-wrap: nowrap !important;
   }
-  .crest {
-    width: 28px !important;
-    height: 28px !important;
-    flex: none !important;
-  }
-  .hud-name {
+  .crest,
+  .hud-name,
+  .hud-bag-btn,
+  .hud-soc-btn,
+  .hud-r .icb {
     display: none !important;
   }
   .hud-chibi-btn {
     margin-left: 0 !important;
     padding: 2px 7px 2px 3px !important;
     gap: 4px !important;
-    height: 28px !important;
+    height: 30px !important;
   }
   .hud-ch-mini {
-    width: 22px !important;
-    height: 22px !important;
+    width: 24px !important;
+    height: 24px !important;
   }
   .hud-ch-txt b {
     font-size: 11px !important;
@@ -11373,88 +11562,92 @@ button.kir-die{cursor:pointer}
     font-size: 9px !important;
     line-height: 1 !important;
   }
-  .hud-bag-btn,
-  .hud-soc-btn {
-    margin-left: 0 !important;
-    padding: 3px 7px !important;
-    font-size: 11px !important;
-    height: 28px !important;
-    display: inline-flex !important;
-    align-items: center !important;
+
+  .hud-c {
+    order: 2 !important;
+    flex: 0 1 auto !important;
+    width: auto !important;
+    padding: 0 2px !important;
     gap: 3px !important;
+    justify-content: center !important;
+    min-height: 0 !important;
+  }
+  .wk {
+    font-size: 11.5px !important;
+    gap: 3px !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    padding: 3px 7px !important;
+    border-radius: 99px !important;
+    background: rgba(0, 0, 0, 0.38) !important;
+    border: 1px solid rgba(217, 176, 98, 0.3) !important;
+  }
+  .wk span:first-of-type {
+    display: none !important;
+  }
+  .wk b {
+    font-size: 13px !important;
+  }
+  .wk .ssn,
+  .wk .tourflag,
+  .ticks {
+    display: none !important;
   }
 
   .hud-r {
-    gap: 3px !important;
+    order: 3 !important;
+    gap: 4px !important;
     flex: 0 1 auto !important;
     justify-content: flex-end !important;
     flex-wrap: nowrap !important;
+    align-items: center !important;
   }
   .res {
     padding: 2px 6px !important;
     gap: 3px !important;
-    min-height: 26px !important;
+    min-height: 28px !important;
   }
   .res small,
   .save-badge {
     display: none !important;
   }
   .res b {
-    font-size: 13px !important;
+    font-size: 12.5px !important;
   }
   .res .ui-ic {
-    width: 14px !important;
-    height: 14px !important;
+    width: 13px !important;
+    height: 13px !important;
   }
-  .icb {
-    width: 27px !important;
-    height: 27px !important;
-  }
-
-  .hud-c {
-    order: 3 !important;
-    flex-basis: 100% !important;
-    width: 100% !important;
-    padding: 2px 6px !important;
-    gap: 6px !important;
-    justify-content: space-between !important;
-    min-height: 24px !important;
-  }
-  .wk {
-    font-size: 12px !important;
+  .mob-hub-btn {
+    display: inline-flex !important;
+    align-items: center !important;
     gap: 4px !important;
-    flex-wrap: nowrap !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
+    height: 30px !important;
+    padding: 0 9px !important;
+    border-radius: 8px !important;
+    background: linear-gradient(180deg, #5c3a1e, #311c0d) !important;
+    border: 1.5px solid #e6b45a !important;
+    color: #fff3dc !important;
+    font-size: 11.5px !important;
+    font-weight: 800 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 228, 170, 0.3) !important;
+    flex: none !important;
   }
-  .wk b {
+  .mob-hub-btn span {
     font-size: 14px !important;
-  }
-  .wk .ssn,
-  .wk .tourflag {
-    font-size: 10px !important;
-    padding: 1px 5px !important;
-    max-width: 120px !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-  }
-  .ticks {
-    flex: 1 !important;
-    min-width: 60px !important;
-    max-width: 120px !important;
-    gap: 2px !important;
-  }
-  .ticks i {
-    height: 5px !important;
+    line-height: 1 !important;
+    color: #ffd26a !important;
   }
 
   /* Parti Barı ve Sosyal Davetler HUD'u kapatmasın */
   .soc-partybar {
-    position: static !important;
-    order: 4 !important;
-    flex-basis: 100% !important;
-    max-width: 100% !important;
+    position: fixed !important;
+    top: calc(var(--mob-hud-h) + 2px) !important;
+    left: 6px !important;
+    right: 6px !important;
+    z-index: 80 !important;
+    max-width: calc(100vw - 12px) !important;
     padding: 3px 6px !important;
     gap: 4px !important;
     overflow-x: auto !important;
@@ -11475,12 +11668,12 @@ button.kir-die{cursor:pointer}
     max-width: 100vw !important;
   }
 
-  /* --- Alt Dock: Dikey Oynanış İçin 5x2 (10 Hücreli) Ergonomik Başparmak Izgarası --- */
+  /* --- Alt Dock: Dikey Oynanış İçin 5x2 (10 Hücreli) Kompakt Başparmak Izgarası --- */
   #dock {
-    padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 3px 5px calc(3px + env(safe-area-inset-bottom, 0px)) !important;
     display: grid !important;
     grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-    gap: 4px !important;
+    gap: 3px !important;
     align-items: stretch !important;
     background: linear-gradient(180deg, rgba(16, 11, 8, 0.98), rgba(8, 5, 4, 1)) !important;
     border-top: 1px solid rgba(196, 148, 74, 0.35) !important;
@@ -11493,7 +11686,7 @@ button.kir-die{cursor:pointer}
   .place.kasaba-place {
     width: 100% !important;
     min-width: 0 !important;
-    height: 41px !important;
+    height: 32px !important;
     padding: 2px 3px !important;
     margin: 0 !important;
     transform: none !important;
@@ -11501,8 +11694,8 @@ button.kir-die{cursor:pointer}
     flex-direction: row !important;
     align-items: center !important;
     justify-content: flex-start !important;
-    gap: 4px !important;
-    border-radius: 8px !important;
+    gap: 3px !important;
+    border-radius: 7px !important;
     background: rgba(28, 18, 11, 0.92) !important;
     border: 1px solid rgba(196, 148, 74, 0.38) !important;
     box-shadow: none !important;
@@ -11519,20 +11712,20 @@ button.kir-die{cursor:pointer}
   .place.kasaba-place .medal,
   .place.on .medal,
   .place.kasaba-place.on .medal {
-    width: 26px !important;
-    height: 26px !important;
+    width: 22px !important;
+    height: 22px !important;
     flex: none !important;
     transform: none !important;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.65) !important;
   }
   .place .medal .pic,
   .place.kasaba-place .medal .pic {
-    width: 18px !important;
-    height: 18px !important;
+    width: 15px !important;
+    height: 15px !important;
   }
   .place .pn,
   .place.kasaba-place .pn {
-    font-size: 11px !important;
+    font-size: 10.5px !important;
     line-height: 1.1 !important;
     white-space: nowrap !important;
     overflow: hidden !important;
@@ -11543,27 +11736,27 @@ button.kir-die{cursor:pointer}
   .place .badge {
     top: -3px !important;
     right: -2px !important;
-    min-width: 15px !important;
-    height: 15px !important;
-    font-size: 9.5px !important;
+    min-width: 14px !important;
+    height: 14px !important;
+    font-size: 9px !important;
     padding: 0 3px !important;
   }
   .endweek {
     width: 100% !important;
     min-width: 0 !important;
-    height: 41px !important;
-    min-height: 41px !important;
-    padding: 2px 5px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 2px 4px !important;
     justify-content: flex-start !important;
     align-items: center !important;
-    gap: 4px !important;
-    border-radius: 8px !important;
+    gap: 3px !important;
+    border-radius: 7px !important;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7) !important;
     box-sizing: border-box !important;
   }
   .endweek .lantern {
-    width: 22px !important;
-    height: 22px !important;
+    width: 19px !important;
+    height: 19px !important;
     flex: none !important;
   }
   .endweek > div {
@@ -11573,7 +11766,7 @@ button.kir-die{cursor:pointer}
     line-height: 1.05 !important;
   }
   .endweek b {
-    font-size: 10.5px !important;
+    font-size: 10px !important;
     display: block !important;
     margin: 0 !important;
     white-space: nowrap !important;
@@ -11581,7 +11774,7 @@ button.kir-die{cursor:pointer}
     text-overflow: ellipsis !important;
   }
   .endweek small {
-    font-size: 8.5px !important;
+    font-size: 8px !important;
     display: block !important;
     white-space: nowrap !important;
     overflow: hidden !important;
@@ -11674,29 +11867,29 @@ button.kir-die{cursor:pointer}
     box-sizing: border-box !important;
   }
 
-  /* --- 2. AHIR (GALERİ) GÖRÜNÜMÜ --- */
+  /* --- 2. AHIR (GALERİ) GÖRÜNÜMÜ (Uma Musume Tarzı 2-Sekmeli Kademeli Açılım) --- */
   .ahir {
     display: flex !important;
     flex-direction: column !important;
-    gap: 10px !important;
+    gap: 8px !important;
     height: auto !important;
     min-height: min-content !important;
   }
   .showroom {
-    min-height: 270px !important;
-    padding: 8px 4px 12px !important;
+    min-height: 230px !important;
+    padding: 6px 4px 10px !important;
   }
   .nameplate h2 {
-    font-size: 28px !important;
+    font-size: 25px !important;
   }
   .nameplate .sub {
-    font-size: 12px !important;
+    font-size: 11.5px !important;
     flex-wrap: wrap !important;
     justify-content: center !important;
   }
   .hero-dr {
-    width: min(74vw, 280px) !important;
-    max-height: 210px !important;
+    width: min(68vw, 240px) !important;
+    max-height: 175px !important;
   }
   .arrow.l {
     left: 4px !important;
@@ -11712,12 +11905,66 @@ button.kir-die{cursor:pointer}
   .roster {
     flex-wrap: wrap !important;
     justify-content: center !important;
-    gap: 6px !important;
+    gap: 5px !important;
     max-width: 100% !important;
   }
   .rslot {
-    width: 58px !important;
+    width: 54px !important;
+    padding: 3px !important;
+  }
+  .mob-ahir-tabs {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px !important;
     padding: 4px !important;
+    border-radius: 10px !important;
+    background: rgba(14, 9, 6, 0.92) !important;
+    border: 1px solid rgba(217, 176, 98, 0.38) !important;
+  }
+  .mob-ahir-tab {
+    padding: 8px 10px !important;
+    border-radius: 7px !important;
+    font-size: 12.5px !important;
+    font-weight: 800 !important;
+    color: var(--ink2) !important;
+    background: transparent !important;
+    text-align: center !important;
+  }
+  .mob-ahir-tab.on {
+    background: linear-gradient(180deg, #ff9a52, #c95a26) !important;
+    color: #241004 !important;
+    box-shadow: 0 2px 8px rgba(239, 127, 62, 0.4) !important;
+  }
+  .mob-ahir-quickstats {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 4px !important;
+    padding: 6px 10px !important;
+    border-radius: 9px !important;
+    background: rgba(18, 12, 8, 0.88) !important;
+    border: 1px solid rgba(217, 176, 98, 0.3) !important;
+    font-size: 12px !important;
+  }
+  .mob-ahir-quickstats span {
+    display: inline-flex !important;
+    align-items: baseline !important;
+    gap: 2px !important;
+  }
+  .mob-ahir-quickstats b {
+    font-size: 11px !important;
+    color: var(--brass) !important;
+  }
+  .mob-ahir-quickstats small {
+    font-size: 10px !important;
+    color: var(--mute) !important;
+  }
+  .ahir.mob-tab-actions .kunye {
+    display: none !important;
+  }
+  .ahir.mob-tab-kunye .actions,
+  .ahir.mob-tab-kunye .mob-ahir-quickstats {
+    display: none !important;
   }
   .ahir .actions {
     display: grid !important;
