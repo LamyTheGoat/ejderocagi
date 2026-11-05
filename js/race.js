@@ -90,6 +90,8 @@ function raceStart(d, race, practice) {
   for (let x = 2.2; x < RC.L - 1; x += .9 + Rn() * .7) RC.rings.push({ x, y: .2 + Rn() * .6, hit: false });
   for (let x = 3.4; x < RC.L - 1.5; x += 1.3 + Rn() * 1.1) RC.obs.push({ x, y: .15 + Rn() * .7, k: Rn() < .55 ? 'bulut' : 'kaya', hit: false });
   showModal(raceHtml(), 'racewrap'); raceBind();
+  if (typeof SFX !== 'undefined' && SFX.preload) SFX.preload();
+  if (typeof BGM !== 'undefined' && BGM.sync) BGM.sync();
   if (window.__fastFx) return raceAuto();
   RC.last = performance.now(); requestAnimationFrame(raceTick);
 }
@@ -120,6 +122,10 @@ function raceBind() {
   const rholdBtn = $('#rhold');
   const setHold = v => {
     if (!RC) return;
+    if (v) {
+      if (typeof SFX !== 'undefined' && SFX.preload) SFX.preload();
+      if (typeof BGM !== 'undefined' && BGM.sync) BGM.sync();
+    }
     RC.hold = !!v;
     m.classList.toggle('holding', !!v);
     rholdBtn?.classList.toggle('holding', !!v);

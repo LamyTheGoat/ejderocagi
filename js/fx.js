@@ -235,6 +235,7 @@ const SFX = (() => {
     guard: () => { tone(220, 0.25, 'triangle', 0.12, 330); },
     heart: () => { tone(660, 0.12, 'sine', 0.08); tone(880, 0.2, 'sine', 0.08, null, 0.1); },
     page: () => { noise(0.18, 0.12, 4000, 1, 'highpass'); },
+    wing: () => { noise(0.22, 0.22, 320, 0.9, 'bandpass', 0, 140); },
     bell: () => { [0, 0.02].forEach(d => { tone(392, 1.6, 'sine', 0.12, null, d); tone(784, 1.2, 'sine', 0.05, null, d); }); },
     win: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.35, 'triangle', 0.1, null, i * 0.12)); },
     lose: () => { [392, 330, 262].forEach((f, i) => tone(f, 0.45, 'triangle', 0.1, null, i * 0.18)); },
@@ -277,7 +278,7 @@ const SFX = (() => {
   };
   // Sentezde karşılığı olmayan yeni anahtarlar en yakın eski sese düşer.
   const ALIAS = { goal: 'bell', error: 'tick', roarS: 'roar', card: 'roar', ko: 'crit', stun: 'miss', cheer: 'win', boo: 'lose', gasp: 'miss', drum: 'build', horn: 'bell',
-    sad: 'lose', chirp: 'heart', grow: 'win', wash: 'page', eat: 'heart', ball: 'coin', ring: 'coin', gavel: 'tick', sold: 'win', chatter: 'page' };
+    sad: 'lose', chirp: 'heart', grow: 'win', wash: 'page', eat: 'heart', ball: 'coin', ring: 'coin', wing: 'page', gavel: 'tick', sold: 'win', chatter: 'page' };
   const BUF = {}, LOAD = {}; let base = 'sfx/', loaded = false;
   function fileUrl(f) { return base + f + '.mp3'; }
   function loadAll() {
@@ -362,20 +363,46 @@ const BGM = (() => {
     return ambVol;
   }
   const takes = n => (window.SFX_HAVE || []).filter(f => f === n || (f.startsWith(n + '-') && /^\d+$/.test(f.slice(n.length + 1))));
+  function ensureEl(c) {
+    const C = ch[c];
+    if (!C.el) {
+      const el = new Audio();
+      el.preload = 'auto';
+      el.volume = 0;
+      el.addEventListener('ended', () => {
+        if (!C.list || !C.list.length) return;
+        if (C.list.length > 1) C.idx = (C.idx + 1 + Math.floor(Math.random() * (C.list.length - 1))) % C.list.length;
+        el.src = 'sfx/' + C.list[C.idx] + '.mp3';
+        el.play().catch(() => { });
+      });
+      C.el = el;
+    }
+    return C.el;
+  }
   function start(c, n) {
-    const C = ch[c], list = takes(n); if (!list.length) { C.name = n; C.el = null; return; }
-    let i = Math.floor(Math.random() * list.length);
-    const el = new Audio(); el.preload = 'auto'; el.volume = 0;
-    const next = () => { if (list.length > 1) i = (i + 1 + Math.floor(Math.random() * (list.length - 1))) % list.length; el.src = 'sfx/' + list[i] + '.mp3'; el.play().catch(() => { }); };
-    el.loop = list.length === 1; el.addEventListener('ended', next);
-    el.src = 'sfx/' + list[i] + '.mp3'; el.play().catch(() => { });
-    C.name = n; C.el = el; C.v = 0;
+    const C = ch[c], list = takes(n);
+    if (!list.length) { C.name = n; if (C.el) { C.el.pause(); } return; }
+    const el = ensureEl(c);
+    C.list = list;
+    C.idx = Math.floor(Math.random() * list.length);
+    el.loop = list.length === 1;
+    el.src = 'sfx/' + list[C.idx] + '.mp3';
+    el.volume = Math.max(0, Math.min(1, C.v || 0.05));
+    el.play().catch(() => { });
+    C.name = n;
   }
   function set(c, n, tv) {
     const C = ch[c]; C.tv = n ? tv : 0;
-    if (n === C.name) return;
-    if (C.el) dying.push({ el: C.el, v: C.v }); C.el = null; C.name = null;
-    if (n) start(c, n);
+    if (n === C.name) {
+      if (n && C.el && C.el.paused && C.tv > 0) C.el.play().catch(() => { });
+      return;
+    }
+    if (!n) {
+      C.name = null;
+      if (C.el) { C.el.pause(); C.v = 0; }
+      return;
+    }
+    start(c, n);
   }
   function want() {
     const raidOpen = typeof SHM !== 'undefined' && SHM && SHM.open;
@@ -410,7 +437,7 @@ const BGM = (() => {
     else if (view === 'zindan' || (view === 'arena' && pit)) mus = first('mus-cukur', 'mus-arena', 'mus-ocak');
     else if (view === 'kasaba') mus = first('mus-ocak-2', 'mus-ocak');
     else mus = 'mus-ocak';
-    const amb = fight ? (pit ? 'amb-cukur' : 'amb-arena') : race ? null : {
+    const amb = fight ? (pit ? 'amb-cukur' : 'amb-arena') : race ? 'amb-arena' : {
       ocak: 'amb-ocak',
       kasaba: 'amb-ocak',
       ahir: 'amb-ocak',
@@ -420,7 +447,7 @@ const BGM = (() => {
       zindan: 'amb-cukur',
       arena: pit ? 'amb-cukur' : 'amb-arena'
     }[view] || null;
-    return { mus, amb, ambV: mood ? VOL.amb * .35 : fight ? VOL.amb * .55 : VOL.amb };
+    return { mus, amb, ambV: mood ? VOL.amb * .35 : (fight || race) ? VOL.amb * .55 : VOL.amb };
   }
   function tick() {
     const on = SFX.on && started, w = want(), duck = performance.now() < duckT ? .25 : 1;
@@ -429,12 +456,17 @@ const BGM = (() => {
     for (const c of ['mus', 'amb']) { const C = ch[c]; if (!C.el) continue; C.v += (C.tv - C.v) * .18; C.el.volume = Math.max(0, Math.min(1, C.v)); }
     for (let i = dying.length - 1; i >= 0; i--) { const d = dying[i]; d.v *= .78; d.el.volume = Math.max(0, d.v); if (d.v < .01) { d.el.pause(); d.el.src = ''; dying.splice(i, 1); } }
   }
-  function begin() { if (started) return; started = true; setInterval(tick, 100); }
+  function sync() {
+    if (!started) begin();
+    tick();
+  }
+  function begin() { if (started) return; started = true; ensureEl('mus'); ensureEl('amb'); tick(); setInterval(tick, 100); }
   function toggle() { musOn = !musOn; try { localStorage.setItem('ejder-muzik', musOn ? '1' : '0'); } catch (e) { } return musOn; }
-  return { begin, toggle, getVol, setVol, getAmbVol, setAmbVol, mood(m) { mood = m; }, duck(ms = 3200) { duckT = performance.now() + ms; }, get on() { return musOn; }, get state() { return { mus: ch.mus.name, amb: ch.amb.name, mv: +ch.mus.v.toFixed(2), av: +ch.amb.v.toFixed(2) }; } };
+  return { begin, sync, toggle, getVol, setVol, getAmbVol, setAmbVol, mood(m) { mood = m; }, duck(ms = 3200) { duckT = performance.now() + ms; }, get on() { return musOn; }, get state() { return { mus: ch.mus.name, amb: ch.amb.name, mv: +ch.mus.v.toFixed(2), av: +ch.amb.v.toFixed(2) }; } };
 })();
 
-document.addEventListener('pointerdown', () => { SFX.preload(); BGM.begin(); }, { once: true, capture: true });
+document.addEventListener('pointerdown', () => { SFX.preload(); BGM.begin(); BGM.sync(); }, { passive: true, capture: true });
+document.addEventListener('touchstart', () => { SFX.preload(); BGM.begin(); BGM.sync(); }, { passive: true, capture: true });
 
 /* ---------- Ekran sarsıntısı, daktilo ---------- */
 function shake(el, strong) { if (REDUCED || !el) return; el.classList.remove('shake', 'shake2'); void el.offsetWidth; el.classList.add(strong ? 'shake2' : 'shake'); }
