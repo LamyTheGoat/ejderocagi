@@ -359,17 +359,21 @@ function bindSarayEvents() {
 
   const holdBtn = $('#s-hold-btn');
   if (holdBtn && PG.phase === 3) {
-    holdBtn.addEventListener('pointerdown', e => {
-      e.preventDefault();
-      PG.hold = true;
-      SFX.play('wing');
-    });
-    window.addEventListener('pointerup', () => {
+    const releaseHold = () => {
+      window.removeEventListener('pointerup', releaseHold);
+      window.removeEventListener('pointercancel', releaseHold);
       if (PG && PG.phase === 3 && PG.hold) {
         PG.hold = false;
         resolveSarayPhase3();
       }
-    }, { once: true });
+    };
+    holdBtn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      PG.hold = true;
+      SFX.play('wing');
+      window.addEventListener('pointerup', releaseHold);
+      window.addEventListener('pointercancel', releaseHold);
+    });
   }
 
   PG.keyFn = e => {

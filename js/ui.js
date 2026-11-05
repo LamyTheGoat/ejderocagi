@@ -132,7 +132,7 @@ const VIEWS = {
   ocak: { ad: 'Ocak', scene: () => ['ocak' + Math.ceil(S.week / 5), sceneOcak(S.week), seasonOf().fx], draw: () => ocakView() },
   ahir: { ad: 'Ahır', scene: () => { const d = byId(UI.sel); return ['ahir-' + (d ? d.el : 'ates'), sceneAhir(d ? d.el : 'ates'), 'torch']; }, draw: () => ahirView() },
   yuva: { ad: 'Yuva', scene: () => ['yuva', sceneYuva(), 'fireflies'], draw: () => yuvaView() },
-  arena: { ad: 'Arena', scene: () => UI.arenaTier === 'cukur' ? ['pit', scenePit(), 'embers'] : UI.arenaTier === 'saray' ? ['saray', sceneArena(), 'fireflies'] : UI.arenaTier === 'kule' ? ['kule', scenePit(), 'stars'] : ['arena', sceneArena(), 'dust'], draw: () => arenaView() },
+  arena: { ad: 'Arena', scene: () => UI.arenaTier === 'cukur' ? ['pit', scenePit(), 'embers'] : UI.arenaTier === 'saray' ? ['saray', sceneArena(), 'fireflies'] : UI.arenaTier === 'kule' ? ['kule', scenePit(), 'stars'] : UI.arenaTier === 'yaris' ? ['kayalik', sceneArena(), 'dust'] : ['arena', sceneArena(), 'dust'], draw: () => arenaView() },
   sefer: { ad: 'Sefer', scene: () => ['table', tableScene(), null], draw: () => seferView() },
   pazar: { ad: 'Pazar', scene: () => [UI.stall === 'bedesten' ? 'bedesten' : UI.vendor ? 'pazar' : 'pazar-iso', scenePazar(), 'lanterns'], draw: () => pazarView() },
   meydan: { ad: 'Meydan', scene: () => ['meydan', scenePazar(), 'lanterns'], draw: () => meydanView() },
@@ -305,7 +305,37 @@ function ocakView() {
   });
   const ocakPortraitList = `
     <div class="mob-portrait-list ocak-portrait-list">
-      <div class="mob-sec-title">Ocak Yapıları ve Parseller (${builtTiles.length} Bina · ${emptyTiles.length} Boş Arsa)</div>
+      <div class="mob-ocak-Quickbar">
+        ${idleCount > 0 ? `<button class="btn primary sm" data-a="auto-assign-idle">${ui('train')} Nöbet Dağıt (${idleCount} Boşta)</button>` : `<span class="tag good">Tüm ejderhalar görevde</span>`}
+        ${eggsK ? `<span class="tag">${ui('egg')} Kuluçkada ${eggsK} yumurta</span>` : ''}
+        <button class="btn ghost sm" data-a="mob-view-toggle">Harita Görünümü</button>
+      </div>
+      <div class="mob-sec-title">8×6 Ocak Parsel Haritası (Parsel Seçmek İçin Dokun)</div>
+      <div class="mob-ocak-mini-grid">
+        ${S.grid.map((t, idx) => {
+          const isSel = UI.tile === idx;
+          if (t.open && t.b) {
+            const B = BUILD[t.b];
+            return `<button class="mob-parcel built ${isSel ? 'sel' : ''}" data-a="tile" data-i="${idx}" title="${esc(B.ad)}">
+              <span class="mp-ic">${buildingIcon(t.b)}</span>
+            </button>`;
+          }
+          if (t.open && !t.b) {
+            return `<button class="mob-parcel open-empty ${isSel ? 'sel' : ''}" data-a="tile" data-i="${idx}" title="Boş Arsa (Parsel ${idx + 1})">
+              <span class="mp-dot">+</span>
+            </button>`;
+          }
+          if (!t.open && canClear(idx)) {
+            return `<button class="mob-parcel clearable ${isSel ? 'sel' : ''}" data-a="tile" data-i="${idx}" title="Çalılık Temizle (${clearCost()} Altın)">
+              <span class="mp-ic">${ui('tree')}</span>
+            </button>`;
+          }
+          return `<button class="mob-parcel locked ${isSel ? 'sel' : ''}" data-a="tile" data-i="${idx}" title="Kapalı Çalılık">
+            <span class="mp-dot">·</span>
+          </button>`;
+        }).join('')}
+      </div>
+      <div class="mob-sec-title">Kurulu Yapılar (${builtTiles.length}) · Boş Arsalar (${emptyTiles.length})</div>
       <div class="mob-bldg-grid">
         ${builtTiles.map(([t, idx]) => {
           const B = BUILD[t.b];
@@ -320,20 +350,20 @@ function ocakView() {
             </button>
           `;
         }).join('')}
-        ${emptyTiles.slice(0, 2).map(([, idx], k) => `
-          <button class="mob-dir-card compact" data-a="tile" data-i="${idx}">
+        ${emptyTiles.map(([, idx], k) => `
+          <button class="mob-dir-card compact ${UI.tile === idx ? 'ready' : ''}" data-a="tile" data-i="${idx}">
             <div class="mob-dir-ic">${ui('anvil')}</div>
             <div class="mob-dir-info">
-              <b>Boş Arsa #${k + 1}</b>
-              <small>Yeni bina inşa etmek için dokun (${emptyTiles.length} açık parsel)</small>
+              <b>Boş Arsa #${k + 1} (Parsel ${idx + 1})</b>
+              <small>Yeni bina inşa etmek için dokun</small>
             </div>
           </button>
         `).join('')}
-        ${brambleTiles.slice(0, 1).map(([, idx]) => `
-          <button class="mob-dir-card compact" data-a="tile" data-i="${idx}">
+        ${brambleTiles.map(([, idx]) => `
+          <button class="mob-dir-card compact ${UI.tile === idx ? 'ready' : ''}" data-a="tile" data-i="${idx}">
             <div class="mob-dir-ic">${ui('tree')}</div>
             <div class="mob-dir-info">
-              <b>Çalılık Temizle</b>
+              <b>Çalılık Temizle (Parsel ${idx + 1})</b>
               <small>Ocağı genişlet · ${goldTxt(clearCost())}</small>
             </div>
           </button>
@@ -341,8 +371,10 @@ function ocakView() {
       </div>
     </div>
   `;
-  return `<div class="ocak ${UI.tile != null ? 'has-drawer' : ''}">
+  const showMapOnMob = !!(UI && UI.mobShowMap);
+  return `<div class="ocak ${UI.tile != null ? 'has-drawer' : ''} ${showMapOnMob ? 'mob-force-map' : ''}">
     <div class="mapbox" style="aspect-ratio:${VB.w}/${VB.h}">
+      <button class="btn ghost xs mob-view-toggle sefer-map-toggle" data-a="mob-view-toggle">Rehber Listesi</button>
       <svg class="isomap" viewBox="${VB.x} ${VB.y} ${VB.w} ${VB.h}">${SVG_DEFS_SMALL}<defs>${rgrad('mapfog', [[0.55, '#0a0f14', 0], [1, '#0a0f14', 0.75]])}${ROAM_DEFS}</defs>${ground}<g id="ents">${sprites}${roamMarkup(H)}</g>${UI.tile != null ? `<path class="seldia" d="${diaOf(UI.tile)}"/>` : ''}<path class="hovdia" id="hovdia" d=""/></svg>
       <div class="tiptag" id="tiptag"></div>
       ${drs}
@@ -1210,11 +1242,11 @@ const EV_NPC = { harita: 'selin', bataklik: 'selin', demirhan: 'demirhan', tac_d
 let CUR_EV = null;
 function evBgFor(ev) {
   if (!ev) return viewBg();
-  if (ev._lastBgHtml) return ev._lastBgHtml;
   const id = ev.id || '';
   if (ev.rstory || id.startsWith('rs_')) return arenaBg('yaris');
   if (id === 'cukur' || id === 'cukur2' || id === 'kan_tuccari' || id === 'as_kanli' || id === 'as_efsane' || id === 'as_kum') return arenaBg('cukur');
   if (ev.astory || id.startsWith('as_')) return arenaBg(UI.arenaTier === 'yaris' ? 'sehir' : (UI.arenaTier || 'koy'));
+  if (ev._lastBgHtml) return ev._lastBgHtml;
   if (id === 'harita' || id === 'bataklik' || id === 'selin_yavru' || id === 'pul') return sceneOr('harita', sceneSefer(S.flags));
   if (id === 'tuccar' || id === 'kristal' || id === 'sponsor' || id === 'kerim' || id === 'dem3') return sceneOr('pazar', scenePazar());
   if (ev.ctx && ev.ctx.d) return sceneOr('ahir', sceneAhir(ev.ctx.d.el));

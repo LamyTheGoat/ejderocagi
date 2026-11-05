@@ -818,7 +818,7 @@ function renderComicScreen(star) {
       }
     }
     const sfxHtml = x.sfx ? `<div class="cpan-sfx-stamp">${x.sfx}</div>` : "";
-    const speakerHtml = x.speaker ? `<span class="cbub-speaker">${x.speaker}:</span> ` : "";
+    const speakerHtml = "";
     const bgUrl = (typeof asset === "function" && asset(x.bg)) || x.bg || camp.lobbyBg;
     return `<div class="cpan cp${i} cpan-parallax ${x.night ? "night" : ""} ${x.heat ? "heat" : ""} ${x.clash ? "cpan-clash" : ""}">${sfxHtml}<div class="cmbg" style="background-image:url('${bgUrl}')"></div>${ch}${x.cap ? `<div class="ccap">${x.cap}</div>` : ""}${x.say ? `<div class="cbub ${x.side === "l" ? "r" : "l"}">${speakerHtml}${x.say}</div>` : ""}</div>`;
   };
@@ -2579,7 +2579,7 @@ function bindSahmeranEvents() {
             id: cId,
             title: camp.title,
             opts: [
-              { t: "Zindana Gir (Tam Ekran Raid)", fx: () => { setTimeout(() => openAnimTestRoom({ raidId: SHM.raidId, screen: "battle" }), 60); return "Savaş meydanına adım attın!"; } }
+              { t: "Zindana Gir (Tam Ekran Raid)", fx: () => { openAnimTestRoom({ raidId: SHM.raidId, screen: "battle" }); return null; } }
             ]
           });
         }

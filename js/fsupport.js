@@ -74,10 +74,11 @@ function fightCut(type, ctx) {
       const oEl = od.el || (opp && opp.el) || 'ates';
       const oName = (opp && opp.name) || od.name || 'Rakip Ejder';
       const tName = (opp && opp.trainer) || '';
-      const isKulyutan = /Kül Yutan|Kalgarot/i.test(oName + ' ' + tName);
-      const isKarabela = /Karabela|Demirhan/i.test(oName + ' ' + tName) || oEl === 'golge' || oEl === 'firtina';
-      const isSahmeran = /Şahmeran|Sırça/i.test(oName + ' ' + tName) || oEl === 'toprak';
-      customBg = asset(isKulyutan ? 'cut-kulyutan-cataclysm' : isKarabela ? 'cut-karabela-eclipse' : isSahmeran ? 'cut-sahmeran-tsunami' : 'cut-kalgarot-supernova') || '';
+      const isKulyutan = /Kül Yutan/i.test(oName);
+      const isKarabela = /Karabela/i.test(oName);
+      const isSahmeran = /Şahmeran|Sırça/i.test(oName);
+      const isKalgarot = /Kalgarot/i.test(oName + ' ' + tName);
+      customBg = isKulyutan ? asset('cut-kulyutan-cataclysm') : isKarabela ? asset('cut-karabela-eclipse') : isSahmeran ? asset('cut-sahmeran-tsunami') : isKalgarot ? asset('cut-kalgarot-supernova') : '';
       const glow = isKarabela ? '#c084fc' : isKulyutan ? '#f97316' : (PAL[oEl] && PAL[oEl].glow) || '#f97316';
       inner = `<i class="fbreath boss-breath" style="--c:${glow}"></i>` + fightPanelArt(d, 'P9', 'r', 'fsA', '2,12,38,82,l') + fightPanelArt(od, 'P12', 'l', 'fsB', '38,4,60,92,r');
       cap = `${tName ? tName + ' emretti: ' : ''}${oName} yıkıcı ${EL_AD[oEl].toLowerCase()} nefesini salıverdi!`;
@@ -85,12 +86,13 @@ function fightCut(type, ctx) {
       vp = '32% 42%';
     }
     else if (type === 'boss_darbe' && od) {
-      const oEl = od.el || (opp && opp.el) || 'ates';
       const oName = (opp && opp.name) || od.name || 'Rakip Ejder';
       const tName = (opp && opp.trainer) || '';
-      const isKulyutan = /Kül Yutan|Kalgarot/i.test(oName + ' ' + tName);
-      const isKarabela = /Karabela|Demirhan/i.test(oName + ' ' + tName) || oEl === 'golge';
-      customBg = asset(isKulyutan ? 'cut-kulyutan-cataclysm' : isKarabela ? 'cut-karabela-eclipse' : 'cut-kalgarot-meteor') || '';
+      const isKulyutan = /Kül Yutan/i.test(oName);
+      const isKarabela = /Karabela/i.test(oName);
+      const isSahmeran = /Şahmeran|Sırça/i.test(oName);
+      const isKalgarot = /Kalgarot/i.test(oName + ' ' + tName);
+      customBg = isKulyutan ? asset('cut-kulyutan-cataclysm') : isKarabela ? asset('cut-karabela-eclipse') : isSahmeran ? asset('cut-sahmeran-tsunami') : isKalgarot ? asset('cut-kalgarot-meteor') : '';
       inner = fightPanelArt(d, 'P9', 'r', 'fsA', '2,14,40,80,l') + fightPanelArt(od, 'P8', 'l', 'fsB', '40,4,58,92,r');
       cap = `${oName} acımasız bir pençe darbesiyle saldırdı!`;
       ono = 'GÜÜÜM!';
@@ -102,7 +104,7 @@ function fightCut(type, ctx) {
       inner = pz ? fightPanelArt(s, pz, R.face, 'fsC', '8,4,62,92,c') : `<div class="rcd fsC kid" style="left:18%;top:10%;width:46%">${dragonSVG(s, { still: true })}<span class="rcn">${esc(s.name)}</span></div>`;
       cap = `${s.name}: "${pick(R.line)}"`; ono = ''; }
     if (!inner) return res();
-    const bgUrl = customBg || asset(FT.tier === 'cukur' ? 'bg-pit' : 'bg-arena') || '';
+    const bgUrl = customBg || asset(FT.mode === 'kule' ? 'bg-kule' : FT.tier === 'cukur' ? 'bg-pit' : FT.tier === 'saray' ? 'bg-saray' : 'bg-arena') || '';
     const debs = typeof cutDebris === 'function' ? cutDebris(vp) : '';
     const el = document.createElement('div'); el.className = `rcut fcut ${type === 'boss_ult' ? 'nefes' : type === 'boss_darbe' ? 'darbe' : type === 'kalkis' ? 'basa' : type}`;
     el.innerHTML = `<div class="rcp" style="--vp:${vp}"><div class="rcbg own" style="background-image:url(${bgUrl})"></div><div class="rclines"></div><div class="rcrad"></div><div class="rctone"></div>${debs}${inner}<div class="rccap">${esc(cap)}</div>${ono ? `<b class="rcono">${ono}</b>` : ''}${type === 'sup' ? '<b class="suptag">DESTEK!</b>' : ''}</div>`;

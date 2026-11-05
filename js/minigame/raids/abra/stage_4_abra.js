@@ -183,7 +183,7 @@ registerRaidStageMap("abra", ["abra_boss"], {
           b.lastTailHitTurn = curTurn;
           b.tailHits = (b.tailHits || 0) + 1;
         }
-        if (b.tailHits >= 2 || b.tailDamageAccum >= 450) {
+        if (b.tailHits >= 2) {
           b.staggerTurns = 1;
           b.abraHeadKey = "abraHeadStagger";
           b.tailHits = 0;

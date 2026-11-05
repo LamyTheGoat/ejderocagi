@@ -687,7 +687,7 @@ function initSahmeranBattleStage(stageNum = 1) {
 }
 
 function rebuildHeightMapFromCanvas() {
-  if (!SHM.terrainCtx) return;
+  if (!SHM.terrainCtx || SHM.gameMode !== "pvp") return;
   const W = SHM.WORLD_W;
   const H = SHM.WORLD_H;
   const imgData = SHM.terrainCtx.getImageData(0, 0, W, H).data;

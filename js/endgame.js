@@ -459,11 +459,11 @@ function doneKuleFight() {
   const { F, d, floor } = FT;
   const won = F.winner === 'p';
   FT = null;
-  afterAction(true);
-  closeModal();
   if (won) {
     pushModal(() => kuleBoonModal(d, floor));
   }
+  afterAction(true);
+  closeModal();
 }
 
 function kuleBoonModal(d, clearedFloor) {
@@ -552,10 +552,10 @@ const ENDGAME_ACT = {
     const d = byId(+el.dataset.id || UI.arenaSel) || S.dragons[0];
     if (bk && !T.boons.includes(bk)) T.boons.push(bk);
     SFX.play('bell');
-    closeModal();
     if (d && !d.dead) {
       pushModal(() => startKuleFloor(d));
     }
+    closeModal();
   },
   'divan-open'() {
     pushModal(divanModal);

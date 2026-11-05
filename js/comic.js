@@ -334,8 +334,7 @@ function buildNativeComicPanelHTML(x, i = 0) {
   if (x.html2) ch += x.html2;
   const fx = (x.zz ? '<i class="zz">z</i><i class="zz z2">z</i><i class="zz z3">Z</i>' : '') + (x.stars ? '<i class="cstars"></i>' : '') + (x.rain ? '<i class="crain"></i>' : '');
   const sfxHtml = x.sfx ? `<div class="cpan-sfx-stamp ${x.sfxStyle || ''}">${x.sfx}</div>` : '';
-  const speakerLabel = x.speaker || '';
-  const speakerHtml = speakerLabel ? `<span class="cbub-speaker">${speakerLabel}:</span> ` : '';
+  const speakerHtml = '';
   const rawBg = x.backdrop || x.bg || '';
   const bgUrl = asset(rawBg) || rawBg || '';
   const bgStyle = /^linear-gradient/i.test(bgUrl) ? `background:${bgUrl}` : (bgUrl ? `background-image:url('${bgUrl}')` : '');
@@ -392,8 +391,9 @@ function comicModal(ev, pg = 0) {
   const c = ev.ctx = ev.ctx || {};
   const pages = pg > 0 && CUR_COMIC && CUR_COMIC.ev === ev ? CUR_COMIC.pages : COMIC[ev.id](c, ev); CUR_EV = ev; CUR_COMIC = { ev, pages, pg };
   const P = pages[pg], last = pg === pages.length - 1;
-  const lastPanel = (P.p && P.p[P.p.length - 1]) || (P.p && P.p[0]) || {};
-  const pageBgKey = lastPanel.backdrop || lastPanel.bg || 'bg-ocak';
+  const firstPanel = (P.p && P.p[0]) || {};
+  const lastPanel = (P.p && P.p[P.p.length - 1]) || firstPanel;
+  const pageBgKey = firstPanel.backdrop || firstPanel.bg || lastPanel.backdrop || lastPanel.bg || 'bg-ocak';
   const pageBgUrl = asset(pageBgKey) || pageBgKey || '';
   const isGradBg = /^linear-gradient/i.test(pageBgUrl);
   if (pageBgUrl && !isGradBg) {

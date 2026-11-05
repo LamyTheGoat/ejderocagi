@@ -24,6 +24,11 @@ function wardRender() {
   document.querySelectorAll('[data-ward-try]').forEach(el => {
     el.addEventListener('mouseenter', () => { if (WARD.try !== el.dataset.wardTry) { WARD.try = el.dataset.wardTry; wardPreview(); } });
     el.addEventListener('mouseleave', () => { WARD.try = null; wardPreview(); });
+    el.addEventListener('click', e => {
+      if (e.target.closest('button')) return;
+      WARD.try = WARD.try === el.dataset.wardTry ? null : el.dataset.wardTry;
+      wardPreview();
+    });
   });
 }
 function wardPreview() {

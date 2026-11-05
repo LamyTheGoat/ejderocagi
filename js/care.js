@@ -103,11 +103,12 @@ function careBind() {
       if (sp) sp.style.transform = `translate(${x - 28}px, ${y - 22}px)`;
       if (!(e.buttons & 1) && e.pointerType === 'mouse') return;
       let changed = false;
+      const stepDmg = e.type === 'pointerdown' ? 0.34 : 0.085;
       CARE.spots.forEach((s, i) => {
         if (s.hp <= 0) return;
-        const sx = s.x / 100 * r.width, sy = s.y / 100 * r.height, rad = s.r / 100 * r.width + 18;
+        const sx = s.x / 100 * r.width, sy = s.y / 100 * r.height, rad = s.r / 100 * r.width + 24;
         if (Math.hypot(x - sx, y - sy) < rad) {
-          s.hp = Math.max(0, s.hp - 0.085);
+          s.hp = Math.max(0, s.hp - stepDmg);
           changed = true;
           const el = st.querySelector(`.spot[data-i="${i}"]`); if (el) el.style.opacity = Math.max(0, s.hp);
           if (Math.random() < 0.38) bubble(st, x, y);
