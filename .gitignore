@@ -1,0 +1,56 @@
+# ====================================================
+# 1. GİZLİ ANAHTARLAR, TOKENLAR VE KİMLİK BİLGİLERİ
+# ====================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*credentials*.json
+*service-account*.json
+*service_account*.json
+*secret*.json
+*token*.json
+.gcloud/
+.firebase/
+.runtimeconfig.json
+
+# ====================================================
+# 2. YEREL OYUNCU VERİTABANI VE OTURUM KAYITLARI
+# (Sunucu ilk açılışta varsayılan world.json'ı kendisi üretir)
+# ====================================================
+data/
+*.sqlite
+*.sqlite3
+*.db
+
+# ====================================================
+# 3. YAPAY ZEKA AJAN KLASÖRLERİ VE GEÇİCİ DOSYALAR
+# ====================================================
+.agents/
+.gemini/
+_tmp_*/
+tmp/
+temp/
+scratch/
+verify_ui.js
+assets/**/*_preview.png
+
+# ====================================================
+# 4. NODE.JS & İŞLETİM SİSTEMİ KALINTILARI
+# ====================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log
+*.bak
+*.swp
+.vscode/
+.idea/
