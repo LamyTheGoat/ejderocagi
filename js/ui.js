@@ -1310,7 +1310,7 @@ function cardFace(k, mini) {
 function startFight(d, opp, ctx) { const F = newFight(fighterFromDragon(d), fighterFromOpp(opp)); applyBuff(F.p, ctx.buff); FT = { F, d, opp, log: [], ...ctx }; { const sb = scoutBuff(d, F.p); if (sb) FT.log.push({ t: sb, c: 'mute' }); } if (ctx.buffText) FT.log.push({ t: ctx.buffText, c: 'mute' }); fightModal(); SFX.play('roar'); }
 /* --- maç öncesi / sonrası sahneler --- */
 let CUR_PRE = null, CUR_POST = null;
-const arenaBg = tier => sceneOr(tier === 'cukur' ? 'pit' : 'arena', '');
+const arenaBg = tier => sceneOr(tier === 'cukur' ? 'pit' : tier === 'saray' ? 'saray' : tier === 'kule' ? 'kule' : tier === 'yaris' ? 'kayalik' : 'arena', '');
 function fightPair(d, o) { return angleVdr(d, ['34', 'front'], { face: 'r' }) + (o ? angleVdr(o, ['34', 'front'], { face: 'l', cls: 'second vs' }) : ''); }
 function preFightModal(pe, d, o, ctx) {
   CUR_PRE = { ...pe, d, o, ctx };
@@ -2025,10 +2025,23 @@ const ACT = {
   },
   evopt(el) {
     const ev = CUR_EV, o = ev.opts[+el.dataset.i];
+    const prevHtml = $('#modal-root')?.innerHTML;
     const res = o.fx(ev.ctx || {});
     if (res === null) {
-      afterAction(true);
-      closeModal();
+      saveGame();
+      if ($('#hud')) $('#hud').innerHTML = hud();
+      if ($('#modal-root')?.innerHTML === prevHtml) {
+        afterAction(true);
+        closeModal();
+      }
+      return;
+    }
+    const cask = $('#modal-root .comicm .cask');
+    if (cask) {
+      cask.innerHTML = `<p>${esc(String(res || '').replace(/<[^>]+>/g, ''))}</p><div class="vnopts"><button class="vopt primary" data-a="mclose">Devam</button></div>`;
+      saveGame();
+      if ($('#hud')) $('#hud').innerHTML = hud();
+      SFX.play('page');
       return;
     }
     const npc = EV_NPC[ev.id];
@@ -2125,9 +2138,9 @@ ACT['zindan-battle-kom'] = () => requireZindanGate(() => { if (typeof openAnimTe
 ACT['zindan-battle-abra'] = () => requireZindanGate(() => { if (typeof openAnimTestRoom === 'function') { SHM.selectedStage = 1; openAnimTestRoom({ entryContext: 'pve_dungeon', gameMode: 'raid', raidId: 'abra', difficulty: 'ekstrem', screen: 'battle' }); } });
 ACT['zindan-pvp-lobby'] = () => requireZindanGate(() => { if (typeof openAnimTestRoom === 'function') openAnimTestRoom({ entryContext: 'pvp_arena', gameMode: 'pvp', screen: 'pvp_lobby' }); });
 ACT['zindan-pvp-start'] = () => requireZindanGate(() => { if (typeof openAnimTestRoom === 'function') openAnimTestRoom({ entryContext: 'pvp_arena', gameMode: 'pvp', screen: 'battle' }); });
-ACT['zindan-comic-sah'] = () => requireZindanGate(() => { if (typeof comicModal === 'function' && typeof COMIC !== 'undefined' && COMIC.sahmeran_prolog) { comicModal({ id: 'sahmeran_prolog', title: 'Sırça Saray Destanı', opts: [{ t: 'Sırça Saray Seferine Gir', fx: () => { setTimeout(() => openAnimTestRoom({ raidId: 'sahmeran', difficulty: 'zor', screen: 'battle' }), 20); return null; } }] }); } });
-ACT['zindan-comic-kom'] = () => requireZindanGate(() => { if (typeof comicModal === 'function' && typeof COMIC !== 'undefined' && COMIC.komutan_prolog) { comicModal({ id: 'komutan_prolog', title: 'Başkomutan Kalgarot', opts: [{ t: 'Volkanik Kaldera Seferine Gir', fx: () => { setTimeout(() => openAnimTestRoom({ raidId: 'komutan', difficulty: 'zor', screen: 'battle' }), 20); return null; } }] }); } });
-ACT['zindan-comic-abra'] = () => requireZindanGate(() => { if (typeof comicModal === 'function' && typeof COMIC !== 'undefined' && COMIC.abra_prolog) { comicModal({ id: 'abra_prolog', title: 'Zindan III: Batık Donanma & Derya Yılanı ABRA', opts: [{ t: 'Batık Donanma Seferine Gir', fx: () => { setTimeout(() => openAnimTestRoom({ raidId: 'abra', difficulty: 'normal', screen: 'lobby' }), 20); return null; } }] }); } });
+ACT['zindan-comic-sah'] = () => requireZindanGate(() => { if (typeof comicModal === 'function' && typeof COMIC !== 'undefined' && COMIC.sahmeran_prolog) { comicModal({ id: 'sahmeran_prolog', title: 'Sırça Saray Destanı', opts: [{ t: 'Sırça Saray Seferine Gir', fx: () => { openAnimTestRoom({ raidId: 'sahmeran', difficulty: 'zor', screen: 'battle' }); return null; } }] }); } });
+ACT['zindan-comic-kom'] = () => requireZindanGate(() => { if (typeof comicModal === 'function' && typeof COMIC !== 'undefined' && COMIC.komutan_prolog) { comicModal({ id: 'komutan_prolog', title: 'Başkomutan Kalgarot', opts: [{ t: 'Volkanik Kaldera Seferine Gir', fx: () => { openAnimTestRoom({ raidId: 'komutan', difficulty: 'zor', screen: 'battle' }); return null; } }] }); } });
+ACT['zindan-comic-abra'] = () => requireZindanGate(() => { if (typeof comicModal === 'function' && typeof COMIC !== 'undefined' && COMIC.abra_prolog) { comicModal({ id: 'abra_prolog', title: 'Zindan III: Batık Donanma & Derya Yılanı ABRA', opts: [{ t: 'Batık Donanma Seferine Gir', fx: () => { openAnimTestRoom({ raidId: 'abra', difficulty: 'normal', screen: 'lobby' }); return null; } }] }); } });
 ACT['zindan-studio'] = () => requireZindanGate(() => { if (typeof openAnimTestRoom === 'function') openAnimTestRoom({ screen: 'studio' }); });
 ACT['title-zindan-go'] = () => {
   if (!S) { S = newState(); saveGame(); }

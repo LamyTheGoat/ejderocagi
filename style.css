@@ -357,7 +357,7 @@ button.gitem:hover { border-color: var(--ember2); }
 .cact { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
 
 /* ---------- ARENA ---------- */
-.arena { max-width: 1540px; width: 100%; margin: 0 auto; display: grid; grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); gap: 20px; align-items: start; padding: 6px 0 16px; min-height: 100%; align-content: start; }
+.arena { max-width: 1240px; width: 100%; margin: 0 auto; display: grid; grid-template-columns: minmax(260px, 300px) minmax(0, 910px); justify-content: center; gap: 20px; align-items: start; padding: 6px 0 16px; min-height: 100%; align-content: start; }
 .banner { grid-column: 1 / -1; justify-self: center; text-align: center; max-width: 720px; padding: 14px 30px 22px; color: #2a1206; background: linear-gradient(180deg, #c4452a, #8a2414); border: 2px solid var(--brass); clip-path: polygon(0 0, 100% 0, 100% 85%, 50% 100%, 0 85%); box-shadow: 0 8px 20px rgba(0, 0, 0, .5); }
 .banner h3 { font-family: var(--f-disp); font-size: 36px; color: #ffe0a0; text-shadow: 0 2px 0 #3a0a04; }
 .banner p { color: #ffe8d0; max-width: 60ch; margin: 4px auto 10px; } .banner p.bad { color: #ffd0a0; font-weight: 800; }
@@ -8465,14 +8465,30 @@ svg.egg.egg-nb image {
     max-width: 2360px !important;
   }
   .arena {
-    width: min(1620px, 88vw) !important;
-    max-width: 1620px !important;
-    grid-template-columns: 360px minmax(0, 1fr);
-    gap: 28px;
+    width: min(1280px, 88vw) !important;
+    max-width: 1280px !important;
+    grid-template-columns: 310px minmax(0, 920px);
+    justify-content: center;
+    gap: 24px;
+  }
+  .arena .board {
+    max-width: 920px;
+    width: 100%;
   }
   .arena .poster {
-    width: 305px;
-    max-width: 305px;
+    width: 264px;
+    max-width: 264px;
+    margin: 0;
+  }
+  .fight.v2 {
+    max-width: min(1360px, 94vw);
+    width: 100%;
+    margin: 0 auto;
+  }
+  .fight.v2 .plates {
+    max-width: 1120px;
+    width: 100%;
+    margin: 8px auto 0;
   }
   .vendor {
     width: min(1720px, 88vw) !important;
