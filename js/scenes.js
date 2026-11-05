@@ -76,7 +76,7 @@ function sceneAhir(el = 'ates') {
     ${grad('ah-floor', [[0, '#2c241f'], [1, '#0e0b0a']])}
     ${grad('ah-cone', [[0, '#fff3d6', 0.0], [0.25, '#fff3d6', 0.09], [1, '#fff3d6', 0]])}
     <pattern id="ah-brick" width="120" height="60" patternUnits="userSpaceOnUse"><rect width="120" height="60" fill="none"/><path d="M0,30 H120 M60,0 V30 M0,30 V60 M120,30 V60" stroke="#000" stroke-opacity=".25" stroke-width="2"/></pattern>
-    ${rgrad('ah-ped', [[0, glow, 0.55], [1, glow, 0]])}
+    ${rgrad('ah-ped', [[0, glow, 0.24], [1, glow, 0]])}
   </defs>
   <rect width="1600" height="900" fill="url(#ah-wall)"/><rect width="1600" height="780" fill="url(#ah-brick)"/>
   ${arches}

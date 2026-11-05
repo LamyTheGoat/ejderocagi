@@ -8052,7 +8052,7 @@ svg.dragon, .battle-baby-dr, .ch-battle-dragon-mount {
   pointer-events: none;
   z-index: 4;
   mix-blend-mode: screen;
-  opacity: 0.72;
+  opacity: 0.30;
 }
 
 @keyframes glSpringIn {
@@ -11052,12 +11052,199 @@ button.kir-die{cursor:pointer}
   gap: 16px;
 }
 
+@keyframes drawerMobUp {
+  from { transform: translateY(14px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
 /* 1. Mobil, Tablet ve Yatay Telefon Ekranlarında Zorunlu Scroll Kilitlerini Kaldır */
 @media (max-width: 1024px), (max-height: 660px) {
   html, body, #app {
     height: 100dvh;
     width: 100vw;
     overflow: hidden;
+  }
+
+  /* Alt kısımdaki sarı/kehribar WebGL parlamasını mobilde minimuma indir */
+  #engine-gl-canvas {
+    opacity: 0.14 !important;
+  }
+
+  /* position: fixed çekmecelerin (.drawer / .regcard) kapsayıcı blok tuzağına düşmesini engelle */
+  #app,
+  .shell,
+  #stage,
+  .ocak,
+  .ahir,
+  .sefer {
+    transform: none !important;
+    filter: none !important;
+    perspective: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Tüm açılır çekmeceler (build, train, equip/gear, walk, feed, info, role, tree, career, regcard) tam ekran içinde ve erişilebilir */
+  .drawer,
+  .drawer.wide {
+    position: fixed !important;
+    left: 8px !important;
+    right: 8px !important;
+    top: auto !important;
+    bottom: calc(var(--mob-dock-h, 96px) + 6px + env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - var(--mob-hud-h, 76px) - var(--mob-dock-h, 96px) - 18px) !important;
+    transform: none !important;
+    animation: drawerMobUp 0.2s ease-out !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    z-index: 880 !important;
+    box-sizing: border-box !important;
+    border: 1.5px solid #c89648 !important;
+    border-radius: 14px !important;
+    box-shadow: 0 -12px 38px rgba(0, 0, 0, 0.9), 0 0 0 100vmax rgba(0, 0, 0, 0.56), inset 0 1px 0 rgba(255, 220, 160, 0.22) !important;
+  }
+  .drawer > header {
+    flex: none !important;
+    position: relative !important;
+    top: 0 !important;
+    z-index: 5 !important;
+    padding: 10px 14px 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+  }
+  .drawer > header h3 {
+    font-size: 20px !important;
+    line-height: 1.15 !important;
+    margin: 0 !important;
+  }
+  .drawer > header .icb {
+    width: 34px !important;
+    height: 34px !important;
+    flex: none !important;
+  }
+  .drawer > .dbody {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+    padding: 10px 12px 14px !important;
+    box-sizing: border-box !important;
+  }
+  .drawer .segs {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 5px !important;
+    margin-bottom: 8px !important;
+  }
+  .drawer .segs .seg {
+    padding: 5px 10px !important;
+    font-size: 12px !important;
+  }
+  .drawer .segs.styles {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+  }
+  .drawer .segs.styles .seg {
+    min-width: 0 !important;
+    padding: 6px 7px !important;
+    font-size: 12px !important;
+  }
+  .drawer .segs.styles .seg small {
+    font-size: 10px !important;
+    line-height: 1.15 !important;
+  }
+  .drawer .tcards {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  .drawer .tcard {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 8px 6px !important;
+    box-sizing: border-box !important;
+  }
+  .drawer .tcard .tart {
+    height: 52px !important;
+  }
+  .drawer .tcard .tart .bic {
+    width: 52px !important;
+    height: 52px !important;
+  }
+  .drawer .tcard b {
+    font-size: 17px !important;
+  }
+  .drawer .tcard .gain {
+    font-size: 24px !important;
+  }
+  .drawer .bcard,
+  .drawer .pcard,
+  .drawer .fcard {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 8px !important;
+    box-sizing: border-box !important;
+  }
+  .drawer .bcard .bart {
+    height: 56px !important;
+  }
+  .drawer .binfo {
+    grid-template-columns: 72px minmax(0, 1fr) !important;
+    gap: 10px !important;
+    align-items: center !important;
+  }
+  .drawer .binfo .bart.big {
+    width: 72px !important;
+    height: 72px !important;
+  }
+  .drawer .gslots,
+  .drawer .infocols,
+  .drawer .rolelist {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .drawer .gitem {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    padding: 6px 8px !important;
+  }
+  .drawer .tree .trow {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    justify-content: center !important;
+  }
+  .drawer .tnode {
+    width: calc(50% - 6px) !important;
+    min-width: 110px !important;
+    padding: 6px !important;
+    box-sizing: border-box !important;
+  }
+  .regcard {
+    position: fixed !important;
+    left: 8px !important;
+    right: 8px !important;
+    top: auto !important;
+    bottom: calc(var(--mob-dock-h, 96px) + 6px + env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - var(--mob-hud-h, 76px) - var(--mob-dock-h, 96px) - 18px) !important;
+    transform: none !important;
+    animation: drawerMobUp 0.2s ease-out !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    z-index: 880 !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 -12px 38px rgba(0, 0, 0, 0.9), 0 0 0 100vmax rgba(0, 0, 0, 0.52) !important;
   }
 
   /* Masaüstü !important kaydırma kilitlerini mobil/tablet için aç */
@@ -11295,6 +11482,9 @@ button.kir-die{cursor:pointer}
     grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
     gap: 4px !important;
     align-items: stretch !important;
+    background: linear-gradient(180deg, rgba(16, 11, 8, 0.98), rgba(8, 5, 4, 1)) !important;
+    border-top: 1px solid rgba(196, 148, 74, 0.35) !important;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.82) !important;
   }
   .places {
     display: contents !important;
@@ -11305,6 +11495,7 @@ button.kir-die{cursor:pointer}
     min-width: 0 !important;
     height: 41px !important;
     padding: 2px 3px !important;
+    margin: 0 !important;
     transform: none !important;
     display: flex !important;
     flex-direction: row !important;
@@ -11312,8 +11503,9 @@ button.kir-die{cursor:pointer}
     justify-content: flex-start !important;
     gap: 4px !important;
     border-radius: 8px !important;
-    background: rgba(28, 18, 11, 0.88) !important;
+    background: rgba(28, 18, 11, 0.92) !important;
     border: 1px solid rgba(196, 148, 74, 0.38) !important;
+    box-shadow: none !important;
     box-sizing: border-box !important;
   }
   .place.on,
@@ -11321,13 +11513,17 @@ button.kir-die{cursor:pointer}
     transform: none !important;
     background: linear-gradient(180deg, rgba(84, 48, 20, 0.96), rgba(44, 24, 10, 0.98)) !important;
     border-color: rgba(244, 198, 104, 0.92) !important;
-    box-shadow: 0 0 10px rgba(244, 184, 76, 0.35) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 224, 160, 0.25) !important;
   }
   .place .medal,
-  .place.kasaba-place .medal {
+  .place.kasaba-place .medal,
+  .place.on .medal,
+  .place.kasaba-place.on .medal {
     width: 26px !important;
     height: 26px !important;
     flex: none !important;
+    transform: none !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.65) !important;
   }
   .place .medal .pic,
   .place.kasaba-place .medal .pic {
@@ -11362,6 +11558,7 @@ button.kir-die{cursor:pointer}
     align-items: center !important;
     gap: 4px !important;
     border-radius: 8px !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7) !important;
     box-sizing: border-box !important;
   }
   .endweek .lantern {
@@ -11461,12 +11658,20 @@ button.kir-die{cursor:pointer}
     position: fixed !important;
     left: 6px !important;
     right: 6px !important;
+    top: auto !important;
     width: auto !important;
-    bottom: calc(var(--mob-dock-h) + 4px + env(safe-area-inset-bottom, 0px)) !important;
-    max-height: 62dvh !important;
-    overflow-y: auto !important;
-    z-index: 800 !important;
-    padding: 12px !important;
+    max-width: calc(100vw - 12px) !important;
+    bottom: calc(var(--mob-dock-h, 96px) + 4px + env(safe-area-inset-bottom, 0px)) !important;
+    max-height: calc(100dvh - var(--mob-hud-h, 76px) - var(--mob-dock-h, 96px) - 14px) !important;
+    transform: none !important;
+    animation: drawerMobUp 0.2s ease-out !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    z-index: 880 !important;
+    box-sizing: border-box !important;
   }
 
   /* --- 2. AHIR (GALERİ) GÖRÜNÜMÜ --- */
@@ -11753,6 +11958,7 @@ button.kir-die{cursor:pointer}
     top: auto !important;
     width: auto !important;
     max-width: none !important;
+    transform: none !important;
     z-index: 30 !important;
   }
   .fight.v2 .flog,
@@ -11805,11 +12011,15 @@ button.kir-die{cursor:pointer}
     left: 6px !important;
     right: 6px !important;
     width: auto !important;
+    max-width: calc(100vw - 12px) !important;
     top: auto !important;
-    bottom: calc(var(--mob-dock-h) + 4px + env(safe-area-inset-bottom, 0px)) !important;
-    max-height: 62dvh !important;
+    bottom: calc(var(--mob-dock-h, 96px) + 4px + env(safe-area-inset-bottom, 0px)) !important;
+    max-height: calc(100dvh - var(--mob-hud-h, 76px) - var(--mob-dock-h, 96px) - 14px) !important;
+    transform: none !important;
+    animation: drawerMobUp 0.2s ease-out !important;
     overflow-y: auto !important;
-    z-index: 820 !important;
+    z-index: 880 !important;
+    box-sizing: border-box !important;
   }
   .modal.exwrap .expm {
     grid-template-columns: 1fr !important;
@@ -12962,6 +13172,26 @@ button.kir-die{cursor:pointer}
     grid-template-columns: repeat(10, minmax(0, 1fr)) !important;
     gap: 3px !important;
     align-items: center !important;
+    background: linear-gradient(180deg, rgba(16, 11, 8, 0.98), rgba(8, 5, 4, 1)) !important;
+    border-top: 1px solid rgba(196, 148, 74, 0.35) !important;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.82) !important;
+  }
+  .drawer,
+  .drawer.wide,
+  .regcard {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    top: auto !important;
+    bottom: calc(46px + env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    max-width: calc(100vw - 20px) !important;
+    max-height: calc(100dvh - 94px) !important;
+    transform: none !important;
+    animation: drawerMobUp 0.2s ease-out !important;
+  }
+  .drawer .tcards {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
   .places {
     display: contents !important;

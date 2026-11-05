@@ -96,25 +96,25 @@
 
     vec3 emberCol = u_tint * e1 * 1.15 + u_secondary * e2 * 0.95;
 
-    // Alt kenar kor/ocak ışıması + şok dalgası parlaması
-    float bottomRim = (1.0 - smoothstep(0.0, 0.42, uv.y)) * (0.12 + 0.14 * u_heat + 0.22 * u_impact);
+    // Alt kenar ışıması yalnızca darbe (impact) anında çok hafif olsun; normalde ekranın altını parlatmasın
+    float bottomRim = (1.0 - smoothstep(0.0, 0.16, uv.y)) * (0.06 * u_impact);
     vec3 rimCol = mix(u_tint, u_secondary, uv.x) * bottomRim;
 
     // El yazması mürekkep vinyet (köşe karartma ve darbe gerilimi)
     vec2 centered = uv - 0.5;
     float distCenter = length(centered * vec2(1.15, 1.0));
-    float vig = smoothstep(0.32, 0.86, distCenter) * (u_vignette + u_impact * 0.28);
+    float vig = smoothstep(0.38, 0.90, distCenter) * (u_vignette * 0.45 + u_impact * 0.22);
 
     // Kromatik darbe halkası
     vec3 shockCol = mix(u_tint, vec3(1.0, 0.88, 0.55), 0.5) * shockGlow;
 
     vec3 totalRGB = emberCol + rimCol + shockCol;
-    float emberAlpha = clamp((e1 + e2) * 0.65 + bottomRim * 0.7 + shockGlow * 0.8, 0.0, 0.72);
-    float finalAlpha = clamp(max(emberAlpha, vig * 0.52), 0.0, 0.75);
+    float emberAlpha = clamp((e1 + e2) * 0.55 + bottomRim * 0.5 + shockGlow * 0.75, 0.0, 0.65);
+    float finalAlpha = clamp(max(emberAlpha, vig * 0.35), 0.0, 0.65);
 
-    // Vinyet bölgelerinde koyu mürekkep (#120905), kor bölgelerinde sıcak ışıma
-    vec3 inkColor = vec3(0.07, 0.035, 0.02);
-    vec3 outCol = mix(inkColor, totalRGB / max(0.08, emberAlpha), clamp(emberAlpha / max(0.01, finalAlpha), 0.0, 1.0));
+    // Vinyet bölgelerinde koyu mürekkep (#120905), kor bölgelerinde yalnızca gerçek kıvılcım rengi (bölme ile alt parlama yapmadan)
+    vec3 inkColor = vec3(0.04, 0.02, 0.01);
+    vec3 outCol = mix(inkColor, clamp(totalRGB, 0.0, 1.0), clamp(emberAlpha / max(0.01, finalAlpha), 0.0, 1.0));
 
     fragColor = vec4(outCol, finalAlpha);
   }`;

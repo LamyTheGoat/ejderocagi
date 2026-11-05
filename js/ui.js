@@ -1858,11 +1858,11 @@ const ACT = {
   clear() { const c = clearCost(); if (S.gold < c) return; S.gold -= c; S.grid[UI.tile].open = true; S.cleared++; UI.tile = null; SFX.play('build'); afterAction(); },
   demolish() { if (UI.arm !== 'demolish') { UI.arm = 'demolish'; SFX.play('click'); return render(); } UI.arm = null; const t = S.grid[UI.tile]; S.gold += Math.floor(BUILD[t.b].fiyat / 2); t.b = null; UI.tile = null; SFX.play('build'); afterAction(); },
   sel(el) { const id = +el.dataset.id; const dir = S.dragons.findIndex(d => d.id === id) > S.dragons.findIndex(d => d.id === UI.sel) ? 'r' : 'l'; UI.sel = id; UI.drawer = null; if (UI.view !== 'ahir') UI.view = 'ahir'; const sd = S.dragons.find(d => d.id === id); SFX.play(sd && sd.stage === 'yavru' && !sd.dead ? 'chirp' : 'click'); render(); const h = $('#hero'); if (h) h.classList.add('enter-' + dir); },
-  drawer(el) { UI.drawer = el.dataset.k; render(); },
-  'drawer-train'() { UI.drawer = 'train'; render(); },
-  'drawer-walk'() { UI.drawer = 'walk'; render(); },
-  'drawer-feed'() { UI.drawer = 'feed'; render(); },
-  'drawer-gear'() { UI.drawer = 'gear'; render(); },
+  drawer(el) { const k = el.dataset.k; UI.drawer = UI.drawer === k ? null : k; render(); },
+  'drawer-train'() { UI.drawer = UI.drawer === 'train' ? null : 'train'; render(); },
+  'drawer-walk'() { UI.drawer = UI.drawer === 'walk' ? null : 'walk'; render(); },
+  'drawer-feed'() { UI.drawer = UI.drawer === 'feed' ? null : 'feed'; render(); },
+  'drawer-gear'() { UI.drawer = UI.drawer === 'gear' ? null : 'gear'; render(); },
   'rename-start'() { UI.drawer = 'info'; render(); setTimeout(() => $('#rename')?.focus(), 30); },
   train(el) { const d = byId(UI.sel), k = el.dataset.k; if (d.task && d.task.t === 'train' && d.task.k === k) d.task = null; else { clearPartner(d); d.task = { t: 'train', k }; UI.drawer = null; } SFX.play('click'); afterAction(); },
   rest() { const d = byId(UI.sel); if (d.task && d.task.t === 'rest') d.task = null; else { clearPartner(d); d.task = { t: 'rest' }; poseFlash(d, 'P15', `${esc(d.name)} kıvrılıp uykuya daldı.`, 'bg-ahir'); } SFX.play('click'); afterAction(); },
@@ -2167,7 +2167,11 @@ document.addEventListener('click', e => {
     closeModal();
     return;
   }
-  const el = e.target.closest('[data-a]'); if (!el || el.disabled || el.getAttribute('disabled') != null) return;
+  const el = e.target.closest('[data-a]');
+  if (!el && !modalOn && (UI.drawer || UI.tile != null || UI.seferR) && !e.target.closest('.drawer, .regcard, #hud, #dock')) {
+    UI.drawer = null; UI.tile = null; UI.seferR = null; render(); return;
+  }
+  if (!el || el.disabled || el.getAttribute('disabled') != null) return;
   const key = el.dataset.a === 'fight' ? 'fight:' + el.dataset.i : el.dataset.a;
   if (UI.arm && UI.arm !== key && !['sell', 'sellI'].includes(el.dataset.a)) { UI.arm = null; if (!ACT[el.dataset.a]) render(); }
   const f = ACT[el.dataset.a]; if (f) f(el, e);

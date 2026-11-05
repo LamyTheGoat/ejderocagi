@@ -108,6 +108,7 @@ function raceHtml() {
       <div class="rbtns"><button class="btn sm ghost" data-a="race-auto">Otomatik uç</button></div></header>
     ${solo ? '' : `<div class="rgaps"><span id="rgapA"></span><span id="rgapB"></span></div>`}
     <div class="rhirs" id="rhirs"><b>Hırs</b><span><i id="rhirsf"></i><s></s></span></div>
+    <button class="rhold" id="rhold" type="button"><b>KANAT ÇIRP</b><small>Basılı Tut · Yüksel</small></button>
     <button class="rdash" id="rdash" type="button"><b>ATIL</b><small>D · Shift</small></button>
     <div class="rcom" id="rcom"></div>
     <div class="rcount" id="rcount">3</div>
@@ -116,11 +117,36 @@ function raceHtml() {
 }
 function raceBind() {
   const m = $('#racem'); if (!m) return;
-  const on = e => { if (e.target.closest('button')) return; RC && (RC.hold = true); e.preventDefault(); }, off = () => { if (RC) RC.hold = false; };
-  m.addEventListener('pointerdown', on); window.addEventListener('pointerup', off); RC.off = off;
-  $('#rdash')?.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); raceDash(); });
+  const rholdBtn = $('#rhold');
+  const setHold = v => {
+    if (!RC) return;
+    RC.hold = !!v;
+    m.classList.toggle('holding', !!v);
+    rholdBtn?.classList.toggle('holding', !!v);
+  };
+  const on = e => {
+    if (e.target.closest('button') && !e.target.closest('#rhold')) return;
+    setHold(true);
+    if (e.cancelable) e.preventDefault();
+  };
+  const off = () => setHold(false);
+  const blockSel = e => { if (e.cancelable) e.preventDefault(); };
+  m.addEventListener('pointerdown', on);
+  m.addEventListener('touchstart', on, { passive: false });
+  m.addEventListener('contextmenu', blockSel);
+  m.addEventListener('selectstart', blockSel);
+  rholdBtn?.addEventListener('pointerdown', e => { e.stopPropagation(); setHold(true); if (e.cancelable) e.preventDefault(); });
+  rholdBtn?.addEventListener('touchstart', e => { e.stopPropagation(); setHold(true); if (e.cancelable) e.preventDefault(); }, { passive: false });
+  window.addEventListener('pointerup', off);
+  window.addEventListener('pointercancel', off);
+  window.addEventListener('touchend', off);
+  window.addEventListener('touchcancel', off);
+  window.addEventListener('blur', off);
+  RC.off = off;
+  $('#rdash')?.addEventListener('pointerdown', e => { if (e.cancelable) e.preventDefault(); e.stopPropagation(); raceDash(); });
+  $('#rdash')?.addEventListener('touchstart', e => { if (e.cancelable) e.preventDefault(); e.stopPropagation(); raceDash(); }, { passive: false });
   RC.key = e => {
-    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { RC.hold = e.type === 'keydown'; e.preventDefault(); }
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { setHold(e.type === 'keydown'); e.preventDefault(); }
     else if (e.type === 'keydown' && !e.repeat && (e.code === 'ArrowRight' || e.code === 'KeyD' || e.code === 'ShiftLeft' || e.code === 'ShiftRight')) { raceDash(); e.preventDefault(); }
   };
   window.addEventListener('keydown', RC.key); window.addEventListener('keyup', RC.key);
@@ -129,7 +155,14 @@ function raceUnbind() {
   if (!RC) return;
   if (RC.wing) { RC.wing.stop(.4); RC.wing = null; }
   if (RC.key) { window.removeEventListener('keydown', RC.key); window.removeEventListener('keyup', RC.key); RC.key = null; }
-  if (RC.off) { window.removeEventListener('pointerup', RC.off); RC.off = null; }
+  if (RC.off) {
+    window.removeEventListener('pointerup', RC.off);
+    window.removeEventListener('pointercancel', RC.off);
+    window.removeEventListener('touchend', RC.off);
+    window.removeEventListener('touchcancel', RC.off);
+    window.removeEventListener('blur', RC.off);
+    RC.off = null;
+  }
 }
 function raceDash() {
   if (!RC || RC.done || RC.t < 0 || RC.dashT > 0 || RC.hirs < dashCost()) { if (RC && !RC.done && RC.t >= 0 && RC.hirs < dashCost()) $('#rhirs')?.classList.add('no'), setTimeout(() => $('#rhirs')?.classList.remove('no'), 300); return; }

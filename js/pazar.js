@@ -43,7 +43,7 @@ function stallTeaser(k) {
   if (k === 'yem') return '7 çeşit yem ve ikram';
   if (k === 'demir') return '🔥 Kor Örsü (+1..+12) · Kalıp Dökümhanesi · Ejder Zırhı';
 }
-const PER = (desk, mob) => (typeof innerWidth === 'number' && innerWidth < 760) ? mob : desk;
+const PER = (desk, mob) => (typeof innerWidth === 'number' && (innerWidth <= 1024 || (typeof innerHeight === 'number' && innerHeight <= 660))) ? mob : desk;
 
 function pazarView() {
   if (UI.stall === 'han') return hanView();
