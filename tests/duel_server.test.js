@@ -43,7 +43,7 @@ const server = createDragonDuelServer({ crypto, WS_CLIENTS: clients, WORLD: worl
 const guest = makeSocket('@guest', false);
 clients.add(guest);
 assert.equal(server.onMessage(guest, { type: 'duel_invite', to: '@beta' }), true);
-assert.match(guest.last('duel_error').message, /X oturumu/);
+assert.match(guest.last('duel_error').message, /oyuncu oturumu/);
 // Existing spectator reactions are not consumed by the duel-room handler.
 assert.equal(server.onMessage(guest, { type: 'duel_cheer', roomId: 'main' }), false);
 

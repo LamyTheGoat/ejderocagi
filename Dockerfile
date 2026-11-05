@@ -1,9 +1,12 @@
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
-COPY package.json server.js index.html style.css ./
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY server.js index.html style.css ./
 COPY js ./js
+COPY server ./server
 COPY img ./img
 COPY assets ./assets
 COPY sfx ./sfx

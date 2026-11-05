@@ -21,9 +21,9 @@ const MP = {
 const XAUTH = { handle: null, enabled: false, checked: false };
 
 function xApplyToState() {
-  if (!S || !XAUTH.handle) return;
-  S.handle = XAUTH.handle;
-  S.xVerified = true;
+  if (!S) return;
+  if (MP.authHandle) S.handle = MP.authHandle;
+  S.xVerified = !!XAUTH.handle;
   if (typeof saveGame === 'function') saveGame();
 }
 
@@ -69,14 +69,40 @@ function mpCheckUrlParams() {
   } catch (e) {}
 }
 
+// Account identity is obtained from an HttpOnly session, never localStorage.
+// The authoritative economy remains separate until gameplay commands are ported.
+function mpEnsureGuestSession(baseHttp) {
+  if (MP._sessionPromise) return MP._sessionPromise;
+  const bootstrap = () => fetch(`${baseHttp}/api/session`, { method: 'POST', credentials: 'same-origin' })
+    .then(async response => {
+      if ([404, 405, 501].includes(response.status)) { MP.staticServer = true; return false; }
+      if (!response.ok) throw new Error('guest_session_unavailable');
+      const session = await response.json();
+      if (!session.ok || !session.accountId || !session.handle) throw new Error('invalid_guest_session');
+      if (MP.accountId !== session.accountId && typeof createEconomyClient === 'function') MP.economyClient = createEconomyClient();
+      MP.accountId = session.accountId;
+      MP.authHandle = session.handle;
+      MP.authenticated = true;
+      if (S) { S.handle = session.handle; S.xVerified = !!XAUTH.handle; }
+      return true;
+    });
+  // Serialize first-time bootstrap across tabs where Web Locks is available.
+  MP._sessionPromise = (typeof navigator !== 'undefined' && navigator.locks
+    ? navigator.locks.request('eo-guest-bootstrap', bootstrap) : bootstrap())
+    .finally(() => { MP._sessionPromise = null; });
+  return MP._sessionPromise;
+}
+
 function mpConnect() {
   if (typeof WebSocket === 'undefined' || typeof fetch === 'undefined' || MP.staticServer) return;
   const isHttp = typeof location !== 'undefined' && location.protocol.startsWith('http');
   const baseHttp = isHttp ? location.origin : 'http://localhost:3000';
   const baseWs = baseHttp.replace(/^http/, 'ws') + '/ws';
 
-  fetch(`${baseHttp}/api/state?handle=${encodeURIComponent((S && S.handle) || '@ejder_ocagi')}`)
+  mpEnsureGuestSession(baseHttp)
+    .then(ready => ready ? fetch(`${baseHttp}/api/state`) : null)
     .then(r => {
+      if (!r) return null;
       if (r.status === 404 || r.status === 405 || r.status === 501) {
         MP.staticServer = true;
         MP.connected = false;
@@ -139,7 +165,8 @@ function mpOpenWs(baseWs) {
         } else if (msg.type === 'welcome') {
           MP.authenticated = !!msg.authenticated;
           MP.authHandle = msg.authenticated ? (msg.handle || null) : null;
-          if (MP.authHandle && S && S.handle !== MP.authHandle) { S.handle = MP.authHandle; S.xVerified = true; if (typeof saveGame === 'function') saveGame(); }
+          MP.accountId = msg.accountId || MP.accountId;
+          if (MP.authHandle && S) { S.handle = MP.authHandle; S.xVerified = !!msg.xVerified; if (typeof saveGame === 'function') saveGame(); }
           MP.onlineCount = msg.onlineCount || 1;
           if (msg.worldBoss) MP.worldBoss = msg.worldBoss;
           if (msg.caravans) MP.caravans = msg.caravans;
@@ -269,6 +296,8 @@ function mpSendWs(obj) {
 
 function mpSyncState() {
   if (!S || typeof fetch === 'undefined' || MP.staticServer || !MP.connected) return Promise.resolve(false);
+  if (MP.authHandle) S.handle = MP.authHandle;
+  S.xVerified = !!XAUTH.handle;
   const isHttp = typeof location !== 'undefined' && location.protocol.startsWith('http');
   const baseHttp = isHttp ? location.origin : 'http://localhost:3000';
   const star = byId(S.star) || S.dragons[0];
@@ -769,7 +798,7 @@ const NET_ACT = {
       const nh = h.startsWith('@') ? h : '@' + h;
       // Doğrulanmış X hesabından farklı bir mahlas seçilirse doğrulama düşer
       if (S.xVerified && nh.toLowerCase() !== String(S.handle || '').toLowerCase()) S.xVerified = false;
-      S.handle = nh;
+      S.handle = MP.authHandle || nh;
     }
     if (g) S.guild = g;
     saveGame();

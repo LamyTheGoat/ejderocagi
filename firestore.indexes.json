@@ -1,0 +1,7 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "eo_accounts", "fieldPath": "gameJson", "indexes": [] },
+    { "collectionGroup": "commands", "fieldPath": "resultJson", "indexes": [] }
+  ]
+}

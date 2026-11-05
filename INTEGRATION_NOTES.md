@@ -1,39 +1,32 @@
-# Entegrasyon notları: mevcut Ejder Ocağı kod tabanı
+# Entegrasyon durumu
 
-İncelenen mevcut yapı:
-- `server.js`: JSON tabanlı `WORLD` kaydı, HMAC imzalı X oturumu ve ham WebSocket.
-- `js/net.js`: WebSocket bağlantısı ve `/api/sync`.
-- `js/core.js`: `S` oyun kaydı `localStorage` içinde.
-- `js/bag_social.js`: arkadaşlar/özel mesajlar/parti arayüzü.
-- Ekonomi değişiklikleri: `js/hub.js`, `js/week.js`, `js/pazar.js`, `js/auction.js`, `js/endgame.js`, `js/kiraathane.js`, `js/orders.js`, `js/career.js`, `js/cosmetic.js`, `js/race.js`, `js/star.js`, `js/lineage.js` ve `js/ui.js` dahil farklı dosyalara dağılmış durumda.
+Oyun yayınlanmadığı ve korunacak oyuncu hesabı olmadığı için localStorage
+kayıtlarını sunucuya taşıyan bir migrasyon sistemi geliştirilmeyecek.
 
-## Neden tek seferde bağlamıyoruz?
+İlk aşama uygulandı: `server/economy_store.js`, `server/guest_session.js` ve
+`server/public_files.js`; server.js HTTP/WS ve net.js kimlik bağlantıları.
+Çalışma sözleşmesi, kurulum ve sınırlamalar [SERVER_FOUNDATION.md](SERVER_FOUNDATION.md)
+içindedir. `npm test` tüm otomatik testleri çalıştırır.
 
-Takas motoru sunucu tarafında otorite kabul edilen hesaplar arasında atomik transfer yapabilir. Fakat mevcut oyun ekonomisinin otoritesi istemci tarafında. Örneğin `hub.js` keşif ödülü olarak altın/yumurta verebiliyor; `pazar.js` oyuncunun altınını düşürüp ejderha veya eşya ekliyor; `week.js` haftalık ödüller ve kuluçka sonucu varlık üretiyor.
+## Sıradaki küçük aşamalar
 
-Bunlar sunucuya güvenilir olaylar olarak taşınmadan istemciden gelen envanter snapshot'ını kabul etmek, oyuncunun kendi kendine altın veya ejderha eklemesine kapı bırakır. İlk snapshot'ı bir kez kabul etmek bu açığı yalnızca ilk aktarım anına taşır; ortadan kaldırmaz.
+1. **Oyun başlangıcı:** Başlangıçtaki 420 altın, Kor ve ilk yumurtayı gerçek oyun
+   kurallarından sunucuda üret. Hesap/kayıt yuvası ve yeni oyun sıfırlama
+   sözleşmesini belirle; başlangıç ödüllerinin yeniden oluşturularak takasa
+   sokulmasını engelle.
+2. **Ekonomi komutları:** Ödül/harcama, eşya edinimi/kullanımı, ejderha ve yumurta
+   yaşam döngülerini sırayla sunucuya taşı. Sunucu miktarı, rastgele sonucu ve
+   sahipliği belirlesin. Yerel ekonomik snapshot kabul etme.
+3. **Varlık kuralları:** Global assetId ile yerel görünüm referanslarını bağla;
+   ekipman, soy ağacı, görev, kapasite, negatif altın/borç davranışını modelle.
+4. **Takas servisi:** Mevcut trade_engine çekirdeğini gerçek hesap şemasına uyarla.
+   İki katılımcı, tek aktif takas, rezervasyon, teklif revision, iki taraflı onay,
+   idempotency ve atomik işlem günlüğünü oluştur.
+5. **Ağ akışı:** Davet/ret/teklif/onay/iptal, teklif değişince iki onayın sıfırlanması,
+   kopma/süre aşımı ve commit sonrası cevap kaybı kurtarmasını test et.
+6. **Arayüz:** Sosyal oyuncu kartından doğrudan takas; sunucunun gönderdiği
+   sürümlü durumla görüntüle. BroadcastChannel sonucuyla ekonomi değiştirme.
 
-## Sıradaki entegrasyon sırası
-
-1. `WORLD.tradeAccounts` ve `WORLD.tradeHistory` kalıcı veri şemasını ekle.
-2. Misafir oyuncular için X oturumundan ayrı, HMAC imzalı ve HttpOnly `eo_guest` çerezi oluştur. WebSocket kimliği yalnızca bu çerez veya X oturumundan türetilsin; `msg.handle` / `msg.from` kimlik olarak kabul edilmesin.
-3. Hesap kayıt aktarımını tasarla. Mevcut yerel kayıtların doğrulanamayan geçmişini açıkça belirt; doğrulanmış hesaplar için hesap sahipliği kurallarını koru.
-4. Ekonomi mutasyonlarını tek bir servis/API üzerinden sunucu otoritesine taşı. Her oyun eylemi için istemci yalnızca niyet/komut göndersin; ödül miktarını veya yeni varlığın içeriğini istemci belirlemesin.
-5. `trade_invite`, `trade_reply`, `trade_offer`, `trade_ready`, `trade_cancel` WS olaylarını ekle.
-6. `applyTrade()` sonucunu `flushWorldSync()` benzeri senkron/durable yazımla kalıcılaştır. Yazım başarısızsa eski hesapları koru ve başarı yayınlama.
-7. UI: sosyal çekmeceye Takas sekmesi ve iki taraflı teklif paneli ekle.
-8. İki gerçek hesapla tarayıcı uçtan uca testi yap.
-
-## Test kapsamı
-
-Çekirdek testleri:
-- iki taraflı altın transferi
-- eşya, ejderha, yumurta ve yiyecek transferi
-- yetersiz altın/yiyecek
-- sahip olunmayan varlık
-- yinelenen UID/ID
-- ekipmanlı ejderha
-- ekipmanı takılı eşyanın tek başına takası
-- kuluçkadaki yumurta
-- geçersiz/ek alan içeren teklif
-- hata durumunda kaynak hesapların değişmemesi
+Sunucu kalıcı commit tamamlamadan başarı bildirmemeli. Fiziksel pazar/tezgâh
+özelliği eklenmeyecek. Eski pazar ve diğer oyun mutasyonları SQLite'a bağlanmadan
+önce aynı ekonomi servisinin yetki ve rezervasyon kontrollerine alınmalı.

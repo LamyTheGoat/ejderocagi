@@ -54,3 +54,11 @@ Desktop.ini
 *.swp
 .vscode/
 .idea/
+
+# SQLite journal sidecars
+*.sqlite-*
+*.sqlite3-*
+*.db-*
+
+.local-economy/
+.emulator-data/

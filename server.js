@@ -1,7 +1,7 @@
 'use strict';
 /**
  * EJDER OCAĞI ONLINE — ÇOK OYUNCULU SUNUCU v2.5 (HTTP REST + RFC 6455 WEBSOCKET + X OAUTH 2.0 PKCE)
- * Sıfır harici bağımlılık (Zero-dependency): Doğrudan `node server.js` ile çalışır.
+ * Firestore SDK kurulumu: `npm ci`; geliştirme: `node server.js`.
  *
  * Özellikler:
  * 1. Statik Oyun Sunucusu (index.html, js/, img/, sfx/, style.css)
@@ -21,6 +21,10 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { createDragonDuelServer } = require('./js/duel_server.js');
+const { createEconomyStore } = require('./server/store_factory');
+const { COMMAND_TYPES } = require('./server/economy_commands');
+const { createGuestSessions } = require('./server/guest_session');
+const { createPublicFiles } = require('./server/public_files');
 
 const PORT = process.env.PORT || 3000;
 const X_CLIENT_ID = process.env.X_CLIENT_ID || '';
@@ -29,6 +33,9 @@ const PUBLIC_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
 
 const DB_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const DB_FILE = path.join(DB_DIR, 'world.json');
+const ECONOMY = createEconomyStore();
+const GUEST_SESSIONS = createGuestSessions(ECONOMY, PUBLIC_URL, process.env.NODE_ENV === 'production');
+const publicFile = createPublicFiles(__dirname, [DB_DIR]);
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -364,7 +371,8 @@ function decodeWsFrames(buffer) {
     let payloadLen = byte2 & 0x7f;
     let headerLen = 2;
 
-    if (opcode === 0x8) return { close: true, messages };
+    if (opcode === 0x8) return { close: true, messages, consumed: buffer.length };
+    if (!(byte1 & 0x80) || (byte1 & 0x70) || !isMasked || ![0x1, 0x9, 0xa].includes(opcode)) return { close: true, messages: [], consumed: buffer.length };
     if (payloadLen === 126) {
       if (offset + 4 > buffer.length) break;
       payloadLen = buffer.readUInt16BE(offset + 2);
@@ -375,6 +383,7 @@ function decodeWsFrames(buffer) {
       headerLen = 10;
     }
 
+    if (!Number.isSafeInteger(payloadLen) || payloadLen > 128 * 1024 || (opcode >= 0x8 && payloadLen > 125)) return { close: true, messages: [], consumed: buffer.length };
     const maskLen = isMasked ? 4 : 0;
     if (offset + headerLen + maskLen + payloadLen > buffer.length) break;
 
@@ -395,7 +404,7 @@ function decodeWsFrames(buffer) {
     }
     offset += headerLen + maskLen + payloadLen;
   }
-  return { close: false, messages };
+  return { close: false, messages, consumed: offset };
 }
 
 function wsBroadcast(obj, excludeSocket = null) {
@@ -429,8 +438,18 @@ function getActiveHubPeers() {
   })).filter(x => x.d);
 }
 
-function handleWsUpgrade(req, socket) {
+async function handleWsUpgrade(req, socket, head) {
+  if (!GUEST_SESSIONS.allowedOrigin(req) || !req.headers.origin) {
+    socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return;
+  }
+  const identity = await GUEST_SESSIONS.resolve(req);
+  if (socket.destroyed) return;
+  if (!identity) {
+    socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+    return;
+  }
   const key = req.headers['sec-websocket-key'];
+  if (req.headers['sec-websocket-version'] !== '13' || req.headers.upgrade?.toLowerCase() !== 'websocket' || typeof key !== 'string' || !/^[A-Za-z0-9+/]{22}==$/.test(key)) { socket.destroy(); return; }
   if (!key) { socket.destroy(); return; }
   const acceptKey = crypto
     .createHash('sha1')
@@ -446,14 +465,15 @@ function handleWsUpgrade(req, socket) {
   ].join('\r\n');
 
   socket.write(headers);
-  const authenticatedHandle = getSessionHandle(req);
-  socket.playerInfo = { handle: authenticatedHandle || ('@gezgin_' + Math.floor(100 + Math.random() * 900)), authenticated: !!authenticatedHandle, x: 35, y: 60, pose: 'P1', chat: 'Meydana katıldı!' };
+  socket.playerInfo = { accountId: identity.accountId, handle: identity.handle, authenticated: true, xVerified: !!getSessionHandle(req), x: 35, y: 60, pose: 'P1', chat: 'Meydana katıldı!' };
   WS_CLIENTS.add(socket);
 
   socket.write(encodeWsFrame({
     type: 'welcome',
     handle: socket.playerInfo.handle,
     authenticated: socket.playerInfo.authenticated,
+    accountId: identity.accountId,
+    xVerified: socket.playerInfo.xVerified,
     onlineCount: WS_CLIENTS.size,
     worldBoss: WORLD.worldBoss,
     banners: WORLD.banners,
@@ -466,8 +486,18 @@ function handleWsUpgrade(req, socket) {
   wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size });
   DUEL_SERVER.onConnect(socket);
 
-  socket.on('data', buffer => {
-    const { close, messages } = decodeWsFrames(buffer);
+  const authTimer = setInterval(() => {
+    GUEST_SESSIONS.resolve(req).then(session => { if (!session) socket.destroy(); }).catch(() => socket.destroy());
+  }, 60000);
+  authTimer.unref();
+  socket.once('close', () => clearInterval(authTimer));
+  let pending = Buffer.alloc(0);
+  const onData = chunk => {
+    if (shuttingDown || identity.expiresAt <= Date.now()) { socket.destroy(); return; }
+    if (pending.length + chunk.length > 256 * 1024) { socket.destroy(); return; }
+    pending = Buffer.concat([pending, chunk]);
+    const { close, messages, consumed } = decodeWsFrames(pending);
+    pending = pending.subarray(consumed);
     if (close) {
       WS_CLIENTS.delete(socket);
       socket.end();
@@ -477,7 +507,9 @@ function handleWsUpgrade(req, socket) {
     for (const msg of messages) {
       handleWsMessage(socket, msg);
     }
-  });
+  };
+  socket.on('data', onData);
+  if (head && head.length) onData(head);
 
   socket.on('close', () => {
     WS_CLIENTS.delete(socket);
@@ -491,11 +523,14 @@ function handleWsUpgrade(req, socket) {
 }
 
 function handleWsMessage(socket, msg) {
-  if (!msg || !msg.type) return;
+  if (!msg || typeof msg !== 'object' || Array.isArray(msg) || !msg.type) return;
+  // Sender identity always comes from the live session, never the message.
+  msg = { ...msg, accountId: socket.playerInfo.accountId, handle: socket.playerInfo.handle, from: socket.playerInfo.handle, buyer: socket.playerInfo.handle, attacker: socket.playerInfo.handle };
+  if (msg.listing && typeof msg.listing === 'object') msg.listing = { ...msg.listing, seller: socket.playerInfo.handle };
   if (DUEL_SERVER.onMessage(socket, msg)) return;
 
   if (msg.type === 'hub_update' || msg.type === 'hub_actor') {
-    const h = socket.playerInfo.authenticated ? socket.playerInfo.handle : (msg.handle || socket.playerInfo.handle);
+    const h = socket.playerInfo.handle;
     socket.playerInfo.handle = h;
     if (WORLD.players[h]) {
       if (msg.x != null) WORLD.players[h].hubX = msg.x;
@@ -571,6 +606,7 @@ function handleWsMessage(socket, msg) {
     WORLD.marketListings = WORLD.marketListings || [];
     WORLD.marketSales = WORLD.marketSales || [];
     if (msg.op === 'list' && msg.listing) {
+      if (WORLD.marketListings.some(x => x.id === msg.listing.id && x.seller !== socket.playerInfo.handle)) return;
       WORLD.marketListings = WORLD.marketListings.filter(x => x.id !== msg.listing.id && !(x.seller === msg.listing.seller && x.title === msg.listing.title));
       WORLD.marketListings.unshift(msg.listing);
       if (WORLD.marketListings.length > 40) WORLD.marketListings.pop();
@@ -603,7 +639,7 @@ function handleWsMessage(socket, msg) {
         wsBroadcast({ type: 'market_update', op: 'offer', offer, listings: WORLD.marketListings });
       }
     } else if (msg.op === 'cancel' && msg.id) {
-      WORLD.marketListings = WORLD.marketListings.filter(x => x.id !== msg.id);
+      WORLD.marketListings = WORLD.marketListings.filter(x => x.id !== msg.id || x.seller !== socket.playerInfo.handle);
       saveWorld();
       wsBroadcast({ type: 'market_update', op: 'cancel', id: msg.id, listings: WORLD.marketListings });
     }
@@ -717,12 +753,12 @@ function buildDynamicCardSvg(handle) {
     <rect width="1200" height="630" fill="url(#glow)"/>
     <rect x="28" y="28" width="1144" height="574" rx="22" fill="none" stroke="#d49a42" stroke-width="4"/>
     <text x="70" y="95" fill="#ffd25e" font-family="Georgia, serif" font-size="28" font-weight="bold">EJDER OCAĞI ONLINE · MEYDAN OKUMA KARTI</text>
-    <text x="70" y="165" fill="#ffffff" font-family="Georgia, serif" font-size="56" font-weight="bold">${handle}</text>
-    <text x="70" y="210" fill="#d8c4a0" font-family="Georgia, serif" font-size="26">Lonca: ${guild} · Unvan: ${(p && p.title) || 'Ocak Ustası'}</text>
+    <text x="70" y="165" fill="#ffffff" font-family="Georgia, serif" font-size="56" font-weight="bold">${escHtml(handle)}</text>
+    <text x="70" y="210" fill="#d8c4a0" font-family="Georgia, serif" font-size="26">Lonca: ${escHtml(guild)} · Unvan: ${escHtml((p && p.title) || 'Ocak Ustası')}</text>
     <rect x="70" y="250" width="620" height="220" rx="16" fill="#0d0806" fill-opacity="0.65" stroke="#6a4828" stroke-width="2"/>
-    <text x="100" y="305" fill="#ffd25e" font-family="Georgia, serif" font-size="40" font-weight="bold">Muhafız: ${d.name} (${d.gen || 1}. Kuşak)</text>
-    <text x="100" y="355" fill="#f0e2c8" font-family="sans-serif" font-size="26">GÜÇ: ${d.st.gu}   |   ÇEV: ${d.st.ce}   |   DAY: ${d.st.da}   |   ZEK: ${d.st.ze}</text>
-    <text x="100" y="405" fill="#8af084" font-family="sans-serif" font-size="24">★ ${d.w || 12} Arena Zaferi · Hibrit Kan: ${d.hybrid || 'Safkan'}</text>
+    <text x="100" y="305" fill="#ffd25e" font-family="Georgia, serif" font-size="40" font-weight="bold">Muhafız: ${escHtml(d.name)} (${escHtml(d.gen || 1)}. Kuşak)</text>
+    <text x="100" y="355" fill="#f0e2c8" font-family="sans-serif" font-size="26">GÜÇ: ${escHtml(d.st.gu)}   |   ÇEV: ${escHtml(d.st.ce)}   |   DAY: ${escHtml(d.st.da)}   |   ZEK: ${escHtml(d.st.ze)}</text>
+    <text x="100" y="405" fill="#8af084" font-family="sans-serif" font-size="24">★ ${escHtml(d.w || 12)} Arena Zaferi · Hibrit Kan: ${escHtml(d.hybrid || 'Safkan')}</text>
     <text x="70" y="545" fill="#ffb067" font-family="Georgia, serif" font-size="30" font-weight="bold">🔥 Tıkla, Ocağı Ziyaret Et ve Kendi Ejderhanla Kapış!</text>
     <circle cx="930" cy="315" r="175" fill="${c}" fill-opacity="0.2" stroke="${c}" stroke-width="4"/>
     <path d="M830,380 Q910,200 1010,250 Q970,330 1040,390 Q930,360 830,380 Z" fill="${c}" stroke="#ffd25e" stroke-width="4"/>
@@ -730,15 +766,28 @@ function buildDynamicCardSvg(handle) {
 }
 
 /* ============ HTTP REST API VE STATİK DOSYA SUNUCUSU ============ */
-function readJsonBody(req) {
-  return new Promise(resolve => {
+function readJsonBody(req, senderFields = true, limit = 2e6) {
+  return new Promise((resolve, reject) => {
     let body = '';
+    let bytes = 0;
     req.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > limit) { reject(Object.assign(new Error('body_too_large'), { status: 413 })); req.resume(); return; }
       body += chunk;
-      if (body.length > 2e6) req.destroy();
     });
+    req.on('error', reject);
+    req.on('aborted', () => reject(new Error('request_aborted')));
     req.on('end', () => {
-      try { resolve(JSON.parse(body || '{}')); } catch (e) { resolve({}); }
+      try {
+        const parsed = JSON.parse(body || '{}');
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error();
+        if (senderFields && req.identity) {
+          const { handle, accountId } = req.identity;
+          Object.assign(parsed, { handle, accountId, from: handle, attacker: handle, buyer: handle });
+          if (parsed.listing && typeof parsed.listing === 'object') parsed.listing = { ...parsed.listing, seller: handle };
+        }
+        resolve(parsed);
+      } catch (_) { reject(Object.assign(new Error('invalid_json'), { status: 400 })); }
     });
   });
 }
@@ -746,7 +795,8 @@ function readJsonBody(req) {
 function sendJson(res, status, data) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   });
@@ -776,7 +826,7 @@ function pruneOauthStates() {
 
 function isLocalRequest(req) {
   const host = String(req.headers.host || '').split(':')[0];
-  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+  return process.env.NODE_ENV !== 'production' && ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress) && (host === 'localhost' || host === '127.0.0.1' || host === '[::1]');
 }
 
 function signSession(payload) {
@@ -806,11 +856,58 @@ function getSessionHandle(req) {
   } catch (e) { return null; }
 }
 
-const server = http.createServer(async (req, res) => {
+// Bound unauthenticated account creation; proxy headers are not trusted.
+const guestCreationWindows = new Map();
+function allowGuestCreation(req) {
+  const now = Date.now();
+  for (const [ip, window] of guestCreationWindows) if (window.until <= now) guestCreationWindows.delete(ip);
+  const ip = req.socket.remoteAddress;
+  let window = guestCreationWindows.get(ip);
+  if (!window) {
+    if (guestCreationWindows.size >= 2000) return false;
+    window = { until: now + 60000, count: 0 };
+    guestCreationWindows.set(ip, window);
+  }
+  return ++window.count <= 20;
+}
+
+async function handleHttp(req, res) {
   if (req.method === 'OPTIONS') return sendJson(res, 200, { ok: true });
 
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = parsedUrl.pathname;
+  if (pathname.startsWith('/api/')) {
+    if (!GUEST_SESSIONS.allowedOrigin(req)) return sendJson(res, 403, { ok: false, error: 'origin_not_allowed' });
+    req.identity = await GUEST_SESSIONS.resolve(req);
+  }
+
+  // Explicit bootstrap, shared by all save slots. No client account or assets accepted.
+  if (pathname === '/api/session' && req.method === 'POST') {
+    req.resume();
+    let identity = req.identity;
+    if (!identity) {
+      if (GUEST_SESSIONS.tokenFrom(req) !== null) return sendJson(res, 401, { ok: false, error: 'invalid_guest_session' });
+      if (!allowGuestCreation(req)) return sendJson(res, 429, { ok: false, error: 'guest_creation_rate_limited' });
+      identity = await ECONOMY.createGuest();
+      res.setHeader('Set-Cookie', GUEST_SESSIONS.cookie(identity.token, identity.expiresAt));
+    }
+    return sendJson(res, 200, { ok: true, accountId: identity.accountId, handle: identity.handle, expiresAt: identity.expiresAt, economyReady: false });
+  }
+  if (pathname === '/api/economy/command' && req.method === 'POST') {
+    if (!req.identity) return sendJson(res, 401, { ok: false, error: 'guest_session_required' });
+    const command = await readJsonBody(req, false, 8192);
+    const applied = await ECONOMY.executeCommand(req.identity.accountId, command);
+    return sendJson(res, 200, { ok: true, ...applied });
+  }
+  if (pathname === '/api/economy') {
+    if (!req.identity) return sendJson(res, 401, { ok: false, error: 'guest_session_required' });
+    if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'economy_read_only' });
+    return sendJson(res, 200, { ok: true, economyReady: false, commandApiReady: true, commands: COMMAND_TYPES, economy: await ECONOMY.readEconomy(req.identity.accountId) });
+  }
+  if (pathname.startsWith('/api/') && req.method === 'POST' && !pathname.startsWith('/api/auth/') && !req.identity) {
+    return sendJson(res, 401, { ok: false, error: 'guest_session_required' });
+  }
+
 
   // 1. Resmi X (Twitter) OAuth 2.0 PKCE Giriş Başlatma (/api/auth/x/login)
   if (pathname === '/api/auth/x/login' && req.method === 'GET') {
@@ -916,7 +1013,7 @@ const server = http.createServer(async (req, res) => {
 
   // 3. GET /api/state — Küresel sunucu durumunu getir
   if (pathname === '/api/state' && req.method === 'GET') {
-    const handle = parsedUrl.searchParams.get('handle') || '@ejder_ocagi';
+    const handle = req.identity ? req.identity.handle : null;
     const myRaids = WORLD.raidLog.filter(r => r.target === handle || r.attacker === handle).slice(-12);
     return sendJson(res, 200, {
       ok: true,
@@ -936,11 +1033,12 @@ const server = http.createServer(async (req, res) => {
   // 4. POST /api/sync — Oyuncunun ocağını, savunma bonusunu, yıldız ejderhasını ve sancağını senkronize et
   if (pathname === '/api/sync' && req.method === 'POST') {
     const body = await readJsonBody(req);
-    const sessionHandle = getSessionHandle(req);
-    const rawH = String(sessionHandle || body.handle || '@ejder_ocagi').trim();
-    const handle = rawH.startsWith('@') ? rawH : '@' + rawH;
+    if (['gold', 'inv', 'inventory', 'dragons', 'eggs', 'assets', 'balances'].some(key => Object.hasOwn(body, key))) {
+      return sendJson(res, 400, { ok: false, error: 'economy_snapshot_not_accepted' });
+    }
+    const handle = req.identity.handle;
     const existing = WORLD.players[handle] || {};
-    const ownsHandle = !!sessionHandle && sessionHandle.toLowerCase() === handle.toLowerCase();
+    const ownsHandle = existing.accountId === req.identity.accountId;
     // X ile doğrulanmış (veya tohum) bir handle'ı yalnızca oturum sahibi güncelleyebilir
     if (existing.verified && !ownsHandle) {
       return sendJson(res, 403, { ok: false, error: 'handle_verified_owner_only' });
@@ -948,7 +1046,8 @@ const server = http.createServer(async (req, res) => {
     WORLD.players[handle] = {
       ...existing,
       handle,
-      verified: ownsHandle ? true : !!existing.verified,
+      accountId: req.identity.accountId,
+      verified: !!getSessionHandle(req),
       guild: body.guild || existing.guild || 'Kızıl Ocak Birliği',
       title: body.title || existing.title || 'Ocak Ustası',
       un: Number(body.un) || existing.un || 0,
@@ -1115,6 +1214,7 @@ const server = http.createServer(async (req, res) => {
     WORLD.marketListings = WORLD.marketListings || [];
     WORLD.marketSales = WORLD.marketSales || [];
     if (body.op === 'list' && body.listing) {
+      if (WORLD.marketListings.some(x => x.id === body.listing.id && x.seller !== req.identity.handle)) return sendJson(res, 403, { ok: false, error: 'listing_not_owned' });
       WORLD.marketListings = WORLD.marketListings.filter(x => x.id !== body.listing.id && !(x.seller === body.listing.seller && x.title === body.listing.title));
       WORLD.marketListings.unshift(body.listing);
       if (WORLD.marketListings.length > 40) WORLD.marketListings.pop();
@@ -1149,7 +1249,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, offer, listings: WORLD.marketListings });
     }
     if (body.op === 'cancel' && body.id) {
-      const idx = WORLD.marketListings.findIndex(x => x.id === body.id);
+      const idx = WORLD.marketListings.findIndex(x => x.id === body.id && x.seller === req.identity.handle);
       const item = idx >= 0 ? WORLD.marketListings.splice(idx, 1)[0] : null;
       saveWorld();
       wsBroadcast({ type: 'market_update', op: 'cancel', id: body.id, listings: WORLD.marketListings });
@@ -1213,11 +1313,9 @@ const server = http.createServer(async (req, res) => {
   }
 
   // 11. Statik Dosya Sunucusu (Cache-Control + ETag ile %95 Trafik Tasarrufu)
-  let filePath = pathname === '/' ? '/index.html' : pathname;
-  const safePath = path.normalize(filePath).replace(/^(\.\.[\/\\])+/, '');
-  const fullPath = path.join(__dirname, safePath);
+  const fullPath = publicFile(pathname);
 
-  if (fs.existsSync(fullPath)) {
+  if (fullPath) {
     const stat = fs.statSync(fullPath);
     if (stat.isFile()) {
       const ext = path.extname(fullPath).toLowerCase();
@@ -1244,21 +1342,34 @@ const server = http.createServer(async (req, res) => {
   }
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('404 Bulunamadı');
+}
+
+const server = http.createServer((req, res) => {
+  handleHttp(req, res).catch(error => {
+    if (!res.headersSent) sendJson(res, error.status || 500, { ok: false, error: error.status ? error.message : 'internal_error' });
+    else res.end();
+  });
 });
 
-server.on('upgrade', (req, socket) => {
-  if (req.url.startsWith('/ws')) {
-    handleWsUpgrade(req, socket);
+server.on('upgrade', (req, socket, head) => {
+  if (req.url === '/ws') {
+    handleWsUpgrade(req, socket, head).catch(() => socket.destroy());
   } else {
     socket.destroy();
   }
 });
 
-function handleGracefulShutdown(signal) {
+let shuttingDown = false;
+async function handleGracefulShutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  for (const socket of WS_CLIENTS) socket.destroy();
   console.log(`[${signal}] Alındı — world.json diske kaydediliyor ve sunucu kapatılıyor...`);
   flushWorldSync(WORLD);
-  server.close(() => process.exit(0));
-  setTimeout(() => process.exit(0), 3000).unref();
+  const deadline = setTimeout(() => process.exit(1), 8000);
+  deadline.unref();
+  server.close();
+  try { await ECONOMY.close(); process.exit(0); } catch (_) { process.exit(1); }
 }
 
 process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));

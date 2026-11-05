@@ -116,7 +116,7 @@ function createDragonDuelServer(deps) {
   }
 
   function invite(socket, msg) {
-    if (!isAuthed(socket)) return sendError(socket, 'Gerçek düello için X oturumu ile giriş yapmalısın.');
+    if (!isAuthed(socket)) return sendError(socket, 'Gerçek düello için oyuncu oturumu ile giriş yapmalısın.');
     const from = handleOf(socket);
     const to = String(msg.to || '').trim();
     if (!/^@[a-zA-Z0-9_]{2,24}$/.test(to) || to === from) return sendError(socket, 'Geçerli bir rakip seçilemedi.');

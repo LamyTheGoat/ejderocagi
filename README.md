@@ -1,51 +1,40 @@
-# Ocak Bedesteni: Takas Çekirdeği (ilk teknik aşama)
+# Ejder Ocağı — sunucu kimliği ve ekonomi temeli
 
-Bu paket, oyundaki doğrudan oyuncu takasının **varlık transfer çekirdeğini** içerir.
+Kalıcı misafir hesabı, transaction destekli SQLite deposu ve bağımsız doğrudan
+takas çekirdeği içerir. X hesabı misafir oturumu için gerekli değildir.
 
-## İçerik
+## Çalıştırma ve test
 
-- `js/trade_engine.js`: Bağımsız ve sunucu tarafında kullanılmak üzere tasarlanmış takas doğrulama/transfer motoru.
-- `tests/trade_engine.test.js`: Node.js yerleşik `assert` modülüyle çalışan testler.
-- `INTEGRATION_NOTES.md`: Mevcut oyuna bağlamadan önce çözülmesi gereken veri otoritesi ve entegrasyon işleri.
+Node 22.13+ (22 serisi) veya 23.4+ kullanın; harici npm bağımlılığı yoktur.
 
-## Test
-
-Proje kökünde:
-
-```bash
-node tests/trade_engine.test.js
+```sh
+npm start
+npm test
 ```
 
-Beklenen çıktı:
+Oyun varsayılan olarak http://localhost:3000 adresindedir. Farklı adres veya
+portta `PUBLIC_URL` değerini tarayıcının kullandığı origin ile eşleştirin.
+Üretimde HTTPS ve kalıcı `DATA_DIR` gerekir.
 
-```text
-PASS: atomic two-sided transfer, gold, items, dragons, eggs, food, ownership, equipment and incubation guards.
-```
+## Bu aşamada tamamlananlar
 
-## Önemli: Bu henüz oyuna bağlanmış bir takas sistemi değil
+- Sunucu tarafından oluşturulan accountId ve kalıcı HttpOnly misafir oturumu.
+- Altın, eşya, ejderha ve yumurta için ayrı SQLite sahiplik deposu.
+- Transaction içinde birlikte commit/rollback; sahiplik ve bakiye kontrolleri.
+- HTTP/WebSocket gönderen kimliğinin oturumdan alınması.
+- Özel dosyaların genel statik sunucudan çıkarılması.
+- Oturum, atomiklik, süreç kesintisi, erişim ve istemci uyumluluk testleri.
 
-Bu aşamada `server.js`, `net.js` veya `bag_social.js` değiştirilmedi. Motor yalnızca sunucunun zaten otorite kabul ettiği iki hesabın verisini güvenli biçimde değiştirir.
+## Henüz bağlı olmayanlar
 
-Mevcut oyunda altın, yiyecek, eşya, ejderha ve yumurta değişikliklerinin önemli bir bölümü tarayıcıdaki `S` nesnesinde ve `localStorage` kayıtlarında gerçekleşiyor. Bu kaynaklardan gelen ilk envanter aktarımı oyuncu tarafından değiştirilebildiğinden, tek başına güvenilir sahiplik kanıtı değildir.
+Mevcut oyun ekonomisi ağırlıklı olarak tarayıcıdaki `S` nesnesinde çalışır.
+Yerel kayıtlar SQLite'a aktarılmaz. SQLite hesapları boş başlar ve API
+`economyReady: false` döndürür; bu durum mevcut oyun bakiyesini değiştirmez.
 
-Motoru doğrudan WebSocket'e bağlamak, istemcinin sahte varlık üretmesini engellemez. Tam güvenlik için aşağıdaki entegrasyon aşamaları tamamlanmalıdır:
+`js/trade_engine.js` bağımsız transfer çekirdeğidir. Karşılıklı onaylı takas
+servisi, rezervasyonlar, tekrar istek koruması ve takas arayüzü henüz yoktur.
+Mevcut dünya/profil/pazar verileri güvenilir ekonomik sahiplik kanıtı değildir.
+Fiziksel pazar ve tezgâh geliştirmesi kapsam dışındadır.
 
-1. Kalıcı, sunucu tarafından imzalanan oyuncu kimliği (misafir ve X hesabı).
-2. İlk kayıt aktarımı için açık bir politika. Mevcut yerel kayıtların gerçekliğini geriye dönük kanıtlamak mümkün değildir.
-3. Oyun ekonomisinin sunucu otoritesine taşınması veya güvenilir sunucu olaylarıyla güncellenmesi. Özellikle ödül, satın alma, satış, üretim, yumurtlama, kuluçka, ejderha yakalama ve kayıp akışları.
-4. Hesapların sunucu tarafında kalıcı saklanması ve takas tamamlanırken senkron/durable commit.
-5. Kimliği doğrulanmış WebSocket üzerinden davet, teklif, onay, iptal ve yeniden bağlanma protokolü.
-6. İki oyunculu uçtan uca test.
-
-## Tasarım kararları
-
-- Teklif değiştiğinde iki tarafın da onayı sıfırlanmalı.
-- Aynı oyuncu aynı anda yalnızca bir takasta bulunmalı.
-- İstemci varlık sahipliğini veya fiyatı belirleyemez.
-- Takas sırasında tüm teklif yeniden doğrulanmalı.
-- Bir tarafın varlıklarından biri bile geçersizse iki tarafın hesabı da değişmemeli.
-- Üzerinde ekipman bulunan ejderhalar ilk sürümde takas edilemez. Ekipman ayrı teklif olarak aktarılabilir.
-- Kuluçkadaki yumurtalar ve meşgul/ölü/yaşlı ejderhalar takas edilemez.
-- Sunucu kalıcı yazımı tamamlamadan istemcilere başarı mesajı gönderilmemeli.
-
-Bu çekirdek Node.js yerleşik API'leri dışında bağımlılık kullanmaz.
+Ayrıntılı sözleşme ve sınırlar: [SERVER_FOUNDATION.md](SERVER_FOUNDATION.md).
+Sıradaki işler: [INTEGRATION_NOTES.md](INTEGRATION_NOTES.md).
