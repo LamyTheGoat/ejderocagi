@@ -1,0 +1,14 @@
+{
+  "name": "ejder-ocagi-online",
+  "version": "23.0.0",
+  "description": "Ejder Ocağı Online — 2D Taktiksel Topçu RPG, Ejderha Yetiştirme, Canlı Oyuncu Bedesteni ve Ejder Topçusu PvP Sunucusu (Sıfır Bağımlılıklı Node.js HTTP + RFC 6455 WebSocket)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "private": true
+}

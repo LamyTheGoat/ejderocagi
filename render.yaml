@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: ejder-ocagi-online
+    runtime: node
+    plan: starter
+    buildCommand: "echo 'Zero-dependency Node.js server ready'"
+    startCommand: "node server.js"
+    envVars:
+      - key: NODE_ENV
+        value: production
+    disk:
+      name: ejder-ocagi-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1

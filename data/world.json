@@ -1,0 +1,894 @@
+{
+  "version": 2.5,
+  "createdAt": "2026-11-03T19:09:37.783Z",
+  "players": {
+    "@kuzey_ruzgari": {
+      "handle": "@kuzey_ruzgari",
+      "verified": true,
+      "guild": "Ayaz Muhafızları",
+      "title": "Rüzgârın Oğlu",
+      "un": 64,
+      "wins": 18,
+      "defenseBonus": 18,
+      "updatedAt": 1793732977784,
+      "star": {
+        "id": 9001,
+        "name": "Bora",
+        "sex": "M",
+        "stage": "yetiskin",
+        "el": "buz",
+        "hybrid": "buz+firtina",
+        "gen": 2,
+        "w": 14,
+        "l": 2,
+        "bond": 82,
+        "dirt": 0,
+        "st": {
+          "gu": 68,
+          "ce": 84,
+          "da": 72,
+          "ze": 64
+        },
+        "genes": {
+          "pot": {
+            "gu": [
+              4,
+              4
+            ],
+            "ce": [
+              5,
+              4
+            ],
+            "da": [
+              4,
+              4
+            ],
+            "ze": [
+              4,
+              3
+            ]
+          },
+          "el": [
+            "buz",
+            "firtina"
+          ],
+          "pat": [
+            "C",
+            "d"
+          ],
+          "eye": [
+            "A",
+            "A"
+          ],
+          "eyec": [
+            "mavi",
+            "altin"
+          ],
+          "horn": [
+            "t",
+            "k"
+          ],
+          "pul": [
+            "gok",
+            "inci"
+          ],
+          "sus": [
+            "altin",
+            "altin"
+          ],
+          "pig": [
+            "a",
+            "a"
+          ],
+          "par": [
+            "P",
+            "p"
+          ],
+          "boy": [
+            "i",
+            "o"
+          ]
+        },
+        "traits": [
+          "kartal",
+          "asil"
+        ],
+        "cards": [
+          "dondurucu_bora",
+          "buz_zirh",
+          "yildirim"
+        ],
+        "cos": {
+          "aura": "kar",
+          "bas": "altintac"
+        },
+        "aiPreset": {
+          "opener": "kukre",
+          "lowHpPct": 40,
+          "lowHpAct": "card"
+        },
+        "studFee": 95
+      }
+    },
+    "@leydi_sureyya": {
+      "handle": "@leydi_sureyya",
+      "verified": true,
+      "guild": "İnci Hanedanı",
+      "title": "Saray İncisi",
+      "un": 82,
+      "wins": 22,
+      "defenseBonus": 24,
+      "updatedAt": 1793732977784,
+      "star": {
+        "id": 9002,
+        "name": "Şahmeran",
+        "sex": "F",
+        "stage": "yetiskin",
+        "el": "golge",
+        "hybrid": "ates+golge",
+        "gen": 3,
+        "w": 19,
+        "l": 1,
+        "bond": 92,
+        "dirt": 0,
+        "st": {
+          "gu": 74,
+          "ce": 76,
+          "da": 70,
+          "ze": 88
+        },
+        "genes": {
+          "pot": {
+            "gu": [
+              4,
+              4
+            ],
+            "ce": [
+              4,
+              5
+            ],
+            "da": [
+              4,
+              4
+            ],
+            "ze": [
+              5,
+              5
+            ]
+          },
+          "el": [
+            "golge",
+            "ates"
+          ],
+          "pat": [
+            "C",
+            "B"
+          ],
+          "eye": [
+            "A",
+            "A"
+          ],
+          "eyec": [
+            "kizil",
+            "kizil"
+          ],
+          "horn": [
+            "t",
+            "t"
+          ],
+          "pul": [
+            "mor",
+            "gul"
+          ],
+          "sus": [
+            "altin",
+            "kizil"
+          ],
+          "pig": [
+            "m",
+            "m"
+          ],
+          "par": [
+            "P",
+            "p"
+          ],
+          "boy": [
+            "o",
+            "o"
+          ]
+        },
+        "traits": [
+          "asil",
+          "kor"
+        ],
+        "cards": [
+          "kara_alev",
+          "golge_adim",
+          "son_nefes"
+        ],
+        "cos": {
+          "aura": "yildiz",
+          "taban": "kaide",
+          "boyun": "nazar"
+        },
+        "aiPreset": {
+          "opener": "nefes",
+          "lowHpPct": 40,
+          "lowHpAct": "card"
+        },
+        "studFee": 130
+      }
+    },
+    "@altin_kervan": {
+      "handle": "@altin_kervan",
+      "verified": true,
+      "guild": "Tuz Tacirleri",
+      "title": "Tuz Taciri",
+      "un": 52,
+      "wins": 15,
+      "defenseBonus": 20,
+      "updatedAt": 1793732977784,
+      "star": {
+        "id": 9003,
+        "name": "Kızılhan",
+        "sex": "M",
+        "stage": "yetiskin",
+        "el": "ates",
+        "hybrid": "ates+toprak",
+        "gen": 2,
+        "w": 15,
+        "l": 4,
+        "bond": 76,
+        "dirt": 0,
+        "st": {
+          "gu": 86,
+          "ce": 62,
+          "da": 84,
+          "ze": 58
+        },
+        "genes": {
+          "pot": {
+            "gu": [
+              5,
+              4
+            ],
+            "ce": [
+              3,
+              4
+            ],
+            "da": [
+              5,
+              4
+            ],
+            "ze": [
+              3,
+              3
+            ]
+          },
+          "el": [
+            "ates",
+            "toprak"
+          ],
+          "pat": [
+            "B",
+            "d"
+          ],
+          "eye": [
+            "N",
+            "A"
+          ],
+          "eyec": [
+            "altin",
+            "kehribar"
+          ],
+          "horn": [
+            "k",
+            "k"
+          ],
+          "pul": [
+            "altin",
+            "kizil"
+          ],
+          "sus": [
+            "zumrut",
+            "altin"
+          ],
+          "pig": [
+            "N",
+            "N"
+          ],
+          "par": [
+            "p",
+            "p"
+          ],
+          "boy": [
+            "i",
+            "i"
+          ]
+        },
+        "traits": [
+          "demir",
+          "kor"
+        ],
+        "cards": [
+          "magma_zirh",
+          "alev_yagmuru",
+          "celik_pence"
+        ],
+        "cos": {
+          "aura": "kivilcim",
+          "kuyruk": "halka"
+        },
+        "aiPreset": {
+          "opener": "kukre",
+          "lowHpPct": 40,
+          "lowHpAct": "savun"
+        },
+        "studFee": 85
+      }
+    },
+    "@aslan_terbiyeci": {
+      "handle": "@aslan_terbiyeci",
+      "verified": false,
+      "guild": "Altın Pençe Ocağı",
+      "title": "Ocak Ustası",
+      "un": 0,
+      "wins": 0,
+      "defenseBonus": 13,
+      "star": {
+        "id": 1,
+        "name": "Kor-Yavru",
+        "sex": "M",
+        "genes": {
+          "pot": {
+            "gu": [
+              3,
+              4
+            ],
+            "ce": [
+              2,
+              3
+            ],
+            "da": [
+              3,
+              3
+            ],
+            "ze": [
+              2,
+              2
+            ]
+          },
+          "el": [
+            "ates",
+            "buz"
+          ],
+          "pat": [
+            "C",
+            "d"
+          ],
+          "eye": [
+            "N",
+            "A"
+          ],
+          "horn": [
+            "k",
+            "d"
+          ],
+          "eyec": [
+            "kehribar",
+            "kehribar"
+          ],
+          "pul": [
+            "n",
+            "n"
+          ],
+          "sus": [
+            "n",
+            "n"
+          ],
+          "pig": [
+            "N",
+            "N"
+          ],
+          "par": [
+            "p",
+            "p"
+          ],
+          "boy": [
+            "o",
+            "o"
+          ]
+        },
+        "el": "ates",
+        "pat": "C",
+        "eye": "N",
+        "horn": "k",
+        "traits": [
+          "kor"
+        ],
+        "stage": "yavru",
+        "age": 9,
+        "gen": 1,
+        "parents": null,
+        "st": {
+          "gu": 42,
+          "ce": 30,
+          "da": 38,
+          "ze": 24
+        },
+        "bond": 45,
+        "mood": 3,
+        "fat": 0,
+        "inj": 0,
+        "pers": {
+          "ces": 22,
+          "sic": 8,
+          "dis": 4
+        },
+        "fav": "biber",
+        "favKnown": false,
+        "w": 0,
+        "l": 0,
+        "equip": {
+          "bas": null,
+          "govde": null,
+          "pence": null,
+          "tilsim": null
+        },
+        "task": null,
+        "talked": false,
+        "fed": false,
+        "style": "yumusak",
+        "seenTalk": [],
+        "origin": "Dedenden kaldı",
+        "born": 1,
+        "hue": -6,
+        "pids": null,
+        "eternalYouth": true
+      },
+      "hubChat": null,
+      "hubPose": "P1",
+      "updatedAt": 1793732981250
+    }
+  },
+  "codex": {
+    "ates:saf:N:p:kizil:altin:C:kehribar:1": {
+      "hash": "ates:saf:N:p:kizil:altin:C:kehribar:1",
+      "title": "Kızıl Pullu Altın Süslü Ateş",
+      "by": "@demirhan_ocagi",
+      "dName": "Demirpençe",
+      "w": 1,
+      "rarity": 48
+    },
+    "buz:buz+firtina:a:P:gok+inci:altin:C:mavi:1": {
+      "hash": "buz:buz+firtina:a:P:gok+inci:altin:C:mavi:1",
+      "title": "Ak Parıltılı Gök-inci Pullu Tipi Kanat",
+      "by": "@kuzey_ruzgari",
+      "dName": "Bora",
+      "w": 1,
+      "rarity": 96
+    },
+    "golge:ates+golge:m:P:gul+mor:altin+kizil:CB:kizil:0": {
+      "hash": "golge:ates+golge:m:P:gul+mor:altin+kizil:CB:kizil:0",
+      "title": "Kara Parıltılı Gül-mor Pullu Kara Alev",
+      "by": "@leydi_sureyya",
+      "dName": "Şahmeran",
+      "w": 1,
+      "rarity": 124
+    }
+  },
+  "pageant": [
+    {
+      "handle": "@leydi_sureyya",
+      "trainer": "Leydi Süreyya",
+      "dName": "Şahmeran",
+      "score": 194,
+      "votes": 24,
+      "title": "Kara Parıltılı Gül-mor Pullu Kara Alev",
+      "el": "golge"
+    },
+    {
+      "handle": "@kuzey_ruzgari",
+      "trainer": "Kuzeyli Bora",
+      "dName": "Bora",
+      "score": 176,
+      "votes": 19,
+      "title": "Ak Parıltılı Gök-inci Pullu Tipi Kanat",
+      "el": "buz"
+    },
+    {
+      "handle": "@altin_kervan",
+      "trainer": "Tuz Taciri",
+      "dName": "Kızılhan",
+      "score": 152,
+      "votes": 14,
+      "title": "Altın-kızıl Pullu Magma Yüreği",
+      "el": "ates"
+    }
+  ],
+  "banners": {
+    "kul": {
+      "owner": "@altin_kervan",
+      "guild": "Tuz Tacirleri",
+      "count": 3
+    },
+    "buzul": {
+      "owner": "@kuzey_ruzgari",
+      "guild": "Ayaz Muhafızları",
+      "count": 4
+    },
+    "kayalik": {
+      "owner": "@kuzey_ruzgari",
+      "guild": "Ayaz Muhafızları",
+      "count": 2
+    },
+    "orman": {
+      "owner": "@yesil_vadi",
+      "guild": "Kök Kardeşliği",
+      "count": 2
+    },
+    "bataklik": {
+      "owner": "@leydi_sureyya",
+      "guild": "İnci Hanedanı",
+      "count": 3
+    },
+    "col": {
+      "owner": "@altin_kervan",
+      "guild": "Tuz Tacirleri",
+      "count": 4
+    },
+    "mercan": {
+      "owner": "@leydi_sureyya",
+      "guild": "İnci Hanedanı",
+      "count": 3
+    },
+    "bulut": {
+      "owner": "@kuzey_ruzgari",
+      "guild": "Ayaz Muhafızları",
+      "count": 2
+    },
+    "obsidiyen": {
+      "owner": "@leydi_sureyya",
+      "guild": "İnci Hanedanı",
+      "count": 3
+    }
+  },
+  "caravans": [
+    {
+      "id": "cv_tuz",
+      "guild": "Tuz Tacirleri",
+      "owner": "@altin_kervan",
+      "route": "Serap Tuz Çölü → Gece Çarşısı",
+      "cargo": 160,
+      "foodReward": "biber",
+      "guardName": "Kızılhan",
+      "guardEl": "ates",
+      "guardPower": 76,
+      "raidedBy": []
+    },
+    {
+      "id": "cv_inci",
+      "guild": "İnci Hanedanı",
+      "owner": "@leydi_sureyya",
+      "route": "Batık Mercan Uçurumu → Saray Bahçesi",
+      "cargo": 195,
+      "foodReward": "zambak",
+      "guardName": "Şahmeran",
+      "guardEl": "golge",
+      "guardPower": 82,
+      "raidedBy": []
+    },
+    {
+      "id": "cv_ayaz",
+      "guild": "Ayaz Muhafızları",
+      "owner": "@kuzey_ruzgari",
+      "route": "Buzul Sırtı → Yıldırım Kuleleri",
+      "cargo": 145,
+      "foodReward": "kar",
+      "guardName": "Bora",
+      "guardEl": "buz",
+      "guardPower": 74,
+      "raidedBy": []
+    }
+  ],
+  "worldBoss": {
+    "name": "Kül Yutan (Kadim Felaket)",
+    "title": "Yedi Volkanın Efendisi",
+    "maxHp": 25000,
+    "hp": 18420,
+    "phase": 2,
+    "contributors": {
+      "@leydi_sureyya": {
+        "handle": "@leydi_sureyya",
+        "guild": "İnci Hanedanı",
+        "dName": "Şahmeran",
+        "dmg": 2680
+      },
+      "@kuzey_ruzgari": {
+        "handle": "@kuzey_ruzgari",
+        "guild": "Ayaz Muhafızları",
+        "dName": "Bora",
+        "dmg": 2150
+      },
+      "@altin_kervan": {
+        "handle": "@altin_kervan",
+        "guild": "Tuz Tacirleri",
+        "dName": "Kızılhan",
+        "dmg": 1750
+      }
+    }
+  },
+  "raidLog": [
+    {
+      "id": "rd_seed_1",
+      "attacker": "@altin_kervan",
+      "attackerDragon": "Kızılhan",
+      "target": "@ejder_ocagi",
+      "targetDragon": "Kor",
+      "won": true,
+      "goldStolen": 35,
+      "revenged": false,
+      "ts": 1793732617784
+    }
+  ],
+  "chatLog": [
+    {
+      "handle": "@leydi_sureyya",
+      "text": "Saray Zarafet Merasimi podyumu bu hafta çok çekişmeli!",
+      "ts": 1793732797784
+    },
+    {
+      "handle": "@kuzey_ruzgari",
+      "text": "Kül Yutan'ın canı %75'in altına indi, herkes ejderhasıyla saldırıya katılsın!",
+      "ts": 1793732887784
+    },
+    {
+      "handle": "@altin_kervan",
+      "text": "Tuz Çölü kervanımız yola çıktı, muhafızlarımız nöbette!",
+      "ts": 1793732937784
+    },
+    {
+      "handle": "@zumrut_avci",
+      "text": "Selamlar @aslan_terbiyeci! Bedestene yeni ilan koydum ve Topçu PvP odası kurdum!",
+      "ts": 1793732981959
+    },
+    {
+      "handle": "@zumrut_avci",
+      "text": "Selamlar @aslan_terbiyeci, Kumul ve Tesla haritaları açılmış!",
+      "ts": 1793799376021
+    },
+    {
+      "handle": "@zumrut_avci",
+      "text": "Selamlar @aslan_terbiyeci, Kumul ve Tesla haritaları açılmış!",
+      "ts": 1793799495811
+    },
+    {
+      "handle": "@zumrut_avci",
+      "text": "Selamlar @aslan_terbiyeci, Kumul ve Tesla haritaları açılmış!",
+      "ts": 1793799631313
+    }
+  ],
+  "marketListings": [
+    {
+      "id": "mk_1793800877157_10",
+      "seller": "@aslan_terbiyeci",
+      "guild": "Kızıl Ocak",
+      "cat": "equip",
+      "title": "Demir Pençe Kını",
+      "desc": "Pençe · Saldırı +6",
+      "price": 96,
+      "payload": {
+        "itemId": "kin1"
+      }
+    },
+    {
+      "id": "bed_live_test_99",
+      "seller": "@zumrut_avci",
+      "guild": "Kızıl Ocak",
+      "kind": "equip",
+      "itemId": "kilic1",
+      "title": "Kehribar Kumul Kılıcı +4",
+      "price": 2000,
+      "badge": "EFSANEVİ EKİPMAN",
+      "desc": "Serap Kumul Geçidi'nde dövülmüş efsanevi terbiyeci silahı."
+    },
+    {
+      "id": "bed_live_rustem_1",
+      "seller": "@zumrut_avci",
+      "guild": "Zümrüt Sancak",
+      "cat": "ekipman",
+      "itemKey": "wpn_9",
+      "title": "+9 Şahmeran Zümrüt Topu",
+      "sub": "Efsanevi Topçu Silahı · Canlı Ağ İlanı",
+      "price": 1150,
+      "qty": 1
+    },
+    {
+      "id": "mk_live_sync_zumrut_01",
+      "seller": "@zumrut_avci",
+      "guild": "Zümrüt Sırça Birliği",
+      "cat": "dragon",
+      "title": "Zümrüt-Kanat (2. Nesil Fırtına)",
+      "sub": "Dişi · Yetişkin · Fırtına · GÜÇ 78 / ÇEV 84",
+      "price": 420,
+      "el": "firtina",
+      "ts": 1793732984590
+    },
+    {
+      "id": "mk_seed_1",
+      "seller": "@leydi_sureyya",
+      "guild": "İnci Hanedanı",
+      "cat": "dragon",
+      "title": "Zümrüt (Asil Gölge)",
+      "sub": "Gölge · Genç · Güç 54 / Çev 62 · Asil Kan",
+      "price": 340,
+      "el": "golge",
+      "dragonData": {
+        "name": "Zümrüt",
+        "sex": "F",
+        "stage": "genc",
+        "age": 3,
+        "el": "golge",
+        "eye": "A",
+        "horn": "t",
+        "pat": "B",
+        "st": {
+          "gu": 54,
+          "ce": 62,
+          "da": 48,
+          "ze": 58
+        },
+        "genes": {
+          "pot": {
+            "gu": [
+              4,
+              4
+            ],
+            "ce": [
+              5,
+              4
+            ],
+            "da": [
+              3,
+              4
+            ],
+            "ze": [
+              4,
+              4
+            ]
+          },
+          "el": [
+            "golge",
+            "buz"
+          ],
+          "pat": [
+            "B",
+            "d"
+          ],
+          "eye": [
+            "A",
+            "A"
+          ],
+          "horn": [
+            "t",
+            "k"
+          ]
+        },
+        "traits": [
+          "asil",
+          "cevik"
+        ]
+      },
+      "ts": 1793732657784
+    },
+    {
+      "id": "mk_seed_2",
+      "seller": "@kuzey_ruzgari",
+      "guild": "Ayaz Muhafızları",
+      "cat": "egg",
+      "title": "Mühürlü Tipi Yumurtası",
+      "sub": "Buz × Fırtına Melez Adayı · 3. Nesil Soy",
+      "price": 165,
+      "el": "buz",
+      "eggData": {
+        "sex": "M",
+        "traits": [
+          "firtina",
+          "hizli"
+        ],
+        "w": 1,
+        "inK": false,
+        "gen": 3,
+        "parents": [
+          "Bora",
+          "Şimşek"
+        ],
+        "origin": "@kuzey_ruzgari ocağından alındı",
+        "genes": {
+          "pot": {
+            "gu": [
+              4,
+              3
+            ],
+            "ce": [
+              5,
+              4
+            ],
+            "da": [
+              4,
+              4
+            ],
+            "ze": [
+              3,
+              4
+            ]
+          },
+          "el": [
+            "buz",
+            "firtina"
+          ],
+          "pat": [
+            "C",
+            "B"
+          ],
+          "eye": [
+            "M",
+            "A"
+          ],
+          "horn": [
+            "t",
+            "d"
+          ]
+        }
+      },
+      "ts": 1793732737784
+    },
+    {
+      "id": "mk_seed_3",
+      "seller": "@demirhan_ocagi",
+      "guild": "Demir Pençe Loncası",
+      "cat": "item",
+      "title": "Mithril Göğüslük",
+      "sub": "Gövde Zırhı · Efsanevi · Zırh +34",
+      "price": 360,
+      "itemId": "zirh3",
+      "ts": 1793732797784
+    },
+    {
+      "id": "mk_seed_4",
+      "seller": "@altin_kervan",
+      "guild": "Tuz Tacirleri",
+      "cat": "food",
+      "title": "Sonsuz Gençlik İksiri",
+      "sub": "Yalnızca Yavrular İçebilir · Topçu Silahı Mührü",
+      "price": 125,
+      "foodKey": "genclik",
+      "qty": 1,
+      "ts": 1793732857784
+    },
+    {
+      "id": "mk_seed_5",
+      "seller": "@altin_kervan",
+      "guild": "Tuz Tacirleri",
+      "cat": "item",
+      "title": "Ejderdişi Kını",
+      "sub": "Pençe Silahı · Efsanevi · Saldırı +22",
+      "price": 330,
+      "itemId": "kin3",
+      "ts": 1793732882784
+    },
+    {
+      "id": "mk_seed_6",
+      "seller": "@leydi_sureyya",
+      "guild": "İnci Hanedanı",
+      "cat": "food",
+      "title": "Ejder Ziyafeti (×2 Paket)",
+      "sub": "Moral +2, Bağ +5, Yorgunluk -20 · İkili Paket",
+      "price": 90,
+      "foodKey": "ziyafet",
+      "qty": 2,
+      "ts": 1793732917784
+    }
+  ],
+  "marketSales": []
+}
