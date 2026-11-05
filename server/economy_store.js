@@ -2,6 +2,7 @@
 
 const { DatabaseSync } = require('node:sqlite');
 const crypto = require('node:crypto');
+const { validateTrade, transition, guardReservation } = require('./trade_service');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -54,6 +55,38 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
 
   db.exec(`CREATE TABLE IF NOT EXISTS game_states (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), version INTEGER NOT NULL, game_json TEXT NOT NULL) STRICT;
     CREATE TABLE IF NOT EXISTS command_receipts (account_id TEXT NOT NULL REFERENCES accounts(account_id), request_id TEXT NOT NULL, hash TEXT NOT NULL, version INTEGER NOT NULL, result_json TEXT NOT NULL, PRIMARY KEY(account_id, request_id)) STRICT;`);
+
+  db.exec("CREATE TABLE IF NOT EXISTS trade_records (id TEXT PRIMARY KEY, json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS trade_locks (id TEXT PRIMARY KEY, json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS trade_receipts (id TEXT PRIMARY KEY, json TEXT NOT NULL);");
+  const readTradeRow = (table, id) => { const row = db.prepare('SELECT json FROM ' + table + ' WHERE id = ?').get(id); return row ? JSON.parse(row.json) : null; };
+  const writeTradeRow = (table, id, value) => db.prepare('INSERT INTO ' + table + ' VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET json=excluded.json').run(id, JSON.stringify(value));
+  function executeTrade(actor, input) {
+    const { command, hash } = validateTrade(input);
+    return atomic(() => {
+      const receiptId = actor + ':' + command.requestId;
+      const receipt = readTradeRow('trade_receipts', receiptId);
+      if (receipt) { if (receipt.hash !== hash) fail('request_id_reused', 409); return { ...receipt.result, replayed: true }; }
+      const id = command.type === 'invite' ? command.requestId : command.tradeId;
+      const trade = readTradeRow('trade_records', id);
+      if (command.type !== 'invite' && (!trade || !trade.participants.includes(actor))) fail('trade_not_found', 404);
+      const ids = command.type === 'invite' ? [actor, command.targetId] : trade.participants;
+      const games = {}, locks = {}, versions = {};
+      for (const p of ids) {
+        const row = db.prepare('SELECT version, game_json FROM game_states WHERE account_id = ?').get(p);
+        games[p] = row ? { version: row.version, game: JSON.parse(row.game_json) } : null;
+        versions[p] = row?.version;
+        locks[p] = readTradeRow('trade_locks', p);
+      }
+      const next = transition(actor, command, trade, games, locks, now());
+      for (const p of ids) {
+        if (games[p] && games[p].version !== versions[p]) db.prepare('UPDATE game_states SET version=?, game_json=? WHERE account_id=?').run(games[p].version, JSON.stringify(games[p].game), p);
+        writeTradeRow('trade_locks', p, locks[p]);
+      }
+      writeTradeRow('trade_records', id, next);
+      const result = { trade: next, replayed: false };
+      if (command.type !== 'get') writeTradeRow('trade_receipts', receiptId, { hash, result });
+      return result;
+    });
+  }
 
   function atomic(fn, mode = 'IMMEDIATE') {
     if (inTransaction) throw new Error('nested_transaction');
@@ -164,6 +197,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
       if (version !== command.expectedVersion) fail('version_conflict', 409);
       // Phase-one developer fixtures are not imported into authoritative games.
       const next = reduceCommand(state ? JSON.parse(state.game_json) : null, command, { accountId, seed });
+      guardReservation(state ? JSON.parse(state.game_json) : null, next.game, readTradeRow('trade_locks', accountId), now());
       db.prepare('INSERT INTO game_states VALUES (?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET version=excluded.version, game_json=excluded.game_json').run(accountId, version + 1, JSON.stringify(next.game));
       db.prepare('INSERT INTO command_receipts VALUES (?, ?, ?, ?, ?)').run(accountId, command.requestId, hash, version + 1, JSON.stringify(next.result));
       return { replayed: false, appliedVersion: version + 1, result: next.result, economy: gameEconomy(accountId, version + 1, next.game) };
@@ -171,7 +205,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
   }
 
   return Object.freeze({
-    backend: 'sqlite', createGuest, resolveSession, readEconomy, transaction, executeCommand,
+    backend: 'sqlite', createGuest, resolveSession, readEconomy, transaction, executeCommand, executeTrade,
     revokeSession(token) { if (typeof token === 'string') db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token)); },
     close() { db.close(); },
   });

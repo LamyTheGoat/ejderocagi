@@ -52,3 +52,51 @@ test('Firestore: concurrent spends serialize; ownership and arbitrary rewards ca
   await assert.rejects(a.executeCommand(guest.accountId, command('reward.grant', { gold: 9999 }, 2)), /unsupported_command/);
   assert.equal((await b.readEconomy(guest.accountId)).gold, 220);
 });
+
+test('Firestore trade: atomic transfer, reservations, retries, cancellation and concurrent confirmations', { timeout: 60000 }, async t => {
+ const a=openFirestoreStore(options),b=openFirestoreStore(options);
+ t.after(async()=>{await a.close();await b.close();});
+ const x=await a.createGuest(),y=await b.createGuest();
+ for(const u of [x,y]) await a.executeCommand(u.accountId,command('game.start',{},0));
+ const tradeCmd=(type,extra={})=>({type,requestId:crypto.randomUUID(),...extra});
+ const send=(u,type,extra)=>a.executeTrade(u.accountId,tradeCmd(type,extra));
+ let trade=(await send(x,'invite',{targetId:y.accountId})).trade;
+ trade=(await send(y,'accept',{tradeId:trade.id})).trade;
+ const dragon=(await a.readEconomy(x.accountId)).dragons[0].assetId;
+ await assert.rejects(send(y,'offer',{tradeId:trade.id,revision:trade.revision,offer:{dragons:[dragon]}}),/dragon_not_owned/);
+ trade=(await send(x,'offer',{tradeId:trade.id,revision:trade.revision,offer:{gold:420,dragons:[dragon]}})).trade;
+ await assert.rejects(b.executeCommand(x.accountId,command('shop.food',{key:'balik'},1)),/trade_reserved_gold/);
+ await assert.rejects(send(x,'invite',{targetId:y.accountId}),/trade_busy/);
+ await send(x,'confirm',{tradeId:trade.id,revision:trade.revision});
+ const confirm=tradeCmd('confirm',{tradeId:trade.id,revision:trade.revision});
+ const results=await Promise.all([a.executeTrade(y.accountId,confirm),b.executeTrade(y.accountId,confirm)]);
+ assert.equal(results.filter(r=>r.replayed).length,1);
+ assert.equal(results[0].trade.status,'completed');
+ assert.equal((await a.readEconomy(x.accountId)).gold,0);assert.equal((await b.readEconomy(y.accountId)).gold,840);
+ assert.equal((await b.readEconomy(y.accountId)).dragons.length,2);
+ assert.equal((await b.executeTrade(y.accountId,confirm)).replayed,true);
+ assert.equal((await send(x,'cancel',{tradeId:trade.id})).trade.status,'completed');
+ trade=(await send(y,'invite',{targetId:x.accountId})).trade;
+ assert.equal((await send(x,'reject',{tradeId:trade.id})).trade.status,'rejected');
+});
+
+test('Firestore transaction abort after staging first account leaves both economies unchanged', { timeout: 60000 }, async t => {
+ const {Firestore}=require('@google-cloud/firestore');const db=new Firestore(options);
+ const store=openFirestoreStore({...options,client:db});
+ t.after(()=>store.close());
+ const x=await store.createGuest(),y=await store.createGuest();
+ for(const u of [x,y])await store.executeCommand(u.accountId,command('game.start',{},0));
+ const c=(type,extra={})=>({type,requestId:crypto.randomUUID(),...extra});
+ let trade=(await store.executeTrade(x.accountId,c('invite',{targetId:y.accountId}))).trade;
+ trade=(await store.executeTrade(y.accountId,c('accept',{tradeId:trade.id}))).trade;
+ trade=(await store.executeTrade(x.accountId,c('offer',{tradeId:trade.id,revision:trade.revision,offer:{gold:10}}))).trade;
+ await store.executeTrade(x.accountId,c('confirm',{tradeId:trade.id,revision:trade.revision}));
+ const before=await Promise.all([store.readEconomy(x.accountId),store.readEconomy(y.accountId)]);
+ const run=db.runTransaction.bind(db);
+ db.runTransaction=(callback,opts)=>run(tx=>{const update=tx.update.bind(tx);let writes=0;tx.update=(...args)=>{if(++writes===2)throw new Error('injected_failure');return update(...args);};return callback(tx);},opts);
+ const request=c('confirm',{tradeId:trade.id,revision:trade.revision});
+ await assert.rejects(store.executeTrade(y.accountId,request),/injected_failure/);
+ assert.deepEqual(await Promise.all([store.readEconomy(x.accountId),store.readEconomy(y.accountId)]),before);
+ db.runTransaction=run;
+ assert.equal((await store.executeTrade(y.accountId,request)).trade.status,'completed');
+});

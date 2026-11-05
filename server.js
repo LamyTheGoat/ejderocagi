@@ -532,6 +532,12 @@ function handleWsMessage(socket, msg) {
   // Sender identity always comes from the live session, never the message.
   msg = { ...msg, accountId: socket.playerInfo.accountId, handle: socket.playerInfo.handle, from: socket.playerInfo.handle, buyer: socket.playerInfo.handle, attacker: socket.playerInfo.handle };
   if (msg.listing && typeof msg.listing === 'object') msg.listing = { ...msg.listing, seller: socket.playerInfo.handle };
+  if (msg.type === 'trade_command') {
+    Promise.resolve().then(() => ECONOMY.executeTrade(socket.playerInfo.accountId, msg.command)).then(result => {
+      for (const peer of WS_CLIENTS) if (result.trade.participants.includes(peer.playerInfo?.accountId) && !peer.destroyed) peer.write(encodeWsFrame({ type: 'trade_state', ...result }));
+    }).catch(error => { if (!socket.destroyed) socket.write(encodeWsFrame({ type: 'trade_error', requestId: msg.command?.requestId, error: error.code || 'trade_unavailable' })); });
+    return;
+  }
   if (DUEL_SERVER.onMessage(socket, msg)) return;
 
   if (msg.type === 'hub_update' || msg.type === 'hub_actor') {
@@ -863,6 +869,15 @@ async function handleHttp(req, res) {
       res.setHeader('Set-Cookie', GUEST_SESSIONS.cookie(identity.token, identity.expiresAt));
     }
     return sendJson(res, 200, { ok: true, accountId: identity.accountId, handle: identity.handle, expiresAt: identity.expiresAt, economyReady: false });
+  }
+  if (pathname === '/api/trade' && req.method === 'POST') {
+    if (!req.identity) return sendJson(res, 401, { ok: false, error: 'guest_session_required' });
+    const command = await readJsonBody(req, false, 16384);
+    try {
+      const result = await ECONOMY.executeTrade(req.identity.accountId, command);
+      for (const peer of WS_CLIENTS) if (result.trade.participants.includes(peer.playerInfo?.accountId) && !peer.destroyed) peer.write(encodeWsFrame({ type: 'trade_state', ...result }));
+      return sendJson(res, 200, { ok: true, ...result });
+    } catch (error) { return sendJson(res, error.status || (error.code ? 409 : 503), { ok: false, error: error.code || 'trade_unavailable' }); }
   }
   if (pathname === '/api/economy/command' && req.method === 'POST') {
     if (!req.identity) return sendJson(res, 401, { ok: false, error: 'guest_session_required' });

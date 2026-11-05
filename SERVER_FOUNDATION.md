@@ -140,3 +140,9 @@ emülatör ve `FIRESTORE_EMULATOR_HOST=127.0.0.1:<port>` ile `npm run test:fires
 gerektirir; standart testler bunu çalıştırmaz. İki hesaplı takas entegrasyonu,
 rezervasyon, revizyonlu karşılıklı onay ve çok sunuculu ilan tutarlılığı sonraki
 aşamadır ve bu pakete dahil değildir.
+
+## P2 güncellemesi
+
+Doğrudan takas servisi uygulandı: [TRADE_SERVICE.md](TRADE_SERVICE.md). Önceki
+"sonraki aşama" maddelerinden rezervasyon, teklif revision, çift onay ve iki hesaplı
+transaction bu servis için tamamlandı. Bedesten ve oyun UI entegrasyonu ayrı kalır.

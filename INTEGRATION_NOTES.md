@@ -39,3 +39,9 @@ için satın alma ve teklifler hata verir; eski UI ekonomik mutasyonları kapal�
 Windows test kapanışı IPC ile doğrulanır. Bir sonraki onaylı aşama, accountId/assetId
 üzerinden iki hesaplı transaction ve rezervasyon/onay durum makinesidir;
 bu pakette takas entegrasyonuna başlanmamıştır.
+
+## P2 güncellemesi
+
+Sunucu doğrudan takas katmanı tamamlandı; sözleşme ve sınırlar
+[TRADE_SERVICE.md](TRADE_SERVICE.md) içindedir. Bedesten transferi, oyuncu takas ekranı
+ve mevcut yerel oyun kayıtlarının sunucu ekonomisine bağlanması tamamlanmış sayılmaz.

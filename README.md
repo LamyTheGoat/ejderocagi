@@ -47,3 +47,11 @@ Eski arayüzün yerel alım/satım/ilan mutasyonları kapalıdır; altın veya v
 İlan API'si yalnızca sunucu ekonomisinde oturuma ait `assetId` için bağlayıcı olmayan
 ilan kabul eder. Takas çekirdeği henüz bu API'ye bağlı değildir. Ayrıntılar:
 [SERVER_FOUNDATION.md](SERVER_FOUNDATION.md#ticaret-güvenliği-p1).
+
+## Oyuncular arası takas P2
+
+Kalıcı doğrudan takas servisi ve rezervasyonlar eklendi. SQLite ve Firestore için
+iki hesaplı atomik transfer, tekrar istek koruması ve durum kurtarma desteklenir.
+API, testler ve sınırlar: [TRADE_SERVICE.md](TRADE_SERVICE.md).
+Önceki aşamalardaki "takas servisi yok" notları P1 tarihçesidir; Bedesten satın alma
+entegrasyonu ise hâlâ kapalıdır. Oyun UI'si yerel S yerine bu servise henüz bağlanmadı.

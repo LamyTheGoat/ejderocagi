@@ -213,3 +213,26 @@ test('Bedesten HTTP and WS reject forged ownership and cannot settle purchases',
   own.send({ type: 'market_op', op: 'cancel', id: result.listing.id });
   assert.equal((await own.next('market_result')).ok, true);
 });
+
+test('trade HTTP/WS authenticate participants and recover completed transfer after socket disconnect', { timeout: 20000 }, async t => {
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'eo-trade-http-'));const server=await startServer(dir);const sockets=[];
+ t.after(async()=>{sockets.forEach(s=>s.destroy());await server.stop();fs.rmSync(dir,{recursive:true,force:true});});
+ const a=await server.request('/api/session',{method:'POST'}),b=await server.request('/api/session',{method:'POST'});
+ const command=(type,extra={})=>({type,requestId:crypto.randomUUID(),...extra});
+ const post=(cookie,body)=>server.request('/api/trade',{method:'POST',cookie,body});
+ for(const user of [a,b]) await server.request('/api/economy/command',{method:'POST',cookie:user.cookie,body:{...command('game.start'),expectedVersion:0,args:{}}});
+ assert.equal((await post(undefined,command('invite',{targetId:b.body.accountId}))).status,401);
+ assert.equal((await post(a.cookie,{...command('invite',{targetId:b.body.accountId}),accountId:b.body.accountId})).status,400);
+ let response=await post(a.cookie,command('invite',{targetId:b.body.accountId}));assert.equal(response.status,200);let trade=response.body.trade;
+ trade=(await post(b.cookie,command('accept',{tradeId:trade.id}))).body.trade;
+ trade=(await post(a.cookie,command('offer',{tradeId:trade.id,revision:trade.revision,offer:{gold:40}}))).body.trade;
+ await post(a.cookie,command('confirm',{tradeId:trade.id,revision:trade.revision}));
+ const ws=await openWs(server.port,b.cookie);sockets.push(ws.socket);await ws.next('welcome');
+ const confirm=command('confirm',{tradeId:trade.id,revision:trade.revision});
+ ws.send({type:'trade_command',accountId:a.body.accountId,command:confirm});
+ assert.equal((await ws.next('trade_state')).trade.status,'completed');ws.socket.destroy();
+ const replay=await post(b.cookie,confirm);assert.equal(replay.body.replayed,true);
+ assert.equal((await post(a.cookie,command('get',{tradeId:trade.id}))).body.trade.status,'completed');
+ assert.equal((await server.request('/api/economy',{cookie:a.cookie})).body.economy.gold,380);
+ assert.equal((await server.request('/api/economy',{cookie:b.cookie})).body.economy.gold,460);
+});
