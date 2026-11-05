@@ -22,6 +22,7 @@ const fs = require('fs');
 const path = require('path');
 const { createDragonDuelServer } = require('./js/duel_server.js');
 const { createEconomyStore } = require('./server/store_factory');
+const { createMarketService } = require('./server/market_service');
 const { COMMAND_TYPES } = require('./server/economy_commands');
 const { createGuestSessions } = require('./server/guest_session');
 const { createPublicFiles } = require('./server/public_files');
@@ -299,6 +300,10 @@ function loadWorld() {
 }
 
 let WORLD = loadWorld();
+const MARKET = createMarketService({
+  store: ECONOMY, world: WORLD,
+  changed(event) { saveWorld(); wsBroadcast({ type: 'market_update', ...event, listings: WORLD.marketListings }); },
+});
 
 function prunePlayers(w = WORLD) {
   const pKeys = Object.keys(w.players || {});
@@ -601,48 +606,14 @@ function handleWsMessage(socket, msg) {
     return;
   }
 
-  // Canlı Oyuncu Bedesteni (Marketplace) WS İşlemleri
+  // Both transports share the same ownership and settlement boundary.
   if (msg.type === 'market_op') {
-    WORLD.marketListings = WORLD.marketListings || [];
-    WORLD.marketSales = WORLD.marketSales || [];
-    if (msg.op === 'list' && msg.listing) {
-      if (WORLD.marketListings.some(x => x.id === msg.listing.id && x.seller !== socket.playerInfo.handle)) return;
-      WORLD.marketListings = WORLD.marketListings.filter(x => x.id !== msg.listing.id && !(x.seller === msg.listing.seller && x.title === msg.listing.title));
-      WORLD.marketListings.unshift(msg.listing);
-      if (WORLD.marketListings.length > 40) WORLD.marketListings.pop();
-      saveWorld();
-      wsBroadcast({ type: 'market_update', op: 'list', listing: msg.listing, listings: WORLD.marketListings });
-    } else if (msg.op === 'buy' && msg.id) {
-      const idx = WORLD.marketListings.findIndex(x => x.id === msg.id);
-      if (idx >= 0) {
-        const item = WORLD.marketListings.splice(idx, 1)[0];
-        const sale = { id: 'sale_' + Date.now(), listingId: item.id, seller: item.seller, buyer: msg.buyer || socket.playerInfo.handle, title: item.title, price: item.price, ts: Date.now() };
-        WORLD.marketSales.push(sale);
-        if (WORLD.marketSales.length > 60) WORLD.marketSales.shift();
-        saveWorld();
-        wsBroadcast({ type: 'market_update', op: 'buy', sale, listings: WORLD.marketListings });
-      }
-    } else if (msg.op === 'offer' && msg.id) {
-      const targetItem = WORLD.marketListings.find(x => x.id === msg.id);
-      if (targetItem) {
-        const offer = {
-          id: 'off_' + Date.now(),
-          listingId: targetItem.id,
-          title: targetItem.title,
-          seller: targetItem.seller,
-          buyer: msg.buyer || socket.playerInfo.handle,
-          offerPrice: msg.offerPrice || Math.round(targetItem.price * 0.85),
-          price: msg.offerPrice || Math.round(targetItem.price * 0.85),
-          origPrice: targetItem.price,
-          ts: Date.now(),
-        };
-        wsBroadcast({ type: 'market_update', op: 'offer', offer, listings: WORLD.marketListings });
-      }
-    } else if (msg.op === 'cancel' && msg.id) {
-      WORLD.marketListings = WORLD.marketListings.filter(x => x.id !== msg.id || x.seller !== socket.playerInfo.handle);
-      saveWorld();
-      wsBroadcast({ type: 'market_update', op: 'cancel', id: msg.id, listings: WORLD.marketListings });
-    }
+    MARKET.execute(socket.playerInfo, msg).then(result => {
+      if (!socket.destroyed) socket.write(encodeWsFrame({ type: 'market_result', ok: true, ...result }));
+    }).catch(error => {
+      if (!socket.destroyed) socket.write(encodeWsFrame({ type: 'market_error', ok: false, error: error.code || 'market_unavailable' }));
+    });
+    return;
   }
 
   // Canlı 3 Oyunculu Zindan Co-op Senkronizasyonu
@@ -1211,51 +1182,12 @@ async function handleHttp(req, res) {
   }
   if (pathname === '/api/market' && req.method === 'POST') {
     const body = await readJsonBody(req);
-    WORLD.marketListings = WORLD.marketListings || [];
-    WORLD.marketSales = WORLD.marketSales || [];
-    if (body.op === 'list' && body.listing) {
-      if (WORLD.marketListings.some(x => x.id === body.listing.id && x.seller !== req.identity.handle)) return sendJson(res, 403, { ok: false, error: 'listing_not_owned' });
-      WORLD.marketListings = WORLD.marketListings.filter(x => x.id !== body.listing.id && !(x.seller === body.listing.seller && x.title === body.listing.title));
-      WORLD.marketListings.unshift(body.listing);
-      if (WORLD.marketListings.length > 40) WORLD.marketListings.pop();
-      saveWorld();
-      wsBroadcast({ type: 'market_update', op: 'list', listing: body.listing, listings: WORLD.marketListings });
-      return sendJson(res, 200, { ok: true, listings: WORLD.marketListings });
+    try {
+      const result = await MARKET.execute(req.identity, body);
+      return sendJson(res, 200, { ok: true, ...result });
+    } catch (error) {
+      return sendJson(res, error.status || 503, { ok: false, error: error.code || 'market_unavailable' });
     }
-    if (body.op === 'buy' && body.id) {
-      const idx = WORLD.marketListings.findIndex(x => x.id === body.id);
-      if (idx < 0) return sendJson(res, 404, { ok: false, error: 'İlan bulunamadı veya satıldı.' });
-      const item = WORLD.marketListings.splice(idx, 1)[0];
-      const sale = { id: 'sale_' + Date.now(), listingId: item.id, seller: item.seller, buyer: body.buyer || '@ejder_ocagi', title: item.title, price: item.price, ts: Date.now() };
-      WORLD.marketSales.push(sale);
-      saveWorld();
-      wsBroadcast({ type: 'market_update', op: 'buy', sale, listings: WORLD.marketListings });
-      return sendJson(res, 200, { ok: true, item, sale, listings: WORLD.marketListings });
-    }
-    if (body.op === 'offer' && body.id) {
-      const targetItem = WORLD.marketListings.find(x => x.id === body.id);
-      if (!targetItem) return sendJson(res, 404, { ok: false, error: 'İlan bulunamadı.' });
-      const offer = {
-        id: 'off_' + Date.now(),
-        listingId: targetItem.id,
-        title: targetItem.title,
-        seller: targetItem.seller,
-        buyer: body.buyer || '@ejder_ocagi',
-        offerPrice: body.offerPrice || Math.round(targetItem.price * 0.85),
-        origPrice: targetItem.price,
-        ts: Date.now(),
-      };
-      wsBroadcast({ type: 'market_update', op: 'offer', offer, listings: WORLD.marketListings });
-      return sendJson(res, 200, { ok: true, offer, listings: WORLD.marketListings });
-    }
-    if (body.op === 'cancel' && body.id) {
-      const idx = WORLD.marketListings.findIndex(x => x.id === body.id && x.seller === req.identity.handle);
-      const item = idx >= 0 ? WORLD.marketListings.splice(idx, 1)[0] : null;
-      saveWorld();
-      wsBroadcast({ type: 'market_update', op: 'cancel', id: body.id, listings: WORLD.marketListings });
-      return sendJson(res, 200, { ok: true, item, listings: WORLD.marketListings });
-    }
-    return sendJson(res, 400, { ok: false });
   }
 
   // 9. GET /share/card/:handle.svg — Dinamik SVG Görsel Kartı

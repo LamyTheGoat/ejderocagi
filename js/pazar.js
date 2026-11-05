@@ -361,291 +361,31 @@ const PAZAR_ACT = {
     syncBedestenFromServer(true);
   },
   'bed-buy'(el) {
-    const lid = el.dataset.id;
-    const list = getBedestenListings();
-    const L = list.find(x => x.id === lid);
-    if (!L) { toast('Bu ilan az önce başka bir terbiyeci tarafından satın alındı.'); return render(); }
-    const myHandle = (S && S.handle) || '@ejder_ocagi';
-    if (L.seller === myHandle) { toast('Kendi ilanını satın alamazsın; İlanı Geri Çek ile geri alabilirsin.'); return; }
-    if (S.gold < L.price) { SFX.play('error'); toast(`Yetersiz altın! Bu ilan için <b>${L.price} altın</b> gerekiyor.`); return; }
-    if (L.cat === 'dragon' && freeSlots() < 1) { SFX.play('error'); toast('İnlerde boş yer yok! Önce Yeni İn aç veya bir ejderha sat.'); return; }
-
-    coinsFrom(el);
-    S.gold -= L.price;
-
-    if (L.cat === 'dragon') {
-      const raw = L.dragonData || (L.payload && L.payload.dragon) || {};
-      const elKey = raw.el || L.el || 'ates';
-      const baseGenes = typeof repairGenesRecord === 'function'
-        ? repairGenesRecord(raw.genes || randomGenes({ el: elKey, q: 0.55 }), elKey)
-        : (raw.genes || randomGenes({ el: elKey, q: 0.55 }));
-      const d = mkDragon({
-        name: raw.name || 'Bedesten Ejderi',
-        sex: raw.sex === 'F' || raw.sex === 'M' ? raw.sex : 'F',
-        stage: raw.stage === 'yavru' ? 'yavru' : (raw.stage || 'yetiskin'),
-        age: raw.stage === 'yavru' ? 1 : (raw.age || 4),
-        genes: baseGenes,
-        origin: `Oyuncu Bedesteni (${L.seller || '@pazar'})`
-      });
-      if (raw.eternalYouth) d.eternalYouth = true;
-      S.dragons.push(d);
-      S.st.acq = (S.st.acq || 0) + 1;
-      chron(`Oyuncu Bedesteni'nden ${L.seller} ilanıyla ${d.name} (${L.price} altın) satın alındı.`);
-    } else if (L.cat === 'egg') {
-      const rawEgg = L.eggData || (L.payload && L.payload.egg) || {};
-      const elKey = L.el || rawEgg.el || 'ates';
-      const baseGenes = typeof repairGenesRecord === 'function'
-        ? repairGenesRecord(rawEgg.genes || randomGenes({ el: elKey, q: 0.45 }), elKey)
-        : (rawEgg.genes || randomGenes({ el: elKey, q: 0.45 }));
-      const e = {
-        id: 'e' + S.uid++,
-        genes: baseGenes,
-        sex: pick(['F', 'M']),
-        traits: Array.isArray(rawEgg.traits) ? rawEgg.traits : [],
-        w: 0,
-        inK: kuluckaFree() > 0,
-        gen: Number(rawEgg.gen) || 1,
-        parents: rawEgg.parents || null,
-        origin: `Oyuncu Bedesteni (${L.seller || '@pazar'})`
-      };
-      S.eggs.push(e);
-      chron(`Oyuncu Bedesteni'nden ${L.title} satın alındı.`);
-    } else if (L.cat === 'equip' || L.cat === 'item') {
-      const rawId = L.itemId || (L.payload && L.payload.itemId);
-      const itemId = (rawId && ITEMS[rawId]) ? rawId : Object.keys(ITEMS)[0];
-      S.inv.push({ uid: S.uid++, id: itemId });
-      chron(`Oyuncu Bedesteni'nden ${ITEMS[itemId].ad} satın alındı.`);
-    } else if (L.cat === 'food') {
-      const rawFk = L.foodKey || (L.payload && L.payload.foodKey);
-      const fk = (rawFk && FOODS[rawFk]) ? rawFk : 'genclik';
-      const qty = L.qty || (L.payload && L.payload.qty) || 1;
-      S.food[fk] = (S.food[fk] || 0) + qty;
-      chron(`Oyuncu Bedesteni'nden ${L.title} satın alındı.`);
-    } else if (L.cat === 'mat') {
-      const C = typeof ensureChibi === 'function' ? ensureChibi() : null;
-      const p = L.payload || {};
-      const mKind = p.matKind || 'stone';
-      const mKey = p.matKey || 'kor_t1';
-      const qty = p.qty || 1;
-      if (C) {
-        if (mKind === 'stone' && C.stones) C.stones[mKey] = (C.stones[mKey] || 0) + qty;
-        else if (mKind === 'ore' && C.ores) C.ores[mKey] = (C.ores[mKey] || 0) + qty;
-        else if (mKind === 'shard' && C.shards) C.shards[mKey] = (C.shards[mKey] || 0) + qty;
-        else if (mKind === 'essence' && C.essences) C.essences[mKey] = (C.essences[mKey] || 0) + qty;
-        if (typeof syncChibiSlotPlus === 'function') syncChibiSlotPlus(C);
-      }
-      chron(`Oyuncu Bedesteni'nden ${L.title} satın alındı.`);
-    }
-
-    removeBedestenListing(L.id, myHandle, L.price, L.title, L.seller);
-    toast(`<b>${esc(L.title)}</b> (${esc(L.seller)}) tezgâhından <b>${L.price} altına</b> satın alındı!`);
-    SFX.play('coin');
-    SFX.play('win');
-    afterAction();
+    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
   },
   'bed-cancel'(el) {
-    const lid = el.dataset.id;
-    const list = getBedestenListings();
-    const L = list.find(x => x.id === lid);
-    if (!L) return;
-    if (L.cat === 'dragon' && L.payload && L.payload.dragon) {
-      const d = L.payload.dragon;
-      d.id = S.nid++;
-      S.dragons.push(d);
-    } else if (L.cat === 'egg' && L.payload && L.payload.egg) {
-      const e = L.payload.egg;
-      e.inK = kuluckaFree() > 0;
-      S.eggs.push(e);
-    } else if (L.cat === 'equip' && L.payload && L.payload.itemId) {
-      S.inv.push({ uid: S.uid++, id: L.payload.itemId });
-    } else if (L.cat === 'food' && L.payload && L.payload.foodKey) {
-      const fk = L.payload.foodKey;
-      const qty = L.payload.qty || 1;
-      S.food[fk] = (S.food[fk] || 0) + qty;
-    } else if (L.cat === 'mat' && L.payload) {
-      const C = typeof ensureChibi === 'function' ? ensureChibi() : null;
-      const { matKind, matKey, qty = 1 } = L.payload;
-      if (C) {
-        if (matKind === 'stone' && C.stones) C.stones[matKey] = (C.stones[matKey] || 0) + qty;
-        else if (matKind === 'ore' && C.ores) C.ores[matKey] = (C.ores[matKey] || 0) + qty;
-        else if (matKind === 'shard' && C.shards) C.shards[matKey] = (C.shards[matKey] || 0) + qty;
-        else if (matKind === 'essence' && C.essences) C.essences[matKey] = (C.essences[matKey] || 0) + qty;
-        if (typeof syncChibiSlotPlus === 'function') syncChibiSlotPlus(C);
-      }
-    }
-    removeBedestenListing(L.id, null);
-    toast(`<b>${esc(L.title)}</b> ilanı geri çekildi ve ocağına iade edildi.`);
-    SFX.play('page');
-    afterAction();
+    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
   },
   'bed-post-dragon'(el) {
-    const id = +el.dataset.id;
-    const d = byId(id);
-    if (!d) return;
-    if (S.dragons.length <= 1) { SFX.play('error'); toast('Ocağındaki son ejderhayı satışa çıkaramazsın!'); return; }
-    const mult = (UI.bedMult || 120) / 100;
-    const price = Math.max(80, Math.round(value(d) * mult));
-    for (const s in d.equip) d.equip[s] = null;
-    S.dragons = S.dragons.filter(x => x !== d);
-    const listing = {
-      id: 'mk_' + Date.now() + '_' + Math.floor(Math.random() * 999),
-      seller: S.handle || '@ejder_ocagi',
-      guild: S.guild || 'Kızıl Ocak',
-      cat: 'dragon',
-      title: `${d.name} (${EL_AD[d.el]} · ${STAGE_AD[d.stage]})`,
-      desc: `${typeof lookText === 'function' ? lookText(d) : EL_AD[d.el]} · Güç ${sum(STATS.map(k => (d.st && d.st[k]) || 20))}${d.eternalYouth ? ' · Ebedi Yavru Topçu' : ''}`,
-      price,
-      payload: { dragon: JSON.parse(JSON.stringify(d)) }
-    };
-    postBedestenListing(listing);
-    toast(`<b>${esc(d.name)}</b> Oyuncu Bedesteni'nde <b>${price} altına</b> satışa çıkarıldı!`);
-    SFX.play('coin');
-    afterAction();
+    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
   },
   'bed-post-egg'(el) {
-    const idx = +el.dataset.i;
-    const e = S.eggs[idx];
-    if (!e) return;
-    const mult = (UI.bedMult || 120) / 100;
-    const price = Math.max(70, Math.round(eggPrice(e) * mult));
-    S.eggs.splice(idx, 1);
-    const elKey = (e.genes && e.genes.el && e.genes.el[0]) || 'ates';
-    const listing = {
-      id: 'mk_' + Date.now() + '_' + Math.floor(Math.random() * 999),
-      seller: S.handle || '@ejder_ocagi',
-      guild: S.guild || 'Kızıl Ocak',
-      cat: 'egg',
-      title: `Mühürlü ${EL_AD[elKey]} Yumurtası`,
-      desc: `Safkan Kuluçka Yumurtası · ${Math.max(1, 2 - (e.w || 0))} hafta kuluçka`,
-      price,
-      payload: { egg: JSON.parse(JSON.stringify(e)) }
-    };
-    postBedestenListing(listing);
-    toast(`<b>${esc(listing.title)}</b> Bedesten'de <b>${price} altına</b> ilana kondu!`);
-    SFX.play('coin');
-    afterAction();
+    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
   },
   'bed-post-item'(el) {
-    const uid = +el.dataset.uid;
-    const invItem = S.inv.find(i => i.uid === uid);
-    if (!invItem) return;
-    const it = ITEMS[invItem.id];
-    if (!it || invItem.heirloomId || it.heirloom) { SFX.play('error'); toast('Ata Yadigârı aile mirası satılamaz!'); return; }
-    const w = equippedBy(uid);
-    if (w) for (const s in w.equip) if (w.equip[s] === uid) w.equip[s] = null;
-    const mult = (UI.bedMult || 120) / 100;
-    const price = Math.max(45, Math.round(smithPrice(invItem.id) * mult));
-    S.inv = S.inv.filter(i => i.uid !== uid);
-    const listing = {
-      id: 'mk_' + Date.now() + '_' + Math.floor(Math.random() * 999),
-      seller: S.handle || '@ejder_ocagi',
-      guild: S.guild || 'Kızıl Ocak',
-      cat: 'equip',
-      title: it.ad,
-      desc: `${SLOT_AD[it.slot]} · ${itemDesc(it)}`,
-      price,
-      payload: { itemId: invItem.id }
-    };
-    postBedestenListing(listing);
-    toast(`<b>${esc(it.ad)}</b> Bedesten'de <b>${price} altına</b> ilana kondu!`);
-    SFX.play('coin');
-    afterAction();
+    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
   },
   'bed-post-food'(el) {
-    const fk = el.dataset.f;
-    const F = FOODS[fk];
-    if (!F || (S.food[fk] || 0) < 1) return;
-    const mult = (UI.bedMult || 120) / 100;
-    const price = Math.max(20, Math.round(F.fiyat * mult));
-    S.food[fk]--;
-    const listing = {
-      id: 'mk_' + Date.now() + '_' + Math.floor(Math.random() * 999),
-      seller: S.handle || '@ejder_ocagi',
-      guild: S.guild || 'Kızıl Ocak',
-      cat: 'food',
-      title: `1× ${F.ad}`,
-      desc: F.acik || (F.onlyBaby ? 'Sadece Yavru Ejderhalar içebilir; Zindan/Topçu silahı yapar.' : `Açlık -${F.ac || 25}${F.bag ? `, Bağ +${F.bag}` : ''}`),
-      price,
-      payload: { foodKey: fk, qty: 1 }
-    };
-    postBedestenListing(listing);
-    toast(`<b>1× ${esc(F.ad)}</b> Bedesten'de <b>${price} altına</b> ilana kondu!`);
-    SFX.play('coin');
-    afterAction();
+    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
   },
   'bed-post-mat'(el) {
-    const C = typeof ensureChibi === 'function' ? ensureChibi() : null;
-    if (!C) return;
-    const matKind = el.dataset.kind;
-    const matKey = el.dataset.k;
-    let dict = null, bag = null;
-    if (matKind === 'stone') { dict = window.CHIBI_STONES; bag = C.stones; }
-    else if (matKind === 'ore') { dict = window.CHIBI_ORES; bag = C.ores; }
-    else if (matKind === 'shard') { dict = window.CHIBI_SHARDS; bag = C.shards; }
-    else if (matKind === 'essence') { dict = window.CHIBI_ESSENCES; bag = C.essences; }
-    if (!dict || !bag || !dict[matKey] || (bag[matKey] || 0) < 1) return;
-    const meta = dict[matKey];
-    const mult = (UI.bedMult || 120) / 100;
-    const price = Math.max(25, Math.round((meta.basePrice || 100) * mult));
-    bag[matKey]--;
-    if (typeof syncChibiSlotPlus === 'function') syncChibiSlotPlus(C);
-    const listing = {
-      id: 'mk_' + Date.now() + '_' + Math.floor(Math.random() * 999),
-      seller: S.handle || '@ejder_ocagi',
-      guild: S.guild || 'Kızıl Ocak',
-      cat: 'mat',
-      title: `1× ${meta.ad}`,
-      desc: meta.d || 'Zindan Kalıbı / Kervan Cevheri / Kor Taşı',
-      price,
-      payload: { matKind, matKey, ic: meta.ic, qty: 1 }
-    };
-    postBedestenListing(listing);
-    toast(`<b>1× ${esc(meta.ad)}</b> Bedesten'de <b>${price} altına</b> ilana kondu!`);
-    SFX.play('coin');
-    afterAction();
+    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
   },
   'bed-sim-sale'(el) {
-    const lid = el.dataset.id;
-    const list = getBedestenListings();
-    const L = list.find(x => x.id === lid);
-    if (!L) return;
-    const buyers = ['@kuzey_ruzgari', '@leydi_sureyya', '@altin_kervan', '@firtina_beyi'];
-    const buyer = (L.lastOffer && L.lastOffer.buyer) || buyers[Math.floor(Math.random() * buyers.length)];
-    const salePrice = (L.lastOffer && L.lastOffer.price) || L.price;
-    coinsFrom(el);
-    S.gold += salePrice;
-    removeBedestenListing(L.id, buyer, salePrice, L.title, L.seller);
-    chron(`Bedesten'deki ${L.title} ilanın ${buyer} tarafından ${salePrice} altına satın alındı!`);
-    toast(`<b>${esc(buyer)}</b> ilandaki <b>${esc(L.title)}</b> ürününü <b>+${salePrice} altına</b> satın aldı!`);
-    SFX.play('coin');
-    SFX.play('win');
-    afterAction();
+    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
   },
   'bed-offer'(el) {
-    const lid = el.dataset.id;
-    const list = getBedestenListings();
-    const L = list.find(x => x.id === lid);
-    if (!L) return;
-    const myHandle = (S && S.handle) || '@ejder_ocagi';
-    if (L.seller === myHandle) return;
-    const offerPrice = Math.max(15, Math.round(L.price * 0.85));
-    if (S.gold < offerPrice) {
-      SFX.play('error');
-      toast(`Pazarlık teklifi için en az <b>${offerPrice} altın</b> gerekiyor!`);
-      return;
-    }
-    L.lastOffer = { buyer: myHandle, price: offerPrice, ts: Date.now() };
-    if (typeof mpSendWs === 'function') {
-      mpSendWs({ type: 'market_op', op: 'offer', action: 'offer', id: L.id, buyer: myHandle, offerPrice });
-    }
-    fetch('/api/market', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ op: 'offer', action: 'offer', id: L.id, buyer: myHandle, offerPrice })
-    }).catch(() => {});
-    SFX.play('bell');
-    toast(`<b>${esc(L.seller)}</b> ocağına <b>${esc(L.title)}</b> için <b>${offerPrice} altın (%85)</b> canlı pazarlık teklifi gönderildi!`);
-    render();
+    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
   }
 };
 
@@ -996,6 +736,7 @@ function bedestenView() {
   const npcBed = asset('npc-bedesten') || 'img/npc-bedesten.webp';
   const bannerBed = asset('bedesten-banner') || 'img/ui/bedesten-banner.webp';
   return `<div class="vendor v-bedesten">
+    <p role="status">Bedesten alım, satım ve ilan işlemleri güvenli sunucu aktarımı tamamlanana kadar kapalı.</p>
     <button class="backbtn" data-a="stall-back">${ui('left')} Çarşıya dön</button>
     <div class="vportrait nod${(UI.vnod || 0) % 2}">
       <img src="${npcBed}" alt="Başmünadi Rüstem Ağa">

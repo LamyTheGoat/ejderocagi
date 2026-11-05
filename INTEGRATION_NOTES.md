@@ -30,3 +30,12 @@ içindedir. `npm test` tüm otomatik testleri çalıştırır.
 Sunucu kalıcı commit tamamlamadan başarı bildirmemeli. Fiziksel pazar/tezgâh
 özelliği eklenmeyecek. Eski pazar ve diğer oyun mutasyonları SQLite'a bağlanmadan
 önce aynı ekonomi servisinin yetki ve rezervasyon kontrollerine alınmalı.
+
+## P1 güvenlik düzeltmesi
+
+Ortak Bedesten doğrulayıcısı ve sunucu oturumundan satıcı kimliği tamamlandı.
+Sunucuda sahipliği olmayan varlık ilanı reddedilir. Güvenli transfer bağlı olmadığı
+için satın alma ve teklifler hata verir; eski UI ekonomik mutasyonları kapalıdır.
+Windows test kapanışı IPC ile doğrulanır. Bir sonraki onaylı aşama, accountId/assetId
+üzerinden iki hesaplı transaction ve rezervasyon/onay durum makinesidir;
+bu pakette takas entegrasyonuna başlanmamıştır.

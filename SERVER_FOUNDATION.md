@@ -6,7 +6,7 @@ Eski kayıt aktarımı/migrasyonu yoktur. Takas servisi ve arayüzü henüz bağ
 
 ## Çalıştırma
 
-Node 22.13+ (22 serisi) veya 23.4+ gerekir; harici npm paketi yoktur.
+Node 22.13+ (22 serisi) veya 23.4+ gerekir; Firestore SDK için `npm ci` gerekir.
 Docker ve Render Node 22 kullanır. `node:sqlite` bu sürümlerde deneysel uyarı verebilir.
 
 ```sh
@@ -99,3 +99,44 @@ aliasları reddedilir. SVG paylaşım kartındaki profil metinleri escape edilir
 5. Misafir kurtarma, isteğe bağlı X bağlama, operasyonel yedekleme ve izleme.
 
 Fiziksel pazar/tezgâh geliştirmesi yoktur.
+
+## Ticaret güvenliği P1
+
+Bu bölüm yukarıdaki ilk aşama açıklamalarını günceller: `game.start` ve
+`server/economy_commands.js` içindeki desteklenen komutlar artık yazma API'sindedir.
+`POST /api/economy/command` sunucu fiyatları, sahiplik, expectedVersion ve
+requestId makbuzlarıyla çalışır. Firestore üretim deposudur; SQLite yerel geliştirme
+içindir. Oyun arayüzünün yerel `S` ekonomisi henüz tamamen taşınmamıştır.
+
+`server/market_service.js`, HTTP `/api/market` ve WS `market_op` için ortak sınırdır.
+İlan girdisi yalnızca `{assetId, price, seller?}` kabul eder; `seller` yok sayılır.
+Kimlik doğrulanmış oturumun accountId/handle değerinden alınır. Sunucudan okunan
+ekonomide sahipliği bulunmayan, kilitli, görevli, ölü/yaşlı, kuşanılmış veya
+kuluçkadaki varlık reddedilir. Başlık ve kategori sunucu kaydından türetilir;
+istemci payload, ilan kimliği veya varlık snapshot'ı kabul edilmez. İlan kimliğini
+sunucu üretir. İptal yalnızca sellerAccountId sahibine açıktır; yetkisiz iptal
+başarı veya güncelleme yayını üretmez. Yiyecek/materyal ilanları bu sözleşmede yoktur.
+
+İlan oluşturmak rezervasyon değildir: `settlementReady: false` döner. Dünya JSON
+yazımı geciktirilmiştir; ilanlar ekonomik commit veya kalıcı transfer kanıtı değildir.
+Eski/tohum ilanlar ekonomik sahiplik kanıtı sayılmaz. Sahiplik kontrolünden sonra
+varlık değişebilir; iki hesaplı transaction ve rezervasyon eklenene kadar hiçbir
+ilan satın alınamaz. Hem `buy` hem `offer` 503 / market_settlement_unavailable
+döndürür; satış kaydı, ilan silme, bakiye veya varlık aktarımı yapılmaz. WS hatası
+`market_error`, başarılı ilan/iptal yanıtı `market_result` tipindedir.
+
+Eski Bedesten arayüzünün ilan, iptal, satın alma, teklif ve simüle satış eylemleri
+yerel envanter kullandığı için kapalıdır. Bu eylemler yalnızca açıklama gösterir.
+NPC mağazaları ve bağımsız takas motorunun kuralları değiştirilmemiştir.
+
+Windows yeniden başlatma testi child.kill(SIGTERM) yerine yalnızca test çocuğuna
+IPC shutdown gönderir; çocuk mevcut SIGTERM işleyicisini çalıştırır. Windows
+kill çağrısı kapanış işleyicisini atlayabildiğinden önceki test gecikmeli dünya
+yazımı tamamlanmadan süreci öldürüyordu. Test artık kapanış sonrası world.json
+içeriğini de yeniden başlatmadan önce doğrular. Üretim kapanış akışı değişmedi.
+
+Doğrulama: `npm test`. Gerçek Firestore transaction testi ayrıca çalışan yerel
+emülatör ve `FIRESTORE_EMULATOR_HOST=127.0.0.1:<port>` ile `npm run test:firestore`
+gerektirir; standart testler bunu çalıştırmaz. İki hesaplı takas entegrasyonu,
+rezervasyon, revizyonlu karşılıklı onay ve çok sunuculu ilan tutarlılığı sonraki
+aşamadır ve bu pakete dahil değildir.
