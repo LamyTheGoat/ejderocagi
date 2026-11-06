@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const crypto = require('node:crypto');
+const sources = require('./economy_sources');
 
 // Execute only repository-owned rules. No command name, argument or client text
 // is interpolated as JavaScript. Each transaction attempt gets its own context.
@@ -66,16 +67,19 @@ function tagAssets(game, accountId) {
 }
 function reduceCommand(previous, command, { accountId, seed }) {
   if (!previous && command.type !== 'game.start') fail('game_not_started', 409);
-  const api = makeRuntime(previous, seed);
+  const api = makeRuntime(previous ? sources.ensure(clone(previous)) : null, seed);
   if (!previous) {
     const game = clone(api.start());
     tagAssets(game, accountId);
+    sources.ensure(game, true);
     return { game, result: { started: true } };
   }
   const S = api.state(), C = S.chibi, a = command.args;
   if (command.type === 'game.start') return { game: clone(S), result: { started: false } };
   if (S.over) fail('game_finished', 409);
-  const spend = amount => { if (!Number.isSafeInteger(amount) || amount < 0) fail('invalid_server_price', 500); if (S.gold < amount) fail('insufficient_gold', 409); S.gold -= amount; };
+  let payment = sources.bucket(0, 'earned');
+  const spend = amount => { payment = sources.spend(S, amount); };
+  const paidSource = () => sources.sourceOf(payment);
   const owned = (rows, assetId) => { const asset = rows.find(row => row.assetId === assetId); if (!asset) fail('asset_not_owned', 403); return asset; };
   const payRecipe = recipe => {
     for (const group of ['stones', 'ores', 'shards', 'essences']) {
@@ -90,7 +94,7 @@ function reduceCommand(previous, command, { accountId, seed }) {
       if (!has(api.BUILD, a.kind)) fail('unknown_building');
       const b = api.BUILD[a.kind], tile = S.grid[a.tile];
       if (b.hidden || !tile || !tile.open || tile.b || (!b.multi && api.hasB(a.kind)) || S.un < (b.un || 0)) fail('building_unavailable', 409);
-      spend(b.fiyat); tile.b = a.kind;
+      spend(b.fiyat); tile.b = a.kind; tile.funding = paidSource();
       if (a.kind === 'kulucka') for (const egg of S.eggs) if (!egg.inK && api.kuluckaFree() > 0) egg.inK = true;
       break;
     }
@@ -102,34 +106,35 @@ function reduceCommand(previous, command, { accountId, seed }) {
       if (!has(api.FOODS, a.key)) fail('unknown_food');
       const food = api.FOODS[a.key];
       if (food.kiler && !api.hasB('kiler')) fail('food_locked', 409);
-      spend(food.fiyat); S.food[a.key] = (S.food[a.key] || 0) + 1; break;
+      spend(food.fiyat); sources.addFood(S, a.key, 1, paidSource()); break;
     }
     case 'shop.item': {
       if (!has(api.ITEMS, a.key) || !S.flags.smith || !S.smith.includes(a.key)) fail('item_unavailable', 409);
-      spend(api.smithPrice(a.key)); S.inv.push({ uid: S.uid++, id: a.key }); S.smith.splice(S.smith.indexOf(a.key), 1); break;
+      spend(api.smithPrice(a.key)); S.inv.push({ uid: S.uid++, id: a.key, funding: paidSource() }); S.smith.splice(S.smith.indexOf(a.key), 1); break;
     }
     case 'shop.dragon': {
       const dragon = S.market.dragons.find(d => d.id === a.id);
       if (!dragon || api.freeSlots() < 1) fail('dragon_unavailable', 409);
       spend(dragon.price); S.market.dragons = S.market.dragons.filter(d => d !== dragon);
+      dragon.funding = paidSource(); S.milestoneSources.acq = sources.combine([S.milestoneSources.acq || 'earned', dragon.funding]);
       delete dragon.price; dragon.id = S.nid++; S.dragons.push(dragon); S.st.acq++; break;
     }
     case 'shop.egg': {
       const egg = S.market.egg;
       if (!egg || egg.id !== a.id) fail('egg_unavailable', 409);
-      spend(api.eggPrice(egg)); delete egg.price; egg.inK = api.kuluckaFree() > 0; S.eggs.push(egg); S.market.egg = null; break;
+      spend(api.eggPrice(egg)); egg.funding = paidSource(); delete egg.price; egg.inK = api.kuluckaFree() > 0; S.eggs.push(egg); S.market.egg = null; break;
     }
     case 'item.sell': {
       const item = owned(S.inv, a.assetId);
       if (item.heirloomId || !has(api.ITEMS, item.id) || api.ITEMS[item.id].heirloom) fail('item_not_sellable', 409);
       const dragon = api.equippedBy(item.uid);
       if (dragon) for (const slot of Object.keys(dragon.equip)) if (dragon.equip[slot] === item.uid) dragon.equip[slot] = null;
-      S.gold += api.sellBack(item.id); S.inv = S.inv.filter(i => i !== item); break;
+      sources.credit(S, api.sellBack(item.id), item.funding); S.inv = S.inv.filter(i => i !== item); break;
     }
     case 'dragon.sell': {
       const dragon = owned(S.dragons, a.assetId);
       if (dragon.task || dragon.dead || dragon.tradeLocked) fail('dragon_busy', 409);
-      S.gold += Math.round(api.value(dragon) * 0.6);
+      sources.credit(S, Math.round(api.value(dragon) * 0.6), dragon.funding);
       for (const slot of Object.keys(dragon.equip)) dragon.equip[slot] = null;
       api.linReg(dragon); S.dragons = S.dragons.filter(d => d !== dragon);
       if (S.star === dragon.id) S.star = S.dragons[0]?.id || null;
@@ -144,7 +149,11 @@ function reduceCommand(previous, command, { accountId, seed }) {
       const egg = owned(S.eggs, a.assetId);
       // w is advanced only by a future validated week command, never by client time.
       if (!egg.inK || egg.w < (api.perk('yumurtaci', 50) ? 1 : 2) || api.freeSlots() < 1) fail('egg_not_ready', 409);
-      const hatched = api.hatchEgg(egg); result = { dragonId: hatched.d.id, notes: clone(hatched.notes) }; break;
+      const beforeUn = S.un;
+      const hatched = api.hatchEgg(egg); hatched.d.funding = egg.funding;
+      S.milestoneSources.hatch = sources.combine([S.milestoneSources.hatch || 'earned', egg.funding]);
+      if (S.un > beforeUn) S.milestoneSources.renown = sources.combine([S.milestoneSources.renown || 'earned', egg.funding]);
+      result = { dragonId: hatched.d.id, notes: clone(hatched.notes) }; break;
     }
     case 'chibi.craft': {
       if (!has(api.CHIBI_ITEMS, a.itemId) || C.unlockedItems[a.itemId]) fail('item_unavailable', 409);
@@ -178,8 +187,12 @@ function reduceCommand(previous, command, { accountId, seed }) {
     case 'goals.claim': break;
     default: fail('unsupported_command');
   }
+  result.payment = {...payment};
   api.syncChibiSlotPlus(C);
-  result.goals = api.checkGoals().map(g => ({ id: g.id, gold: g.r }));
+  const beforeGoals = S.gold;
+  result.goals = api.checkGoals().map(g => ({ id: g.id, gold: g.r, source: sources.goalSource(S, g.id) }));
+  S.gold = beforeGoals;
+  for (const reward of result.goals) sources.credit(S, reward.gold, reward.source);
   if (!Number.isSafeInteger(S.gold) || S.gold < -2_000_000_000 || S.gold > 2_000_000_000) fail('gold_limit', 409);
   tagAssets(S, accountId);
   const game = clone(S);
@@ -187,7 +200,8 @@ function reduceCommand(previous, command, { accountId, seed }) {
   return { game, result };
 }
 function gameEconomy(accountId, version, game) {
-  return { accountId, version, gold: game.gold,
+  sources.ensure(game);
+  return { accountId, version, gold: game.gold, funds: clone(game.funds),
     items: game.inv.map(i => ({ assetId: i.assetId, data: i })),
     dragons: game.dragons.map(d => ({ assetId: d.assetId, data: d })), eggs: game.eggs.map(e => ({ assetId: e.assetId, data: e })),
     stones: clone(game.chibi.stones), ores: clone(game.chibi.ores), chibi: clone(game.chibi), game };

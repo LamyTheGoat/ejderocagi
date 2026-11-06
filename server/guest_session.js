@@ -22,12 +22,12 @@ function createGuestSessions(store, publicUrl, production = false, { now = Date.
   }
   return Object.freeze({
     tokenFrom, allowedOrigin,
-    async resolve(req) {
+    async resolve(req, { fresh = false } = {}) {
       const token = tokenFrom(req);
       if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
       const key = crypto.createHash('sha256').update(token).digest('hex');
       const entry = cache.get(key), time = now();
-      if (entry && entry.until > time) return entry.value;
+      if (!fresh && entry && entry.until > time) return entry.value;
       if (cache.size >= 10000) cache.delete(cache.keys().next().value);
       const value = Promise.resolve(store.resolveSession(token));
       cache.set(key, { until: time + CACHE_MS, value });

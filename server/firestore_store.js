@@ -1,5 +1,6 @@
 'use strict';
 const crypto = require('node:crypto');
+const {digest,consume,invitationLimits,RETENTION_MS}=require('./service_security');
 const { validateTrade, transition, guardReservation } = require('./trade_service');
 const { validateCommand, reduceCommand, gameEconomy, fail } = require('./economy_commands');
 const SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
@@ -35,13 +36,44 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
   }
   const inbox = db.collection('eo_trade_inbox');
   const trades = db.collection('eo_trades'), locks = db.collection('eo_trade_locks'), receipts = db.collection('eo_trade_receipts');
+  const security=db.collection('eo_service_state');
+  async function consumeRate(key,limit,windowMs) {
+    const ref=security.doc('rate:'+digest(key));
+    return db.runTransaction(async tx=>{const doc=await tx.get(ref);const next=consume(doc.exists?doc.data():null,limit,windowMs,now());tx.set(ref,{...next,kind:'rate',expiresAt:next.until});});
+  }
+  async function publishPresence(id,identity) {
+    const ref=security.doc('presence:'+id);
+    if(!identity)return ref.delete();
+    return ref.set({kind:'presence',accountId:identity.accountId,handle:identity.handle,expiresAt:now()+90000});
+  }
+  async function listPeers(actor) {
+    const docs=await security.where('kind','==','presence').where('expiresAt','>',now()).limit(400).get();
+    const peers=new Map();for(const doc of docs.docs){const p=doc.data();if(p.accountId!==actor)peers.set(p.accountId,{accountId:p.accountId,handle:p.handle});}
+    return [...peers.values()].slice(0,200);
+  }
+  async function pruneServiceState(limit=50) {
+    const page=await security.where('expiresAt','<=',now()).limit(limit).get();let count=0;
+    for(const doc of page.docs) count+=await db.runTransaction(async tx=>{const latest=await tx.get(doc.ref);if(latest.exists&&latest.data().expiresAt<=now()){tx.delete(doc.ref);return 1;}return 0;});
+    return count;
+  }
+  async function compactTradeReceipts(limit=50) {
+    const page=await receipts.where('compactAfter','<=',now()).limit(limit).get();let count=0;
+    for(const doc of page.docs) {
+      count+=await db.runTransaction(async tx=>{
+        const latest=await tx.get(doc.ref),r=latest.data();if(!r?.resultJson)return 0;
+        const tradeId=JSON.parse(r.resultJson).trade.id,t=await tx.get(trades.doc(tradeId));
+        if(!t.exists||['active','invited'].includes(JSON.parse(t.data().json).status))return 0;
+        tx.set(doc.ref,{hash:r.hash,tradeId,createdAt:r.createdAt,compactedAt:now(),compactAfter:null});return 1;
+      });
+    }return count;
+  }
   async function executeTrade(actor, input) {
     const { command, hash } = validateTrade(input);
     const id = command.type === 'invite' ? command.requestId : command.tradeId;
     const receiptRef = receipts.doc(actor + ':' + command.requestId), tradeRef = trades.doc(id);
     return db.runTransaction(async tx => {
       const [saved, tradeDoc] = await tx.getAll(receiptRef, tradeRef);
-      if (saved.exists) { const receipt = saved.data(); if (receipt.hash !== hash) fail('request_id_reused', 409); return { ...JSON.parse(receipt.resultJson), replayed: true }; }
+      if (saved.exists) { const receipt = saved.data(); if (receipt.hash !== hash) fail('request_id_reused', 409); const result=receipt.resultJson?JSON.parse(receipt.resultJson):{trade:JSON.parse((await tx.get(trades.doc(receipt.tradeId))).data().json)}; return { ...result, replayed: true }; }
       const trade = tradeDoc.exists ? JSON.parse(tradeDoc.data().json) : null;
       if (command.type !== 'invite' && (!trade || !trade.participants.includes(actor))) fail('trade_not_found', 404);
       const ids = command.type === 'invite' ? [actor, command.targetId] : trade.participants;
@@ -53,7 +85,14 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
         versions[p] = record?.version;
         reservations[p] = docs[i + ids.length].exists ? JSON.parse(docs[i + ids.length].data().json) : null;
       });
+      const cooldown=command.type==='invite'?await tx.get(security.doc('cooldown:'+actor+':'+command.targetId)):null;
+      if(cooldown?.exists&&cooldown.data().expiresAt>now())fail('invitation_cooldown',429);
+      const rates=command.type==='invite'?invitationLimits(actor,command.targetId):[];
+      const rateDocs=rates.length?await tx.getAll(...rates.map(r=>security.doc('rate:'+digest(r.key)))):[];
+      const nextRates=rates.map((r,i)=>consume(rateDocs[i].exists?rateDocs[i].data():null,r.limit,r.windowMs,now()));
       const next = transition(actor, command, trade, games, reservations, now());
+      if(command.type==='reject'&&next.status==='rejected')tx.set(security.doc('cooldown:'+next.participants[0]+':'+actor),{kind:'cooldown',expiresAt:now()+300000});
+      rates.forEach((r,i)=>tx.set(rateDocs[i].ref,{...nextRates[i],kind:'rate',expiresAt:nextRates[i].until}));
       ids.forEach(p => {
         if (games[p] && games[p].version !== versions[p]) tx.update(accounts.doc(p), { version: games[p].version, gameJson: JSON.stringify(games[p].game) });
         tx.set(locks.doc(p), { json: JSON.stringify(reservations[p]) });
@@ -61,7 +100,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
       tx.set(tradeRef, { json: JSON.stringify(next), expiresAt: ['invited','active'].includes(next.status) ? next.expiresAt : null });
       if(command.type === 'invite') ids.forEach(p => tx.set(inbox.doc(p),{tradeId:id}));
       const result = { trade: next, replayed: false };
-      if (command.type !== 'get') tx.create(receiptRef, { hash, resultJson: JSON.stringify(result) });
+      if (command.type !== 'get') tx.create(receiptRef, { hash, resultJson: JSON.stringify(result), createdAt:now(), compactAfter:now()+RETENTION_MS });
       return result;
     }, { maxAttempts: 5 });
   }
@@ -108,7 +147,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
     }, { maxAttempts: 5 });
   }
   return {
-    backend: 'firestore', createGuest, resolveSession, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
+    backend: 'firestore', pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
     async revokeSession(token) { if (typeof token === 'string') await sessions.doc(hashToken(token)).delete(); },
     async close() { await db.terminate(); },
   };

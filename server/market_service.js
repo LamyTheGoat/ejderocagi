@@ -24,6 +24,7 @@ function createMarketService({ store, world, changed = () => {} }) {
         if (found) { asset = found.data; cat = kind; break; }
       }
       if (!asset) fail('asset_not_owned', 403);
+      if (asset.funding !== 'earned') fail('asset_not_transferable', 409);
       if (asset.tradeLocked || asset.dead || asset.old || asset.busy || asset.task || asset.inK || asset.hatching || asset.heirloomId) fail('asset_unavailable', 409);
       if (cat === 'dragon' && asset.equip && Object.values(asset.equip).some(value => value != null)) fail('asset_equipped', 409);
       if (cat === 'equip' && (economy.dragons || []).some(row => Object.values(row.data.equip || {}).some(uid => uid != null && String(uid) === String(asset.uid)))) fail('asset_equipped', 409);

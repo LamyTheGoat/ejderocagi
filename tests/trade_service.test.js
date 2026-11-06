@@ -20,6 +20,7 @@ function fixture(t) {
   const game = store.readEconomy(id).game;
   game.inv.push({ uid: game.uid++, id: 'zirh1', assetId: id + ':test:item' });
   game.eggs.forEach(e => e.inK = false); game.food.balik = 5;
+  require('./helpers/earned_fixture').earnedFixture(game);
   raw.prepare('UPDATE game_states SET game_json=? WHERE account_id=?').run(JSON.stringify(game), id);
  }
  t.after(() => { raw.close(); store.close(); fs.rmSync(dir, { recursive: true, force: true }); });
@@ -76,7 +77,7 @@ test('reservations block competing trades and economy mutations; cancellation, r
  assert.deepEqual(store.readEconomy(a), snap);
  assert.equal(send(b, 'cancel', { tradeId: trade.id }).trade.status, 'cancelled');
  trade = f.invite(); assert.equal(send(b, 'reject', {tradeId:trade.id}).trade.status,'rejected');
- trade = f.active(); f.advance(); assert.equal(send(a,'get',{tradeId:trade.id}).trade.status,'expired');
+ f.advance(); trade = f.active(); f.advance(); assert.equal(send(a,'get',{tradeId:trade.id}).trade.status,'expired');
  assert.equal(f.invite().status, 'invited');
 });
 test('SQLite write error after first account update rolls back accounts, approvals and reservations', t => {
@@ -121,11 +122,12 @@ test('reopening independent store recovers accepted trade and idempotency after 
 test('reservation guard covers food and mutations to reserved assets for every reduced command', () => {
  const { guardReservation }=require('../server/trade_service');
  const before={gold:100,food:{balik:4},inv:[{uid:1,assetId:'i'}],dragons:[{id:1,assetId:'d',equip:{}}],eggs:[{assetId:'e',inK:false}]};
+ require('./helpers/earned_fixture').earnedFixture(before);
  const lock={expiresAt:100,offer:{gold:50,food:{balik:3},items:['i'],dragons:['d'],eggs:['e']}};
- for(const mutate of [g=>g.food.balik=2,g=>g.gold=49,g=>g.inv=[],g=>g.dragons[0].equip.head=1,g=>g.eggs[0].inK=true]) {
+ for(const mutate of [g=>{g.food.balik=2;g.foodSources.balik.earned=2;},g=>{g.gold=49;g.funds.earned=49;},g=>g.inv=[],g=>g.dragons[0].equip.head=1,g=>g.eggs[0].inK=true]) {
   const after=structuredClone(before);mutate(after);assert.throws(()=>guardReservation(before,after,lock,1),/trade_reserved/);
  }
- const after=structuredClone(before);after.gold=75;guardReservation(before,after,lock,1);
+ const after=structuredClone(before);after.gold=75;after.funds.earned=75;guardReservation(before,after,lock,1);
  after.food.balik=0;guardReservation(before,after,lock,101);
 });
 

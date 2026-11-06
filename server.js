@@ -27,6 +27,12 @@ const { COMMAND_TYPES } = require('./server/economy_commands');
 const { createGuestSessions } = require('./server/guest_session');
 const { createPublicFiles } = require('./server/public_files');
 
+const inFlight = new Set();
+function track(promise) {
+  inFlight.add(promise);
+  promise.then(() => inFlight.delete(promise), () => inFlight.delete(promise));
+  return promise;
+}
 const PORT = process.env.PORT || 3000;
 const X_CLIENT_ID = process.env.X_CLIENT_ID || '';
 const X_CLIENT_SECRET = process.env.X_CLIENT_SECRET || '';
@@ -447,12 +453,13 @@ async function handleWsUpgrade(req, socket, head) {
   if (!GUEST_SESSIONS.allowedOrigin(req) || !req.headers.origin) {
     socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return;
   }
-  const identity = await GUEST_SESSIONS.resolve(req);
+  const identity = await GUEST_SESSIONS.resolve(req, {fresh:true});
   if (socket.destroyed) return;
   if (!identity) {
     socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
     return;
   }
+  await ECONOMY.consumeRate('ws-connect:'+identity.accountId,20,60000);
   const key = req.headers['sec-websocket-key'];
   if (req.headers['sec-websocket-version'] !== '13' || req.headers.upgrade?.toLowerCase() !== 'websocket' || typeof key !== 'string' || !/^[A-Za-z0-9+/]{22}==$/.test(key)) { socket.destroy(); return; }
   if (!key) { socket.destroy(); return; }
@@ -471,6 +478,9 @@ async function handleWsUpgrade(req, socket, head) {
 
   socket.write(headers);
   socket.playerInfo = { accountId: identity.accountId, handle: identity.handle, authenticated: true, xVerified: !!getSessionHandle(req), x: 35, y: 60, pose: 'P1', chat: 'Meydana katıldı!' };
+  socket.authRequest = req; socket.presenceId = crypto.randomUUID();
+  await ECONOMY.publishPresence(socket.presenceId, identity);
+  if(socket.destroyed){await ECONOMY.publishPresence(socket.presenceId,null);return;}
   WS_CLIENTS.add(socket);
 
   socket.write(encodeWsFrame({
@@ -492,10 +502,10 @@ async function handleWsUpgrade(req, socket, head) {
   DUEL_SERVER.onConnect(socket);
 
   const authTimer = setInterval(() => {
-    GUEST_SESSIONS.resolve(req).then(session => { if (!session) socket.destroy(); }).catch(() => socket.destroy());
-  }, 60000);
+    track(GUEST_SESSIONS.resolve(req, {fresh:true}).then(async session => { if (!session) socket.destroy(); else if(!socket.destroyed) await ECONOMY.publishPresence(socket.presenceId,session); })).catch(() => socket.destroy());
+  }, 30000);
   authTimer.unref();
-  socket.once('close', () => clearInterval(authTimer));
+  socket.once('close', () => { clearInterval(authTimer); track(Promise.resolve().then(()=>ECONOMY.publishPresence(socket.presenceId,null))).catch(()=>{}); });
   let pending = Buffer.alloc(0);
   const onData = chunk => {
     if (shuttingDown || identity.expiresAt <= Date.now()) { socket.destroy(); return; }
@@ -510,7 +520,7 @@ async function handleWsUpgrade(req, socket, head) {
       return;
     }
     for (const msg of messages) {
-      handleWsMessage(socket, msg);
+      track(handleWsMessage(socket, msg)).catch(()=>socket.destroy());
     }
   };
   socket.on('data', onData);
@@ -527,13 +537,19 @@ async function handleWsUpgrade(req, socket, head) {
   });
 }
 
-function handleWsMessage(socket, msg) {
+async function handleWsMessage(socket, msg) {
   if (!msg || typeof msg !== 'object' || Array.isArray(msg) || !msg.type) return;
+  if (['trade_command','market_op'].includes(msg.type)) {
+    const live = await GUEST_SESSIONS.resolve(socket.authRequest,{fresh:true});
+    if(!live||live.accountId!==socket.playerInfo.accountId){socket.destroy();return;}
+    try { await ECONOMY.consumeRate('economy:'+live.accountId,120,60000); }
+    catch(error){if(!socket.destroyed)socket.write(encodeWsFrame({type:msg.type==='trade_command'?'trade_error':'market_error',error:error.code||'service_unavailable',ok:false}));return;}
+  }
   // Sender identity always comes from the live session, never the message.
   msg = { ...msg, accountId: socket.playerInfo.accountId, handle: socket.playerInfo.handle, from: socket.playerInfo.handle, buyer: socket.playerInfo.handle, attacker: socket.playerInfo.handle };
   if (msg.listing && typeof msg.listing === 'object') msg.listing = { ...msg.listing, seller: socket.playerInfo.handle };
   if (msg.type === 'trade_command') {
-    Promise.resolve().then(() => ECONOMY.executeTrade(socket.playerInfo.accountId, msg.command)).then(result => {
+    await Promise.resolve().then(() => ECONOMY.executeTrade(socket.playerInfo.accountId, msg.command)).then(result => {
       for (const peer of WS_CLIENTS) if (result.trade.participants.includes(peer.playerInfo?.accountId) && !peer.destroyed) peer.write(encodeWsFrame({ type: 'trade_state', ...result }));
     }).catch(error => { if (!socket.destroyed) socket.write(encodeWsFrame({ type: 'trade_error', requestId: msg.command?.requestId, error: error.code || 'trade_unavailable' })); });
     return;
@@ -614,7 +630,7 @@ function handleWsMessage(socket, msg) {
 
   // Both transports share the same ownership and settlement boundary.
   if (msg.type === 'market_op') {
-    MARKET.execute(socket.playerInfo, msg).then(result => {
+    await MARKET.execute(socket.playerInfo, msg).then(result => {
       if (!socket.destroyed) socket.write(encodeWsFrame({ type: 'market_result', ok: true, ...result }));
     }).catch(error => {
       if (!socket.destroyed) socket.write(encodeWsFrame({ type: 'market_error', ok: false, error: error.code || 'market_unavailable' }));
@@ -855,7 +871,7 @@ async function handleHttp(req, res) {
   const pathname = parsedUrl.pathname;
   if (pathname.startsWith('/api/')) {
     if (!GUEST_SESSIONS.allowedOrigin(req)) return sendJson(res, 403, { ok: false, error: 'origin_not_allowed' });
-    req.identity = await GUEST_SESSIONS.resolve(req);
+    req.identity = await GUEST_SESSIONS.resolve(req, {fresh:true});
   }
 
   // Explicit bootstrap, shared by all save slots. No client account or assets accepted.
@@ -865,11 +881,13 @@ async function handleHttp(req, res) {
     if (!identity) {
       if (GUEST_SESSIONS.tokenFrom(req) !== null) return sendJson(res, 401, { ok: false, error: 'invalid_guest_session' });
       if (!allowGuestCreation(req)) return sendJson(res, 429, { ok: false, error: 'guest_creation_rate_limited' });
+      await ECONOMY.consumeRate('guest-ip:'+req.socket.remoteAddress,20,60000);
       identity = await ECONOMY.createGuest();
       res.setHeader('Set-Cookie', GUEST_SESSIONS.cookie(identity.token, identity.expiresAt));
     }
     return sendJson(res, 200, { ok: true, accountId: identity.accountId, handle: identity.handle, expiresAt: identity.expiresAt, economyReady: false });
   }
+  if(req.identity && req.method==='POST' && ['/api/trade','/api/economy/command','/api/market'].includes(pathname)) await ECONOMY.consumeRate('economy:'+req.identity.accountId,120,60000);
   if (pathname.startsWith('/api/trade') && req.headers['x-trade-account'] && req.headers['x-trade-account'] !== req.identity?.accountId) return sendJson(res,409,{ok:false,error:'trade_account_changed'});
   if (pathname === '/api/trade/state' && req.method === 'GET') {
     if(!req.identity)return sendJson(res,401,{ok:false,error:'guest_session_required'});
@@ -886,9 +904,7 @@ async function handleHttp(req, res) {
   }
   if (pathname === '/api/trade/peers' && req.method === 'GET') {
     if(!req.identity)return sendJson(res,401,{ok:false,error:'guest_session_required'});
-    const peers=new Map();
-    for(const socket of WS_CLIENTS) if(!socket.destroyed && socket.playerInfo?.authenticated && socket.playerInfo.accountId !== req.identity.accountId) peers.set(socket.playerInfo.accountId,{accountId:socket.playerInfo.accountId,handle:socket.playerInfo.handle});
-    return sendJson(res,200,{ok:true,peers:[...peers.values()]});
+    return sendJson(res,200,{ok:true,peers:await ECONOMY.listPeers(req.identity.accountId)});
   }
   if (pathname === '/api/trade' && req.method === 'POST') {
     if (!req.identity) return sendJson(res, 401, { ok: false, error: 'guest_session_required' });
@@ -1313,7 +1329,8 @@ async function handleHttp(req, res) {
 }
 
 const server = http.createServer((req, res) => {
-  handleHttp(req, res).catch(error => {
+  if(shuttingDown)return sendJson(res,503,{ok:false,error:'server_shutting_down'});
+  track(handleHttp(req, res)).catch(error => {
     if (!res.headersSent) sendJson(res, error.status || 500, { ok: false, error: error.status ? error.message : 'internal_error' });
     else res.end();
   });
@@ -1321,7 +1338,8 @@ const server = http.createServer((req, res) => {
 
 server.on('upgrade', (req, socket, head) => {
   if (req.url === '/ws') {
-    handleWsUpgrade(req, socket, head).catch(() => socket.destroy());
+    if(shuttingDown){socket.destroy();return;}
+    track(handleWsUpgrade(req, socket, head)).catch(() => socket.destroy());
   } else {
     socket.destroy();
   }
@@ -1335,11 +1353,13 @@ async function cleanExpiredTrades() {
   try {
     if(!tradeMigrationDone) { tradeMigrationCursor=await ECONOMY.migrateTradeExpiry(tradeMigrationCursor);tradeMigrationDone=tradeMigrationCursor===null; }
     await ECONOMY.expireTrades(50);
+    await ECONOMY.compactTradeReceipts(50);
+    await ECONOMY.pruneServiceState(50);
   } catch(error) { console.error('Trade cleanup failed:',error.message); }
   finally { cleaningTrades=false; }
 }
-const tradeCleanupTimer=setInterval(cleanExpiredTrades,15000);tradeCleanupTimer.unref();
-cleanExpiredTrades();
+const tradeCleanupTimer=setInterval(()=>track(cleanExpiredTrades()),15000);tradeCleanupTimer.unref();
+track(cleanExpiredTrades());
 async function handleGracefulShutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
@@ -1349,8 +1369,13 @@ async function handleGracefulShutdown(signal) {
   flushWorldSync(WORLD);
   const deadline = setTimeout(() => process.exit(1), 8000);
   deadline.unref();
-  server.close();
-  try { await ECONOMY.close(); process.exit(0); } catch (_) { process.exit(1); }
+  const closed = new Promise(resolve => server.close(resolve));
+  try {
+    await closed;
+    // Drain HTTP, WS, presence and cleanup tasks before terminating the DB client.
+    while(inFlight.size) await Promise.allSettled([...inFlight]);
+    await ECONOMY.close(); process.exit(0);
+  } catch (_) { process.exit(1); }
 }
 
 process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));

@@ -62,7 +62,7 @@ test('crafting and resource conversion retain recipes and reject insufficient fu
   game.chibi.ores.obsidiyen = 5;
   const converted = run(game, 'ore.convert', { from: 'obsidiyen', to: 'mercan' }).game;
   assert.equal(converted.gold, 270); assert.equal(converted.chibi.ores.obsidiyen, 0); assert.equal(converted.chibi.ores.mercan, 1);
-  game.gold = 0;
+  game.gold = 0; game.funds.bound = 0;
   assert.throws(() => run(game, 'chibi.craft', { itemId: 'hat_2' }), /insufficient_gold/);
   assert.equal(game.chibi.stones.kor_t1, 12);
 });

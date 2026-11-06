@@ -6,6 +6,10 @@ const { openFirestoreStore } = require('../server/firestore_store');
 // Never let an integration test accidentally contact a real Google project.
 if (!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST || '')) throw new Error('Local Firestore emulator required');
 const options = { projectId: 'demo-ejder-ocagi', databaseId: 'economy' };
+async function earnedAccounts(...ids) {
+ const {Firestore}=require('@google-cloud/firestore');const db=new Firestore(options);
+ try{for(const id of ids){const ref=db.collection('eo_accounts').doc(id),doc=await ref.get();const game=require('./helpers/earned_fixture').earnedFixture(JSON.parse(doc.data().gameJson));await ref.update({gameJson:JSON.stringify(game)});}}finally{await db.terminate();}
+}
 const command = (type, args, expectedVersion) => ({ requestId: crypto.randomUUID(), type, args, expectedVersion });
 
 test('Firestore: two independent instances share durable accounts and command receipts', { timeout: 30000 }, async t => {
@@ -58,6 +62,7 @@ test('Firestore trade: atomic transfer, reservations, retries, cancellation and 
  t.after(async()=>{await a.close();await b.close();});
  const x=await a.createGuest(),y=await b.createGuest();
  for(const u of [x,y]) await a.executeCommand(u.accountId,command('game.start',{},0));
+ await earnedAccounts(x.accountId,y.accountId);
  const tradeCmd=(type,extra={})=>({type,requestId:crypto.randomUUID(),...extra});
  const send=(u,type,extra)=>a.executeTrade(u.accountId,tradeCmd(type,extra));
  let trade=(await send(x,'invite',{targetId:y.accountId})).trade;
@@ -86,6 +91,7 @@ test('Firestore transaction abort after staging first account leaves both econom
  t.after(()=>store.close());
  const x=await store.createGuest(),y=await store.createGuest();
  for(const u of [x,y])await store.executeCommand(u.accountId,command('game.start',{},0));
+ await earnedAccounts(x.accountId,y.accountId);
  const c=(type,extra={})=>({type,requestId:crypto.randomUUID(),...extra});
  let trade=(await store.executeTrade(x.accountId,c('invite',{targetId:y.accountId}))).trade;
  trade=(await store.executeTrade(y.accountId,c('accept',{tradeId:trade.id}))).trade;
@@ -136,11 +142,54 @@ test('Firestore rejects locked and heirloom items without writing offers or eith
  const game=(await store.readEconomy(x.accountId)).game;
  const assetId=x.accountId+':test:item';
  for(const flag of ['tradeLocked','heirloomId']) {
-  game.inv=[{uid:game.uid,id:'zirh1',assetId,[flag]:flag==='heirloomId'?'heirloom-test':true}];
+  game.inv=[{uid:game.uid,id:'zirh1',assetId,funding:'earned',[flag]:flag==='heirloomId'?'heirloom-test':true}];
   await db.collection('eo_accounts').doc(x.accountId).update({gameJson:JSON.stringify(game)});
   const before=await Promise.all([store.readEconomy(x.accountId),store.readEconomy(y.accountId)]);
   await assert.rejects(store.executeTrade(x.accountId,c('offer',{tradeId:trade.id,revision:trade.revision,offer:{items:[assetId]}})),{code:'item_unavailable'});
   assert.deepEqual(await Promise.all([store.readEconomy(x.accountId),store.readEconomy(y.accountId)]),before);
   assert.deepEqual(await store.currentTrade(x.accountId),trade);
  }
+});
+
+test('ENG05 Firestore: guest farming blocked, earned transfer preserved, shared presence/limits and tombstone replay', {timeout:60000},async t=>{
+ const {Firestore}=require('@google-cloud/firestore'),db=new Firestore(options);let clock=Date.now();
+ const a=openFirestoreStore({...options,client:db,now:()=>clock}),b=openFirestoreStore({...options,now:()=>clock});
+ t.after(async()=>{await a.close();await b.close();});
+ const users=await Promise.all([a.createGuest(),b.createGuest(),b.createGuest()]);
+ for(const u of users)await a.executeCommand(u.accountId,command('game.start',{},0));
+ const [receiver,...donors]=users,c=(type,extra={})=>({type,requestId:crypto.randomUUID(),...extra});
+ for(const donor of donors){
+  let tr=(await a.executeTrade(donor.accountId,c('invite',{targetId:receiver.accountId}))).trade;
+  tr=(await b.executeTrade(receiver.accountId,c('accept',{tradeId:tr.id}))).trade;
+  await assert.rejects(a.executeTrade(donor.accountId,c('offer',{tradeId:tr.id,revision:tr.revision,offer:{gold:420}})),/gold_not_transferable/);
+  await b.executeTrade(receiver.accountId,c('cancel',{tradeId:tr.id}));
+ }
+ assert.equal((await b.readEconomy(receiver.accountId)).gold,420);
+ const donor=donors[0],ref=db.collection('eo_accounts').doc(donor.accountId),doc=await ref.get(),game=JSON.parse(doc.data().gameJson);
+ game.st.wins=1;game.milestoneSources.win1='earned';await ref.update({gameJson:JSON.stringify(game)});
+ await a.executeCommand(donor.accountId,command('goals.claim',{},1));
+ let tr=(await a.executeTrade(donor.accountId,c('invite',{targetId:receiver.accountId}))).trade;
+ tr=(await b.executeTrade(receiver.accountId,c('accept',{tradeId:tr.id}))).trade;
+ tr=(await a.executeTrade(donor.accountId,c('offer',{tradeId:tr.id,revision:tr.revision,offer:{gold:50}}))).trade;
+ await a.executeTrade(donor.accountId,c('confirm',{tradeId:tr.id,revision:tr.revision}));
+ const final=c('confirm',{tradeId:tr.id,revision:tr.revision});
+ await Promise.all([a.executeTrade(receiver.accountId,final),b.executeTrade(receiver.accountId,final)]);
+ assert.equal((await b.readEconomy(receiver.accountId)).funds.earned,50);
+ const key='race:'+crypto.randomUUID(),attempts=await Promise.allSettled([a.consumeRate(key,1,60000),b.consumeRate(key,1,60000)]);
+ assert.equal(attempts.filter(x=>x.status==='fulfilled').length,1);
+ const lease=crypto.randomUUID();await a.publishPresence(lease,donor);
+ assert.ok((await b.listPeers(receiver.accountId)).some(p=>p.accountId===donor.accountId));
+ tr=(await a.executeTrade(donor.accountId,c('invite',{targetId:receiver.accountId}))).trade;
+ await b.executeTrade(receiver.accountId,c('reject',{tradeId:tr.id}));
+ await assert.rejects(a.executeTrade(donor.accountId,c('invite',{targetId:receiver.accountId})),/invitation_cooldown/);
+ clock+=31*86400000;
+ await Promise.all([a.compactTradeReceipts(),b.compactTradeReceipts()]);
+ assert.equal((await b.executeTrade(receiver.accountId,final)).replayed,true);
+ await assert.rejects(a.executeTrade(receiver.accountId,{...final,revision:999}),/request_id_reused/);
+ assert.equal((await b.readEconomy(receiver.accountId)).funds.earned,50);
+ assert.deepEqual(await b.listPeers(receiver.accountId),[]);
+ await a.pruneServiceState();
+ // Deny-all client rules apply even though the Admin SDK above is authorized in the emulator.
+ const response=await fetch('http://'+process.env.FIRESTORE_EMULATOR_HOST+'/v1/projects/demo-ejder-ocagi/databases/economy/documents/eo_accounts/'+receiver.accountId);
+ assert.equal(response.status,403);
 });

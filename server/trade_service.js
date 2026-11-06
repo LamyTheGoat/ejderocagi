@@ -1,5 +1,6 @@
 'use strict';
 const crypto = require('node:crypto');
+const sources = require('./economy_sources');
 const { isDeepStrictEqual } = require('node:util');
 const { applyTrade, normalizeOffer } = require('../js/trade_engine');
 const { fail } = require('./economy_commands');
@@ -36,11 +37,17 @@ function canonical(game, id) {
   return g;
 }
 function transfer(games, ids, offers, tradeId, now) {
+  for (const id of ids) sources.tradable(games[id].game, offers[id]);
   const originals = clone(games);
   const accounts = Object.fromEntries(ids.map(id => [id, canonical(games[id].game, id)]));
   const result = applyTrade(accounts, ids[0], ids[1], offers[ids[0]], offers[ids[1]], { tradeId, ts: now });
   for (const id of ids) {
     const old = games[id].game, next = result.accounts[id];
+    const other = ids.find(p => p !== id);
+    next.funds.earned += offers[other].gold - offers[id].gold;
+    for (const [key,n] of Object.entries(offers[id].food)) next.foodSources[key].earned -= n;
+    for (const [key,n] of Object.entries(offers[other].food)) { next.foodSources[key] ||= sources.bucket(0,'earned'); next.foodSources[key].earned += n; }
+    sources.ensure(next);
     const itemIds = new Map();
     for (const [key, field, counter] of [['inv', 'uid', 'uid'], ['dragons', 'id', 'nid'], ['eggs', 'id', 'nid']]) {
       for (const row of next[key]) {
@@ -82,8 +89,9 @@ function transfer(games, ids, offers, tradeId, now) {
 function guardReservation(before, after, lock, now) {
   if (!lock || lock.expiresAt <= now) return;
   const offer = lock.offer;
-  if (after.gold < offer.gold) fail('trade_reserved_gold', 409);
-  for (const [key, count] of Object.entries(offer.food)) if ((after.food[key] || 0) < count) fail('trade_reserved_food', 409);
+  sources.ensure(after);
+  if (after.funds.earned < offer.gold) fail('trade_reserved_gold', 409);
+  for (const [key, count] of Object.entries(offer.food)) if ((after.foodSources[key]?.earned || 0) < count) fail('trade_reserved_food', 409);
   for (const [key, field] of [['items', 'inv'], ['dragons', 'dragons'], ['eggs', 'eggs']]) {
     for (const id of offer[key]) {
       const a = before[field].find(x => x.assetId === id), b = after[field].find(x => x.assetId === id);

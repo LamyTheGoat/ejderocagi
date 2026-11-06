@@ -13,3 +13,10 @@ test('session reads coalesce and are cached for 60 seconds, never beyond expiry'
   time = 61001; await sessions.resolve(req); assert.equal(calls, 2);
   time = 91000; assert.equal(await sessions.resolve(req), null); assert.equal(calls, 3);
 });
+
+test('fresh economic authorization bypasses a cached session immediately after revocation',async()=>{
+ let revoked=false;const sessions=createGuestSessions({resolveSession:async()=>revoked?null:{accountId:'a',expiresAt:Date.now()+60000}},'http://game.test');
+ const req={headers:{cookie:'eo_guest='+'b'.repeat(43)}};
+ assert.equal((await sessions.resolve(req)).accountId,'a');revoked=true;
+ assert.equal(await sessions.resolve(req,{fresh:true}),null);
+});

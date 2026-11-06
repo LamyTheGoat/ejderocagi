@@ -147,7 +147,7 @@ test('HTTP/WS identity, private files and economy isolation survive server resta
   assert.equal((await server.request('/api/economy', { cookie: b.cookie })).body.economy.gold, 0);
   assert.ok(fs.existsSync(path.join(dir, 'world.json')));
   assert.equal(fs.existsSync(path.join(dir, 'economy.sqlite')), false);
-  for (let i = 0; i < 20; i++) assert.equal((await server.request('/api/session', { method: 'POST' })).status, 200);
+  for (let i = 0; i < 18; i++) assert.equal((await server.request('/api/session', { method: 'POST' })).status, 200);
   assert.equal((await server.request('/api/session', { method: 'POST' })).status, 429);
   assert.equal((await server.request('/api/session', { method: 'POST', cookie: a.cookie })).status, 200);
 });
@@ -163,6 +163,7 @@ test('Bedesten HTTP and WS reject forged ownership and cannot settle purchases',
   const post = (cookie, body) => server.request('/api/market', { method: 'POST', cookie, body });
   const started = await server.request('/api/economy/command', { method: 'POST', cookie: a.cookie,
     body: { requestId: crypto.randomUUID(), expectedVersion: 0, type: 'game.start', args: {} } });
+  require('./helpers/earned_fixture').seedSQLite(path.join(dir,'local-economy','economy.sqlite'),a.body.accountId);
   const assetId = started.body.economy.dragons[0].assetId;
   const before = (await server.request('/api/economy', { cookie: a.cookie })).body;
   const buyerBefore = (await server.request('/api/economy', { cookie: b.cookie })).body;
@@ -221,6 +222,7 @@ test('trade HTTP/WS authenticate participants and recover completed transfer aft
  const command=(type,extra={})=>({type,requestId:crypto.randomUUID(),...extra});
  const post=(cookie,body)=>server.request('/api/trade',{method:'POST',cookie,body});
  for(const user of [a,b]) await server.request('/api/economy/command',{method:'POST',cookie:user.cookie,body:{...command('game.start'),expectedVersion:0,args:{}}});
+ require('./helpers/earned_fixture').seedSQLite(path.join(dir,'local-economy','economy.sqlite'));
  assert.equal((await post(undefined,command('invite',{targetId:b.body.accountId}))).status,401);
  assert.equal((await post(a.cookie,{...command('invite',{targetId:b.body.accountId}),accountId:b.body.accountId})).status,400);
  let response=await post(a.cookie,command('invite',{targetId:b.body.accountId}));assert.equal(response.status,200);let trade=response.body.trade;
@@ -235,4 +237,16 @@ test('trade HTTP/WS authenticate participants and recover completed transfer aft
  assert.equal((await post(a.cookie,command('get',{tradeId:trade.id}))).body.trade.status,'completed');
  assert.equal((await server.request('/api/economy',{cookie:a.cookie})).body.economy.gold,380);
  assert.equal((await server.request('/api/economy',{cookie:b.cookie})).body.economy.gold,460);
+});
+
+test('ENG05 HTTP and existing WS reject a revoked session without waiting for cache or timer', {timeout:20000}, async t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'eo-revoke-')),server=await startServer(dir);
+ let ws;t.after(async()=>{ws?.socket.destroy();await server.stop();fs.rmSync(dir,{recursive:true,force:true});});
+ const a=await server.request('/api/session',{method:'POST'});
+ ws=await openWs(server.port,a.cookie);await ws.next('welcome');
+ const store=require('../server/economy_store').openEconomyStore(path.join(dir,'local-economy','economy.sqlite'));
+ try{store.revokeSession(a.cookie.split('=')[1]);}finally{store.close();}
+ assert.equal((await server.request('/api/trade/state',{cookie:a.cookie})).status,401);
+ const closed=once(ws.socket,'close');ws.send({type:'trade_command',command:{type:'invite',requestId:crypto.randomUUID(),targetId:crypto.randomUUID()}});
+ await Promise.race([closed,new Promise((_,reject)=>{const timer=setTimeout(()=>reject(Error('revoked WS remained open')),2000);timer.unref();})]);
 });

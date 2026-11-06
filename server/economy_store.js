@@ -2,6 +2,7 @@
 
 const { DatabaseSync } = require('node:sqlite');
 const crypto = require('node:crypto');
+const {digest,consume,invitationLimits,RETENTION_MS}=require('./service_security');
 const { validateTrade, transition, guardReservation } = require('./trade_service');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -61,12 +62,36 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
   db.exec("INSERT OR IGNORE INTO trade_due SELECT id, json_extract(json, '$.expiresAt') FROM trade_records WHERE json_extract(json, '$.status') IN ('invited','active');");
   const readTradeRow = (table, id) => { const row = db.prepare('SELECT json FROM ' + table + ' WHERE id = ?').get(id); return row ? JSON.parse(row.json) : null; };
   const writeTradeRow = (table, id, value) => db.prepare('INSERT INTO ' + table + ' VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET json=excluded.json').run(id, JSON.stringify(value));
+  db.exec('CREATE TABLE IF NOT EXISTS service_state (id TEXT PRIMARY KEY, json TEXT NOT NULL)');
+  function rateInTransaction(key,limit,windowMs) {
+    const id='rate:'+digest(key);writeTradeRow('service_state',id,consume(readTradeRow('service_state',id),limit,windowMs,now()));
+  }
+  function consumeRate(key,limit,windowMs) { return atomic(()=>rateInTransaction(key,limit,windowMs)); }
+  function publishPresence(id,identity) { return atomic(()=>writeTradeRow('service_state','presence:'+id,identity?{accountId:identity.accountId,handle:identity.handle,expiresAt:now()+90000}:null)); }
+  function listPeers(actor) {
+    const peers=new Map();
+    for(const row of db.prepare("SELECT json FROM service_state WHERE id LIKE 'presence:%'").all()) {
+      const p=JSON.parse(row.json);if(p&&p.expiresAt>now()&&p.accountId!==actor)peers.set(p.accountId,{accountId:p.accountId,handle:p.handle});
+    }
+    return [...peers.values()].slice(0,200);
+  }
+  function pruneServiceState(limit=50) {
+    return atomic(()=>db.prepare("DELETE FROM service_state WHERE id IN (SELECT id FROM service_state WHERE json='null' OR coalesce(json_extract(json,'$.expiresAt'),json_extract(json,'$.until'))<=? LIMIT ?)").run(now(),limit).changes);
+  }
+  function compactTradeReceipts(limit=50) {
+    return atomic(()=>{
+      const rows=db.prepare("SELECT id,json FROM trade_receipts WHERE json_extract(json,'$.createdAt')<=? AND json_extract(json,'$.result') IS NOT NULL LIMIT ?").all(now()-RETENTION_MS,limit);
+      let count=0;for(const row of rows){const r=JSON.parse(row.json),trade=readTradeRow('trade_records',r.result.trade.id);
+        if(trade&&!['active','invited'].includes(trade.status)){writeTradeRow('trade_receipts',row.id,{hash:r.hash,tradeId:trade.id,createdAt:r.createdAt,compactedAt:now()});count++;}}
+      return count;
+    });
+  }
   function executeTrade(actor, input) {
     const { command, hash } = validateTrade(input);
     return atomic(() => {
       const receiptId = actor + ':' + command.requestId;
       const receipt = readTradeRow('trade_receipts', receiptId);
-      if (receipt) { if (receipt.hash !== hash) fail('request_id_reused', 409); return { ...receipt.result, replayed: true }; }
+      if (receipt) { if (receipt.hash !== hash) fail('request_id_reused', 409); return { ...(receipt.result || {trade:readTradeRow('trade_records',receipt.tradeId)}), replayed: true }; }
       const id = command.type === 'invite' ? command.requestId : command.tradeId;
       const trade = readTradeRow('trade_records', id);
       if (command.type !== 'invite' && (!trade || !trade.participants.includes(actor))) fail('trade_not_found', 404);
@@ -78,7 +103,11 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
         versions[p] = row?.version;
         locks[p] = readTradeRow('trade_locks', p);
       }
+      const cooldownKey='cooldown:'+actor+':'+command.targetId;
+      if(command.type==='invite' && readTradeRow('service_state',cooldownKey)?.until>now())fail('invitation_cooldown',429);
+      if(command.type==='invite')for(const r of invitationLimits(actor,command.targetId))rateInTransaction(r.key,r.limit,r.windowMs);
       const next = transition(actor, command, trade, games, locks, now());
+      if(command.type==='reject' && next.status==='rejected')writeTradeRow('service_state','cooldown:'+next.participants[0]+':'+actor,{until:now()+300000});
       for (const p of ids) {
         if (games[p] && games[p].version !== versions[p]) db.prepare('UPDATE game_states SET version=?, game_json=? WHERE account_id=?').run(games[p].version, JSON.stringify(games[p].game), p);
         writeTradeRow('trade_locks', p, locks[p]);
@@ -88,7 +117,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
       else db.prepare('DELETE FROM trade_due WHERE id=?').run(id);
       if (command.type === 'invite') for (const p of ids) writeTradeRow('trade_inbox',p,{tradeId:id});
       const result = { trade: next, replayed: false };
-      if (command.type !== 'get') writeTradeRow('trade_receipts', receiptId, { hash, result });
+      if (command.type !== 'get') writeTradeRow('trade_receipts', receiptId, { hash, result, createdAt:now() });
       return result;
     });
   }
@@ -219,7 +248,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
   }
 
   return Object.freeze({
-    backend: 'sqlite', createGuest, resolveSession, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
+    backend: 'sqlite', pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
     revokeSession(token) { if (typeof token === 'string') db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token)); },
     close() { db.close(); },
   });

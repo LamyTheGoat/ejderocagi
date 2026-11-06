@@ -17,11 +17,11 @@ test('market rejects unavailable assets and storage failures without changing li
     ['dragons', { equip: { head: 1 } }], ['eggs', { inK: true }],
     ['items', { tradeLocked: true }], ['items', { heirloomId: 'unique' }],
   ]) {
-    economy[key] = [{ assetId: 'asset', data }];
+    economy[key] = [{ assetId: 'asset', data: {...data,funding:'earned'} }];
     await assert.rejects(list(), error => error.status === 409);
     economy[key] = [];
   }
-  economy.items = [{ assetId: 'asset', data: { uid: 1 } }];
+  economy.items = [{ assetId: 'asset', data: { uid: 1, funding: 'earned' } }];
   economy.dragons = [{ assetId: 'dragon', data: { equip: { head: 1 } } }];
   await assert.rejects(list(), /asset_equipped/);
   const broken = createMarketService({ world, store: { async readEconomy() { throw new Error('offline'); } } });
