@@ -1,0 +1,31 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-ejder-ocagi", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
++  firestore: Firestore Emulator was started in standard edition.
++  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: npm run test:firestore
+
+> ejder-ocagi-online@23.0.0 test:firestore
+> node --test tests/firestore_store.integration.js
+
+(node:19196) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Firestore: two independent instances share durable accounts and command receipts (9054.0035ms)
+✔ Firestore: concurrent spends serialize; ownership and arbitrary rewards cannot bypass rules (3458.1073ms)
+✔ Firestore trade: atomic transfer, reservations, retries, cancellation and concurrent confirmations (3972.9601ms)
+✔ Firestore transaction abort after staging first account leaves both economies unchanged (324.0847ms)
+✔ Firestore P3 migration, state ordering and concurrent expiry cleanup preserve both reservations (3811.7617ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20718.7629
++  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+!  Firestore Emulator has exited upon receiving signal: SIGINT
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

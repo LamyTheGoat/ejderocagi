@@ -1,0 +1,67 @@
+
+> ejder-ocagi-online@23.0.0 test
+> node --test tests/*.test.js
+
+PASS: authentication, invite accept/reject, shared room, simultaneous actions, canonical state, stale/illegal action guards.
+✔ tests\duel_server.test.js (111.5806ms)
+✔ economic client deduplicates reads; response loss retries exactly the same command (3.5562ms)
+✔ version conflicts refresh state but never silently repeat a purchase (0.6725ms)
+(node:6004) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ canonical new game preserves gold, Kor, egg, stones and ores; retries cannot reroll (123.2768ms)
+✔ price, resource and ownership claims are rejected at the command boundary (14.0476ms)
+✔ building and incubation enforce cost, capacity, maturity and one-time goal reward (23.7126ms)
+✔ crafting and resource conversion retain recipes and reject insufficient funds (21.2418ms)
+✔ NPC purchases use server catalog, stock and locks; cannot resell forged items (25.5487ms)
+✔ SQLite command receipts provide atomic idempotency and version checks (16.4582ms)
+✔ Cloud Run refuses SQLite, emulator and unknown backend instead of falling back (0.2637ms)
+(node:24444) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ guest sessions persist, contain only token hashes, expire and revoke (82.9603ms)
+✔ gold and all asset kinds commit together; failed ownership/balance rolls back both accounts (101.3304ms)
+✔ invalid values, async/nested work and escaped transaction handles are rejected (61.5357ms)
+✔ process exit during transaction leaves neither gold nor assets committed (160.4277ms)
+✔ cookie protections, duplicate rejection and Origin checks (55.715ms)
+✔ public files deny private sources, traversal and symlink aliases (9.6246ms)
+✔ market rejects unavailable assets and storage failures without changing listings (7.9293ms)
+✔ legacy Bedesten actions cannot change local balances, assets or announce success (11.9798ms)
+✔ client shares bootstrap, keeps gameplay assets and applies identity after a new local game (6.2153ms)
+✔ client never silently creates a replacement account for rejected sessions (4.4449ms)
+✔ HTTP/WS identity, private files and economy isolation survive server restart (666.2667ms)
+✔ Bedesten HTTP and WS reject forged ownership and cannot settle purchases (223.072ms)
+✔ trade HTTP/WS authenticate participants and recover completed transfer after socket disconnect (250.4039ms)
+✔ session reads coalesce and are cached for 60 seconds, never beyond expiry (2.5405ms)
+✔ old WebSocket messages and replay response cannot manufacture completed UI state (9.5602ms)
+✔ ambiguous response persists exact request; account switch never retries another account command (2.9924ms)
+PASS: atomic two-sided transfer, gold, items, dragons, eggs, food, ownership, equipment and incubation guards.
+✔ tests\trade_engine.test.js (92.6762ms)
+(node:28324) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ SQLite trade transfers every asset kind atomically, remaps local ids and replays lost response (152.1843ms)
+✔ ownership, insufficient funds, membership and stale revision fail; changed offers reset both approvals (122.2268ms)
+✔ reservations block competing trades and economy mutations; cancellation, rejection and expiry release them (121.8236ms)
+✔ SQLite write error after first account update rolls back accounts, approvals and reservations (93.3117ms)
+(node:28324) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28324) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ independent SQLite workers race confirmation and spending without double transfer (239.6339ms)
+✔ reopening independent store recovers accepted trade and idempotency after connection loss (91.1509ms)
+✔ reservation guard covers food and mutations to reserved assets for every reduced command (1.2218ms)
+✔ expired trade cannot release a newer reservation or complete; lineage ids remain unambiguous (100.6705ms)
+✔ P3 state versions, content-bound approvals, inbox and idempotent cleanup (104.2571ms)
+(node:28324) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1320.6753
+npm notice
+npm notice New minor version of npm available! 11.6.2 -> 11.21.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.21.2
+npm notice To update run: npm install -g npm@11.21.2
+npm notice

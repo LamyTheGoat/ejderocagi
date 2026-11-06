@@ -1,0 +1,11 @@
+Command: npm run test:trade-ui
+Exit code: 0
+  ok 1 tests\trade_ui.e2e.js:11:1 › two authenticated player sessions trade inside the game, including mobile and reload (41.2s)
+
+  1 passed (42.6s)
+npm notice
+npm notice New minor version of npm available! 11.6.2 -> 11.21.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.21.2
+npm notice To update run: npm install -g npm@11.21.2
+npm notice
+
