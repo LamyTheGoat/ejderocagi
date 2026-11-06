@@ -143,11 +143,18 @@ function validateEggTransfer(egg) {
   }
 }
 
+function validateItemTransfer(item) {
+  if (item.tradeLocked || item.heirloomId) {
+    throw new TradeError('item_unavailable', 'Kilitli veya yadigâr eşya takas edilemez.');
+  }
+}
+
 function validateOfferAgainstAccount(account, offer) {
   if (offer.gold > account.gold) throw new TradeError('insufficient_gold');
 
   for (const uid of offer.items) {
-    findAsset(account.inv, uid, 'uid', 'item_not_owned');
+    const index = findAsset(account.inv, uid, 'uid', 'item_not_owned');
+    validateItemTransfer(account.inv[index]);
     if (isItemEquipped(account, uid)) throw new TradeError('item_equipped');
   }
   for (const id of offer.dragons) {
@@ -172,6 +179,7 @@ function applyOneDirection(from, to, offer) {
 
   for (const uid of offer.items) {
     const index = findAsset(from.inv, uid, 'uid', 'item_not_owned');
+    validateItemTransfer(from.inv[index]);
     if (isItemEquipped(from, uid)) throw new TradeError('item_equipped');
     const [item] = from.inv.splice(index, 1);
     if (to.inv.some(x => String(x.uid) === String(item.uid))) throw new TradeError('item_id_collision');

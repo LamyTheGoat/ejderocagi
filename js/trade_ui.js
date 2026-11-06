@@ -24,7 +24,7 @@
    body+=`<section><h3>Sunucu envanterin</h3><p data-testid="server-gold">${s.economy.gold} altın</p><p>${s.economy.dragons.length} ejderha · ${s.economy.items.length} eşya · ${s.economy.eggs.length} yumurta</p></section>`;
    body+=`<details id="trade-inventory" ${inventoryOpen?'open':''}><summary>Sunucu varlıklarını göster</summary><ul>${['items','dragons','eggs'].flatMap(kind=>s.economy[kind].map(asset=>`<li>${esc(asset.data.name||asset.data.id||kind)}</li>`)).join('')}${Object.entries(s.economy.game.food||{}).map(([key,n])=>`<li>${esc(key)} × ${n}</li>`).join('')}</ul></details>`;
    if(!t||!['invited','active'].includes(t.status)){
-    if(t)body+=`<p class="trade-result" role="status">${({completed:'Takas tamamlandı. Sunucu envanterin güncellendi.',cancelled:'Takas iptal edildi.',rejected:'Davet reddedildi.',expired:'Takasın süresi doldu.'})[t.status]||esc(t.status)}</p>`;
+    if(t&&!disabled)body+=`<p class="trade-result" role="status">${({completed:'Takas tamamlandı. Sunucu envanterin güncellendi.',cancelled:'Takas iptal edildi.',rejected:'Davet reddedildi.',expired:'Takasın süresi doldu.'})[t.status]||esc(t.status)}</p>`;
     body+=`<h3>Çevrimiçi oyuncular</h3>${s.peers.length?s.peers.map(p=>`<div class="trade-peer"><span>${esc(p.handle)}</span><button data-trade="invite" data-target="${esc(p.accountId)}" ${disabled?'disabled':''}>Takas teklif et</button></div>`).join(''):'<p>Henüz başka bir oyuncu bağlı değil. Diğer oyuncu da Takas ekranını açabilir.</p>'}`;
    } else {
     body+=`<p>Karşı hesap: ${esc(s.peers.find(p=>p.accountId===t.participants.find(id=>id!==s.accountId))?.handle||t.participants.find(id=>id!==s.accountId))}</p><p>Son geçerlilik: ${esc(new Date(t.expiresAt).toLocaleTimeString('tr-TR'))} — sunucu tarafından denetlenir.</p>`;
@@ -35,7 +35,7 @@
      const value=draft||own;
      body+=`<form id="trade-offer"><fieldset ${disabled?'disabled':''}><legend>Teklifini düzenle</legend><label>Altın <input id="trade-gold" name="gold" type="number" min="0" max="${s.economy.gold}" step="1" value="${value.gold}"></label>`;
      for(const kind of ['items','dragons','eggs'])for(const asset of s.economy[kind]){
-      const d=asset.data,unavailable=d.tradeLocked||d.dead||d.old||d.task||d.busy||d.inK||d.hatching||(kind==='dragons'&&Object.values(d.equip||{}).some(v=>v!=null))||(kind==='items'&&s.economy.dragons.some(dr=>Object.values(dr.data.equip||{}).includes(d.uid)));
+      const d=asset.data,unavailable=d.tradeLocked||d.heirloomId||d.dead||d.old||d.task||d.busy||d.inK||d.hatching||(kind==='dragons'&&Object.values(d.equip||{}).some(v=>v!=null))||(kind==='items'&&s.economy.dragons.some(dr=>Object.values(dr.data.equip||{}).includes(d.uid)));
       body+=`<label class="trade-asset"><input type="checkbox" name="${kind}" value="${esc(asset.assetId)}" ${value[kind].includes(asset.assetId)?'checked':''} ${unavailable?'disabled':''}>${esc(d.name||d.id||kind)}${unavailable?' (şu anda aktarılamaz)':''}</label>`;
      }
      for(const [key,count]of Object.entries(s.economy.game.food||{}))if(count>0)body+=`<label>${esc(key)} (${count}) <input id="trade-food-${esc(key)}" name="food:${esc(key)}" type="number" min="0" max="${count}" step="1" value="${value.food[key]||0}"></label>`;

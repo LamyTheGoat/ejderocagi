@@ -164,3 +164,17 @@ HTTP durum sorgusu instance'dan bağımsızdır. Dağıtık hız sınırlaması 
 temizliği P2'deki gibi henüz yoktur. Bedesten satın alma ve genel yerel ekonomi
 migrasyonu kapalı/kapsam dışıdır. Üretim IAM, indeks dağıtımı ve gerçek cihazlar
 ayrı yayın doğrulaması gerektirir.
+
+## ENG-04 · Güvenlik denetimi sonrası
+
+Ortak takas motoru artık `tradeLocked` veya `heirloomId` taşıyan eşyayı teklif
+doğrulamasında ve son aktarımda `item_unavailable` ile reddeder. UI yadigâr eşyayı
+seçime kapatır. Bekleyen komut, ağ hatası veya devam eden işlem varken önceki
+terminal takasın başarı mesajı gösterilmez. Tamamlanan transferin yanıtı kaybolursa
+aynı requestId ile tekrar ve sunucu durum okuması gerekir.
+
+2026-11-06: 38 standart, 6 Firestore emülatör ve 1 genişletilmiş iki oturumlu
+Edge testi geçti. Kanıt sınırları ve yeniden üretilen bulgular
+`ENG04_SECURITY_AUDIT.md`, açık yayın riskleri `ENG05_RISKS.md` içindedir.
+Özellikle başlangıç altınının yeni misafir hesaplardan biriktirilmesi için politika
+kararı gerekir; gerçek cihaz/Safari ve çoklu sunucu keşfi doğrulanmadı.

@@ -124,3 +124,23 @@ test('Firestore P3 migration, state ordering and concurrent expiry cleanup prese
  for(const u of [x,y])assert.equal(JSON.parse((await db.collection('eo_trade_locks').doc(u.accountId).get()).data().json),null);
  assert.equal(await a.expireTrades(),0);
 });
+
+test('Firestore rejects locked and heirloom items without writing offers or either economy', {timeout:60000},async t=>{
+ const {Firestore}=require('@google-cloud/firestore');const db=new Firestore(options);
+ const store=openFirestoreStore({...options,client:db});t.after(()=>store.close());
+ const x=await store.createGuest(),y=await store.createGuest();
+ for(const u of [x,y])await store.executeCommand(u.accountId,command('game.start',{},0));
+ const c=(type,extra={})=>({type,requestId:crypto.randomUUID(),...extra});
+ let trade=(await store.executeTrade(x.accountId,c('invite',{targetId:y.accountId}))).trade;
+ trade=(await store.executeTrade(y.accountId,c('accept',{tradeId:trade.id}))).trade;
+ const game=(await store.readEconomy(x.accountId)).game;
+ const assetId=x.accountId+':test:item';
+ for(const flag of ['tradeLocked','heirloomId']) {
+  game.inv=[{uid:game.uid,id:'zirh1',assetId,[flag]:flag==='heirloomId'?'heirloom-test':true}];
+  await db.collection('eo_accounts').doc(x.accountId).update({gameJson:JSON.stringify(game)});
+  const before=await Promise.all([store.readEconomy(x.accountId),store.readEconomy(y.accountId)]);
+  await assert.rejects(store.executeTrade(x.accountId,c('offer',{tradeId:trade.id,revision:trade.revision,offer:{items:[assetId]}})),{code:'item_unavailable'});
+  assert.deepEqual(await Promise.all([store.readEconomy(x.accountId),store.readEconomy(y.accountId)]),before);
+  assert.deepEqual(await store.currentTrade(x.accountId),trade);
+ }
+});

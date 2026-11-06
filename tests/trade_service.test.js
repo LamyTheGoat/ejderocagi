@@ -157,3 +157,25 @@ test('P3 state versions, content-bound approvals, inbox and idempotent cleanup',
  assert.equal(JSON.parse(raw.prepare('SELECT json FROM trade_locks WHERE id=?').get(b).json),null);
  const next=f.invite();assert.notEqual(next.id,trade.id);
 });
+
+for (const flag of ['tradeLocked', 'heirloomId']) {
+ test(`trade rejects ${flag} items at offer time and rechecks before settlement`, t => {
+  const {store,raw,ids:[a,b],send,active}=fixture(t);
+  let trade=active();
+  const game=store.readEconomy(a).game, assetId=game.inv[0].assetId;
+  const persist=()=>raw.prepare('UPDATE game_states SET game_json=? WHERE account_id=?').run(JSON.stringify(game),a);
+  game.inv[0][flag]=flag==='heirloomId'?'heirloom-test':true;persist();
+  const before=[store.readEconomy(a),store.readEconomy(b)];
+  assert.throws(()=>send(a,'offer',{tradeId:trade.id,revision:trade.revision,offer:{items:[assetId]}}),{code:'item_unavailable'});
+  assert.deepEqual([store.readEconomy(a),store.readEconomy(b)],before);
+  delete game.inv[0][flag];persist();
+  trade=send(a,'offer',{tradeId:trade.id,revision:trade.revision,offer:{items:[assetId]}}).trade;
+  send(a,'confirm',{tradeId:trade.id,revision:trade.revision,offerHash:trade.offerHash});
+  // Simulate an authoritative lock applied after the offer was saved.
+  game.inv[0][flag]=flag==='heirloomId'?'heirloom-test':true;persist();
+  const locked=[store.readEconomy(a),store.readEconomy(b)];
+  assert.throws(()=>send(b,'confirm',{tradeId:trade.id,revision:trade.revision,offerHash:trade.offerHash}),{code:'item_unavailable'});
+  assert.deepEqual([store.readEconomy(a),store.readEconomy(b)],locked);
+  assert.deepEqual(send(a,'get',{tradeId:trade.id}).trade.approvals,[a]);
+ });
+}

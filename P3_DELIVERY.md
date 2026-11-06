@@ -71,3 +71,9 @@ Tekrarlanabilir test kodu commit'e dahildir.
 - scripts/audit_project.py depoda yok; bu genel audit çalıştırılamadı.
 - Nihai kullanıcı incelemesi ve yayın onayı bekleniyor. Main birleştirmesi,
   GitHub gönderimi ve canlı dağıtım yapılmadı.
+
+## ENG-04 takip kaydı
+
+2026-11-06 güvenlik denetimi P3 commitini temel alır. Yukarıdaki sonuçlar P3'ün
+tarihsel kapanışıdır; sonraki düzeltmeler ve yeniden çalıştırılan testler
+`ENG04_SECURITY_AUDIT.md`, ENG-05'e bırakılan riskler `ENG05_RISKS.md` içindedir.

@@ -35,10 +35,31 @@ test('two authenticated player sessions trade inside the game, including mobile 
  expect(bounds.width).toBeLessThanOrEqual(390);expect(bounds.scroll).toBeLessThanOrEqual(bounds.client+1);
  await b.reload();await b.locator('.trade-entry').click();await expect(b.locator('#trade-gold')).toHaveValue('10');
  await a.getByRole('button',{name:'İki teklifi onayla',exact:true}).click();
+ // Commit on the real server, then drop only the HTTP response seen by the player.
+ await b.route('**/api/trade',async route=>{await route.fetch();await route.abort();});
  await b.getByRole('button',{name:'İki teklifi onayla',exact:true}).click();
+ await expect(b.getByRole('button',{name:'Sonucu doğrula / yeniden dene',exact:true})).toBeVisible();
+ await expect(b.locator('.trade-result')).toHaveCount(0);
+ await b.screenshot({path:testInfo.outputPath('mobile-lost-response.png')});
+ await b.unroute('**/api/trade');
+ await b.getByRole('button',{name:'Sonucu doğrula / yeniden dene',exact:true}).click();
  for(const page of [a,b]){await page.getByRole('button',{name:'Sunucudan yenile',exact:true}).click();await expect(page.locator('.trade-result')).toContainText('Takas tamamlandı');}
  await expect(a.getByTestId('server-gold')).toHaveText('390 altın');await expect(b.getByTestId('server-gold')).toHaveText('450 altın');
  await b.screenshot({path:testInfo.outputPath('mobile-completed.png')});
+ // A previous completed trade must not look like success for an uncertain new invitation.
+ await a.route('**/api/trade',route=>route.abort());
+ await a.getByRole('button',{name:'Takas teklif et',exact:true}).click();
+ await expect(a.getByRole('button',{name:'Sonucu doğrula / yeniden dene',exact:true})).toBeVisible();
+ await expect(a.locator('.trade-result')).toHaveCount(0);
+ await a.screenshot({path:testInfo.outputPath('uncertain-invitation.png')});
+ await a.unroute('**/api/trade');
+ await a.getByRole('button',{name:'Sonucu doğrula / yeniden dene',exact:true}).click();
+ await expect(a.locator('.trade-panel')).toContainText('Davet gönderildi');
+ await a.getByRole('button',{name:'Takası iptal et',exact:true}).click();
+ await expect(a.locator('.trade-result')).toContainText('Takas iptal edildi');
+ await expect(a.getByTestId('server-gold')).toHaveText('390 altın');
+ await b.getByRole('button',{name:'Sunucudan yenile',exact:true}).click();
+ await expect(b.getByTestId('server-gold')).toHaveText('450 altın');
  await b.keyboard.press('Escape');await expect(b.locator('.trade-panel')).not.toBeVisible();
  await ca.close();await cb.close();
 });
