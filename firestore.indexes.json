@@ -1,7 +1,30 @@
 {
   "indexes": [],
   "fieldOverrides": [
-    { "collectionGroup": "eo_accounts", "fieldPath": "gameJson", "indexes": [] },
-    { "collectionGroup": "commands", "fieldPath": "resultJson", "indexes": [] }
+    {
+      "collectionGroup": "eo_accounts",
+      "fieldPath": "gameJson",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "commands",
+      "fieldPath": "resultJson",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "eo_trades",
+      "fieldPath": "json",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "eo_trade_locks",
+      "fieldPath": "json",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "eo_trade_receipts",
+      "fieldPath": "resultJson",
+      "indexes": []
+    }
   ]
 }

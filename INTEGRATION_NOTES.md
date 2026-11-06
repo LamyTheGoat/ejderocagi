@@ -45,3 +45,7 @@ bu pakette takas entegrasyonuna başlanmamıştır.
 Sunucu doğrudan takas katmanı tamamlandı; sözleşme ve sınırlar
 [TRADE_SERVICE.md](TRADE_SERVICE.md) içindedir. Bedesten transferi, oyuncu takas ekranı
 ve mevcut yerel oyun kayıtlarının sunucu ekonomisine bağlanması tamamlanmış sayılmaz.
+
+P3: doğrudan takas UI'si tamamlandı; önceki "oyuncu takas ekranı yok" notu P2
+başlangıç durumudur. Sunucu envanteri ayrı görüntülenir; genel migrasyon ve Bedesten
+transferi uygulanmadı. Çok sunuculu çevrimiçi oyuncu keşfi ayrı geliştirme gerektirir.

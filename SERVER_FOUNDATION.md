@@ -146,3 +146,7 @@ aşamadır ve bu pakete dahil değildir.
 Doğrudan takas servisi uygulandı: [TRADE_SERVICE.md](TRADE_SERVICE.md). Önceki
 "sonraki aşama" maddelerinden rezervasyon, teklif revision, çift onay ve iki hesaplı
 transaction bu servis için tamamlandı. Bedesten ve oyun UI entegrasyonu ayrı kalır.
+
+P3 güncellemesi: sunucu envanteriyle oyun içi takas ekranı bağlandı. Yerel S ekonomisi
+ayrı kalır. Durum sürümü, teklif özeti, hesap başlığı kontrolü ve periyodik atomik
+rezervasyon temizliği ayrıntıları TRADE_SERVICE.md içindedir.

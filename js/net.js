@@ -146,6 +146,7 @@ function mpOpenWs(baseWs) {
     const ws = new WebSocket(baseWs);
     MP.ws = ws;
     ws.onopen = () => {
+      if(typeof TRADE_UI !== "undefined") TRADE_UI.reconnect();
       MP.connected = true;
       mpSyncState();
       if (MP._pingTimer) clearInterval(MP._pingTimer);
@@ -159,6 +160,7 @@ function mpOpenWs(baseWs) {
     ws.onmessage = ev => {
       try {
         const msg = JSON.parse(ev.data);
+        if (['trade_state','trade_error'].includes(msg.type) && typeof TRADE_UI !== 'undefined') { TRADE_UI.notify(msg); }
         if (msg.type === 'online_count') {
           MP.onlineCount = msg.count || 1;
           if (UI.view === 'meydan') render();

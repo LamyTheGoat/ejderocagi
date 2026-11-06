@@ -100,3 +100,27 @@ test('Firestore transaction abort after staging first account leaves both econom
  db.runTransaction=run;
  assert.equal((await store.executeTrade(y.accountId,request)).trade.status,'completed');
 });
+
+test('Firestore P3 migration, state ordering and concurrent expiry cleanup preserve both reservations', {timeout:60000},async t=>{
+ const {Firestore,FieldValue}=require('@google-cloud/firestore');const db=new Firestore(options);let clock=Date.now();
+ const a=openFirestoreStore({...options,client:db,now:()=>clock}),b=openFirestoreStore({...options,now:()=>clock});
+ t.after(async()=>{await a.close();await b.close();});
+ const x=await a.createGuest(),y=await a.createGuest();
+ for(const u of [x,y])await a.executeCommand(u.accountId,command('game.start',{},0));
+ const c=(type,extra={})=>({type,requestId:crypto.randomUUID(),...extra});
+ let trade=(await a.executeTrade(x.accountId,c('invite',{targetId:y.accountId}))).trade;
+ assert.equal((await b.currentTrade(y.accountId)).id,trade.id);
+ trade=(await b.executeTrade(y.accountId,c('accept',{tradeId:trade.id}))).trade;
+ const version=trade.stateVersion;
+ await assert.rejects(a.executeTrade(x.accountId,c('confirm',{tradeId:trade.id,revision:trade.revision,offerHash:'fake'})),/trade_offer_changed/);
+ trade=(await a.executeTrade(x.accountId,c('confirm',{tradeId:trade.id,revision:trade.revision,offerHash:trade.offerHash}))).trade;
+ assert.ok(trade.stateVersion>version);
+ await db.collection('eo_trades').doc(trade.id).update({expiresAt:FieldValue.delete()});
+ let cursor=null;do{cursor=await a.migrateTradeExpiry(cursor);}while(cursor);
+ clock+=300001;
+ await Promise.all([a.expireTrades(),b.expireTrades()]);
+ assert.equal((await a.currentTrade(x.accountId)).status,'expired');
+ assert.equal((await b.currentTrade(y.accountId)).status,'expired');
+ for(const u of [x,y])assert.equal(JSON.parse((await db.collection('eo_trade_locks').doc(u.accountId).get()).data().json),null);
+ assert.equal(await a.expireTrades(),0);
+});

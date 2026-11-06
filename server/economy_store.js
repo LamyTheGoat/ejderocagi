@@ -57,6 +57,8 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
     CREATE TABLE IF NOT EXISTS command_receipts (account_id TEXT NOT NULL REFERENCES accounts(account_id), request_id TEXT NOT NULL, hash TEXT NOT NULL, version INTEGER NOT NULL, result_json TEXT NOT NULL, PRIMARY KEY(account_id, request_id)) STRICT;`);
 
   db.exec("CREATE TABLE IF NOT EXISTS trade_records (id TEXT PRIMARY KEY, json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS trade_locks (id TEXT PRIMARY KEY, json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS trade_receipts (id TEXT PRIMARY KEY, json TEXT NOT NULL);");
+  db.exec("CREATE TABLE IF NOT EXISTS trade_inbox (id TEXT PRIMARY KEY, json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS trade_due (id TEXT PRIMARY KEY, expires_at INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS trade_due_time ON trade_due(expires_at);");
+  db.exec("INSERT OR IGNORE INTO trade_due SELECT id, json_extract(json, '$.expiresAt') FROM trade_records WHERE json_extract(json, '$.status') IN ('invited','active');");
   const readTradeRow = (table, id) => { const row = db.prepare('SELECT json FROM ' + table + ' WHERE id = ?').get(id); return row ? JSON.parse(row.json) : null; };
   const writeTradeRow = (table, id, value) => db.prepare('INSERT INTO ' + table + ' VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET json=excluded.json').run(id, JSON.stringify(value));
   function executeTrade(actor, input) {
@@ -82,12 +84,24 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
         writeTradeRow('trade_locks', p, locks[p]);
       }
       writeTradeRow('trade_records', id, next);
+      if (['invited', 'active'].includes(next.status)) db.prepare('INSERT INTO trade_due VALUES (?,?) ON CONFLICT(id) DO UPDATE SET expires_at=excluded.expires_at').run(id,next.expiresAt);
+      else db.prepare('DELETE FROM trade_due WHERE id=?').run(id);
+      if (command.type === 'invite') for (const p of ids) writeTradeRow('trade_inbox',p,{tradeId:id});
       const result = { trade: next, replayed: false };
       if (command.type !== 'get') writeTradeRow('trade_receipts', receiptId, { hash, result });
       return result;
     });
   }
 
+  function currentTrade(actor) {
+    const pointer = readTradeRow('trade_locks',actor) || readTradeRow('trade_inbox',actor);
+    return pointer ? executeTrade(actor,{type:'get',requestId:crypto.randomUUID(),tradeId:pointer.tradeId}).trade : null;
+  }
+  function expireTrades(limit = 50) {
+    const rows=db.prepare('SELECT id FROM trade_due WHERE expires_at<=? ORDER BY expires_at LIMIT ?').all(now(),limit);
+    for(const row of rows) { const t=readTradeRow('trade_records',row.id); if(t) executeTrade(t.participants[0],{type:'get',requestId:crypto.randomUUID(),tradeId:t.id}); }
+    return rows.length;
+  }
   function atomic(fn, mode = 'IMMEDIATE') {
     if (inTransaction) throw new Error('nested_transaction');
     inTransaction = true;
@@ -205,7 +219,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
   }
 
   return Object.freeze({
-    backend: 'sqlite', createGuest, resolveSession, readEconomy, transaction, executeCommand, executeTrade,
+    backend: 'sqlite', createGuest, resolveSession, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
     revokeSession(token) { if (typeof token === 'string') db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token)); },
     close() { db.close(); },
   });

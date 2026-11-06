@@ -870,6 +870,26 @@ async function handleHttp(req, res) {
     }
     return sendJson(res, 200, { ok: true, accountId: identity.accountId, handle: identity.handle, expiresAt: identity.expiresAt, economyReady: false });
   }
+  if (pathname.startsWith('/api/trade') && req.headers['x-trade-account'] && req.headers['x-trade-account'] !== req.identity?.accountId) return sendJson(res,409,{ok:false,error:'trade_account_changed'});
+  if (pathname === '/api/trade/state' && req.method === 'GET') {
+    if(!req.identity)return sendJson(res,401,{ok:false,error:'guest_session_required'});
+    const trade=await ECONOMY.currentTrade(req.identity.accountId);
+    const economy=await ECONOMY.readEconomy(req.identity.accountId);
+    const labels={};
+    if(trade) for(const p of trade.participants) {
+      const snapshot=p===req.identity.accountId?economy:await ECONOMY.readEconomy(p);
+      for(const kind of ['items','dragons','eggs']) for(const asset of snapshot?.[kind] || []) {
+        if(trade.offers[p][kind].includes(asset.assetId)) labels[asset.assetId]=String(asset.data.name || asset.data.id || kind).slice(0,100);
+      }
+    }
+    return sendJson(res,200,{ok:true,accountId:req.identity.accountId,trade,economy,labels,serverNow:Date.now()});
+  }
+  if (pathname === '/api/trade/peers' && req.method === 'GET') {
+    if(!req.identity)return sendJson(res,401,{ok:false,error:'guest_session_required'});
+    const peers=new Map();
+    for(const socket of WS_CLIENTS) if(!socket.destroyed && socket.playerInfo?.authenticated && socket.playerInfo.accountId !== req.identity.accountId) peers.set(socket.playerInfo.accountId,{accountId:socket.playerInfo.accountId,handle:socket.playerInfo.handle});
+    return sendJson(res,200,{ok:true,peers:[...peers.values()]});
+  }
   if (pathname === '/api/trade' && req.method === 'POST') {
     if (!req.identity) return sendJson(res, 401, { ok: false, error: 'guest_session_required' });
     const command = await readJsonBody(req, false, 16384);
@@ -880,6 +900,7 @@ async function handleHttp(req, res) {
     } catch (error) { return sendJson(res, error.status || (error.code ? 409 : 503), { ok: false, error: error.code || 'trade_unavailable' }); }
   }
   if (pathname === '/api/economy/command' && req.method === 'POST') {
+    if(req.headers['x-trade-account'] && req.headers['x-trade-account'] !== req.identity?.accountId)return sendJson(res,409,{ok:false,error:'trade_account_changed'});
     if (!req.identity) return sendJson(res, 401, { ok: false, error: 'guest_session_required' });
     const command = await readJsonBody(req, false, 8192);
     const applied = await ECONOMY.executeCommand(req.identity.accountId, command);
@@ -1307,9 +1328,22 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 let shuttingDown = false;
+let cleaningTrades = false, tradeMigrationCursor = null, tradeMigrationDone = !ECONOMY.migrateTradeExpiry;
+async function cleanExpiredTrades() {
+  if(cleaningTrades || shuttingDown)return;
+  cleaningTrades=true;
+  try {
+    if(!tradeMigrationDone) { tradeMigrationCursor=await ECONOMY.migrateTradeExpiry(tradeMigrationCursor);tradeMigrationDone=tradeMigrationCursor===null; }
+    await ECONOMY.expireTrades(50);
+  } catch(error) { console.error('Trade cleanup failed:',error.message); }
+  finally { cleaningTrades=false; }
+}
+const tradeCleanupTimer=setInterval(cleanExpiredTrades,15000);tradeCleanupTimer.unref();
+cleanExpiredTrades();
 async function handleGracefulShutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
+  clearInterval(tradeCleanupTimer);
   for (const socket of WS_CLIENTS) socket.destroy();
   console.log(`[${signal}] Alındı — world.json diske kaydediliyor ve sunucu kapatılıyor...`);
   flushWorldSync(WORLD);

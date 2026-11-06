@@ -10,7 +10,7 @@ const uuid = value => typeof value === 'string' && /^[a-f0-9-]{36}$/i.test(value
 function validateTrade(input) {
   const shapes = { invite: ['targetId'], accept: ['tradeId'], reject: ['tradeId'], cancel: ['tradeId'], get: ['tradeId'], offer: ['tradeId', 'revision', 'offer'], confirm: ['tradeId', 'revision'] };
   if (!input || !Object.hasOwn(shapes, input.type)) fail('invalid_trade_command');
-  const keys = ['type', 'requestId', ...shapes[input.type]];
+  const keys = ['type', 'requestId', ...shapes[input.type], ...(input.type === 'confirm' && Object.hasOwn(input, 'offerHash') ? ['offerHash'] : [])];
   if (Object.keys(input).length !== keys.length || keys.some(k => !Object.hasOwn(input, k)) || !uuid(input.requestId)) fail('invalid_trade_command');
   if (!uuid(input.targetId || input.tradeId)) fail('invalid_trade_id');
   if (['offer', 'confirm'].includes(input.type) && (!Number.isSafeInteger(input.revision) || input.revision < 0)) fail('invalid_revision');
@@ -98,6 +98,7 @@ function guardReservation(before, after, lock, now) {
 }
 // Pure transition: adapters persist trade, both accounts, locks and receipt atomically.
 function transition(actor, command, trade, games, locks, now) {
+  const previous = JSON.stringify(trade);
   const id = command.type === 'invite' ? command.requestId : command.tradeId;
   if (command.type === 'invite') {
     if (trade) fail('trade_id_used', 409);
@@ -124,6 +125,7 @@ function transition(actor, command, trade, games, locks, now) {
         transfer(check, trade.participants, proposed, id, now);
         trade.offers = proposed; trade.approvals = []; trade.revision++;
       } else if (command.type === 'confirm') {
+        if (command.offerHash !== undefined && command.offerHash !== trade.offerHash) fail('trade_offer_changed', 409);
         if (!trade.approvals.includes(actor)) trade.approvals.push(actor);
         if (trade.approvals.length === 2) {
           for (const p of trade.participants) if (locks[p]?.tradeId !== id) fail('trade_reservation_lost', 409);
@@ -137,6 +139,8 @@ function transition(actor, command, trade, games, locks, now) {
     if (terminal(trade)) { if (locks[p]?.tradeId === id) locks[p] = null; }
     else locks[p] = { tradeId: id, expiresAt: trade.expiresAt, offer: trade.offers[p] };
   }
+  trade.offerHash = crypto.createHash('sha256').update(JSON.stringify({ revision: trade.revision, offers: trade.offers })).digest('hex');
+  if (JSON.stringify(trade) !== previous) trade.stateVersion = (trade.stateVersion || 0) + 1;
   return trade;
 }
 module.exports = { validateTrade, transition, guardReservation };

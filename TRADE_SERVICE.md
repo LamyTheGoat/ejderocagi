@@ -96,3 +96,71 @@ kalıcılığı WORLD/world.json'a dayanmaz.
   bulundu; ortak Promise sınırıyla düzeltildi ve test yeniden geçerek doğrulandı.
 - Beceri yönergesindeki scripts/audit_project.py depoda bulunmadığından çalışmadı.
   Görsel/asset değişikliği yapılmadı; üretim ortamında test veya dağıtım yapılmadı.
+
+## P3 · Oyun içi entegrasyon
+
+Oyunda sağdaki **Takas** düğmesi ve sosyal paneldeki takas eylemi, oyun dışına
+çıkmadan sunucu envanteri ekranını açar. `js/trade_client.js` oturum, tekrar istek,
+kalıcı bekleyen komut ve durum senkronizasyonunu; `js/trade_ui.js` davet/teklif/onay
+arayüzünü yönetir. Sunucu hesabı yoksa mevcut idempotent game.start komutu kullanılır.
+Yerel S, kayıt yuvaları ve altın/envanter değerleri okunup sunucuya aktarılmaz veya
+sunucu sonucuyla üzerine yazılmaz. Ekranda bu ayrım açıkça yazılıdır.
+
+Yeni oturum bootstrap işlemi mevcut net.js ile aynı Web Locks anahtarını kullanır.
+Komutlar X-Trade-Account başlığı taşır; cookie hesabıyla uyuşmazsa sunucu reddeder.
+Bu kontrol sunucu hesabı başlatma komutunda da uygulanır. Bekleyen komut hesap bazında
+localStorage'da saklanır; hesap değişince başka hesaba tekrar gönderilmez.
+
+GET /api/trade/peers: doğrulanmış bağlı WebSocket oturumlarından accountId/handle
+listesi. NPC veya istemci isLive değeri bu listeye kaynak değildir.
+GET /api/trade/state: oturum sahibinin açık/son takası, kendi sunucu ekonomisi,
+yalnızca teklif edilen varlıkların görünüm etiketleri ve serverNow döner.
+Her iki endpoint oturum gerektirir. Last-trade inbox davette kalıcı kaydedilir.
+P2'den kalmış açık takaslar mevcut rezervasyon üzerinden bulunabilir; eski, bitmiş
+ve inbox kaydı olmayan takas için bilinen tradeId ile P2 get komutu kullanılabilir.
+
+stateVersion her kalıcı durum değişiminde artar; teklif revision'ından ayrıdır.
+Onay arayüzü revision ile beraber sunucunun offerHash özetini gönderir. Sunucu
+uyuşmazlığı reddeder. P2 istemcileri için hash alanı isteğe bağlıdır; onların onayı
+da yalnızca değişmez teklif revision'ına bağlıdır. Yeni UI hash olmadan onay göndermez.
+
+WebSocket trade_state/trade_error yalnızca güncel durumu okumayı tetikler; bildirim
+veya eski makbuz doğrudan başarı ekranı üretmez. Sunucu state+economy yanıtı okunmadan
+başarı gösterilmez. Aynı takasta daha düşük stateVersion uygulanmaz. Bağlantı kaybında
+bekleyen sonuç doğrulanmamış olarak gösterilir, aynı requestId ile yeniden denenir.
+Açık ekranda 5 saniyelik durum yenilemesi bildirim kaybını da telafi eder.
+
+## P3 · Süre aşımı temizliği
+
+Sunucu açılışında ve 15 saniyede bir, en fazla 50 kayıtlık cleanup çalışır; aynı
+process içinde üst üste binmez. Her takas, P2 transition ve aynı veritabanı transaction'ı
+ile expired yapılır ve iki rezervasyon birlikte kaldırılır. Tekrar çalıştırmak güvenlidir;
+terminal takası veya daha yeni takasın kilidini değiştirmez. Mevcut işlem anı kontrolü
+korunur, dolayısıyla cleanup gecikse de süresi geçmiş teklif tamamlanamaz.
+
+SQLite trade_due zaman indeksi ve trade_inbox tabloları eklenir; P2 aktif kayıtlar
+başlangıçta indekse alınır. Firestore eo_trades.expiresAt sayısal alanı kullanılır;
+terminal kayıtta null olur. P2 kayıtları 50'lik sayfalarda, güncel durumu yeniden okuyan
+transaction ile arka planda dönüştürülür. Firestore'un varsayılan tek alan expiresAt
+indeksi gerekir; JSON alanlarının gereksiz indeksleri firestore.indexes.json ile
+kapatılmıştır. Bu çalışma canlıya indeks/rule dağıtımı yapmaz.
+
+## P3 testleri ve kalan sınırlar
+
+- npm test: istemci sıralama/hesap ayrımı, içerik bağlı onay, inbox ve SQLite cleanup
+  testleri dahil çalıştırılır; P1/P2 testleri korunmuştur.
+- npm run test:firestore: yerel emülatörde P2 geçişi ve iki bağımsız cleanup çağrısı
+  dahil çalıştırılır.
+- npm run test:trade-ui: Playwright, kurulu Microsoft Edge kanalında masaüstü
+  1280×800 ve mobil emülasyon 390×844 için iki bağımsız cookie oturumu açar.
+  Oyunun gerçek HTTP/WS sunucusunda UI üzerinden başlatma, davet, kabul, değişen
+  teklifle onay sıfırlama, sayfa yenileme, çift onay ve iki sunucu bakiyesi doğrulanır.
+  Ekran görüntüleri test-results/trade-ui altında üretilir; Git'e eklenmez.
+
+Fiziksel telefon/iOS Safari ve gamepad testi yapılmadı; mobil test Edge emülasyonudur.
+Çevrimiçi oyuncu keşfi hâlen aynı sunucunun WS bağlantılarıyla sınırlıdır; çok instance
+arasında presence dizini ayrıca gerekir. Açılmış takasların Firestore kalıcılığı ve
+HTTP durum sorgusu instance'dan bağımsızdır. Dağıtık hız sınırlaması ve makbuz arşiv
+temizliği P2'deki gibi henüz yoktur. Bedesten satın alma ve genel yerel ekonomi
+migrasyonu kapalı/kapsam dışıdır. Üretim IAM, indeks dağıtımı ve gerçek cihazlar
+ayrı yayın doğrulaması gerektirir.

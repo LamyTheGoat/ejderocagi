@@ -55,3 +55,10 @@ iki hesaplı atomik transfer, tekrar istek koruması ve durum kurtarma desteklen
 API, testler ve sınırlar: [TRADE_SERVICE.md](TRADE_SERVICE.md).
 Önceki aşamalardaki "takas servisi yok" notları P1 tarihçesidir; Bedesten satın alma
 entegrasyonu ise hâlâ kapalıdır. Oyun UI'si yerel S yerine bu servise henüz bağlanmadı.
+
+## P3 oyun içi takas
+
+Takas ekranı ve sosyal panel girişi eklendi. Oyuncu sunucu envanterinden teklif
+oluşturup karşılıklı onayla tamamlayabilir; yerel oyun kayıtları otomatik aktarılmaz.
+Durum sıralaması, yeniden bağlanma ve atomik süre aşımı temizliği uygulanmıştır.
+Çalıştırma, test ve sınırlar: [TRADE_SERVICE.md](TRADE_SERVICE.md#p3--oyun-içi-entegrasyon).

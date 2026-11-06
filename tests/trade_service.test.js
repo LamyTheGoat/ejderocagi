@@ -144,3 +144,16 @@ test('expired trade cannot release a newer reservation or complete; lineage ids 
  assert.equal(received.game.lineage[dragon.pids[0]].name,'Ancestor');
  assert.notEqual(dragon.pids[0],77);
 });
+
+test('P3 state versions, content-bound approvals, inbox and idempotent cleanup',t=>{
+ const f=fixture(t),{store,ids:[a,b],send,raw}=f;
+ let trade=f.active();assert.equal(store.currentTrade(a).id,trade.id);const version=trade.stateVersion;
+ assert.throws(()=>send(a,'confirm',{tradeId:trade.id,revision:trade.revision,offerHash:'forged'}),/trade_offer_changed/);
+ trade=send(a,'confirm',{tradeId:trade.id,revision:trade.revision,offerHash:trade.offerHash}).trade;
+ assert.ok(trade.stateVersion>version);assert.equal(store.currentTrade(a).stateVersion,trade.stateVersion);
+ f.advance();assert.equal(store.expireTrades(),1);assert.equal(store.expireTrades(),0);
+ assert.equal(store.currentTrade(a).status,'expired');assert.equal(store.currentTrade(b).status,'expired');
+ assert.equal(JSON.parse(raw.prepare('SELECT json FROM trade_locks WHERE id=?').get(a).json),null);
+ assert.equal(JSON.parse(raw.prepare('SELECT json FROM trade_locks WHERE id=?').get(b).json),null);
+ const next=f.invite();assert.notEqual(next.id,trade.id);
+});

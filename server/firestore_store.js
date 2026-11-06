@@ -33,6 +33,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
     const doc = await accounts.doc(accountId).get();
     return doc.exists ? snapshot(accountId, doc.data()) : null;
   }
+  const inbox = db.collection('eo_trade_inbox');
   const trades = db.collection('eo_trades'), locks = db.collection('eo_trade_locks'), receipts = db.collection('eo_trade_receipts');
   async function executeTrade(actor, input) {
     const { command, hash } = validateTrade(input);
@@ -57,11 +58,32 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
         if (games[p] && games[p].version !== versions[p]) tx.update(accounts.doc(p), { version: games[p].version, gameJson: JSON.stringify(games[p].game) });
         tx.set(locks.doc(p), { json: JSON.stringify(reservations[p]) });
       });
-      tx.set(tradeRef, { json: JSON.stringify(next) });
+      tx.set(tradeRef, { json: JSON.stringify(next), expiresAt: ['invited','active'].includes(next.status) ? next.expiresAt : null });
+      if(command.type === 'invite') ids.forEach(p => tx.set(inbox.doc(p),{tradeId:id}));
       const result = { trade: next, replayed: false };
       if (command.type !== 'get') tx.create(receiptRef, { hash, resultJson: JSON.stringify(result) });
       return result;
     }, { maxAttempts: 5 });
+  }
+  async function currentTrade(actor) {
+    const [lock, last]=await db.getAll(locks.doc(actor),inbox.doc(actor));
+    const pointer=(lock.exists && JSON.parse(lock.data().json)) || (last.exists && last.data());
+    return pointer ? (await executeTrade(actor,{type:'get',requestId:crypto.randomUUID(),tradeId:pointer.tradeId})).trade : null;
+  }
+  async function expireTrades(limit = 50) {
+    const due=await trades.where('expiresAt','<=',now()).orderBy('expiresAt').limit(limit).get();
+    for(const doc of due.docs) { const t=JSON.parse(doc.data().json); await executeTrade(t.participants[0],{type:'get',requestId:crypto.randomUUID(),tradeId:t.id}); }
+    return due.size;
+  }
+  // Bounded startup backfill for P2 records whose expiry lived only inside JSON.
+  async function migrateTradeExpiry(after = null, limit = 50) {
+    let query=trades.orderBy('__name__').limit(limit); if(after) query=query.startAfter(after);
+    const page=await query.get();
+    for(const doc of page.docs) if(doc.data().expiresAt === undefined) {
+      await db.runTransaction(async tx => { const latest=await tx.get(doc.ref); if(!latest.exists || latest.data().expiresAt !== undefined)return;
+        const t=JSON.parse(latest.data().json);tx.update(doc.ref,{expiresAt:['invited','active'].includes(t.status)?t.expiresAt:null}); });
+    }
+    return page.size===limit?page.docs.at(-1).id:null;
   }
   async function executeCommand(accountId, input) {
     const { command, hash } = validateCommand(input);
@@ -86,7 +108,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
     }, { maxAttempts: 5 });
   }
   return {
-    backend: 'firestore', createGuest, resolveSession, readEconomy, executeCommand, executeTrade,
+    backend: 'firestore', createGuest, resolveSession, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
     async revokeSession(token) { if (typeof token === 'string') await sessions.doc(hashToken(token)).delete(); },
     async close() { await db.terminate(); },
   };

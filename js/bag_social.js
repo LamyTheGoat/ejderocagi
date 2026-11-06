@@ -242,6 +242,7 @@ function socFriendRow(f) {
         <button class="btn xs primary" data-a="soc-dm-open" data-h="${hh}">💬 Mesaj${un ? ` (${un})` : ''}</button>
         <button class="btn xs" data-a="soc-party-invite" data-h="${hh}">🛡️ Partiye Çağır</button>
         <button class="btn xs" data-a="soc-table-invite" data-h="${hh}">🎲 Masaya Çağır</button>
+        <button class="btn xs" data-open-trade="true">⇄ Takas</button>
         <button class="btn xs danger" data-a="soc-vs-menu" data-h="${hh}">⚔️ VS Çağır</button>
         <button class="soc-x" data-a="soc-friend-del" data-h="${hh}" title="Arkadaşlıktan çıkar">✕</button>
       </div>

@@ -13790,3 +13790,23 @@ button.kir-die{cursor:pointer}
     display: none !important;
   }
 }
+
+/* Server-authoritative trade overlay */
+.trade-entry {position:fixed;right:12px;top:90px;z-index:45;padding:10px 14px;border:1px solid #cba76e;border-radius:10px;background:#261e19;color:#ffe9be;min-height:44px;}
+.trade-panel {width:min(800px,calc(100vw - 24px));max-height:90dvh;box-sizing:border-box;overflow:auto;margin:auto;padding:20px;background:#211c1b;color:#f5e8d0;border:1px solid #b48b50;border-radius:16px;box-shadow:0 16px 80px #000b;}
+.trade-panel::backdrop {background:#080608c9;}
+.trade-panel header,.trade-peer {display:flex;gap:12px;align-items:center;justify-content:space-between;}
+.trade-panel h2 {font-size:1.3rem;margin:0;}.trade-panel h3 {font-size:1.05rem;}
+.trade-panel p,.trade-panel li {overflow-wrap:anywhere;}
+.trade-panel button {min-height:44px;cursor:pointer;padding:8px 12px;margin:4px;border:1px solid #a88954;border-radius:8px;background:#463424;color:#fff0cc;}
+.trade-panel button:disabled {opacity:.5;cursor:not-allowed;}
+.trade-panel :focus-visible {outline:3px solid #ffd68b;outline-offset:2px;}
+.trade-panel label {display:flex;gap:10px;align-items:center;justify-content:space-between;margin:10px 0;overflow-wrap:anywhere;}
+.trade-panel input[type=number] {width:100px;max-width:35%;min-height:38px;background:#120f10;color:#fff;padding:5px;border:1px solid #947a55;}
+.trade-panel input[type=checkbox] {width:22px;height:22px;flex-shrink:0;}
+.trade-panel .trade-asset {justify-content:flex-start;}
+.trade-columns {display:grid;grid-template-columns:1fr 1fr;gap:16px;}.trade-columns section {padding:10px;background:#302725;border-radius:8px;min-width:0;}
+.trade-notice {padding:12px;background:#463828;border-left:3px solid #d4ac64;}.trade-result {padding:12px;border:1px solid #8eae82;}
+@media(max-width:540px){.trade-panel{padding:12px;max-height:calc(100dvh - 24px);}.trade-columns{grid-template-columns:1fr;}.trade-peer{flex-wrap:wrap;}.trade-entry{top:72px;right:6px;font-size:12px;padding:6px 10px;}}
+.trade-panel header {position:sticky;top:-12px;z-index:1;background:#211c1b;padding:8px 0;}
+.trade-panel {padding-top:max(12px,env(safe-area-inset-top));padding-bottom:max(12px,env(safe-area-inset-bottom));}

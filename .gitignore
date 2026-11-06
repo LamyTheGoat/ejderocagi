@@ -62,3 +62,7 @@ Desktop.ini
 
 .local-economy/
 .emulator-data/
+
+# Browser test output (reproducible with npm run test:trade-ui)
+test-results/
+playwright-report/
