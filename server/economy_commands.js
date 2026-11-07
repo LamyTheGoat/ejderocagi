@@ -152,7 +152,8 @@ function reduceCommand(previous, command, { accountId, seed }) {
       const beforeUn = S.un;
       const hatched = api.hatchEgg(egg); hatched.d.funding = egg.funding;
       S.milestoneSources.hatch = sources.combine([S.milestoneSources.hatch || 'earned', egg.funding]);
-      if (S.un > beforeUn) S.milestoneSources.renown = sources.combine([S.milestoneSources.renown || 'earned', egg.funding]);
+      // Renown gathered before source tracking existed has no recorded origin.
+      if (S.un > beforeUn) S.milestoneSources.renown = sources.combine([S.milestoneSources.renown || (beforeUn > 0 ? 'unknown' : 'earned'), egg.funding]);
       result = { dragonId: hatched.d.id, notes: clone(hatched.notes) }; break;
     }
     case 'chibi.craft': {

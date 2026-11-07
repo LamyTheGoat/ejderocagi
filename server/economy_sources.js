@@ -54,12 +54,21 @@ function tradable(game,offer) {
   for(const id of offer[kind]){const row=rows.find(a=>a.assetId===id);if(row&&row.funding!=='earned')fail('asset_not_transferable');}
  for(const [key,n]of Object.entries(offer.food))if(n>(game.foodSources[key]?.earned||0))fail('food_not_transferable');
 }
+// An empty input list proves nothing about provenance, so it never resolves to earned.
+function known(list) {return list.length?combine(list):'unknown';}
+// Goal sources come from inputs this account's own server commands recorded, never from
+// whatever happens to be held when the goal is checked (REVIEW-001 H-1: a dragon received
+// in a trade must not turn a one-time goal reward into transferable gold).
 function goalSource(game,id) {
- if(id==='yuva')return combine(game.grid.filter(t=>t.b==='yuva').map(t=>t.funding||'unknown'));
- if(id==='kulucka')return combine([...game.eggs.filter(e=>e.inK).map(e=>e.funding),...game.grid.filter(t=>t.b==='kulucka').map(t=>t.funding||'unknown'),game.milestoneSources.hatch||'earned']);
- if(id==='acq')return game.milestoneSources.acq||'unknown';
- if(id==='gen2'||id==='mark')return combine(game.dragons.map(d=>d.funding));
- if(id==='un25'||id==='un45')return game.milestoneSources.renown||'unknown';
+ const ms=game.milestoneSources;
+ if(id==='yuva')return known(game.grid.filter(t=>t.b==='yuva').map(t=>t.funding||'unknown'));
+ if(id==='kulucka')return known([...game.eggs.filter(e=>e.inK).map(e=>e.funding),...game.grid.filter(t=>t.b==='kulucka').map(t=>t.funding||'unknown'),...(ms.hatch?[ms.hatch]:[])]);
+ if(id==='acq')return ms.acq||'unknown';
+ // gen2 ("hatch your own line") and mark (personality trait) have no validated server
+ // producer yet: breeding and personality changes are not server commands. A future
+ // producer must record ms.gen2 / ms.mark from its own inputs.
+ if(id==='gen2'||id==='mark')return ms[id]||'unknown';
+ if(id==='un25'||id==='un45')return ms.renown||'unknown';
  // Existing gameplay statistics have no authenticated advancing command yet.
  // A future validated reward producer must record its source explicitly.
  return game.milestoneSources[id]||'unknown';

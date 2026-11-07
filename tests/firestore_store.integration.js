@@ -193,3 +193,25 @@ test('ENG05 Firestore: guest farming blocked, earned transfer preserved, shared 
  const response=await fetch('http://'+process.env.FIRESTORE_EMULATOR_HOST+'/v1/projects/demo-ejder-ocagi/databases/economy/documents/eo_accounts/'+receiver.accountId);
  assert.equal(response.status,403);
 });
+
+test('ENG06 Firestore: a borrowed earned gen2/marked dragon yields only restricted goal rewards (REVIEW H-1)', {timeout:60000},async t=>{
+ const {Firestore}=require('@google-cloud/firestore'),db=new Firestore(options);
+ const a=openFirestoreStore({...options,client:db}),b=openFirestoreStore(options);
+ t.after(async()=>{await a.close();await b.close();});
+ const [main,sybil]=await Promise.all([a.createGuest(),b.createGuest()]);
+ for(const u of [main,sybil])await a.executeCommand(u.accountId,command('game.start',{},0));
+ const ref=db.collection('eo_accounts').doc(main.accountId),game=JSON.parse((await ref.get()).data().gameJson);
+ game.dragons[0].gen=2;game.dragons[0].pers.ces=45;game.goals.push('mark','gen2');
+ await ref.update({gameJson:JSON.stringify(require('./helpers/earned_fixture').earnedFixture(game))});
+ const lent=(await a.readEconomy(main.accountId)).dragons[0].assetId,c=(type,extra={})=>({type,requestId:crypto.randomUUID(),...extra});
+ const kor=(await b.readEconomy(sybil.accountId)).dragons[0].assetId;
+ await b.executeCommand(sybil.accountId,command('dragon.sell',{assetId:kor},1));
+ let tr=(await a.executeTrade(main.accountId,c('invite',{targetId:sybil.accountId}))).trade;
+ tr=(await b.executeTrade(sybil.accountId,c('accept',{tradeId:tr.id}))).trade;
+ tr=(await a.executeTrade(main.accountId,c('offer',{tradeId:tr.id,revision:tr.revision,offer:{dragons:[lent]}}))).trade;
+ await a.executeTrade(main.accountId,c('confirm',{tradeId:tr.id,revision:tr.revision}));
+ assert.equal((await b.executeTrade(sybil.accountId,c('confirm',{tradeId:tr.id,revision:tr.revision}))).trade.status,'completed');
+ const claim=await b.executeCommand(sybil.accountId,command('goals.claim',{},3));
+ assert.deepEqual(JSON.parse(JSON.stringify(claim.result.goals)).map(g=>[g.id,g.gold,g.source]),[['mark',60,'unknown'],['gen2',80,'unknown']]);
+ assert.equal(claim.economy.funds.earned,0);
+});
