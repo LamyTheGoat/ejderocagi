@@ -1,0 +1,80 @@
+(node:33260) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ QA independent: all 13 actual payouts and repeated claims, input earned (13.4887ms)
+✔ QA independent: all 13 actual payouts and repeated claims, input bound (11.4876ms)
+✔ QA independent: all 13 actual payouts and repeated claims, input unknown (10.7062ms)
+✖ QA independent: legacy source labels cannot grant earned gold (7.3518ms)
+(node:33260) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ QA independent: simultaneous goal claims commit exactly one payout, then replay safely (131.4457ms)
+(node:33260) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 2
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 265.6592
+
+✖ failing tests:
+
+test at tests\qa_eng06_independent.test.js:20:50
+✖ QA independent: all 13 actual payouts and repeated claims, input earned (13.4887ms)
+  AssertionError [ERR_ASSERTION]: kulucka
+
+  'earned' !== 'bound'
+
+      at TestContext.<anonymous> (C:\Users\user\.codex\worktrees\qa-eng06-review-01\ejderocagi-yeni\tests\qa_eng06_independent.test.js:25:44)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'earned',
+    expected: 'bound',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\qa_eng06_independent.test.js:30:1
+✖ QA independent: legacy source labels cannot grant earned gold (7.3518ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  80 !== 0
+
+      at TestContext.<anonymous> (C:\Users\user\.codex\worktrees\qa-eng06-review-01\ejderocagi-yeni\tests\qa_eng06_independent.test.js:33:48)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 80,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\qa_eng06_independent.test.js:37:1
+✖ QA independent: simultaneous goal claims commit exactly one payout, then replay safely (131.4457ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  720 !== 0
+
+      at TestContext.<anonymous> (C:\Users\user\.codex\worktrees\qa-eng06-review-01\ejderocagi-yeni\tests\qa_eng06_independent.test.js:53:76)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 720,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

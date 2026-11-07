@@ -1,0 +1,30 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-ejder-ocagi", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
++  firestore: Firestore Emulator was started in standard edition.
++  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node --test tests/firestore_store.integration.js
+(node:8308) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Firestore: two independent instances share durable accounts and command receipts (8024.9325ms)
+✔ Firestore: concurrent spends serialize; ownership and arbitrary rewards cannot bypass rules (3411.8136ms)
+✔ Firestore trade: atomic transfer, reservations, retries, cancellation and concurrent confirmations (4123.2858ms)
+✔ Firestore transaction abort after staging first account leaves both economies unchanged (446.3593ms)
+✔ Firestore P3 migration, state ordering and concurrent expiry cleanup preserve both reservations (3510.3234ms)
+✔ Firestore rejects locked and heirloom items without writing offers or either economy (492.7544ms)
+✔ ENG05 Firestore: guest farming blocked, earned transfer preserved, shared presence/limits and tombstone replay (14848.3217ms)
+✔ ENG06 Firestore: a borrowed earned gen2/marked dragon yields only restricted goal rewards (REVIEW H-1) (412.1577ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 35416.4677
++  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+!  Firestore Emulator has exited upon receiving signal: SIGINT
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

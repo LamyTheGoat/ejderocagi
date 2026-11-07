@@ -1,0 +1,19 @@
+(node:30576) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ QA independent: all 13 actual payouts and repeated claims, input earned (15.5339ms)
+✔ QA independent: all 13 actual payouts and repeated claims, input bound (10.7069ms)
+✔ QA independent: all 13 actual payouts and repeated claims, input unknown (9.3849ms)
+✔ QA independent: legacy source labels cannot grant earned gold (6.601ms)
+(node:30576) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ QA independent: simultaneous goal claims commit exactly one payout, then replay safely (136.0524ms)
+(node:30576) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 259.9942

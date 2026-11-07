@@ -1,0 +1,23 @@
+
+Running 1 test using 1 worker
+
+(node:30776) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32584) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:35036) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32584) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+(node:35036) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+Trade cleanup failed: 14 UNAVAILABLE: No connection established. Last error: Error: connect ECONNREFUSED 127.0.0.1:8089. Resolution note:
+Trade cleanup failed: 14 UNAVAILABLE: No connection established. Last error: Error: connect ECONNREFUSED 127.0.0.1:8089. Resolution note:
+(node:30776) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+  x  1 tests\trade_ui.e2e.js:18:1 › two authenticated player sessions trade inside the game, including mobile and reload (0ms)
+
+
+  1) tests\trade_ui.e2e.js:18:1 › two authenticated player sessions trade inside the game, including mobile and reload
+
+    Error: worker process exited unexpectedly (code=4294967295, signal=null)
+
+  1 failed
+    tests\trade_ui.e2e.js:18:1 › two authenticated player sessions trade inside the game, including mobile and reload

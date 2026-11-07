@@ -1,0 +1,55 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-ejder-ocagi", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
++  firestore: Firestore Emulator was started in standard edition.
++  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node C:/Users/user/Documents/GitHub/ejderocagi-yeni/node_modules/@playwright/test/cli.js test --config tests/playwright.config.js
+
+Running 1 test using 1 worker
+
+(node:19532) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7844) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7844) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+(node:33568) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+(node:19532) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+  x  1 tests\trade_ui.e2e.js:18:1 › two authenticated player sessions trade inside the game, including mobile and reload (30.0s)
+
+
+  1) tests\trade_ui.e2e.js:18:1 › two authenticated player sessions trade inside the game, including mobile and reload
+
+    Error: locator.click: Error: strict mode violation: getByRole('button', { name: 'Takas teklif et', exact: true }) resolved to 3 elements:
+        1) <button data-trade="invite" data-target="c9c6eb07-b18c-44d0-bcbb-036574963745" id="trade-button-invite-c9c6eb07-b18c-44d0-bcbb-036574963745">Takas teklif et</button> aka locator('#trade-button-invite-c9c6eb07-b18c-44d0-bcbb-036574963745')
+        2) <button data-trade="invite" data-target="d3cb3d66-17f0-4084-9479-32f185667776" id="trade-button-invite-d3cb3d66-17f0-4084-9479-32f185667776">Takas teklif et</button> aka locator('#trade-button-invite-d3cb3d66-17f0-4084-9479-32f185667776')
+        3) <button data-trade="invite" data-target="a120bab3-81a3-47c7-b6d1-e808602638d0" id="trade-button-invite-a120bab3-81a3-47c7-b6d1-e808602638d0">Takas teklif et</button> aka getByRole('button', { name: 'Takas teklif et' }).nth(2)
+
+    Call log:
+      - waiting for getByRole('button', { name: 'Takas teklif et', exact: true })
+
+
+      78 |  let failedResolve;const failed=new Promise(resolve=>failedResolve=resolve);
+      79 |  await a.route('**/api/trade',async route=>{await route.abort();failedResolve();});
+    > 80 |  await a.getByRole('button',{name:'Takas teklif et',exact:true}).click();
+         |                                                                  ^
+      81 |  await failed;
+      82 |  await expect(a.getByRole('button',{name:'Sonucu doğrula / yeniden dene',exact:true})).toBeVisible();
+      83 |  await expect(a.locator('.trade-result')).toHaveCount(0);
+        at C:\Users\user\.codex\worktrees\qa-eng06-review-01\ejderocagi-yeni\tests\trade_ui.e2e.js:80:66
+
+    Error Context: test-results\trade-ui\trade_ui.e2e.js-two-authen-83136-including-mobile-and-reload\error-context.md
+
+    Error Context: test-results\trade-ui\trade_ui.e2e.js-two-authen-83136-including-mobile-and-reload\error-context.md
+
+  1 failed
+    tests\trade_ui.e2e.js:18:1 › two authenticated player sessions trade inside the game, including mobile and reload
+!  Script exited unsuccessfully (code 1)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+!  Firestore Emulator has exited upon receiving signal: SIGINT
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+Error: Script "node C:/Users/user/Documents/GitHub/ejderocagi-yeni/node_modules/@playwright/test/cli.js test --config tests/playwright.config.js" exited with code 1

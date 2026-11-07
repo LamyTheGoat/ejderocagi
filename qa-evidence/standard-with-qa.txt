@@ -1,0 +1,107 @@
+PASS: authentication, invite accept/reject, shared room, simultaneous actions, canonical state, stale/illegal action guards.
+✔ tests\duel_server.test.js (92.4871ms)
+✔ economic client deduplicates reads; response loss retries exactly the same command (3.0219ms)
+✔ version conflicts refresh state but never silently repeat a purchase (0.5444ms)
+(node:36264) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ canonical new game preserves gold, Kor, egg, stones and ores; retries cannot reroll (55.6709ms)
+✔ price, resource and ownership claims are rejected at the command boundary (17.2312ms)
+✔ building and incubation enforce cost, capacity, maturity and one-time goal reward (26.954ms)
+✔ crafting and resource conversion retain recipes and reject insufficient funds (23.7597ms)
+✔ NPC purchases use server catalog, stock and locks; cannot resell forged items (21.2226ms)
+✔ SQLite command receipts provide atomic idempotency and version checks (11.7019ms)
+✔ Cloud Run refuses SQLite, emulator and unknown backend instead of falling back (0.2361ms)
+(node:28292) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ENG05: the 420 -> 840 -> 1260 guest attack is rejected, including starter assets and food (185.5319ms)
+✔ ENG05: bound purchases, NPC resale, inflated listings and hatch conversion cannot launder gold (252.3355ms)
+✔ ENG05: spending order is bound then unknown then earned; mixed assets and refunds remain restricted (9.3976ms)
+✔ ENG05: verified gameplay reward trades normally; reserved earned gold cannot be spent, cancellation restores sources (196.4112ms)
+✔ ENG05: legacy balances and assets are quarantined, malformed source accounting fails closed (6.9418ms)
+✔ ENG05: every NPC asset purchase inherits restricted funding; client source labels are rejected (26.5799ms)
+(node:28292) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ENG05: simultaneous sale and trade reservation of the same earned asset cannot both succeed (256.8477ms)
+✔ ENG05: shared limits, invitation rejection cooldown, presence expiry and receipt compaction keep their guarantees (208.0778ms)
+(node:28292) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:29008) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ guest sessions persist, contain only token hashes, expire and revoke (99.3992ms)
+✔ gold and all asset kinds commit together; failed ownership/balance rolls back both accounts (161.4265ms)
+✔ invalid values, async/nested work and escaped transaction handles are rejected (94.9684ms)
+✔ process exit during transaction leaves neither gold nor assets committed (192.1365ms)
+✔ cookie protections, duplicate rejection and Origin checks (104.4571ms)
+✔ public files deny private sources, traversal and symlink aliases (9.7818ms)
+(node:27812) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ENG06: fabricated battle results and client reward fields cannot reach the server ledger (24.1948ms)
+✔ ENG06: a goal reward is paid once, including request replays and later claims (137.5396ms)
+✔ ENG06: foreign assets cannot be sold or used, and spends beyond the balance are rejected (237.6476ms)
+(node:27812) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ENG06: two processes racing the same version cannot both spend (214.3397ms)
+✔ ENG06 / REVIEW H-1: borrowed earned gen2 or marked dragons do not mint transferable goal rewards (208.7194ms)
+✔ ENG06: goal input sources fail closed when no recorded input exists (10.6919ms)
+✔ ENG06 policy: one-time goal rewards are bound even when every input is earned; unknown stays unknown (7.6615ms)
+✔ ENG06 / REVIEW H-1 residual: borrowed earned gold cannot farm acq, yuva or kulucka rewards on throwaway accounts (256.1184ms)
+✔ ENG06: renown that predates source tracking keeps later renown goals restricted (15.6603ms)
+✔ ENG06: renown earned entirely from an earned hatch stays earned (20.0465ms)
+(node:27812) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ market rejects unavailable assets and storage failures without changing listings (3.6733ms)
+✔ legacy Bedesten actions cannot change local balances, assets or announce success (7.9878ms)
+✔ client shares bootstrap, keeps gameplay assets and applies identity after a new local game (5.5671ms)
+✔ client never silently creates a replacement account for rejected sessions (3.4143ms)
+(node:36776) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ QA independent: all 13 actual payouts and repeated claims, input earned (26.4756ms)
+✔ QA independent: all 13 actual payouts and repeated claims, input bound (12.1685ms)
+✔ QA independent: all 13 actual payouts and repeated claims, input unknown (12.4068ms)
+✔ QA independent: legacy source labels cannot grant earned gold (7.2207ms)
+(node:36776) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ QA independent: simultaneous goal claims commit exactly one payout, then replay safely (329.6567ms)
+✔ QA independent: unknown gold survives item/dragon/egg purchase, hatch and resale without promotion (62.0979ms)
+✔ QA independent: historical earned goal credits remain earned; claims do not reconcile history (11.6531ms)
+(node:36776) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ HTTP/WS identity, private files and economy isolation survive server restart (836.8212ms)
+(node:12952) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Bedesten HTTP and WS reject forged ownership and cannot settle purchases (406.1104ms)
+✔ trade HTTP/WS authenticate participants and recover completed transfer after socket disconnect (317.0113ms)
+✔ ENG05 HTTP and existing WS reject a revoked session without waiting for cache or timer (206.5469ms)
+✔ session reads coalesce and are cached for 60 seconds, never beyond expiry (3.0681ms)
+✔ fresh economic authorization bypasses a cached session immediately after revocation (0.3649ms)
+✔ old WebSocket messages and replay response cannot manufacture completed UI state (3.8994ms)
+✔ ambiguous response persists exact request; account switch never retries another account command (3.6446ms)
+PASS: atomic two-sided transfer, gold, items, dragons, eggs, food, ownership, equipment and incubation guards.
+✔ tests\trade_engine.test.js (72.6299ms)
+(node:34600) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ SQLite trade transfers every asset kind atomically, remaps local ids and replays lost response (318.1586ms)
+✔ ownership, insufficient funds, membership and stale revision fail; changed offers reset both approvals (171.3434ms)
+✔ reservations block competing trades and economy mutations; cancellation, rejection and expiry release them (238.27ms)
+✔ SQLite write error after first account update rolls back accounts, approvals and reservations (144.1895ms)
+(node:34600) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34600) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ independent SQLite workers race confirmation and spending without double transfer (281.358ms)
+✔ reopening independent store recovers accepted trade and idempotency after connection loss (93.4451ms)
+✔ reservation guard covers food and mutations to reserved assets for every reduced command (1.2151ms)
+✔ expired trade cannot release a newer reservation or complete; lineage ids remain unambiguous (124.9474ms)
+✔ P3 state versions, content-bound approvals, inbox and idempotent cleanup (112.465ms)
+✔ trade rejects tradeLocked items at offer time and rechecks before settlement (105.0172ms)
+✔ trade rejects heirloomId items at offer time and rechecks before settlement (104.611ms)
+(node:34600) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ℹ tests 65
+ℹ suites 0
+ℹ pass 65
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1947.2759
