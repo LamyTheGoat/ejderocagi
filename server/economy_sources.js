@@ -59,7 +59,11 @@ function known(list) {return list.length?combine(list):'unknown';}
 // Goal sources come from inputs this account's own server commands recorded, never from
 // whatever happens to be held when the goal is checked (REVIEW-001 H-1: a dragon received
 // in a trade must not turn a one-time goal reward into transferable gold).
-function goalSource(game,id) {
+// Policy (ENG-06, approved): every GOALS reward is paid once per account, so a fresh account
+// can always claim it again. Like the starter pack, it is bound and never transferable;
+// recorded unknown inputs stay unknown. Repeatable verified gameplay rewards may be earned.
+function goalSource(game,id) {return combine([goalInputSource(game,id),'bound']);}
+function goalInputSource(game,id) {
  const ms=game.milestoneSources;
  if(id==='yuva')return known(game.grid.filter(t=>t.b==='yuva').map(t=>t.funding||'unknown'));
  if(id==='kulucka')return known([...game.eggs.filter(e=>e.inK).map(e=>e.funding),...game.grid.filter(t=>t.b==='kulucka').map(t=>t.funding||'unknown'),...(ms.hatch?[ms.hatch]:[])]);
@@ -73,4 +77,4 @@ function goalSource(game,id) {
  // A future validated reward producer must record its source explicitly.
  return game.milestoneSources[id]||'unknown';
 }
-module.exports={ensure,credit,spend,sourceOf,combine,addFood,tradable,goalSource,bucket};
+module.exports={ensure,credit,spend,sourceOf,combine,addFood,tradable,goalSource,goalInputSource,bucket};

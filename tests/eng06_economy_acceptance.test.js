@@ -102,19 +102,58 @@ test('ENG06 / REVIEW H-1: borrowed earned gen2 or marked dragons do not mint tra
   assert.equal(f.store.readEconomy(main).funds.earned, 420);
 });
 
-test('ENG06: goal sources fail closed when no recorded input exists', () => {
+test('ENG06: goal input sources fail closed when no recorded input exists', () => {
   const g = started();
   sources.ensure(g);
-  for (const id of ['gen2', 'mark', 'acq', 'un25', 'un45', 'win1', 'train', 'unlisted']) assert.equal(sources.goalSource(g, id), 'unknown');
+  for (const id of ['gen2', 'mark', 'acq', 'un25', 'un45', 'win1', 'train', 'unlisted']) assert.equal(sources.goalInputSource(g, id), 'unknown');
   // Neither a missing building nor a missing hatch record may resolve to earned.
-  assert.equal(sources.goalSource(g, 'yuva'), 'unknown');
-  assert.equal(sources.goalSource(g, 'kulucka'), 'unknown');
-  // Recorded server inputs still decide the source.
-  g.milestoneSources.acq = 'earned'; assert.equal(sources.goalSource(g, 'acq'), 'earned');
+  assert.equal(sources.goalInputSource(g, 'yuva'), 'unknown');
+  assert.equal(sources.goalInputSource(g, 'kulucka'), 'unknown');
+  // Recorded server inputs still decide the input source.
+  g.milestoneSources.acq = 'earned'; assert.equal(sources.goalInputSource(g, 'acq'), 'earned');
   g.grid.find(x => x.open && !x.b).b = 'yuva';
-  assert.equal(sources.goalSource(g, 'yuva'), 'unknown');
+  assert.equal(sources.goalInputSource(g, 'yuva'), 'unknown');
   g.grid.find(x => x.b === 'yuva').funding = 'earned';
-  assert.equal(sources.goalSource(g, 'yuva'), 'earned');
+  assert.equal(sources.goalInputSource(g, 'yuva'), 'earned');
+});
+
+test('ENG06 policy: one-time goal rewards are bound even when every input is earned; unknown stays unknown', () => {
+  const g = started();
+  sources.ensure(g);
+  g.grid.find(x => x.open && !x.b).b = 'yuva';
+  g.grid.find(x => x.b === 'yuva').funding = 'earned';
+  for (const id of ['acq', 'win1', 'train', 'talk', 'fav', 'aff', 'bred', 'gen2', 'mark', 'kulucka']) g.milestoneSources[id] = 'earned';
+  g.milestoneSources.hatch = 'earned'; g.milestoneSources.renown = 'earned';
+  for (const id of ['yuva', 'kulucka', 'acq', 'win1', 'train', 'talk', 'fav', 'aff', 'bred', 'gen2', 'mark', 'un25', 'un45'])
+    assert.equal(sources.goalSource(g, id), 'bound', id);
+  g.milestoneSources.acq = 'unknown';
+  assert.equal(sources.goalSource(g, 'acq'), 'unknown');
+});
+
+test('ENG06 / REVIEW H-1 residual: borrowed earned gold cannot farm acq, yuva or kulucka rewards on throwaway accounts', t => {
+  const f = fixture(t), main = f.fresh();
+  const rich = f.load(main); rich.gold = 2000; f.save(main, earnedFixture(rich));
+  const sybil = f.fresh(), tile = () => f.load(sybil).grid.findIndex(x => x.open && !x.b);
+  // Drain the starter gold into sinks so every later spend uses borrowed earned gold.
+  for (const kind of ['in', 'in', 'in', 'fener', 'fener']) f.run(sybil, 'building.buy', { kind, tile: tile() });
+  assert.equal(f.store.readEconomy(sybil).gold, 0);
+  const offer = f.load(sybil).market.dragons[0];
+  f.give(main, sybil, { gold: offer.price + 400 });
+  const paid = [], results = [f.run(sybil, 'shop.dragon', { id: offer.id })];
+  for (const kind of ['yuva', 'kulucka']) results.push(f.run(sybil, 'building.buy', { kind, tile: tile() }));
+  for (const r of results) paid.push(...plain(r.result.goals));
+  // Amounts unchanged; every one-time reward is bound and stays on this account.
+  assert.deepEqual(paid.map(r => [r.id, r.gold, r.source]), [['acq', 60, 'bound'], ['yuva', 40, 'bound'], ['kulucka', 40, 'bound']]);
+  const funds = f.store.readEconomy(sybil).funds;
+  const offerOf = gold => ({ gold, items: [], dragons: [], eggs: [], food: {} });
+  assert.ok(funds.bound > 0);
+  assert.throws(() => sources.tradable(f.load(sybil), offerOf(funds.earned + 1)), /gold_not_transferable/);
+  f.give(sybil, main, { gold: funds.earned });
+  // No earned gold was minted: the total is the start minus the earned gold actually spent.
+  const spentEarned = results.reduce((n, r) => n + r.result.payment.earned, 0);
+  const total = f.store.readEconomy(main).funds.earned + f.store.readEconomy(sybil).funds.earned;
+  assert.equal(total, 2000 - spentEarned);
+  assert.equal(f.store.readEconomy(sybil).funds.earned, 0);
 });
 
 test('ENG06: renown that predates source tracking keeps later renown goals restricted', () => {

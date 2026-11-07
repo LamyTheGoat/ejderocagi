@@ -166,8 +166,8 @@ test('ENG05 Firestore: guest farming blocked, earned transfer preserved, shared 
  }
  assert.equal((await b.readEconomy(receiver.accountId)).gold,420);
  const donor=donors[0],ref=db.collection('eo_accounts').doc(donor.accountId),doc=await ref.get(),game=JSON.parse(doc.data().gameJson);
- game.st.wins=1;game.milestoneSources.win1='earned';await ref.update({gameJson:JSON.stringify(game)});
- await a.executeCommand(donor.accountId,command('goals.claim',{},1));
+ // One-time GOALS rewards are bound (ENG-06); seed a repeatable verified gameplay credit instead.
+ game.gold+=50;game.funds.earned+=50;await ref.update({gameJson:JSON.stringify(game)});
  let tr=(await a.executeTrade(donor.accountId,c('invite',{targetId:receiver.accountId}))).trade;
  tr=(await b.executeTrade(receiver.accountId,c('accept',{tradeId:tr.id}))).trade;
  tr=(await a.executeTrade(donor.accountId,c('offer',{tradeId:tr.id,revision:tr.revision,offer:{gold:50}}))).trade;

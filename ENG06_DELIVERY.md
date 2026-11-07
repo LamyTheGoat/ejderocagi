@@ -46,7 +46,7 @@ Başlangıçta worktree temizdi ve `npm test` sonucu 48/48 idi.
 
 ### 1c. Önceliklendirme
 1. **P0 — Hedef ödülü kaynağı (H-1):** Mevcut, sunucuda, bağımsız test edilebilir. **Bu pakette yapıldı.**
-2. **P0 — Tek seferlik hedeflerde ödünç earned girdi (acq/yuva/kulucka):** Mevcut, fakat çözüm bir **politika kararı** istiyor (bkz. §4).
+2. **P0 — Tek seferlik hedeflerde ödünç earned girdi (acq/yuva/kulucka):** Kullanıcı (A) seçeneğini onayladı. **ENG06-02 paketinde yapıldı** (bkz. §2b).
 3. **P1 — Misafir IP limiti ve proxy politikası (REVIEW H-2):** Mevcut; dağıtım politikası gerektiriyor.
 4. **P1 — Okuma uç noktaları, presence ve eşzamanlı WS limitleri (REVIEW M-1, M-2, M-4).**
 5. **P2 — Yarış, hafta, besleme, üreme ödüllerini sunucuya taşıma:** yeni sunucu komutları, yani oyun davranışı değişikliği, kullanıcı onayı gerekir.
@@ -79,20 +79,58 @@ Kaynak takibinden önceki ün (`renown`) ilk earned hatch ile `earned` oluyordu.
 Önceden earned ödenmiş gen2/mark ödülleri geri alınmıyor; mutabakat ayrı bir karardır.
 Normal akışlar aynı kaldı: bound kuluçka → bound ödül, earned hatch ünü → earned.
 
+## 2b. ENG06-02 paketi: tek seferlik hedef ödülleri bound (onaylı politika A)
+
+**Karar:** Kullanıcı (A) seçeneğini onayladı. `GOALS` listesindeki 13 hedefin hepsi hesap başına bir kez ödeniyor.
+Bu yüzden her yeni hesap aynı ödülü yeniden alabiliyor. Bu ödüller artık başlangıç paketi gibi `bound`, yani devredilemez.
+
+**Değişiklik (ödül miktarları aynı; şema ve migrasyon yok):**
+- `server/economy_sources.js`
+  - `goalSource(game,id) = combine([goalInputSource(game,id), 'bound'])`.
+  - Girdi `unknown` ise `unknown` kalıyor (fail-closed korunuyor). Aksi her durumda `bound`.
+  - Eski girdi hesaplaması `goalInputSource` adıyla aynen duruyor ve dışa açıldı (test ve gelecekteki mutabakat için).
+- ENG-05 "earned altın devredilebilir" ilkesi değişmedi. Bundan sonra earned yalnız **tekrarlanabilir, sunucuda doğrulanmış** oynanış ödüllerinden doğabilir (henüz üreticisi yok; ENG06-07).
+
+**Codex testlerinde gerekçeli değişiklik (iki satır):**
+- `tests/economy_sources.test.js` "ENG05: verified gameplay reward trades normally…" ve `tests/firestore_store.integration.js` içindeki eşdeğer adım,
+  earned altını `win1` hedefiyle üretiyordu. Politika A ile bu ödül artık bound.
+- Testin amacı (earned altın takasla geçer, rezerve earned harcanamaz, iptal kaynakları geri getirir) korunarak
+  earned kredi doğrudan tohumlandı (`gold+=50; funds.earned+=50`). Assert'ler değişmedi.
+
+**Yeni testler (`tests/eng06_economy_acceptance.test.js`):**
+- Politika: tüm girdiler earned olsa bile 13 hedefin hepsi `bound`; `unknown` girdi `unknown` kalıyor.
+- REVIEW H-1 kalıntısı, uçtan uca:
+  - Throwaway hesap başlangıç altınını harcıyor ve ödünç earned altınla pazar ejderhası, yuva ve kuluçka alıyor.
+  - `acq` 60, `yuva` 40 ve `kulucka` 40 ödülleri `bound` ödeniyor.
+  - Fazla earned teklif `gold_not_transferable` ile reddediliyor.
+  - İki hesaptaki toplam earned, başlangıç earned'ından harcanan earned çıkarılmış değere tam eşit. Yani hiç earned basılmadı.
+- Önceki fail-closed testi artık `goalInputSource` üzerinden girdi kuralını sabitliyor.
+
+**PoC tekrar koşusu:** `acq_mint_eng06.js` → her throwaway hesapta `acq` `bound`. Ana hesap earned 2000 → 1051 (yalnız kaybediyor, basım yok).
+
+**Geriye uyumluluk:** Kalıcı veri dönüştürülmedi. Önceden earned ödenmiş hedef ödülleri geri alınmıyor; mutabakat ayrı karar.
+
 ## 3. Değiştirilen dosyalar
 
+Paket 1 (`3471ca2`):
 - `server/economy_sources.js`: `known()`, fail-closed `goalSource`.
 - `server/economy_commands.js`: `egg.hatch` renown başlangıç değeri (tek satır).
 - `tests/eng06_economy_acceptance.test.js` (yeni): 8 kabul ve istismar testi.
-- `tests/firestore_store.integration.js`: 1 Firestore parite testi eklendi. Mevcut testler değiştirilmedi.
+- `tests/firestore_store.integration.js`: 1 Firestore parite testi eklendi.
 - `ENG06_DELIVERY.md` (bu belge).
+
+Paket ENG06-02:
+- `server/economy_sources.js`: `goalSource` bound sarmalayıcı, `goalInputSource`.
+- `tests/eng06_economy_acceptance.test.js`: 2 yeni test, 1 test girdi kuralına uyarlandı (toplam 10).
+- `tests/economy_sources.test.js`, `tests/firestore_store.integration.js`: earned tohumlama (yukarıdaki gerekçe).
+- `ENG06_DELIVERY.md`.
 
 ## 4. Testler
 
 | Komut | Sonuç |
 |---|---|
-| `npm test` (SQLite ve birim; P1/P2/P3/ENG-04/ENG-05 dahil) | **56 geçti, 0 başarısız** (önce 48, yeni 8) |
-| `firebase emulators:exec --only firestore --project demo-ejder-ocagi "npm run test:firestore"` | **8 geçti, 0 başarısız** (önce 7, yeni 1) |
+| `npm test` (SQLite ve birim; P1/P2/P3/ENG-04/ENG-05 dahil) | Paket 1: **56/56**. ENG06-02: **58 geçti, 0 başarısız** |
+| `firebase emulators:exec --only firestore --project demo-ejder-ocagi "npm run test:firestore"` | Paket 1: **8/8**. ENG06-02: **8 geçti, 0 başarısız** |
 | `npm run test:trade-ui` (Playwright) | **Koşulmadı.** Worktree'de `node_modules`/tarayıcı kurulu değil. Değişiklik UI'ye dokunmuyor. Codex incelemesinde koşulması önerilir. |
 
 Firestore koşusu yerel emülatör ve demo projeyle yapıldı. npx önbelleğindeki `firebase-tools` kullanıldı.
@@ -110,25 +148,20 @@ Kabul kriterlerinin kapsamı:
 - **Yarış, podyum, besleme, üreme ödülleri:** sunucuda mekanik yok, test edilecek başarı üretilmedi (kapsam dışı).
 
 PoC tekrar koşusu (worktree'ye karşı): mark+gen2 artık `unknown` ve devredilemiyor.
-`acq` istismarı **hâlâ +60 earned üretiyor** (aşağıda blocker 1).
+Paket 1 sonrası `acq` istismarı hâlâ +60 earned üretiyordu; ENG06-02 ile kapandı (§2b).
 
 ## 5. Güvenlik riskleri ve blocker'lar
 
-1. **Kullanıcı kararı gerekiyor: tek seferlik hedeflerde ödünç earned girdi.**
-   `acq` (60), `yuva` (40) ve `kulucka` (40) kaynakları, takasla gelmiş earned altınla yapılan harcamadan earned ödül üretiyor.
-   Yeni hesap başlangıç altınını harcar, ödünç earned altınla pazar ejderhası alır, 60 earned kazanır, ejderhayla altını geri verir.
-   PoC hesap başına +60 gösteriyor. Earned altının bugün meşru bir üreticisi olmadığından şu an gizil durumda.
-   Seçenekler:
-   - (A) Tek seferlik hedef ödüllerini her zaman `bound` saymak (başlangıç paketi gibi). En basit seçenek ama ödül politikası değişikliği.
-   - (B) Earned kovasını "oynanışla kazanılmış" ve "takasla alınmış" olarak ayırmak. Yeni şema ve migrasyon gerekir.
-   - (C) Hedef ödülünü yalnız hesabın kendi oynanışıyla kazanılmış earned girdilerle earned saymak. (B)'nin daha dar hâli, yine şema ister.
+1. ~~Tek seferlik hedeflerde ödünç earned girdi~~ → **kapandı (ENG06-02, politika A).**
+   Kalan not: gelecekteki tekrarlanabilir earned ödüller (arena, yarış) da throwaway hesaplarla çoğaltılabilir.
+   Her yeni üretici (ENG06-07) hesap başına sınır ve Sybil analizini kendi testiyle getirmeli.
 2. **REVIEW H-2:** misafir oluşturma limiti proxy arkasında global oluyor. Güvenilir proxy ve IP politikası kararı gerekiyor.
 3. REVIEW M-1, M-2, M-3, M-4 açık (presence doldurma, limitsiz okuma ve yazma transaction'ı, davet kilidi, eşzamanlı WS).
 4. ENG-05 üretim blocker'ları (IAM, indeks, eski kayıt mutabakatı, tek sürüm yazıcı) açık.
 
 ## 6. Kalan ENG-06 görevleri (öncelik sırası)
 
-1. **ENG06-02:** Blocker 1 için kullanıcı kararı, ardından uygulama ve iki backend testleri.
+1. ~~ENG06-02~~: tamamlandı (§2b).
 2. **ENG06-03:** Proxy/IP politikası ve misafir limiti (H-2); global ve IP başına ayrı limit, testler.
 3. **ENG06-04:** `get` yalnız değişiklikte yazsın; `/api/trade/state` ve `/peers` için hesap başına limit; presence hesap başına tek doküman; eşzamanlı WS sınırı (M-1, M-2, M-4).
 4. **ENG06-05:** Faz-1 `transaction()` API'sinin kaldırılması veya devre dışı bırakılması (L-4); renown ve kuluçka kaynak testlerinin genişletilmesi.
@@ -139,8 +172,8 @@ PoC tekrar koşusu (worktree'ye karşı): mark+gen2 artık `unknown` ve devredil
 
 ## 7. Codex'e bağımsız inceleme
 
-İncelenecek commit: `claude/eng-06-economy` dalındaki bu belgeyi içeren yerel commit (bitiş SHA'sı).
+İncelenecek commit'ler: paket 1 `3471ca2`, ENG06-02 `claude/eng-06-economy` dalının ucu (bitiş SHA'sı).
 Önerilen odaklar: `goalSource` fail-closed davranışının meşru oynanışı bozmadığı;
-renown başlangıç kuralı; Playwright trade-ui koşusu; §5 blocker 1 seçenekleri.
+renown başlangıç kuralı; ENG-05 testlerindeki earned tohumlama değişikliğinin test amacını koruduğu; Playwright trade-ui koşusu.
 
 Proje Merkezi değerlendirmesi için burada duruldu.

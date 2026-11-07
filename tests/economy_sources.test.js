@@ -60,9 +60,10 @@ test('ENG05: spending order is bound then unknown then earned; mixed assets and 
 });
 test('ENG05: verified gameplay reward trades normally; reserved earned gold cannot be spent, cancellation restores sources',t=>{
  const f=fixture(t),a=f.fresh(),b=f.fresh(),g=f.store.readEconomy(a).game;
- // Models a validated arena result; neither stats nor source can enter through HTTP commands.
- g.st.wins=1;g.milestoneSources.win1='earned';f.save(a,g);
- f.store.executeCommand(a,cmd('goals.claim',{args:{},expectedVersion:1}));
+ // Models a future repeatable, server-validated gameplay reward. One-time GOALS rewards are
+ // bound by policy (ENG-06), so the earned credit is seeded directly; neither stats nor source
+ // can enter through HTTP commands.
+ g.gold+=50;g.funds.earned+=50;f.save(a,g);
  assert.equal(f.store.readEconomy(a).funds.earned,50);
  let tr=f.active(a,b);tr=f.send(a,'offer',{tradeId:tr.id,revision:tr.revision,offer:{gold:50}}).trade;
  const before=f.store.readEconomy(a);
