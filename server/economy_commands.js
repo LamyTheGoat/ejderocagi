@@ -4,11 +4,25 @@ const path = require('node:path');
 const vm = require('node:vm');
 const crypto = require('node:crypto');
 const sources = require('./economy_sources');
+const debt = require('./economy_debt');
+const week = require('./week_runtime');
+const { TICKETS } = require('./week_config');
 
 // Execute only repository-owned rules. No command name, argument or client text
 // is interpolated as JavaScript. Each transaction attempt gets its own context.
-const rules = ['data', 'core', 'week', 'social', 'chibi'].map(name =>
-  new vm.Script(fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8'), { filename: name + '.js' }));
+const load = name => new vm.Script(fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8'), { filename: name + '.js' });
+const rules = ['data', 'core', 'week', 'social', 'chibi'].map(load);
+// ENG06 P-C: `endWeek` bağımlılıkları yalnız week.end çalışma zamanına yüklenir (diğer komutların
+// davranışı değişmez). Sıra index.html ile aynıdır. rival/orders/career/season/ui YÜKLENMEZ.
+const weekRules = ['data', 'core', 'week', 'content', 'bond', 'star', 'social', 'chibi'].map(load);
+// Sunucu dolgusu: tarayıcıdaki ui.js `esc` birebir kopyası; rakip ocaklar sunucuda yok (atlanır).
+const weekShim = new vm.Script(`const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function rivalWeek() {}`, { filename: 'server_week_shim.js' });
+const weekExpose = new vm.Script(`({
+  SEASON,
+  // endWeek'in kendi checkGoals çağrısı ödül yazmaz; hedefler reduceCommand'da kaynakla ödenir.
+  endWeekServer() { const keep = checkGoals; checkGoals = () => []; try { return endWeek(); } finally { checkGoals = keep; } },
+})`, { filename: 'server_week_expose.js' });
 const expose = new vm.Script(`({
   start() { newGame(); ensureChibi(); return S; },
   load(value) { S = value; }, state() { return S; },
@@ -30,7 +44,11 @@ const SHAPES = Object.freeze({
   'chibi.craft': ['itemId'], 'chibi.repair': ['itemId'],
   'stone.synthesize': ['key'], 'ore.convert': ['from', 'to'],
   'chibi.transfer': ['from', 'to'],
+  'week.end': [],
 });
+// Borç varken reddedilen harcama komutları (D4). Ayrıca her `spend` aynı kapıdan geçer.
+const DEBT_BLOCKED = new Set(['building.buy', 'land.clear', 'shop.food', 'shop.item', 'shop.dragon', 'shop.egg',
+  'chibi.craft', 'chibi.repair', 'stone.synthesize', 'ore.convert', 'chibi.transfer']);
 function validateCommand(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) fail('invalid_command');
   if (Object.keys(input).some(k => !['requestId', 'expectedVersion', 'type', 'args'].includes(k))) fail('unknown_command_field');
@@ -50,13 +68,16 @@ function validateCommand(input) {
   const hash = crypto.createHash('sha256').update(JSON.stringify(command)).digest('hex');
   return { command, hash };
 }
-function makeRuntime(game, seed) {
+function makeRuntime(game, seed, { weekRuntime = false } = {}) {
   const math = Object.create(Math);
   let counter = 0;
   math.random = () => crypto.createHmac('sha256', seed).update(String(counter++)).digest().readUInt32BE() / 0x100000000;
-  const context = vm.createContext({ Math: math, UI: {} }, { codeGeneration: { strings: false, wasm: false } });
-  for (const script of rules) script.runInContext(context, { timeout: 1000 });
+  const globals = weekRuntime ? { Math: math, UI: {}, window: {} } : { Math: math, UI: {} };
+  const context = vm.createContext(globals, { codeGeneration: { strings: false, wasm: false } });
+  for (const script of weekRuntime ? weekRules : rules) script.runInContext(context, { timeout: 1000 });
+  if (weekRuntime) weekShim.runInContext(context, { timeout: 1000 });
   const api = expose.runInContext(context, { timeout: 1000 });
+  if (weekRuntime) Object.assign(api, weekExpose.runInContext(context, { timeout: 1000 }));
   if (game) api.load(clone(game));
   return api;
 }
@@ -65,9 +86,9 @@ function tagAssets(game, accountId) {
     for (const row of rows) row.assetId ||= `${accountId}:${kind}:${row[key]}`;
   }
 }
-function reduceCommand(previous, command, { accountId, seed }) {
+function reduceCommand(previous, command, { accountId, seed, now, tickets = TICKETS }) {
   if (!previous && command.type !== 'game.start') fail('game_not_started', 409);
-  const api = makeRuntime(previous ? sources.ensure(clone(previous)) : null, seed);
+  const api = makeRuntime(previous ? sources.ensure(clone(previous)) : null, seed, { weekRuntime: command.type === 'week.end' });
   if (!previous) {
     const game = clone(api.start());
     tagAssets(game, accountId);
@@ -77,8 +98,9 @@ function reduceCommand(previous, command, { accountId, seed }) {
   const S = api.state(), C = S.chibi, a = command.args;
   if (command.type === 'game.start') return { game: clone(S), result: { started: false } };
   if (S.over) fail('game_finished', 409);
+  if (DEBT_BLOCKED.has(command.type)) debt.assertNoDebt(S);
   let payment = sources.bucket(0, 'earned');
-  const spend = amount => { payment = sources.spend(S, amount); };
+  const spend = amount => { debt.assertNoDebt(S); payment = sources.spend(S, amount); };
   const paidSource = () => sources.sourceOf(payment);
   const owned = (rows, assetId) => { const asset = rows.find(row => row.assetId === assetId); if (!asset) fail('asset_not_owned', 403); return asset; };
   const payRecipe = recipe => {
@@ -129,12 +151,12 @@ function reduceCommand(previous, command, { accountId, seed }) {
       if (item.heirloomId || !has(api.ITEMS, item.id) || api.ITEMS[item.id].heirloom) fail('item_not_sellable', 409);
       const dragon = api.equippedBy(item.uid);
       if (dragon) for (const slot of Object.keys(dragon.equip)) if (dragon.equip[slot] === item.uid) dragon.equip[slot] = null;
-      sources.credit(S, api.sellBack(item.id), item.funding); S.inv = S.inv.filter(i => i !== item); break;
+      result.credit = debt.receive(S, api.sellBack(item.id), item.funding); S.inv = S.inv.filter(i => i !== item); break;
     }
     case 'dragon.sell': {
       const dragon = owned(S.dragons, a.assetId);
       if (dragon.task || dragon.dead || dragon.tradeLocked) fail('dragon_busy', 409);
-      sources.credit(S, Math.round(api.value(dragon) * 0.6), dragon.funding);
+      result.credit = debt.receive(S, Math.round(api.value(dragon) * 0.6), dragon.funding);
       for (const slot of Object.keys(dragon.equip)) dragon.equip[slot] = null;
       api.linReg(dragon); S.dragons = S.dragons.filter(d => d !== dragon);
       if (S.star === dragon.id) S.star = S.dragons[0]?.id || null;
@@ -147,7 +169,7 @@ function reduceCommand(previous, command, { accountId, seed }) {
     }
     case 'egg.hatch': {
       const egg = owned(S.eggs, a.assetId);
-      // w is advanced only by a future validated week command, never by client time.
+      // w is advanced only by the server week.end command, never by client time.
       if (!egg.inK || egg.w < (api.perk('yumurtaci', 50) ? 1 : 2) || api.freeSlots() < 1) fail('egg_not_ready', 409);
       const beforeUn = S.un;
       const hatched = api.hatchEgg(egg); hatched.d.funding = egg.funding;
@@ -186,6 +208,14 @@ function reduceCommand(previous, command, { accountId, seed }) {
       C.eq[api.CHIBI_ITEMS[a.to].slot] = a.to; break;
     }
     case 'goals.claim': break;
+    case 'week.end': {
+      // Bilet önce: biletsiz istek endWeek'i hiç çalıştırmaz. Hata olursa tüm komut geri alınır.
+      if (S.week >= api.SEASON) fail('season_end_unsupported', 409);
+      const ticket = week.takeTicket(S, now, tickets);
+      const { out, summary } = week.runWeek(api, S);
+      sources.ensure(S); tagAssets(S, accountId);
+      result = week.weekResult(out, summary, ticket); break;
+    }
     default: fail('unsupported_command');
   }
   result.payment = {...payment};
@@ -193,7 +223,8 @@ function reduceCommand(previous, command, { accountId, seed }) {
   const beforeGoals = S.gold;
   result.goals = api.checkGoals().map(g => ({ id: g.id, gold: g.r, source: sources.goalSource(S, g.id) }));
   S.gold = beforeGoals;
-  for (const reward of result.goals) sources.credit(S, reward.gold, reward.source);
+  for (const reward of result.goals) debt.receive(S, reward.gold, reward.source);
+  if (command.type === 'week.end') week.closeDebtWeek(S, result);
   if (!Number.isSafeInteger(S.gold) || S.gold < -2_000_000_000 || S.gold > 2_000_000_000) fail('gold_limit', 409);
   tagAssets(S, accountId);
   const game = clone(S);
@@ -202,7 +233,7 @@ function reduceCommand(previous, command, { accountId, seed }) {
 }
 function gameEconomy(accountId, version, game) {
   sources.ensure(game);
-  return { accountId, version, gold: game.gold, funds: clone(game.funds),
+  return { accountId, version, gold: game.gold, debt: game.debt || 0, funds: clone(game.funds),
     items: game.inv.map(i => ({ assetId: i.assetId, data: i })),
     dragons: game.dragons.map(d => ({ assetId: d.assetId, data: d })), eggs: game.eggs.map(e => ({ assetId: e.assetId, data: e })),
     stones: clone(game.chibi.stones), ores: clone(game.chibi.ores), chibi: clone(game.chibi), game };

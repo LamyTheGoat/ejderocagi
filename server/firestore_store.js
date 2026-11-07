@@ -138,7 +138,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
         return { replayed: true, appliedVersion: saved.version, result: JSON.parse(saved.resultJson), economy: snapshot(accountId, record) };
       }
       if (record.version !== command.expectedVersion) fail('version_conflict', 409);
-      const next = reduceCommand(record.gameJson ? JSON.parse(record.gameJson) : null, command, { accountId, seed });
+      const next = reduceCommand(record.gameJson ? JSON.parse(record.gameJson) : null, command, { accountId, seed, now: now() }); // Sunucu saati; istemci zamanı yok.
       guardReservation(record.gameJson ? JSON.parse(record.gameJson) : null, next.game, reservation.exists ? JSON.parse(reservation.data().json) : null, now());
       const version = record.version + 1;
       tx.update(accountRef, { version, gameJson: JSON.stringify(next.game) });

@@ -4,6 +4,7 @@ const sources = require('./economy_sources');
 const { isDeepStrictEqual } = require('node:util');
 const { applyTrade, normalizeOffer } = require('../js/trade_engine');
 const { fail } = require('./economy_commands');
+const { assertNoDebt } = require('./economy_debt');
 const clone = value => JSON.parse(JSON.stringify(value));
 const empty = () => ({ gold: 0, items: [], dragons: [], eggs: [], food: {} });
 const terminal = t => !['invited', 'active'].includes(t.status);
@@ -37,7 +38,8 @@ function canonical(game, id) {
   return g;
 }
 function transfer(games, ids, offers, tradeId, now) {
-  for (const id of ids) sources.tradable(games[id].game, offers[id]);
+  // D4: borçlu hesap takas teklifi veremez ve takası tamamlayamaz (iki taraf için de).
+  for (const id of ids) { assertNoDebt(games[id].game); sources.tradable(games[id].game, offers[id]); }
   const originals = clone(games);
   const accounts = Object.fromEntries(ids.map(id => [id, canonical(games[id].game, id)]));
   const result = applyTrade(accounts, ids[0], ids[1], offers[ids[0]], offers[ids[1]], { tradeId, ts: now });

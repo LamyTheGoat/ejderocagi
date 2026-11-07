@@ -215,3 +215,54 @@ test('ENG06 Firestore: a borrowed earned gen2/marked dragon yields only restrict
  assert.deepEqual(JSON.parse(JSON.stringify(claim.result.goals)).map(g=>[g.id,g.gold,g.source]),[['mark',60,'unknown'],['gen2',80,'unknown']]);
  assert.equal(claim.economy.funds.earned,0);
 });
+
+test('ENG06 P-C Firestore: week.end ticket, concurrency, replay, rollback, egg, debt and season', {timeout:90000},async t=>{
+ const {Firestore}=require('@google-cloud/firestore'),db=new Firestore(options);
+ const { TICKETS } = require('../server/week_config');
+ let clock=1_800_000_000_000;
+ const a=openFirestoreStore({...options,client:db,now:()=>clock}),b=openFirestoreStore({...options,now:()=>clock});
+ t.after(async()=>{await a.close();await b.close();});
+ const u=await a.createGuest(),ref=db.collection('eo_accounts').doc(u.accountId);
+ await a.executeCommand(u.accountId,command('game.start',{},0));
+ const load=async()=>JSON.parse((await ref.get()).data().gameJson);
+ const save=async g=>ref.update({gameJson:JSON.stringify(g)});
+ const tile=(await load()).grid.findIndex(x=>x.open&&!x.b);
+ await a.executeCommand(u.accountId,command('building.buy',{kind:'kulucka',tile},1));
+ // Two instances, same version: exactly one week closes and one ticket is spent.
+ const attempts=await Promise.allSettled([a.executeCommand(u.accountId,command('week.end',{},2)),b.executeCommand(u.accountId,command('week.end',{},2))]);
+ assert.equal(attempts.filter(x=>x.status==='fulfilled').length,1);
+ assert.equal(attempts.find(x=>x.status==='rejected').reason.code,'version_conflict');
+ let g=await load();
+ assert.equal(g.week,2);assert.equal(g.weekTickets.count,TICKETS.initial-1);assert.equal(g.eggs[0].w,1);
+ // Lost response retried on the other instance: same receipt, no extra ticket.
+ const req=command('week.end',{},3),first=await a.executeCommand(u.accountId,req),again=await b.executeCommand(u.accountId,req);
+ assert.equal(again.replayed,true);assert.deepEqual(again.result,JSON.parse(JSON.stringify(first.result)));
+ await assert.rejects(b.executeCommand(u.accountId,{...req,expectedVersion:4}),/request_id_reused/);
+ g=await load();assert.equal(g.week,3);assert.equal(g.weekTickets.count,TICKETS.initial-2);
+ assert.deepEqual(first.result.hatchReady,[g.eggs[0].assetId]);
+ const hatched=await a.executeCommand(u.accountId,command('egg.hatch',{assetId:g.eggs[0].assetId},4));
+ assert.equal(hatched.economy.dragons[1].data.name,'Gece');
+ let v=5;
+ for(let i=2;i<TICKETS.initial;i++)await a.executeCommand(u.accountId,command('week.end',{},v++));
+ await assert.rejects(a.executeCommand(u.accountId,command('week.end',{},v)),/week_ticket_unavailable/);
+ clock-=7*86400000; // Server clock rollback grants nothing.
+ await assert.rejects(b.executeCommand(u.accountId,command('week.end',{},v)),/week_ticket_unavailable/);
+ clock+=7*86400000+TICKETS.refillMs;
+ // Debt: upkeep larger than balance stops gold at 0; spending and trade are closed; no bankruptcy.
+ g=await load();g.gold=5;g.funds={schema:1,bound:5,unknown:0,earned:0};await save(g);
+ const owed=await a.executeCommand(u.accountId,command('week.end',{},v++));
+ assert.equal(owed.economy.gold,0);assert.ok(owed.economy.debt>0);assert.equal(owed.economy.game.debtWeeks,1);
+ assert.equal(owed.economy.funds.bound+owed.economy.funds.unknown+owed.economy.funds.earned,0);
+ assert.equal(owed.economy.game.over,false);assert.equal(owed.economy.game.ending,null);
+ await assert.rejects(b.executeCommand(u.accountId,command('shop.food',{key:'balik'},v)),/debt_outstanding/);
+ const peer=await b.createGuest();await b.executeCommand(peer.accountId,command('game.start',{},0));
+ const c=(type,extra={})=>({type,requestId:crypto.randomUUID(),...extra});
+ let tr=(await a.executeTrade(u.accountId,c('invite',{targetId:peer.accountId}))).trade;
+ tr=(await b.executeTrade(peer.accountId,c('accept',{tradeId:tr.id}))).trade;
+ await assert.rejects(a.executeTrade(u.accountId,c('offer',{tradeId:tr.id,revision:tr.revision,offer:{}})),/debt_outstanding/);
+ await a.executeTrade(u.accountId,c('cancel',{tradeId:tr.id}));
+ // Season end: week 20 is refused with an explicit code; the account stays.
+ g=await load();g.week=20;await save(g);clock+=TICKETS.refillMs;
+ await assert.rejects(a.executeCommand(u.accountId,command('week.end',{},v)),err=>err.code==='season_end_unsupported');
+ assert.equal((await a.readEconomy(u.accountId)).version,v);assert.equal((await load()).week,20);
+});

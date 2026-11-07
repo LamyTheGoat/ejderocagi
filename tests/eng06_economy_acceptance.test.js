@@ -34,8 +34,10 @@ const started = () => reduceCommand(null, { type: 'game.start' }, env).game;
 const step = (game, type, args = {}) => reduceCommand(game, { type, args }, env);
 
 test('ENG06: fabricated battle results and client reward fields cannot reach the server ledger', () => {
-  for (const type of ['arena.win', 'duel.result', 'race.finish', 'pageant.score', 'reward.claim', 'week.end'])
+  for (const type of ['arena.win', 'duel.result', 'race.finish', 'pageant.score', 'reward.claim', 'week.skip'])
     assert.throws(() => validateCommand({ requestId: uuid(), expectedVersion: 1, type, args: {} }), /unsupported_command/);
+  // ENG06 P-C: week.end is a server command now, but accepts no client week, time or reward fields.
+  assert.throws(() => validateCommand({ requestId: uuid(), expectedVersion: 1, type: 'week.end', args: { week: 9 } }), /invalid_arguments/);
   for (const extra of [{ gold: 999 }, { st: { wins: 1 } }, { result: 'win' }])
     assert.throws(() => validateCommand({ requestId: uuid(), expectedVersion: 1, type: 'goals.claim', args: extra }), /invalid_arguments/);
   // A claim without a server-validated stat pays nothing.

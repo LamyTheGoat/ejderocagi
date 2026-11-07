@@ -239,7 +239,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
       const version = state ? state.version : account.version;
       if (version !== command.expectedVersion) fail('version_conflict', 409);
       // Phase-one developer fixtures are not imported into authoritative games.
-      const next = reduceCommand(state ? JSON.parse(state.game_json) : null, command, { accountId, seed });
+      const next = reduceCommand(state ? JSON.parse(state.game_json) : null, command, { accountId, seed, now: now() }); // Sunucu saati; istemci zamanı yok.
       guardReservation(state ? JSON.parse(state.game_json) : null, next.game, readTradeRow('trade_locks', accountId), now());
       db.prepare('INSERT INTO game_states VALUES (?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET version=excluded.version, game_json=excluded.game_json').run(accountId, version + 1, JSON.stringify(next.game));
       db.prepare('INSERT INTO command_receipts VALUES (?, ?, ?, ?, ?)').run(accountId, command.requestId, hash, version + 1, JSON.stringify(next.result));
