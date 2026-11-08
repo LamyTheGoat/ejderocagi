@@ -9,7 +9,14 @@ Değişmeyenler: `server/economy_sources.js`, ödül tutarları (85/35/20), fiya
 | 1 | `c9aa28e` | İstemci ↔ sunucu kesesi: `week.end`, bilet/borç göstergesi, ödüllü düello, `economyReady` |
 | 2 | `3963f5f` | O-2 (20. hafta), O-6 (761–999 px üst şerit), O-7 (bayat Bedesten önizlemesi) |
 | 3 | `1839829` | K5 iflas: hesap silinmez, `ocak.rebuild` |
-| 4 | (bu belge) | Teslim belgesi + `js/duel_server.js` eski yorum düzeltmesi |
+| 4 | `d724524` | Teslim belgesi + `js/duel_server.js` eski yorum düzeltmesi |
+| 5 | `ef13409` | QA Y-1: ödüllü düello yalnız kayıtlı hesaplara (davet + kabul, iki taraf) |
+| 6 | `938bebb` | QA O-1: ekonomi isteklerinde 12 sn zaman aşımı (belirsiz), `boot()` ≤ 5 sn |
+| 7 | `b915d7d` | QA O-2: hafta kuyruğu; askıdaki komut önce, hafta kaybolmaz |
+| 8 | `e386f6c` | QA O-3: askıdaki gövde ve hafta kuyruğu `localStorage`'da |
+| 9 | `8054af2` | QA Y-2: `ocak.rebuild` sıklık sınırı (8 hafta) |
+| 10 | `e0b9155` | QA (6): kayıtlı oturumda sunucu ocağını otomatik kur, mobil hafta düğmesi 44 px, ödüllü odada `rewardGold` yok |
+| 11 | (bu güncelleme) | Belge: QA düzeltmeleri, yayın notu |
 
 ## 1. İstemci bağlantısı (O-1)
 
@@ -40,24 +47,42 @@ Değişmeyenler: `server/economy_sources.js`, ödül tutarları (85/35/20), fiya
 - `ocak.rebuild` (argümansız, makbuzlu, idempotent): borç ve `debtWeeks` sıfırlanır, `rebuilds` sayacı artar. **Hesap silinmez, oyun bitmez.** Ejderha, yumurta, eşya, yem, kaynak kovaları ve binalar olduğu gibi kalır. Yeni altın üretilmez, bakiye 0 kalır. Eşik altında ya da borçsuz istek `rebuild_unavailable` (409) alır.
 - D4 değişmedi: gider yine borç yazar, mahsup ve harcama/takas kapısı aynı. Sonraki eşikte yeniden kurulabilir.
 
-## 4. Testler (bu oturumda koşuldu, 2026-11-08, Windows, Node 24, msedge headless)
+## 4. Testler (QA düzeltmelerinden sonra yeniden koşuldu, 2026-11-08, Windows, Node 24, msedge headless)
 | Komut | Sonuç |
 |---|---|
-| `npm ci` | tamam |
-| `npm test` | **130/130 geçti** (taban 116, +14 yeni: `eng10_economy_link` 8, `eng10_market_preview` 3, `eng10_rebuild` 2, `eng06_pc_week` +1; 20. hafta testi yeni davranışa göre yeniden yazıldı) |
-| `firebase emulators:exec --only firestore … "npm run test:firestore"` | **13/13 geçti** (12 + 1 yeni; 20. hafta adımı yeni davranışa göre güncellendi) |
-| `npx playwright test --config tests/playwright.config.js` (trade-ui, ocak-sandığı, layout ×2, eng10 ×4) | **8/8 geçti** |
-| `ENG05_MULTI_SERVER=1` + emülatör + `npm run test:trade-ui` | **1/1 geçti** |
+| `npm test` | **136/136 geçti** (taban 116; ENG-10 ilk teslim 130; QA düzeltmeleri +6) |
+| `firebase emulators:exec --only firestore … "npm run test:firestore"` | **13/13 geçti** |
+| `npm run test:trade-ui` | **1/1** |
+| `npm run test:layout` | **2/2** |
+| `npm run test:eng10` | **5/5** |
+| `npm run test:ocak-sandigi` | **1/1** |
+| `ENG05_MULTI_SERVER=1` + emülatör + `npm run test:trade-ui` (iki sunucu) | **1/1** |
 
 Yeni e2e (`npm run test:eng10`):
-- **Hafta sonu:** Bağlı değilken eski akış çalışır. Bağlıyken yerel hafta hemen biter ve sunucu haftası ilerler. Bilet bitince yerel hafta bekletilir, mesaj net olur, Ahır açık kalır. Bilet & Borç ekranındaki düğmeler ≥ 44 px. `/api/economy` kesilince oyun eski akışa döner.
-- **Ödüllü düello:** İki ayrı hesap gerçek WS ile oynar. Teslim sonrası iki tarafta da sunucudan gelen ödülsüz metin görünür, yerel altın değişmez.
-- **Yerleşim:** 375/768/900/1000 px'te `scrollWidth = innerWidth`, HUD çakışması 0, bilet satırı görünür.
-- **K5 arayüzü:** "Ocağı yeniden kur" düğmesi görünür (≥ 44 px), gerçek `ocak.rebuild` komutu gider, sunucu reddi gösterilir.
+- **Hafta sonu:** Bağlı değilken eski akış çalışır. Bağlıyken yerel hafta hemen biter ve sunucu haftası ilerler. Bilet bitince yerel hafta bekletilir, mesaj net olur, Ahır açık kalır. Bilet & Borç düğmeleri ≥ 44 px. `/api/economy` kesilince oyun eski akışa döner.
+- **Ödüllü düello:** İki kayıtlı hesap gerçek WS ile oynar. Misafir hem istemcide hem sunucuda "hesap aç" mesajı alır. Teslim sonrası sunucudan gelen ödülsüz metin görünür, yerel altın değişmez.
+- **Yerleşim:** 375/768/900/1000 px'te taşma yok, HUD çakışması yok, bilet satırı görünür, "Haftayı Bitir" ≥ 44 px ve ekranın içinde.
+- **K5 arayüzü:** Yeniden kurma düğmesi görünür ve gerçek komut sunucuya gider.
+- **Otomatik kurulum:** Kayıtlı oturumda sunucu ocağı tek bir `game.start` ile kurulur, yerel durum değişmez. Misafirde kurulmaz.
+
+Birim (ek): zaman aşımı → belirsiz askı ve aynı gövde; `boot` sınırı; askıda başka komut varken hafta kuyruğu; depo kalıcılığı ve depo hatası; `autoStart`; Y-1 sunucu (davet, kabul, vitrin açık); Y-2 bekleme (sezon devri dahil).
 
 Ekran görüntüleri yalnız yerelde: `test-results/eng10/w*.png` (commit'e girmedi).
 
-Koşulmayanlar: gerçek telefon, iOS Safari (WebKit), gerçek Cloud Run, yük testi. Ödülü ödenen (`paid`) ödüllü düello tarayıcıda uçtan uca koşulmadı. Bu yol sunucu testlerinde (`duel_settlement`, Firestore) ve birim metin testinde var. Bilet dolum zamanlayıcısı gerçek süreyle beklenmedi (hesap birim testli).
+Koşulmayanlar: gerçek telefon, iOS Safari (WebKit), gerçek Cloud Run, yük testi, gerçek X OAuth. Kayıtlı hesap testleri yerel X simülasyon girişiyle yapıldı. Ödülü ödenen (`paid`) ödüllü düello tarayıcıda uçtan uca koşulmadı; bu yol sunucu testlerinde var. 12 sn zaman aşımı ve bilet dolumu gerçek süreyle beklenmedi; kısa sürelerle birim testi yapıldı.
+
+## 4b. QA düzeltmeleri (bağımsız QA sonrası)
+- **Y-1 (K9):** Ödüllü düelloya yalnız kayıtlı hesaplar girer. Sunucu davet ve kabulde iki tarafı da denetler. **Kayıtlı**, WS bağlantısında geçerli ve imzalı X oturumu (`eo_sess`, `server.js getSessionHandle` → `playerInfo.xVerified`) demektir. Kodda ayrı bir "kayıtlı hesap" kaydı yok, bu en küçük güvenli ayrımdır. Misafire "Ödüllü düello için hesap aç (X ile giriş yap)" mesajı gider. Vitrin düellosu misafire açık. **Kalan risk:** X oturumu ekonomi hesabına kalıcı olarak bağlanmıyor. Aynı X hesabı farklı tarayıcılarda farklı misafir hesaplarıyla kullanılabilir, Sybil maliyeti bir X hesabıdır. Kalıcı bağlama ayrı iş (açık iş A-5).
+- **O-1:** Her ekonomi isteği (`GET /api/economy`, komut) en çok 12 sn bekler ve `AbortController` ile iptal edilir. Zaman aşımı belirsiz sayılır: askıdaki komut aynı `requestId` ile korunur ve yeniden denenir. `ECO_LINK.boot()` en geç 5 sn'de döner, iş arka planda sürer.
+- **O-2:** Bağlı her yerel hafta sonu kuyruğa girer. Kuyruk boşaltılırken önce askıdaki her komut (hafta ya da başka) aynı gövdeyle yeniden denenir, sonra haftalar gönderilir. `command_pending_retry_required` haftayı kaybettirmez. Kuyruktaki haftalar bilet sayısından düşülür.
+- **O-3:** Askıdaki komut gövdesi (`requestId` dahil) `localStorage['eo-economy-pending:<hesap>']`, gönderilmemiş hafta sayısı `localStorage['eo-week-queue:<hesap>']` içinde saklanır. Gövde göndermeden önce yazılır. Sayfa yenilenince açılışta aynı gövde aynen gönderilir. Depo yoksa ya da hata verirse yalnız bellek kullanılır.
+- **Y-2:** `ocak.rebuild` sonrası en az **8 sunucu haftası** geçmeden tekrar yapılamaz (`rebuild_cooldown`, 409). Sayaç sezonlar arası tekdüzedir (`(seasonNo−1)·20 + week`, `lastRebuildWeek`). Varsayılan 8, sunucuda `EO_REBUILD_COOLDOWN_WEEKS` (0–1000) ile ayarlanabilir; geçersiz değer açılışta hata verir. Varlık bedeli yok. Ekran kalan haftayı söyler.
+- **(6) Otomatik kurulum:** Kayıtlı oturumda sunucu ocağı yoksa arka planda bir kez `game.start` gönderilir. Hata olursa sessizce eski akış sürer, oyun beklemez. **Yorum (onaya açık):** "mevcut yerel durumu aynen taşır" ifadesini "yerel `S` aynen kalır, hiç değişmez" diye uyguladım. Yerel durum sunucuya **taşınmadı**, çünkü bu istemci verisine güvenmek olur (değişmez kural). Sunucu ocağı başlangıç varlıklarıyla (bound) açılır.
+- **(6) Diğer:** Mobil "Haftayı Bitir" ≥ 44 px ve ekran içinde. Ödüllü odada istemci tarafı ödül tutarı (`rewardGold`) yok.
+
+## 4c. Yayın notu (K4 / ENG-09 Y-3)
+- **`SESSION_SECRET` üretimde ZORUNLU tanımlanmalı.** `server/session_secret.js` üretimde (`NODE_ENV=production` ya da Cloud Run `K_SERVICE`) tanımsız sırla açılışı reddeder. Test ortamında geçici rastgele sır kullanılır ve uyarı basılır. Çok örnekli Cloud Run'da tüm örnekler aynı sırrı kullanmalı. Aksi halde X oturum çerezleri (`eo_sess`) örnekler arasında ve yeniden başlatmada geçersiz olur. Bu durumda Y-1 gereği ödüllü düello da kapanır, çünkü kayıtlı oturum X çerezine bağlı.
+- `render.yaml`'a dokunulmadı (K4).
 
 ## 5. Kararlar (gerekçeli, onaya açık)
 - **K-A Yerel hafta bilete bağlı:** Bağlıyken bilet kesin yoksa yerel hafta da bekletilir (kullanıcı talimatı: "yeni hafta bekletilir"). Bağlı değilken hiçbir kısıt yok. Belirsiz durumda (görünüm yok, sunucu hatası) yerel hafta engellenmez.
@@ -69,13 +94,15 @@ Koşulmayanlar: gerçek telefon, iOS Safari (WebKit), gerçek Cloud Run, yük te
 ## 6. Riskler
 - `economyReady:true` artık her yanıtta dönüyor. Eski istemci bu alanı kullanmıyordu (grep).
 - Sunucu ocağı kurulmuş oyuncuda yerel hafta artık bilete bağlıdır. Yer tutucu bilet değerleriyle (3 sa / 8 / 6) yavaşlık hissi oluşabilir (K6, D2c).
-- Bekleyen belirsiz `week.end` yalnız bellekte tutulur. Sayfa yenilenirse yeni `requestId` ile istek gider. En kötü durumda bir bilet ilk istekle zaten harcanmıştır (çift hafta olmaz, yalnız sayaç kayar).
+- Bekleyen belirsiz `week.end` artık `localStorage`'da (QA O-3). Gizli sekmede ya da depo engellendiğinde yine yalnız bellek kullanılır; o durumda yenilemede eski risk sürer.
+- Ödüllü düellonun "kayıtlı hesap" tanımı X oturumuna dayanır, ekonomi hesabına kalıcı bağlanmaz (bkz. §4b Y-1).
 - Ödüllü odada `fighterFromDragon` sunucu ejderhasıyla çağrılır. Ekipman yerel envanterden çözülür (yalnız görsel, savaş değerleri sunucudan gelir).
 - O-7 tazelemesi her satıcı komutunda en çok 20 ilan okur (Firestore'da ek okuma; yalnız ilanı olan hesapta).
 - Codex ENG06-04-P1 ile ortak dosyalar: `server/economy_store.js`, `server/firestore_store.js` (`executeCommand` içine birkaç satır), `server/economy_commands.js`, `js/net.js`, `js/pazar.js`, `server.js`. Bu dala dokunulmadı.
 
 ## 7. Açık işler
-- **A-1:** Sunucu ocağının otomatik kurulması (`game.start`) yapılmadı. Bugün Takas, Bedesten ya da Sandık açılınca kuruluyor. Herkes için açılış anında kurulsun mu? Ürün kararı gerekir.
+- **A-1:** Sunucu ocağı kayıtlı oturumda artık otomatik kuruluyor (QA 6). Misafirde hâlâ Takas, Bedesten ya da Sandık açılınca kuruluyor. Misafir için de otomatik kurulsun mu? Ürün kararı gerekir.
 - **A-2:** Bilet değerleri (D2c), Divan/dünya çarpanları (A-10) ve çok örnekli düello odaları (A-9) açık.
-- **A-3:** Bekleyen hafta isteğinin `localStorage`'da kalıcı tutulması (Bedesten'deki gibi) sonraki dilim.
-- **A-4:** Mobil dock'taki "Haftayı Bitir" yüksekliği 32–36 px (ENG-09'dan kalan). Bu dilimde değiştirilmedi. 768 px'te "Meydan" etiketi kesik (ENG-10 öncesinde de vardı).
+- **A-3:** Bekleyen hafta isteğinin kalıcı tutulması QA O-3 ile yapıldı.
+- **A-5:** X kimliğinin ekonomi hesabına kalıcı bağlanması (Y-1 Sybil sertleştirmesi).
+- **A-4:** Mobil "Haftayı Bitir" artık ≥ 44 px (QA 6). Dock'taki diğer yer düğmeleri hâlâ 32 px. 768 px'te "Meydan" etiketi kesik (ENG-10 öncesinde de vardı). İkisi de bu dilimde değiştirilmedi.
