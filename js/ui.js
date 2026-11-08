@@ -1297,6 +1297,7 @@ function hatchModal(egg) {
 }
 function hatchReveal() {
   const { d, notes } = hatchEgg(CUR_HATCH.egg); CUR_HATCH.d = d;
+  if (typeof ECO_SYNC !== 'undefined') ECO_SYNC.localHatched(CUR_HATCH.egg, d); // ENG-12: sunucu yumurtasına bağ
   SFX.play('hatch');
   showModal(`<div class="hatchm"><div class="flash"></div><p class="kicker">Yeni bir ejderha</p><div class="egg-stage reveal">${hasAngle(d, 'front') ? angleSVG(d, 'front') : dragonSVG(d)}</div>
     <label class="namefld"><span>Adını koy</span><input id="hatch-name" value="${esc(d.name)}" maxlength="16"></label>
@@ -2085,6 +2086,7 @@ const ACT = {
 function localEndWeek() {
   PRE = snapshot();
   window.__grew = []; const R = endWeek();
+  if (typeof ECO_SYNC !== 'undefined') ECO_SYNC.afterLocalWeek(); // ENG-12: kayıtlı hesapta yerel iflas yok (borç sunucuda)
   saveGame(); SFX.play('bell'); if (window.__grew.length) setTimeout(() => SFX.play('grow'), 1300);
   UI.tile = null; UI.drawer = null; UI.stall = null;
   $('#app').classList.add('dusk'); setTimeout(() => $('#app').classList.remove('dusk'), 1400);

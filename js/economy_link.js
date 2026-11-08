@@ -82,7 +82,7 @@
   }
 
   // createEconomyLink: tarayıcı dışı testte `client` sahte verilir.
-  function createEconomyLink({ getClient, isOnline = () => true, notify = () => {}, onChange = () => {}, storage = null, queueKey = () => null } = {}) {
+  function createEconomyLink({ getClient, isOnline = () => true, notify = () => {}, onChange = () => {}, onWeek = () => {}, storage = null, queueKey = () => null } = {}) {
     let status = 'off', lastError = '', lastWeek = null, inflight = null, conflictRetried = false, owed = 0, loadedKey = null;
     // O-3: henüz gönderilmemiş haftalar da hesap anahtarıyla saklanır (yenilemede kaybolmaz). Hata → yalnız bellek.
     const saveOwed = () => {
@@ -138,6 +138,7 @@
           try {
             const data = await c.command('week.end', {});
             owed--; saveOwed(); conflictRetried = false; lastWeek = data.result || null; lastError = ''; last = data;
+            try { onWeek(lastWeek); } catch (_) {} // ENG-12: kayıtlı senkron (hatchReady → egg.hatch) kuyruğa ekler
             const text = weekSummary(lastWeek);
             if (text) notify(text, 'mute');
           } catch (e) {
@@ -162,6 +163,31 @@
       const job = (inflight || Promise.resolve()).then(flush);
       inflight = job.finally(() => { if (inflight === job) inflight = null; });
       return inflight;
+    }
+    // ENG-12 · Genel ekonomi komutu (kayıtlı hesap senkronu: satın alma, satış, kuluçka…). Hafta kuyruğuyla AYNI
+    // zincirde çalışır; tek askı kuralı korunur: askıdaki komut önce aynı gövdeyle yeniden denenir. Sonuç:
+    // { ok:true, data } | { ok:false, definite, code }. definite=false (ağ/5xx/zaman aşımı) → askıda, sonra yeniden.
+    function exec(type, args) {
+      const run = async () => {
+        const c = client();
+        if (!c || !linked()) return { ok: false, definite: false, code: 'not_linked' };
+        let conflict = false;
+        for (let guard = 0; guard < 6; guard++) {
+          if (c.hasPending) {
+            try { await c.retry(); } catch (e) { if (!definite(e)) return { ok: false, definite: false, code: e.message }; }
+            continue;
+          }
+          try { return { ok: true, data: await c.command(type, args) }; } catch (e) {
+            if (e.message === 'command_pending_retry_required') continue;
+            if (e.message === 'version_conflict' && !conflict) { conflict = true; continue; }
+            return { ok: false, definite: definite(e), code: e.message };
+          }
+        }
+        return { ok: false, definite: false, code: 'economy_busy' };
+      };
+      const job = (inflight || Promise.resolve()).then(run, run);
+      inflight = job.then(() => {}, () => {});
+      return job;
     }
     // runLocal: mevcut yerel hafta sonu (ACT.endweek gövdesi). Dönen: 'local' | 'server'.
     function endWeek(runLocal) {
@@ -199,7 +225,7 @@
       await schedule();
     }
     return {
-      sync, endWeek, rebuild, retryPending, gate, autoStart,
+      sync, endWeek, rebuild, retryPending, gate, autoStart, exec,
       badge: () => badgeText({ linked: linked(), week: week() }),
       duelDragon: () => (linked() ? pickDuelDragon(client().state) : null),
       get linked() { return linked(); },
@@ -228,6 +254,7 @@
     queueKey: () => (typeof MP !== 'undefined' && MP.accountId ? 'eo-week-queue:' + MP.accountId : null),
     isOnline: () => typeof MP !== 'undefined' && !MP.staticServer && !!MP.authenticated,
     notify: (html, kind) => { if (typeof toast === 'function') toast(html, kind); },
+    onWeek: result => { if (root.ECO_SYNC && root.ECO_SYNC.afterServerWeek) root.ECO_SYNC.afterServerWeek(result); },
     onChange: () => {
       if (typeof MP !== 'undefined') MP.economyReady = link.linked;
       // Tam yeniden çizim yok (yazı/animasyon kesilmesin): yalnız hafta düğmesindeki kısa borç satırı güncellenir.
