@@ -5,7 +5,7 @@ const duelService = require('../server/duel_service.js');
 
 // İki oda türü vardır:
 // - Vitrin (eski) oda: davette `dragonAssetId` yoktur. Savaşçı `/api/sync` `duelFighter`ından gelir,
-//   kayıt ve ödül YOKTUR. Bugünkü istemci (economyReady:false) bu yolu kullanır; davranışı değişmedi.
+//   kayıt ve ödül YOKTUR. Dostça (vitrin) düello; ENG-10 ile kalıcıdır (A-12 revize), davranışı değişmedi.
 // - Ödüllü (ekonomi) oda (ENG06 P-D): davet ve kabul `dragonAssetId` taşır. Savaşçı sunucu defterindeki
 //   ejderhadan türetilir, maç depoya kaydedilir, tur RNG'si tohumludur, ödül yalnız sunucuda ve bir kez yazılır.
 function createDragonDuelServer(deps) {
