@@ -6,9 +6,10 @@
 //  - Yeni mekanik yok: formüller js/auction.js, js/orders.js, js/fightev.js, js/minigame/shm_*.js ve js/core.js GOALS
 //    ile birebir aynıdır. `economy_sources.js` kaynak politikası DEĞİŞMEDİ; yeni gelirler `sources.credit` üzerinden
 //    (debt.receive) mevcut sınıflarla girer.
-//  - Doğrulanamayan şey (yerel olayın gerçekten yaşandığı) için tavan + oran sınırı vardır ve gelir `unknown` sınıfında
-//    girer: takas ve Bedesten'de verilemez, onunla alınan varlık da `unknown` olur (kaynak politikası). Böylece
-//    istismar yalnız oyuncunun kendi NPC alışverişini etkiler, oyuncular arası ekonomiye sızmaz.
+//  - K13-2 (00 kararı): sunucunun KENDİ hesapladığı gelir (topcu.clear/spin, auction.sell, order.deliver, offer.sell)
+//    günlük `earned` tavanına (EO_EARNED_DAILY_CAP, 3000) kadar `earned`, aşanı `unknown` girer. İstemcinin bildirdiği
+//    tavanlı defter (gold.local) `unknown`, aktarım (gold.import) `bound`, hedef (goal.reach) mevcut goalSource
+//    politikasıyla (bound/unknown) kalır. Doğrulanamayan her şeyde ayrıca tavan + oran sınırı vardır.
 //  - Tavanlar sunucu yapılandırmasıdır (ortam değişkeni, açılışta doğrulanır; geçersiz değer = açılış hatası).
 const vm = require('node:vm');
 const debt = require('./economy_debt');
@@ -34,6 +35,8 @@ function readCaps(env = process.env) {
     offersPerWeek: envInt(env, 'EO_OFFERS_PER_WEEK', 1, 100), offersPerDay: envInt(env, 'EO_OFFERS_PER_DAY', 4, 1000),
     // Kayıt öncesi yerel altının tek seferlik aktarım tavanı (bound).
     importCap: envInt(env, 'EO_LOCAL_IMPORT_CAP', 2000),
+    // K13-2: sunucunun hesapladığı gelirin earned girebileceği UTC günü toplamı (aşan kısım unknown).
+    earnedDaily: envInt(env, 'EO_EARNED_DAILY_CAP', 3000),
   });
 }
 const CAPS = readCaps();
@@ -181,8 +184,8 @@ const absWeek = S => ((Number.isSafeInteger(S.seasonNo) && S.seasonNo > 0 ? S.se
 function daily(S, now) {
   if (!Number.isSafeInteger(now) || now <= 0) fail('server_time_unavailable', 503);
   const day = utcDay(now);
-  if (!S.srvDaily || typeof S.srvDaily !== 'object' || S.srvDaily.day !== day) S.srvDaily = { day, local: 0, topcu: 0, orders: 0, offers: 0 };
-  for (const k of ['local', 'topcu', 'orders', 'offers']) if (!count(S.srvDaily[k])) S.srvDaily[k] = 0;
+  if (!S.srvDaily || typeof S.srvDaily !== 'object' || S.srvDaily.day !== day) S.srvDaily = { day, local: 0, topcu: 0, orders: 0, offers: 0, earned: 0 };
+  for (const k of ['local', 'topcu', 'orders', 'offers', 'earned']) if (!count(S.srvDaily[k])) S.srvDaily[k] = 0;
   return S.srvDaily;
 }
 function weekly(S, key) {
@@ -201,6 +204,17 @@ function removeDragon(S, api, d) {
 // ilandaki ya da takastaki ejderha için komut `market_reserved_asset` / `trade_reserved_asset` ile reddedilir.
 function exitable(d) { if (d.task || d.dead || d.tradeLocked || d.busy) fail('dragon_busy', 409); return d; }
 const income = (S, amount, source) => (amount > 0 ? debt.receive(S, amount, source) : { paidDebt: 0, credited: 0 });
+// K13-2 (00 kararı, 2026-11-09): sunucunun KENDİ hesapladığı gelir (Topçu, müzayede, sipariş, teklif) UTC günü başına
+// `earnedDaily` toplamına kadar `earned` (takas edilebilir), aşan kısım `unknown` girer. economy_sources.js politikası
+// değişmedi: yalnız komutun hangi MEVCUT sınıfa yazdığı burada seçilir; her parça debt.receive → sources.credit ile
+// girer (bound + unknown + earned == gold korunur). Harcama sırası (bound → unknown → earned) değişmedi.
+function earnedIncome(S, amount, now, caps) {
+  if (!(amount > 0)) return { paidDebt: 0, credited: 0, earned: 0, unknown: 0 };
+  const D = daily(S, now), e = Math.min(amount, Math.max(0, caps.earnedDaily - D.earned)), u = amount - e;
+  D.earned += e;
+  const a = income(S, e, 'earned'), b = income(S, u, 'unknown');
+  return { paidDebt: a.paidDebt + b.paidDebt, credited: a.credited + b.credited, earned: e, unknown: u };
+}
 
 const TYPES = new Set(['dragon.die', 'auction.sell', 'offer.sell', 'order.deliver', 'topcu.clear', 'topcu.spin', 'goal.reach', 'gold.local', 'gold.import']);
 // Komutları uygular. `ctx`: { api, now, owned, spend, caps }. Döner: result nesnesi.
@@ -224,7 +238,7 @@ function reduce(type, S, a, ctx) {
       if (!sim.leader) return { auction: sim, sold: false, got: 0 };
       W.auction++;
       const got = Math.round(sim.price * 0.9); // %10 komisyon
-      const credit = income(S, got, 'unknown');
+      const credit = earnedIncome(S, got, now, caps);
       removeDragon(S, api, d);
       return { auction: sim, sold: true, got, credit };
     }
@@ -234,7 +248,7 @@ function reduce(type, S, a, ctx) {
       if (W.offers >= caps.offersPerWeek || D.offers >= caps.offersPerDay) fail('offer_limit', 409);
       const price = Math.round(api.value(d) * 1.4); // fightev.js teklif: value × 1.4
       W.offers++; D.offers++;
-      const credit = income(S, price, 'unknown');
+      const credit = earnedIncome(S, price, now, caps);
       removeDragon(S, api, d);
       return { price, credit };
     }
@@ -248,7 +262,7 @@ function reduce(type, S, a, ctx) {
       const wsum = o.reqs.reduce((t, [k]) => t + REQ_W[k], 0), adult = o.reqs.find(r => r[0] === 'stage')[1] === 'yetiskin';
       const gold = Math.round((140 + wsum * 120 + o.wk * 12) * (adult ? 1.2 : 1) / 10) * 10; // orders.js orderGen
       W.orders++; D.orders++;
-      const credit = income(S, gold, 'unknown');
+      const credit = earnedIncome(S, gold, now, caps);
       removeDragon(S, api, d);
       S.st.orders = (S.st.orders || 0) + 1;
       return { gold, credit };
@@ -267,7 +281,7 @@ function reduce(type, S, a, ctx) {
       D.topcu += gold;
       const drops = JSON.parse(JSON.stringify(api.topcuDrops(kind, sub)));
       if (Object.keys(drops).length) api.award(drops);
-      return { mode: kind, gold, capped: TOPCU_CLEAR[kind] - gold, drops, credit: income(S, gold, 'unknown') };
+      return { mode: kind, gold, capped: TOPCU_CLEAR[kind] - gold, drops, credit: earnedIncome(S, gold, now, caps) };
     }
     case 'topcu.spin': {
       const slices = wheel(a.wheel);
@@ -286,7 +300,7 @@ function reduce(type, S, a, ctx) {
       D.topcu += gold;
       const drops = SPIN_DROPS[id] ? { ...SPIN_DROPS[id] } : {};
       if (Object.keys(drops).length) api.award(drops);
-      return { drops, wheel: a.wheel, idx, id, gold, capped: want - gold, paid, fee: paid ? TOPCU_SPIN_FEE : 0, credit: income(S, gold, 'unknown') };
+      return { drops, wheel: a.wheel, idx, id, gold, capped: want - gold, paid, fee: paid ? TOPCU_SPIN_FEE : 0, credit: earnedIncome(S, gold, now, caps) };
     }
     case 'goal.reach': {
       const g = api.GOALS.find(x => x.id === a.id);

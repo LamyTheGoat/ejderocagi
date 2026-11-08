@@ -44,7 +44,7 @@ test('ENG13 dragon.die: sunucudan kalkar, S.dead\'e geçer, diriltilemez; ikinci
   assert.throws(() => run(locked, 'dragon.die', { assetId: kor(locked).assetId }), /dragon_busy/);
 });
 
-test('ENG13 auction.sell: sunucu tohumlu RNG ile müzayedeyi oynar; %10 komisyon, unknown, haftada bir; aynı tohum aynı sonuç', () => {
+test('ENG13 auction.sell: sunucu tohumlu RNG ile müzayedeyi oynar; %10 komisyon, earned (tavanlı), haftada bir; aynı tohum aynı sonuç', () => {
   const g0 = start(), id = kor(g0).assetId;
   const a = run(g0, 'auction.sell', { assetId: id }), b = run(g0, 'auction.sell', { assetId: id });
   assert.deepEqual(a.result.auction, b.result.auction); // tekrar denemede yeniden zar yok
@@ -53,7 +53,7 @@ test('ENG13 auction.sell: sunucu tohumlu RNG ile müzayedeyi oynar; %10 komisyon
   if (sim.sold !== false && a.result.sold) {
     assert.equal(a.result.got, Math.round(sim.price * 0.9));
     assert.equal(a.game.gold, g0.gold + a.result.got);
-    assert.equal(a.game.funds.unknown, g0.funds.unknown + a.result.got);
+    assert.equal(a.game.funds.earned, g0.funds.earned + a.result.got); // K13-2: günlük tavan altında earned
     assert.equal(a.game.dragons.some(d => d.assetId === id), false);
     assert.deepEqual(sim.log.at(-1), [sim.leader, sim.price]);
     // Haftada bir: aynı sunucu haftasında ikinci satış yok.
@@ -72,7 +72,7 @@ test('ENG13 order.deliver: gen şartları sunucu ejderhasında doğrulanır, alt
   const r = run(g0, 'order.deliver', { assetId: d.assetId, spec });
   assert.equal(r.result.gold, Math.round((140 + 1 * 120 + 3 * 12) / 10) * 10); // 300
   assert.equal(r.game.gold, g0.gold + r.result.gold);
-  assert.equal(r.game.funds.unknown, g0.funds.unknown + r.result.gold);
+  assert.equal(r.game.funds.earned, g0.funds.earned + r.result.gold); // K13-2
   assert.equal(r.game.dragons.some(x => x.assetId === d.assetId), false);
   assert.throws(() => run(g0, 'order.deliver', { assetId: d.assetId, spec: `lv=0;wk=3;el=${other};stage=genc` }), /order_unfit/);
   // Yapı orders.js orderGen dışında olamaz: seviye 0'a nadir şart eklenemez, ağırlık şişirilemez.
@@ -97,7 +97,7 @@ test('ENG13 topcu.clear/spin: sabit geçiş ödülü, çark sunucuda zarlanır, 
   let g = start();
   assert.throws(() => run(g, 'topcu.spin', { wheel: 'minor1' }), /topcu_spin_unavailable/);
   let r = run(g, 'topcu.clear', { mode: 'stage' }); g = r.game;
-  assert.equal(r.result.gold, 150); assert.equal(g.funds.unknown, 150);
+  assert.equal(r.result.gold, 150); assert.equal(g.funds.earned, 150); assert.equal(g.funds.unknown, 0);
   r = run(g, 'topcu.spin', { wheel: 'minor1' });
   assert.ok(r.result.idx >= 0 && r.result.idx < 8);
   assert.equal(r.result.gold, { minor_gold_120: 120, minor_gold_220: 220 }[r.result.id] || 0);
@@ -179,7 +179,7 @@ function storeFixture(t) {
   const fresh = () => { const id = store.createGuest().accountId; store.executeCommand(id, { requestId: crypto.randomUUID(), expectedVersion: 0, type: 'game.start', args: {} }); const g = load(id); earnedFixture(g); save(id, g); return id; };
   const eco = id => store.readEconomy(id);
   const exec = (id, type, args, requestId = crypto.randomUUID()) => store.executeCommand(id, { requestId, expectedVersion: eco(id).version, type, args });
-  return { store, fresh, eco, exec };
+  return { store, fresh, eco, exec, file };
 }
 test('ENG13 depo: ilandaki ejderha ölemez/müzayedeye/siparişe verilemez (market_reserved_asset); ilan geri çekilince ölür', t => {
   const f = storeFixture(t), a = f.fresh(), id = f.eco(a).dragons[0].assetId, el = f.eco(a).dragons[0].data.el;
@@ -235,4 +235,51 @@ test('ENG13 istemci saf yardımcılar: yığından gelir türü, defter birleşt
   assert.equal(spec, 'lv=2;wk=7;el=buz;stage=yetiskin;pot=ze4;sex=F;pig=a');
   assert.equal(parsed.lv, 2); assert.equal(parsed.wk, 7); assert.deepEqual(parsed.reqs.find(r => r[0] === 'pot')[1], ['ze', 4]);
   assert.match(Y.importText(9579, 2000, 2000), /420 başlangıç.*2000.*7579 altın aktarılmadı/);
+});
+
+test('ENG13 K13-2: sunucu geliri günlük earned tavanına kadar earned, aşanı unknown; ertesi gün sıfırlanır; harcama sırası değişmez', () => {
+  const day = new Date(NOW).toISOString().slice(0, 10), cap = income.CAPS.earnedDaily;
+  assert.equal(cap, 3000);
+  let g = start(); g.srvDaily = { day, local: 0, topcu: 0, orders: 0, offers: 0, earned: cap - 100 };
+  const r = run(g, 'topcu.clear', { mode: 'raid_normal:komutan' }); // 250
+  assert.equal(r.result.credit.earned, 100); assert.equal(r.result.credit.unknown, 150);
+  assert.equal(r.game.funds.earned, g.funds.earned + 100); assert.equal(r.game.funds.unknown, g.funds.unknown + 150);
+  assert.equal(r.game.funds.bound + r.game.funds.unknown + r.game.funds.earned, r.game.gold); // invariant
+  // Tavan dolu: hepsi unknown. Ertesi gün: yine earned.
+  g = r.game;
+  const full = run(g, 'topcu.clear', { mode: 'stage' });
+  assert.equal(full.result.credit.earned, 0); assert.equal(full.result.credit.unknown, 150);
+  const next = run(g, 'topcu.clear', { mode: 'stage' }, { ...env(), now: NOW + 86_400_000 });
+  assert.equal(next.result.credit.earned, 150);
+  // İstemci bildirimli defter ve aktarım earned olmaz.
+  assert.equal(run(start(), 'gold.local', { reason: 'race', amount: 200 }).game.funds.earned, start().funds.earned);
+  assert.equal(run(start(), 'gold.import', { amount: 500 }).game.funds.earned, start().funds.earned);
+  // Harcama sırası bound → unknown → earned: earned en son harcanır.
+  const mix = full.game; // bound 420 + earned 100 + unknown 300
+  const spent = run(mix, 'gold.local', { reason: 'other', amount: -(mix.funds.bound + 10) });
+  assert.equal(spent.game.funds.bound, 0); assert.equal(spent.game.funds.unknown, mix.funds.unknown - 10); assert.equal(spent.game.funds.earned, mix.funds.earned);
+  // Yapılandırma
+  assert.equal(income.readCaps({ EO_EARNED_DAILY_CAP: '500' }).earnedDaily, 500);
+  assert.throws(() => income.readCaps({ EO_EARNED_DAILY_CAP: 'x' }), /invalid_EO_EARNED_DAILY_CAP/);
+});
+test('ENG13 K13-2 depo: earned Topçu geliriyle alınan ejderha Bedesten\'e konur; unknown altınla alınan konamaz', t => {
+  const f = storeFixture(t);
+  const listFirstNew = (a, before) => {
+    const row = f.eco(a).dragons.find(r => !before.includes(r.assetId));
+    return () => f.store.executeMarket(a, { op: 'list', requestId: crypto.randomUUID(), kind: 'dragon', assetId: row.assetId, quantity: 1, unitPrice: 100 });
+  };
+  const buyWith = a => { const before = f.eco(a).dragons.map(r => r.assetId); const id = f.eco(a).game.market.dragons[0].id; f.exec(a, 'shop.dragon', { id }); return listFirstNew(a, before); };
+  const zero = (a, extra) => { const raw = new DatabaseSync(f.file); const g = JSON.parse(raw.prepare('SELECT game_json FROM game_states WHERE account_id=?').get(a).game_json); g.gold = 0; g.funds = { schema: 1, bound: 0, unknown: 0, earned: 0 }; g.goals = (g.goals || []).concat(['acq']); Object.assign(g, extra); raw.prepare('UPDATE game_states SET game_json=? WHERE account_id=?').run(JSON.stringify(g), a); raw.close(); };
+  // A: kese yalnız Topçu earned geliri (tavan altı).
+  const a = f.fresh(); zero(a, {});
+  for (const mode of ['raid_extreme:komutan', 'raid_extreme:komutan', 'raid_hard:komutan']) f.exec(a, 'topcu.clear', { mode });
+  assert.equal(f.eco(a).funds.earned, Math.min(3000, 950 + 950 + 500)); assert.equal(f.eco(a).funds.unknown, 0);
+  const listA = buyWith(a);
+  assert.equal(listA().listing.status, 'open');
+  // B: kese yalnız istemci defteri (unknown).
+  const b = f.fresh(); zero(b, {});
+  for (let i = 0; i < 4; i++) f.exec(b, 'gold.local', { reason: 'dungeon', amount: 2500 });
+  assert.equal(f.eco(b).funds.unknown, 10000); assert.equal(f.eco(b).funds.earned, 0);
+  const listB = buyWith(b);
+  assert.throws(listB, /asset_not_transferable/);
 });

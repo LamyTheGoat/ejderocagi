@@ -59,7 +59,8 @@ Gider (`amount < 0`) yalnız düşer; istemci kendi altınını azaltabilir, art
 | 2-3 | `7f8d60c` | Sunucu: `dragon.die`, `auction.sell`, `offer.sell`, `order.deliver`, `topcu.clear`, `topcu.spin`, `goal.reach`, `gold.local`, `gold.import` + birim testleri |
 | 3 | `c8544be` | Sunucu: Topçu garantili düşüşleri ve çark tohumlu VM RNG'sinde; `order`/`sale` defter türleri; Firestore emülatör testi |
 | 4 | `f067fd3` | İstemci: tek kese, A-7 akışları, Topçu sunucu akışı, etiketler; e2e (`eng13_sync`), `eng12_sync` güncellendi |
-| 5 | (bu commit) | Belge |
+| 5 | `5756568` | Belge |
+| 6 | (bu commit) | K13-2: sunucu hesaplı gelir günlük tavanla `earned` |
 
 ## 3. Topçu maç sonu hatası (koordinatör eki)
 - **Bulgu:** `js/minigame/shm_ui.js:1502`'de açılan `/* ====` banner'ı 1645'teki `*/`'a kadar kapanmıyordu. `openStageDefeatRetryModal`, `openStageClearBlessingModal`, `completeSahmeranDungeonVictory` hiç tanımlanmıyordu. Dosya `6df80ec`'te bu hâliyle eklenmiş (`git show 6df80ec`: tek seferde 2939 satır; başka banner'lar iki satırlı `/* ==== … ==== */` biçiminde). Çağıranlar: `minigame.js:1892/1894/1912/1928/1961/1964/2023/2026/2477` ve `shm_ui.js` dışa aktarım bloğu; yani bu fonksiyonların yaşaması gerekir.
@@ -69,7 +70,12 @@ Gider (`amount < 0`) yalnız düşer; istemci kendi altınını azaltabilir, art
 
 ## 4. Kararlar
 - **K13-1 Tek kese:** kayıtlı (X oturumlu ve bağlı) hesapta HUD altını sunucu kesesidir. `S.gold` bir erişimciyle izlenir; yerel kod değişmeden her yazım görülür. Komutu olan akış kendi komutunu gönderir (yerel değişim iyimser görünür, deftere yazılmaz); kalan her yerel değişim tavanlı deftere (`gold.local`) gider. Komut kuyruğu boşalınca HUD sunucu değerine eşitlenir. Oyun beklemez.
-- **K13-2 Gelir sınıfı:** yeni sunucu gelirleri (`gold.local`, Topçu, müzayede, sipariş, teklif) `unknown` girer (takas/Bedesten'de verilemez). Gerekçe: olayın yaşandığı sunucuda doğrulanamıyor. `goal.reach` mevcut `goalSource` politikasıyla (bound/unknown), aktarım `bound`. `economy_sources.js` değişmedi. **Sonuç (00/01 kararı gerekir):** harcama sırası bound → unknown → earned olduğundan, yerel kazançla dolu kesede NPC'den alınan varlık `unknown` olur ve Bedesten'e konamaz. Hangi gelirin "doğrulanmış oyun ödülü" (earned) sayılacağı ürün kararıdır (ör. Topçu'nun sunucu doğrulamalı savaşa geçmesi).
+- **K13-2 Gelir sınıfı (00 kararı, 2026-11-09; ilk teslimdeki "hepsi unknown" geri alındı):**
+  - Sunucunun KENDİ hesapladığı gelirler `topcu.clear`, `topcu.spin`, `auction.sell`, `order.deliver`, `offer.sell` **`earned`** girer. Sınır: hesap başına UTC günü toplam `EO_EARNED_DAILY_CAP` (varsayılan **3000**); aşan kısım `unknown` girer. Sayaç `S.srvDaily.earned` (sunucu saati).
+  - `gold.local` (istemcinin bildirdiği tavanlı defter) `unknown`, `gold.import` `bound` kalır.
+  - `economy_sources.js` değişmedi: yalnız komutun hangi mevcut sınıfa yazdığı `local_income.js`'te seçilir (`earnedIncome`); her parça `debt.receive → sources.credit` ile girer, bound + unknown + earned == gold korunur. Harcama sırası (bound → unknown → earned) değişmedi.
+  - **Çelişki (rapor, uygulanmadı):** 00 talimatı `goal.reach`'i de earned listesinde sayıyor. Bu, onaylı ENG-06-02 politika A ile çelişir (`a36011d`, `goalSource`: her hedef ödülü hesap başına bir kez, taze hesap yeniden alabildiği için bound, asla takas edilemez). Politika değişmesin diye `goal.reach` mevcut `goalSource` ile (bound/unknown) bırakıldı. 00 açıkça isterse tek satırlık değişikliktir; ancak çoklu hesapla en çok 720 earned/hesap çiftliği açar.
+  - Sonuç: tavan altında Topçu/müzayede/sipariş kazancı ve onunla NPC'den alınan varlık Bedesten'de ve takasta verilebilir (testli). Kalan istismar: doğrulanamayan Topçu geçişi ve sipariş iddiası günde en çok 3000 takas edilebilir altın üretebilir (§5).
 - **K13-3 Aktarım:** ilk etkinleşmede kayıt öncesi yerel altın bir kez `gold.import` ile `bound` aktarılır; tavan `EO_LOCAL_IMPORT_CAP` (2000). Yerel yeni oyunun 420 başlangıcı sunucu başlangıcıyla aynı olduğu için düşülür (iki kez sayılmaz); 0 ise komut gitmez. Açıklama bir kez gösterilir ("Tek kese …", aktarılmayan miktar dahil). ENG-12 iki kese hesabı olan kayıtlar da bu yolla bir kez geçer.
 - **K13-4 Hafta:** bağlıyken yerel hafta altını (bakım, rol geliri) yok sayılır; sunucu `week.end` esastır. Çevrimdışı haftanın altını deftere (`other`) gider.
 - **K13-5 Hedefler (DÜŞÜK-1):** yerel hedef ödülü yerelde yazılmaz; `goal.reach` eylemin kendi komutundan SONRA gider; sunucu kendi durumuyla zaten ödediyse `already`. Hesap başına bir kez, toplam en çok 720.
@@ -79,7 +85,7 @@ Gider (`amount < 0`) yalnız düşer; istemci kendi altınını azaltabilir, art
 - **K13-9 Etiket:** kayıtlı hesapta "Ocak Kesesi" adı ve iki kese ipucu yok ("Kese"/"Kesende"). Misafirin sunucu hesabı (Bedesten) yerel altından ayrı olduğu için misafirde eski etiket kalır.
 
 ## 5. Tavanlar ve "kolayca sömürülür" kalanlar (dürüst liste)
-Hepsi sunucu yapılandırması; oyuncular arası ekonomiye sızmaz (`unknown`), yalnız oyuncunun kendi NPC alışverişini etkiler.
+Hepsi sunucu yapılandırması. `gold.local` `unknown` girer (oyuncular arası ekonomiye sızmaz). Sunucu hesaplı gelirler (Topçu, müzayede, sipariş, teklif) K13-2 gereği günlük 3000'e kadar `earned` girer: bu satırlardaki doğrulanamayan iddialar hesap başına günde en çok 3000 takas edilebilir altına çevrilebilir.
 | Konu | Sınır | Kalan istismar |
 |---|---|---|
 | `gold.local` (yerel olay, arena, yarış…) | tür başına tek bildirim tavanı (§1b), günde 15000 | Hile yapan istemci her gün 15000 `unknown` altın bildirebilir. Tutar doğrulanamaz. |
@@ -108,8 +114,8 @@ Hepsi sunucu yapılandırması; oyuncular arası ekonomiye sızmaz (`unknown`), 
 ## 8. Testler (2026-11-09, Windows, Node 24, msedge headless)
 | Komut | Sonuç |
 |---|---|
-| `npm test` | **160/160** (taban 146; yeni `tests/eng13_income.test.js` 14) |
-| `firebase emulators:exec --only firestore … "npm run test:firestore"` | **14/14** (yeni ENG13: ilandaki ejderha ölemez, iki örnekte Topçu tek kez, defter tavanı) |
+| `npm test` | **162/162** (taban 146; `tests/eng13_income.test.js` 16, K13-2 dahil) |
+| `firebase emulators:exec --only firestore … "npm run test:firestore"` | **14/14** (ENG13: ilandaki ejderha ölemez, iki örnekte Topçu tek kez ve earned, defter unknown, günlük earned tavanı iki örnekte) |
 | `npx playwright test` (tüm e2e) | **16/16**: layout 2, eng10 5, eng11 1, eng12 3 (güncellendi), eng13 3 (yeni), ocak-sandigi 1, trade-ui 1 |
 | `ENG05_MULTI_SERVER=1` + emülatör + `test:trade-ui` (iki sunucu) | **1/1** |
 
@@ -119,10 +125,10 @@ Ekran görüntüleri (yerel): `test-results/eng13/*.png` (misafir aşama geçiş
 **Koşulmayanlar:** gerçek telefon/iOS Safari, Cloud Run, gerçek X OAuth (yerel simülasyon), yük testi; tam elle oynanmış Topçu savaşı (düşman canları test kısayoluyla sıfırlandı); kervan ve PvP Topçu kipinin kayıtlı hesapta uçtan uca akışı (yalnız birim); `topcu.spin` ücretli çark ve günlük tavan tarayıcıda (birimde var); `gold.local` gün dönümü tarayıcıda; çok sekme yarışı; ağ kesintisinde sayfa kapanması.
 
 ## 9. Sonraki adımlar
-1. 00/01: K13-2 (hangi gelir `earned` olur) ve tavan değerleri onayı.
+1. 00: K13-2 uygulandı; `goal.reach` çelişkisi (§4) ve tavan değerleri onayı.
 2. A-3: Kor Örsü/taş/cevher (`chibi.*`) ve Kerim eşya alımı sunucuya (taş tek kaynağa iner).
 3. A-4: besleme/yem.
 4. Hafta atlama için ileride çözüm (kullanıcı notu): haftalık sınırlar gerçek zamana bağlanabilir.
 
 ## 10. 00'a kısa özet
-Kayıtlı hesapta artık tek kese var: HUD sunucu altınıdır, yerel kazanç/harcama sunucuda kalıcıdır (komutlu akışlar sunucuda hesaplanır, kalan tavanlı `unknown` defter). Ölen/satılan/verilen bağlı ejderha sunucudan ve Bedesten'den kalkar. Topçu'nun maç sonu donması (açık yorum) düzeltildi; kayıtlı hesapta Topçu ödülü sunucuda. Karar bekleyen: yeni gelirlerin `unknown` sınıfı Bedesten satılabilirliğini azaltır.
+Kayıtlı hesapta artık tek kese var: HUD sunucu altınıdır, yerel kazanç/harcama sunucuda kalıcıdır (komutlu akışlar sunucuda hesaplanır, kalan tavanlı `unknown` defter). Ölen/satılan/verilen bağlı ejderha sunucudan ve Bedesten'den kalkar. Topçu'nun maç sonu donması (açık yorum) düzeltildi; kayıtlı hesapta Topçu ödülü sunucuda. K13-2 uygulandı: sunucu hesaplı gelir günde 3000'e kadar earned. Çelişki: goal.reach onaylı politika gereği bound/unknown bırakıldı.
