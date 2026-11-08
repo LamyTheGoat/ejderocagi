@@ -30,11 +30,11 @@ function invariants(g) {
 const indebted = (amount = 3) => { const g = start(); g.gold = amount; g.funds = { schema: 1, bound: amount, unknown: 0, earned: 0 }; return g; };
 
 test('P-C config: placeholder defaults, env overrides and fail-closed validation', () => {
-  assert.deepEqual({ ...PLACEHOLDER_DEFAULTS }, { refillMs: 6 * HOUR, cap: 4, initial: 4 });
-  assert.deepEqual({ ...readTicketConfig({}) }, { refillMs: 6 * HOUR, cap: 4, initial: 4 });
+  assert.deepEqual({ ...PLACEHOLDER_DEFAULTS }, { refillMs: 3 * HOUR, cap: 8, initial: 6 });
+  assert.deepEqual({ ...readTicketConfig({}) }, { refillMs: 3 * HOUR, cap: 8, initial: 6 });
   assert.deepEqual({ ...readTicketConfig({ EO_WEEK_TICKET_REFILL_MS: '60000', EO_WEEK_TICKET_CAP: '3', EO_WEEK_TICKET_INITIAL: '1' }) }, { refillMs: 60000, cap: 3, initial: 1 });
   for (const bad of [{ EO_WEEK_TICKET_CAP: '0' }, { EO_WEEK_TICKET_CAP: '-1' }, { EO_WEEK_TICKET_REFILL_MS: '1.5' }, { EO_WEEK_TICKET_REFILL_MS: '999' },
-    { EO_WEEK_TICKET_INITIAL: '5' }, { EO_WEEK_TICKET_CAP: 'abc' }]) assert.throws(() => readTicketConfig(bad), /invalid_/);
+    { EO_WEEK_TICKET_INITIAL: '9' }, { EO_WEEK_TICKET_CAP: 'abc' }]) assert.throws(() => readTicketConfig(bad), /invalid_/);
   assert.ok(TICKETS.cap >= 1);
 });
 

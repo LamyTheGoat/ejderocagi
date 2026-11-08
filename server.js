@@ -28,6 +28,7 @@ const { consume } = require('./server/service_security');
 const { COMMAND_TYPES } = require('./server/economy_commands');
 const { createGuestSessions } = require('./server/guest_session');
 const { createPublicFiles } = require('./server/public_files');
+const { resolveSessionSecret } = require('./server/session_secret');
 
 const inFlight = new Set();
 function track(promise) {
@@ -826,8 +827,8 @@ function sendJson(res, status, data) {
 /* ============ X OAUTH OTURUM YARDIMCILARI ============ */
 const OAUTH_TTL_MS = 10 * 60 * 1000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-// SESSION_SECRET tanımlı değilse her yeniden başlatmada oturumlar sıfırlanır (Cloud Run'da tanımlayın)
-const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+// Üretimde SESSION_SECRET zorunlu, yoksa açılış reddedilir; yerelde rastgele sır + uyarı (K2 / Y-3)
+const SESSION_SECRET = resolveSessionSecret(process.env);
 const IS_HTTPS = PUBLIC_URL.startsWith('https://');
 
 function normalizeHandle(raw) {

@@ -7,7 +7,8 @@
 //   EO_WEEK_TICKET_CAP        tavan (1..1000)
 //   EO_WEEK_TICKET_INITIAL    ilk görülen hesaptaki bilet (0..tavan)
 // Geçersiz değer sunucu açılışında hata verir (fail-closed); sessizce varsayılana dönülmez.
-const PLACEHOLDER_DEFAULTS = Object.freeze({ refillMs: 6 * 60 * 60 * 1000, cap: 4, initial: 4 });
+// Gerekçe (K6): yavaşlık riski; ölçüm sonrası ayarlanacak.
+const PLACEHOLDER_DEFAULTS = Object.freeze({ refillMs: 3 * 60 * 60 * 1000, cap: 8, initial: 6 });
 
 function readTicketConfig(env = process.env) {
   const num = (name, fallback, min, max) => {

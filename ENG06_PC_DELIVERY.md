@@ -59,7 +59,7 @@ Dolum: `count < cap` ve `now > at` ise `n = floor((now-at)/refillMs)`, `count = 
 
 Değişmezler: `funds.bound+unknown+earned === gold` (borç funds'a dahil değil); `debt > 0 ⇒ gold === 0`; bilet `funds`, `foodSources`, `food`, envanter ve takas teklifi şeklinin (`gold/items/dragons/eggs/food`) dışında.
 
-**Parametreler (YER TUTUCU, `server/week_config.js`):** 6 saatte 1 bilet, tavan 4, başlangıç 4. Ortam: `EO_WEEK_TICKET_REFILL_MS`, `EO_WEEK_TICKET_CAP`, `EO_WEEK_TICKET_INITIAL`. Geçersiz değer açılışta hata verir.
+**Parametreler (YER TUTUCU, `server/week_config.js`):** 3 saatte 1 bilet, tavan 8, başlangıç 6 (K6: yavaşlık riski; ölçüm sonrası ayarlanacak). Ortam: `EO_WEEK_TICKET_REFILL_MS`, `EO_WEEK_TICKET_CAP`, `EO_WEEK_TICKET_INITIAL`. Geçersiz değer açılışta hata verir.
 
 **Borç kuralları (`server/economy_debt.js`):**
 - Tek kapı `assertNoDebt`: `building.buy, land.clear, shop.food/item/dragon/egg, chibi.craft/repair, stone.synthesize, ore.convert, chibi.transfer` komut başında reddedilir; ayrıca her `spend` aynı kapıdan geçer. Satış (`item.sell`, `dragon.sell`), `egg.*`, `goals.claim`, `week.end` açıktır.
@@ -92,7 +92,7 @@ Kapsanan senaryolar: yer tutucu varsayılanlar ve ortam/geçersiz yapılandırma
 
 ## 7. Açık kararlar
 - **K-1 · D1a iflas:** onaylanmadı. Sunucu yalnız `debtWeeks` tutar. İstemcideki "3 hafta eksi → iflas" kuralı sunucuda çalışmaz. Karar gelince `closeDebtWeek` tek uygulama noktasıdır.
-- **K-2 · D2c parametreler:** 6 saat / tavan 4 / başlangıç 4 yer tutucu. 01 Game Design belirleyecek. Eski kayıtlara başlangıç bileti verilmesi de bu karara bağlıdır.
+- **K-2 · D2c parametreler:** 3 saat / tavan 8 / başlangıç 6 yer tutucu (K6). 01 Game Design belirleyecek. Eski kayıtlara başlangıç bileti verilmesi de bu karara bağlıdır.
 - **K-3 · Mahsup kaynak sınıfı:** önerilen ve uygulanan: sınıftan bağımsız önce borç, kalan kendi sınıfıyla (fail-closed). Alternatif (ör. önce bound gelirle mahsup) ürün kararıdır.
 - **K-4 · Haftalık gelir/yem/ün sınıfı:** `unknown` seçildi (en muhafazakâr). Rol ataması sunucu komutu olmadığından bugün sunucuda pratikte oluşmaz.
 - **K-5 · Borçlu haftada moral cezası:** istemcide `S.gold<0` ile tüm ejderhalara -1 moral vardı; sunucuda tetiklenmiyor. Uygulanıp uygulanmayacağı karar ister (yeni mekanik icat edilmedi).
