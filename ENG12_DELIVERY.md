@@ -8,7 +8,7 @@ Değişmeyenler: `server/economy_sources.js` (kaynak politikası), fiyatlar, öd
 |---|---|---|
 | A | `d407a0a` | Hafta biletini kaldır (sunucu + istemci + testler) |
 | B | `4229720` | Kayıtlı hesapta NPC tezgâhı ekonomisi sunucuda (`js/economy_sync.js`) |
-| C | (bu commit) | Ek e2e (bina, kuluçka, satış) ve bu belge |
+| C | `7198534` | Ek e2e (bina, kuluçka, satış) ve bu belge |
 
 ## 1. Bilet sisteminin kaldırılması (Görev 1)
 
