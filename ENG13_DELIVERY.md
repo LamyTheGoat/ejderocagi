@@ -5,6 +5,35 @@
 Değişmeyenler: `server/economy_sources.js` (kaynak politikası, harcama sırası bound → unknown → earned), mevcut fiyat,
 ödül ve olasılıklar, D4 borç kuralları, hafta atlama (sınırsız, dokunulmadı), misafir/çevrimdışı yerel akış.
 
+## 0. Son durum (bağımsız QA + kullanıcı kararı, 2026-11-09) · bu bölüm aşağıdakilerden önce gelir
+**Kullanıcı kararı (kesin):** "hile koruması yapma; tavan/kısıt ekleme; altınla alınan ejderha da pazara konsun; sadece multiplayer modüller düzgün çalışsın". Bu yüzden §1b'deki tür tavanları, §4 K13-2'deki günlük earned tavanı ve §5'teki tavan tablosu **geçersizdir** (tarihsel kayıt olarak duruyor).
+- **Gelir sınıfları (yalnız `local_income.js` komut → sınıf eşlemesi):**
+  - `topcu.clear`, `topcu.spin`, `gold.local` → `earned`, tavansız.
+  - `auction.sell`, `order.deliver`, `offer.sell` → ejderhanın kendi kaynağı (`dragon.funding`, `dragon.sell` ile aynı; Y-1).
+  - `gold.import` ve hedef ödülü (`goal.reach`, `goalSource`) → `bound` (D15).
+  - `unknown` yalnız eski veride kalır.
+  - `economy_sources.js`, bound + unknown + earned == gold ve harcama sırası (bound → unknown → earned) değişmedi.
+- **Kalan denetimler yalnız geçerlilik içindir:** komut şeması, tür listesi, tam sayı, sıfır olmayan, tek istekte |tutar| ≤ 1.000.000 (NaN/ondalık/negatif aktarım reddi).
+  - Yerel oyun kuralları korunur: müzayedede haftada bir kendi ejderhan, aşama başına bir çark hakkı, siparişte ejderhanın gen şartları. Bunlar hile önlemi değildir.
+  - Kaldırılanlar: `EO_EARNED_DAILY_CAP`, `EO_LOCAL_INCOME_DAILY_CAP`, `EO_TOPCU_DAILY_GOLD`, `EO_ORDERS_*`, `EO_OFFERS_*` ve "canlı ejderha yoksa Topçu ödülü yok" şartı.
+  - Kalan tek yapılandırma: `EO_LOCAL_IMPORT_CAP` (2000). Bu bir gelir tavanı değildir; kayıt öncesi altın aktarımının ilk talimattaki tek seferlik tavanıdır.
+- **Sonuç:** yerel kazanç, Topçu ve earned altınla alınan ejderha Bedesten'e ve takasa konur (testli). Başlangıç/bound altınla alınan varlık D15 gereği konamaz.
+- **K-1 (QA KRİTİK, düzeltildi):** takastaki/ilandaki/kilitli ejderha yerelde ölünce `dragon.die` kesin retten sonra anında yeniden deneniyordu (15 sn'de 9802 istek, 429 kilidi, yenilemede yeniden başlıyordu).
+  - Artık ejderha başına üstel geri çekilme var (2 sn → 4 → … en çok 60 sn), kayıtta saklanıyor.
+  - Sunucu sürümü değişince bir kez erken denenir.
+  - `rate_limited` tüm arka plan gönderimlerini bekletir.
+  - Defter kaydı oran sınırı ya da belirsiz yanıtta kaybolmaz, geri konur.
+  - Sandık sade durum gösterir: "Ocakta öldü. Takas bitince sunucudan kaldırılacak."
+  - e2e: 15 sn'de ≤ 6 istek, 429 yok; yenileme döngü başlatmaz; takas iptal edilince ölüm uygulanır.
+- **O-1 (düzeltildi):** ardışık yerel kazançlar birleşince tek bildirim tavanında kırpılıyordu (5 × 200 → 300). Tavan kalktığı için birleşme artık kayıpsız; tek istek sınırını (1.000.000) aşan birikim parçalanır. Birim testi ve e2e (5 × 200 = 1000).
+- **Bilinen, kullanıcı kararıyla ertelenen (hile bulguları, dokunulmadı):**
+  - K-2: misafir/istemci `topcu.clear` vb. komutlarla savaş oynamadan ödül alabilir.
+  - `gold.local` istemcinin bildirdiği tutarı tavansız ve takas edilebilir yazar.
+  - Topçu geçişi, sipariş ve teklif olayının gerçekten yaşandığı sunucuda doğrulanmaz.
+  - Ücretli çarkın beklenen değeri pozitiftir.
+  - Hafta atlama sınırsızdır.
+  - Gider reddinde yerel harcama bedava kalabilir.
+  - Bunlar bilinçli olarak açık bırakıldı.
 ## 1. Envanter: yerel altın ve varlık değişim noktaları
 
 Sütunlar: **yer** · **ne değişir** · **ENG-12'de sunucu** · **ENG-13 kararı** · **doğrulama**.
@@ -60,7 +89,10 @@ Gider (`amount < 0`) yalnız düşer; istemci kendi altınını azaltabilir, art
 | 3 | `c8544be` | Sunucu: Topçu garantili düşüşleri ve çark tohumlu VM RNG'sinde; `order`/`sale` defter türleri; Firestore emülatör testi |
 | 4 | `f067fd3` | İstemci: tek kese, A-7 akışları, Topçu sunucu akışı, etiketler; e2e (`eng13_sync`), `eng12_sync` güncellendi |
 | 5 | `5756568` | Belge |
-| 6 | (bu commit) | K13-2: sunucu hesaplı gelir günlük tavanla `earned` |
+| 6 | `48d25cc` | K13-2: sunucu hesaplı gelir günlük tavanla `earned` (sonra §0 ile geçersiz) |
+| 7 | `7ce9c75` | QA K-1 + O-1: `dragon.die` geri çekilme, oran sınırında bekleme, kayıpsız defter, Sandık durumu |
+| 8 | `805f8ea` | Kullanıcı kararı + Y-1: tavanlar kaldırıldı, sunucu gelirleri earned, ejderha çıkışı kaynak korur |
+| 9 | (bu commit) | Belge (§0) |
 
 ## 3. Topçu maç sonu hatası (koordinatör eki)
 - **Bulgu:** `js/minigame/shm_ui.js:1502`'de açılan `/* ====` banner'ı 1645'teki `*/`'a kadar kapanmıyordu. `openStageDefeatRetryModal`, `openStageClearBlessingModal`, `completeSahmeranDungeonVictory` hiç tanımlanmıyordu. Dosya `6df80ec`'te bu hâliyle eklenmiş (`git show 6df80ec`: tek seferde 2939 satır; başka banner'lar iki satırlı `/* ==== … ==== */` biçiminde). Çağıranlar: `minigame.js:1892/1894/1912/1928/1961/1964/2023/2026/2477` ve `shm_ui.js` dışa aktarım bloğu; yani bu fonksiyonların yaşaması gerekir.
@@ -114,9 +146,9 @@ Hepsi sunucu yapılandırması. `gold.local` `unknown` girer (oyuncular arası e
 ## 8. Testler (2026-11-09, Windows, Node 24, msedge headless)
 | Komut | Sonuç |
 |---|---|
-| `npm test` | **162/162** (taban 146; `tests/eng13_income.test.js` 16, K13-2 dahil) |
-| `firebase emulators:exec --only firestore … "npm run test:firestore"` | **14/14** (ENG13: ilandaki ejderha ölemez, iki örnekte Topçu tek kez ve earned, defter unknown, günlük earned tavanı iki örnekte) |
-| `npx playwright test` (tüm e2e) | **16/16**: layout 2, eng10 5, eng11 1, eng12 3 (güncellendi), eng13 3 (yeni), ocak-sandigi 1, trade-ui 1 |
+| `npm test` | **164/164** (taban 146; `tests/eng13_income.test.js` 18: kullanıcı kararı, O-1, K-1 geri çekilme, Y-1 dahil) |
+| `firebase emulators:exec --only firestore … "npm run test:firestore"` | **14/14** (ENG13: ilandaki ejderha ölemez, iki örnekte Topçu tek kez ve earned, tavansız yerel defter earned, invariant) |
+| `npx playwright test` (tüm e2e) | **17/17**: layout 2, eng10 5, eng11 1, eng12 3, eng13 4 (K-1 döngü testi dahil), ocak-sandigi 1, trade-ui 1 |
 | `ENG05_MULTI_SERVER=1` + emülatör + `test:trade-ui` (iki sunucu) | **1/1** |
 
 Yeni e2e (`npm run test:eng13`): (1) misafir Topçu regresyonu; (2) kayıtlı: aktarım 9999 → 420 + 2000 (7579 atıldı, mesaj), HUD = kese, yerel +200/−120 ve tavan (5000 → 300) sunucuda, NPC tezgâhı aynı keseden, Topçu geçişi +150, çark (sunucu dilimi), final +250 ve sunucu taş düşüşü, yenilemeden sonra aynı altın; (3) kayıtlı: ölüm → sunucu/Sandık/Bedesten'den kalkar ve `dead`'e geçer; ilandayken ölüm → ilan geri çekilir, ölüm uygulanır; müzayede (sunucu senaryosu, fiyat × 0.9); sipariş (formül altını); teklif; çevrimdışı ölüm kuyruğu bağlanınca uygulanır, çevrimdışı verme reddi; yenilemede dirilme yok.
@@ -125,7 +157,7 @@ Ekran görüntüleri (yerel): `test-results/eng13/*.png` (misafir aşama geçiş
 **Koşulmayanlar:** gerçek telefon/iOS Safari, Cloud Run, gerçek X OAuth (yerel simülasyon), yük testi; tam elle oynanmış Topçu savaşı (düşman canları test kısayoluyla sıfırlandı); kervan ve PvP Topçu kipinin kayıtlı hesapta uçtan uca akışı (yalnız birim); `topcu.spin` ücretli çark ve günlük tavan tarayıcıda (birimde var); `gold.local` gün dönümü tarayıcıda; çok sekme yarışı; ağ kesintisinde sayfa kapanması.
 
 ## 9. Sonraki adımlar
-1. 00: K13-2 uygulandı; `goal.reach` çelişkisi (§4) ve tavan değerleri onayı.
+1. §0 kullanıcı kararı uygulandı; hile bulguları bilinçli olarak ertelendi.
 2. A-3: Kor Örsü/taş/cevher (`chibi.*`) ve Kerim eşya alımı sunucuya (taş tek kaynağa iner).
 3. A-4: besleme/yem.
 4. Hafta atlama için ileride çözüm (kullanıcı notu): haftalık sınırlar gerçek zamana bağlanabilir.
