@@ -29,7 +29,7 @@ test('ENG-10 K5: eşik öncesi yeniden kurma yok; eşikte borç silinir, varlık
   assert.equal(weekStatus(g, T0, CFG).rebuild.available, false);
   g = step(g, 'week.end', {}, T0 + 3 * HOUR).game;
   assert.equal(g.debtWeeks, debt.REBUILD_DEBT_WEEKS); assert.ok(g.debt > 0);
-  assert.deepEqual(weekStatus(g, T0, CFG).rebuild, { available: true, threshold: 3 });
+  assert.deepEqual(weekStatus(g, T0, CFG).rebuild, { available: true, threshold: 3, cooldown: 8, waitWeeks: 0 });
   const before = plain(g);
   const r = step(g, 'ocak.rebuild');
   assert.deepEqual(r.result.rebuilt, true); assert.equal(r.result.writtenOff, before.debt); assert.equal(r.result.rebuilds, 1);
@@ -66,4 +66,29 @@ test('ENG-10 K5 SQLite: makbuz ve idempotency; hesap ve varlıklar silinmez', t 
   assert.deepEqual(store.readEconomy(id).dragons.map(d => d.assetId), eco.dragons.map(d => d.assetId));
   assert.throws(() => store.executeCommand(id, { requestId: uuid(), expectedVersion: first.appliedVersion, type: 'ocak.rebuild', args: {} }), /rebuild_unavailable/);
   assert.throws(() => store.executeCommand(id, { requestId: uuid(), expectedVersion: first.appliedVersion, type: 'ocak.rebuild', args: { debt: 0 } }), /invalid_arguments/);
+});
+
+test('ENG-10 Y-2: yeniden kurmadan sonra 8 hafta geçmeden tekrar yok (rebuild_cooldown); süre dolunca açılır; sezon devrinde sayaç kaybolmaz', () => {
+  assert.equal(debt.REBUILD_COOLDOWN_WEEKS, 8);
+  assert.equal(debt.readRebuildCooldown({ EO_REBUILD_COOLDOWN_WEEKS: '12' }), 12);
+  for (const bad of ['-1', '1.5', 'abc', '1001']) assert.throws(() => debt.readRebuildCooldown({ EO_REBUILD_COOLDOWN_WEEKS: bad }), /invalid_EO_REBUILD_COOLDOWN_WEEKS/);
+  let g = indebted(), t = T0;
+  for (let i = 0; i < 3; i++) g = step(g, 'week.end', {}, (t += HOUR)).game;
+  const weekAt = g.week;
+  g = step(g, 'ocak.rebuild').game;
+  assert.equal(g.lastRebuildWeek, weekAt);
+  // Borç yeniden birikir (3 hafta) ama bekleme sürüyor.
+  for (let i = 0; i < 3; i++) g = step(g, 'week.end', {}, (t += HOUR)).game;
+  assert.ok(g.debtWeeks >= 3);
+  assert.throws(() => step(g, 'ocak.rebuild'), err => err.code === 'rebuild_cooldown' && err.status === 409);
+  const st = weekStatus(g, t, CFG).rebuild;
+  assert.equal(st.available, false); assert.equal(st.waitWeeks, 5); assert.equal(st.cooldown, 8);
+  for (let i = 0; i < 5; i++) g = step(g, 'week.end', {}, (t += HOUR)).game;
+  assert.equal(weekStatus(g, t, CFG).rebuild.available, true);
+  const before = plain(g);
+  const r = step(g, 'ocak.rebuild');
+  assert.equal(r.result.rebuilds, 2); assert.deepEqual(assets(r.game), assets(before), 'varlık bedeli yok');
+  // Sezon devri: hafta 1'e dönse de bekleme tekdüze hafta sayacıyla sürer.
+  const h = plain(r.game); h.seasonNo = 2; h.week = 1; h.lastRebuildWeek = 18; h.debt = 5; h.gold = 0; h.funds = { schema: 1, bound: 0, unknown: 0, earned: 0 }; h.debtWeeks = 3;
+  assert.equal(debt.rebuildStatus(h).waitWeeks, 5, '18 + 8 − 21');
 });

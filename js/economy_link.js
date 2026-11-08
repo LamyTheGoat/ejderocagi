@@ -21,6 +21,7 @@
     market_reserved_asset: 'Bedesten ilanındaki bir varlık yüzünden sunucu haftası ilerlemedi. İlanı kontrol et.',
     rate_limited: 'Çok sık istek; sunucu haftası birazdan yeniden denenecek.',
     rebuild_unavailable: 'Ocağı yeniden kurma şu an gerekli değil.',
+    rebuild_cooldown: 'Ocağı yakın zamanda yeniden kurdun; bir sonraki yeniden kurma için birkaç hafta daha geçmeli.',
   };
   const SETTLEMENT_REASONS = {
     daily_pair_limit: 'Bu rakiple bugünkü ödüllü düello sınırına ulaştın. Maç oynandı, ödül yok. Sınır yarın (UTC) yenilenir.',
@@ -276,6 +277,7 @@
         lines.push(`<p><b>Hafta bileti:</b> ${w.ticket ? `${Math.min(Math.max(g.count || 0, 0), w.ticket.cap)}/${w.ticket.cap}` : '—'}${g.mode === 'wait' ? ` · sonraki ${formatWait(g.waitMs)} içinde` : ''}</p>`);
         lines.push(`<p><b>Borç:</b> ${w.debt > 0 ? `${w.debt} altın · ${w.debtWeeks} haftadır borçlu. Takas, Bedesten alımı ve harcama kapalı; kazançlar önce borca gider.` : 'yok'}</p>`);
         if (w.rebuild && w.rebuild.available) lines.push(`<div class="eco-rebuild"><p><b>Ocak iflasın eşiğinde.</b> Hesabın silinmez. "Ocağı yeniden kur" borcu siler; ejderha, yumurta, eşya ve yemin olduğu gibi kalır.</p><button class="btn primary" data-a="eco-rebuild">Ocağı yeniden kur</button></div>`);
+        else if (w.debt > 0 && w.rebuild && w.rebuild.waitWeeks > 0) lines.push(`<p class="mute sm">Ocağı son yeniden kuruşundan beri yeterli hafta geçmedi; ${w.rebuild.waitWeeks} hafta sonra yeniden açılır.</p>`);
         else if (w.debt > 0 && w.rebuild) lines.push(`<p class="mute sm">Borç ${w.rebuild.threshold} hafta üst üste sürerse "Ocağı yeniden kur" açılır.</p>`);
       }
       if (st.lastError) lines.push(`<p class="mute sm">${escHtml(errorText(st.lastError))}</p>`);
