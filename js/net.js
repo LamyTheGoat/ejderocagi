@@ -79,7 +79,10 @@ function mpEnsureGuestSession(baseHttp) {
       if (!response.ok) throw new Error('guest_session_unavailable');
       const session = await response.json();
       if (!session.ok || !session.accountId || !session.handle) throw new Error('invalid_guest_session');
-      if (MP.accountId !== session.accountId && typeof createEconomyClient === 'function') MP.economyClient = createEconomyClient();
+      if (MP.accountId !== session.accountId && typeof createEconomyClient === 'function') {
+        let storage = null; try { storage = window.localStorage; } catch (_) {}
+        MP.economyClient = createEconomyClient({ storage, storageKey: 'eo-economy-pending:' + session.accountId });
+      }
       MP.accountId = session.accountId;
       MP.authHandle = session.handle;
       MP.authenticated = true;

@@ -105,9 +105,18 @@
   }
 
   // createEconomyLink: tarayıcı dışı testte `client` sahte verilir.
-  function createEconomyLink({ getClient, isOnline = () => true, now = () => Date.now(), notify = () => {}, onChange = () => {} } = {}) {
-    let status = 'off', lastError = '', lastWeek = null, inflight = null, conflictRetried = false, owed = 0;
-    const saveOwed = () => {};
+  function createEconomyLink({ getClient, isOnline = () => true, now = () => Date.now(), notify = () => {}, onChange = () => {}, storage = null, queueKey = () => null } = {}) {
+    let status = 'off', lastError = '', lastWeek = null, inflight = null, conflictRetried = false, owed = 0, loadedKey = null;
+    // O-3: henüz gönderilmemiş haftalar da hesap anahtarıyla saklanır (yenilemede kaybolmaz). Hata → yalnız bellek.
+    const saveOwed = () => {
+      const key = queueKey(); if (!storage || !key) return;
+      try { if (owed > 0) storage.setItem(key, String(owed)); else storage.removeItem(key); } catch (_) {}
+    };
+    const loadOwed = () => {
+      const key = queueKey(); if (!storage || !key || key === loadedKey) return;
+      loadedKey = key;
+      try { const n = Number(storage.getItem(key)); owed = Number.isSafeInteger(n) && n > 0 && n <= 50 ? n : 0; } catch (_) { owed = 0; }
+    };
     const client = () => (getClient && getClient()) || null;
     const linked = () => {
       const c = client();
@@ -119,6 +128,7 @@
     const changed = () => { try { onChange(); } catch (_) {} };
 
     async function sync() {
+      loadOwed();
       const c = client();
       if (!c || !isOnline()) { status = 'off'; changed(); return status; }
       try {
@@ -195,6 +205,7 @@
     }
     // Açılışta/odakta: askıdaki komut ve bekleyen haftalar varsa kuyruk boşaltılır.
     async function retryPending() {
+      loadOwed();
       const c = client();
       if (!c || !isOnline() || (!c.hasPending && owed <= 0)) return;
       await schedule();
@@ -225,6 +236,8 @@
   const escHtml = s => (typeof esc === 'function' ? esc(s) : String(s));
   const link = createEconomyLink({
     getClient: () => (typeof MP !== 'undefined' && MP.economyClient) || null,
+    storage: (() => { try { return root.localStorage; } catch (_) { return null; } })(),
+    queueKey: () => (typeof MP !== 'undefined' && MP.accountId ? 'eo-week-queue:' + MP.accountId : null),
     isOnline: () => typeof MP !== 'undefined' && !MP.staticServer && !!MP.authenticated,
     notify: (html, kind) => { if (typeof toast === 'function') toast(html, kind); },
     onChange: () => {

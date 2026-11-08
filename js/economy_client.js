@@ -5,8 +5,18 @@
   // ENG-10 O-1: her ekonomi isteği en çok `timeoutMs` (12 sn) bekler. Zaman aşımı BELİRSİZ sayılır: askıdaki komut
   // aynı requestId ile korunur ve sonra aynen yeniden gönderilir; arayüz beklemede kilitlenmez.
   const TIMEOUT_MS = 12000;
-  function createEconomyClient({ fetch: request = root.fetch.bind(root), uuid = () => root.crypto.randomUUID(), onState = () => {}, timeoutMs = TIMEOUT_MS } = {}) {
+  // ENG-10 O-3: askıdaki komut gövdesi (requestId dahil) `storage`'da (localStorage) hesap anahtarıyla saklanır;
+  // sayfa yenilenince aynı gövde aynen yeniden gönderilir. Depolama yoksa/hata verirse yalnız bellek kullanılır.
+  function createEconomyClient({ fetch: request = root.fetch.bind(root), uuid = () => root.crypto.randomUUID(), onState = () => {}, timeoutMs = TIMEOUT_MS, storage = null, storageKey = null } = {}) {
     let snapshot = null, loading = null, pending = null, running = null, week = null, ready = false;
+    const validPending = p => p && typeof p === 'object' && typeof p.requestId === 'string' && typeof p.type === 'string' && Number.isSafeInteger(p.expectedVersion) && p.args && typeof p.args === 'object';
+    const persist = () => {
+      if (!storage || !storageKey) return;
+      try { if (pending) storage.setItem(storageKey, JSON.stringify(pending)); else storage.removeItem(storageKey); } catch (_) {}
+    };
+    if (storage && storageKey) {
+      try { const saved = JSON.parse(storage.getItem(storageKey) || 'null'); if (validPending(saved)) pending = saved; } catch (_) {}
+    }
     const accept = data => {
       // ENG-10: GET /api/economy salt okunur hafta/bilet/borç görünümünü ve economyReady bayrağını taşır.
       if (Object.hasOwn(data, 'week')) week = data.week ? { ...data.week, receivedAt: Date.now() } : null;
@@ -43,11 +53,11 @@
           const data = await timed('/api/economy/command', {
             method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pending),
           });
-          pending = null; accept(data); return data;
+          pending = null; persist(); accept(data); return data;
         } catch (error) {
           // 5xx/network/timeout failures are ambiguous: keep the same request ID for retry.
           if (error.status >= 400 && error.status < 500) {
-            pending = null;
+            pending = null; persist();
             if (error.status === 409) await refresh();
           }
           throw error;
@@ -60,6 +70,7 @@
       if (!snapshot) await refresh();
       if (pending) throw new Error('command_pending_retry_required');
       pending = { requestId: uuid(), expectedVersion: snapshot.version, type, args };
+      persist(); // göndermeden ÖNCE saklanır
       return sendPending();
     }
     return { refresh, command, retry: sendPending, get state() { return snapshot; }, get week() { return week; }, get economyReady() { return ready; },

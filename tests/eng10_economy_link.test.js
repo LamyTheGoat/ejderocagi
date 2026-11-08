@@ -206,3 +206,38 @@ test('ENG-10 O-2: askıda başka komut varken hafta kaybolmaz; önce askıdaki a
   // Kuyruk biletten düşülür: 1 bilet + 1 kuyruktaki hafta → bekle.
   assert.equal(L.weekGate({ linked: true, week: weekView(1), queued: 1 }, T0).mode, 'wait');
 });
+
+test('ENG-10 O-3: askıdaki week.end gövdesi (requestId dahil) ve kuyruk depoda saklanır; yeni sayfa aynısını gönderir; depo hatası bellekle sürer', async () => {
+  const mem = new Map();
+  const storage = { getItem: k => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k) };
+  const srv = fakeServer({ count: 4 });
+  let n = 0;
+  const make = () => createEconomyClient({ fetch: srv.fetch, storage, storageKey: 'eo-economy-pending:acc', uuid: () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}` });
+  const c1 = make();
+  const link1 = L.createEconomyLink({ getClient: () => c1, storage, queueKey: () => 'eo-week-queue:acc' });
+  await link1.sync();
+  srv.mode = 'lost';
+  link1.endWeek(() => {});
+  await link1.whenIdle();
+  const saved = JSON.parse(mem.get('eo-economy-pending:acc'));
+  assert.equal(saved.type, 'week.end'); assert.equal(saved.requestId, srv.posts[0].requestId);
+  // Sayfa yenilendi: yeni istemci aynı gövdeyi depodan alır ve açılışta aynen gönderir.
+  const c2 = make();
+  assert.equal(c2.pendingType, 'week.end');
+  const link2 = L.createEconomyLink({ getClient: () => c2, storage, queueKey: () => 'eo-week-queue:acc' });
+  await link2.retryPending(); await link2.whenIdle();
+  assert.deepEqual(srv.posts.at(-1), srv.posts[0], 'aynı gövde, aynı requestId');
+  assert.equal(c2.hasPending, false); assert.equal(mem.has('eo-economy-pending:acc'), false, 'başarıdan sonra silindi');
+  // Gönderilmemiş hafta da yenilemede kaybolmaz.
+  mem.set('eo-week-queue:acc', '1');
+  const before = srv.posts.length;
+  const link3 = L.createEconomyLink({ getClient: () => c2, storage, queueKey: () => 'eo-week-queue:acc' });
+  await link3.retryPending(); await link3.whenIdle();
+  assert.equal(srv.posts.length, before + 1); assert.equal(srv.posts.at(-1).type, 'week.end'); assert.equal(mem.has('eo-week-queue:acc'), false);
+  // Depo hata verirse çökme yok, bellekte sürer.
+  const broken = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } };
+  const c4 = createEconomyClient({ fetch: srv.fetch, storage: broken, storageKey: 'k' });
+  const link4 = L.createEconomyLink({ getClient: () => c4, storage: broken, queueKey: () => 'q' });
+  await link4.sync(); link4.endWeek(() => {}); await link4.whenIdle();
+  assert.equal(srv.posts.at(-1).type, 'week.end');
+});
