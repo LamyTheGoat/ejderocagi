@@ -13923,3 +13923,21 @@ body { margin: 0; }
   .hud-c .wk b { font-size: 22px; }
   .hud-c .wk span { font-size: 14px; }
 }
+
+/* ===== ENG-10 · Sunucu kesesi bağlantısı (hafta bileti, borç, ödüllü düello) — ENG10_DELIVERY.md ===== */
+.endweek .eco-week { display: block; font-size: 12px; font-weight: 800; opacity: .95; letter-spacing: .01em; }
+.endweek .eco-week[hidden] { display: none !important; }
+/* Bilet yok: düğme sönük ama tıklanabilir (tıklayınca net mesaj); oyunun geri kalanı açık. */
+.endweek.eco-wait { filter: saturate(.45) brightness(.9); }
+.endweek.eco-wait .eco-week { color: #ffe3a8; }
+@media (max-width: 760px) {
+  /* Mobilde tek satırlık yer var: bağlıyken kısa bilet/borç satırı görünür; "yine de bitir" uyarısı önceliklidir. */
+  .endweek .eco-week { font-size: 8px !important; display: block !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+  .endweek:not(.armed):has(.eco-week:not([hidden])) small:not(.eco-week) { display: none !important; }
+  .endweek.armed .eco-week { display: none !important; }
+}
+.bag-eco-link { min-height: 44px; }
+.eco-modal p { margin: 6px 0; }
+.eco-modal .eco-rebuild { margin-top: 10px; padding: 10px; border: 1px dashed rgba(120, 60, 20, .5); border-radius: 10px; }
+.eco-modal .btn, .eco-modal .mbtns .btn { min-height: 44px; }
+.soc-vsmenu [data-a="soc-vs-duel-ranked"] { min-height: 44px; }

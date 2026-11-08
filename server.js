@@ -26,6 +26,7 @@ const { createMarketService, publicListing } = require('./server/market_service'
 const { createMarketReadCache } = require('./server/market_read_cache');
 const { consume } = require('./server/service_security');
 const { COMMAND_TYPES } = require('./server/economy_commands');
+const { weekStatus } = require('./server/week_runtime');
 const { createGuestSessions } = require('./server/guest_session');
 const { createPublicFiles } = require('./server/public_files');
 const { resolveSessionSecret } = require('./server/session_secret');
@@ -913,7 +914,7 @@ async function handleHttp(req, res) {
       identity = await ECONOMY.createGuest();
       res.setHeader('Set-Cookie', GUEST_SESSIONS.cookie(identity.token, identity.expiresAt));
     }
-    return sendJson(res, 200, { ok: true, accountId: identity.accountId, handle: identity.handle, expiresAt: identity.expiresAt, economyReady: false });
+    return sendJson(res, 200, { ok: true, accountId: identity.accountId, handle: identity.handle, expiresAt: identity.expiresAt, economyReady: true });
   }
   if(req.identity && req.method==='POST' && ['/api/trade','/api/economy/command','/api/market'].includes(pathname)) await ECONOMY.consumeRate('economy:'+req.identity.accountId,120,60000);
   // ENG-09 Y-1: okuma limiti POST kovasından ayrı ('read:'); aşımda aynı 429 { error: 'rate_limited' }.
@@ -958,7 +959,9 @@ async function handleHttp(req, res) {
   if (pathname === '/api/economy') {
     if (!req.identity) return sendJson(res, 401, { ok: false, error: 'guest_session_required' });
     if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'economy_read_only' });
-    return sendJson(res, 200, { ok: true, economyReady: false, commandApiReady: true, commands: COMMAND_TYPES, economy: await ECONOMY.readEconomy(req.identity.accountId) });
+    // ENG-10: istemci sunucu kesesine bağlı (economyReady). `week` salt okunur bilet/borç görünümüdür.
+    const economy = await ECONOMY.readEconomy(req.identity.accountId);
+    return sendJson(res, 200, { ok: true, economyReady: true, commandApiReady: true, commands: COMMAND_TYPES, economy, week: weekStatus(economy && economy.game, Date.now()) });
   }
   if (pathname.startsWith('/api/') && req.method === 'POST' && !pathname.startsWith('/api/auth/') && !req.identity) {
     return sendJson(res, 401, { ok: false, error: 'guest_session_required' });

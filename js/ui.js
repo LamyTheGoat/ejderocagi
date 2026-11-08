@@ -200,6 +200,8 @@ function hud() {
 }
 function dock() {
   ensureStar(); const idle = S.dragons.filter(d => needsOrder(d)).length;
+  // ENG-10: sunucu kesesine bağlıyken hafta bileti/borç kısa satırı (bağlı değilken boş; eski görünüm).
+  const ecoBadge = typeof ECO_LINK !== 'undefined' ? ECO_LINK.badge() : '', ecoWait = typeof ECO_LINK !== 'undefined' && ECO_LINK.gate().mode === 'wait';
   const items = [
     ['ocak', 'Ocak', '', false, false, 1],
     ['ahir', 'Ahır', idle || '', false, false, 2],
@@ -215,10 +217,10 @@ function dock() {
     <button class="place ${isHero ? 'kasaba-place' : ''} ${UI.view === k ? 'on' : ''}" data-a="go" data-v="${k}" ${lock ? 'disabled title="Henüz yolu bilmiyorsun"' : ''} title="${n} [${kbd || i + 1}]">
       <span class="medal">${placeIcon(k)}</span><kbd>${kbd || i + 1}</kbd><span class="pn">${n}</span>${b ? `<span class="badge">${b}</span>` : ''}
     </button>`).join('')}</div>
-    <button class="endweek ${UI.arm === 'endweek' ? 'armed' : ''}" data-a="endweek">
+    <button class="endweek ${UI.arm === 'endweek' ? 'armed' : ''} ${ecoWait ? 'eco-wait' : ''}" data-a="endweek">
       <span class="lantern">${ui('moon')}</span>
       <div><b>${S.week >= SEASON ? 'Sezonu Bitir' : 'Haftayı Bitir'}</b>
-      <small>${UI.arm === 'endweek' ? `${idle} ejderha görevsiz · yine de bitir` : idle ? `${idle} ejderha görev bekliyor` : 'Geceye geç'}</small></div>
+      <small>${UI.arm === 'endweek' ? `${idle} ejderha görevsiz · yine de bitir` : idle ? `${idle} ejderha görev bekliyor` : 'Geceye geç'}</small><small class="eco-week" ${ecoBadge ? '' : 'hidden'}>${esc(ecoBadge)}</small></div>
     </button>`;
 }
 
@@ -2072,23 +2074,30 @@ const ACT = {
   grave() { const spot = S.grid.findIndex(t => t.open && !t.b); if (spot >= 0) S.grid[spot].b = 'mezar'; afterAction(true); closeModal(); },
   endweek() {
     if (modalOn) return;
+    // ENG-10: bilet kesin yoksa yerel hafta bekletilir (oyunun geri kalanı açık); bağlı değilken eski akış.
+    if (typeof ECO_LINK !== 'undefined' && ECO_LINK.gate().mode === 'wait') { ECO_LINK.endWeek(() => {}); SFX.play('error'); return; }
     if (S.dragons.some(d => needsOrder(d)) && UI.arm !== 'endweek') { UI.arm = 'endweek'; SFX.play('error'); return render(); }
     UI.arm = null;
-    PRE = snapshot();
-    window.__grew = []; const R = endWeek();
-    saveGame(); SFX.play('bell'); if (window.__grew.length) setTimeout(() => SFX.play('grow'), 1300);
-    UI.tile = null; UI.drawer = null; UI.stall = null;
-    $('#app').classList.add('dusk'); setTimeout(() => $('#app').classList.remove('dusk'), 1400);
-    pushModal(() => reportModal(R));
-    for (const id of window.__grew) { const g = byId(id); if (g && !g.dead) pushModal(() => growModal(g)); }
-    for (const q of R.queue) {
-      if (q.type === 'hatch') pushModal(() => hatchModal(q.egg));
-      if (q.type === 'event') pushModal(() => eventModal(q.ev));
-    }
-    storyFlush();
-    if (S.over) pushModal(endingModal);
+    if (typeof ECO_LINK !== 'undefined') return void ECO_LINK.endWeek(localEndWeek);
+    localEndWeek();
   },
 };
+// Mevcut yerel hafta sonu (değişmedi); ENG-10 ile yalnız ayrı fonksiyona alındı.
+function localEndWeek() {
+  PRE = snapshot();
+  window.__grew = []; const R = endWeek();
+  saveGame(); SFX.play('bell'); if (window.__grew.length) setTimeout(() => SFX.play('grow'), 1300);
+  UI.tile = null; UI.drawer = null; UI.stall = null;
+  $('#app').classList.add('dusk'); setTimeout(() => $('#app').classList.remove('dusk'), 1400);
+  pushModal(() => reportModal(R));
+  for (const id of window.__grew) { const g = byId(id); if (g && !g.dead) pushModal(() => growModal(g)); }
+  for (const q of R.queue) {
+    if (q.type === 'hatch') pushModal(() => hatchModal(q.egg));
+    if (q.type === 'event') pushModal(() => eventModal(q.ev));
+  }
+  storyFlush();
+  if (S.over) pushModal(endingModal);
+}
 Object.assign(ACT, PAZAR_ACT, CARE_ACT, SOC_ACT, WARD_ACT, RACE_ACT, AUC_ACT, BOND_ACT, STAR_ACT, CAREER_ACT, ORDER_ACT, SEASON_ACT, FSUP_ACT, COMIC_ACT, typeof LINEAGE_ACT !== 'undefined' ? LINEAGE_ACT : {}, typeof PAGEANT_ACT !== 'undefined' ? PAGEANT_ACT : {}, typeof HUB_ACT !== 'undefined' ? HUB_ACT : {}, typeof NET_ACT !== 'undefined' ? NET_ACT : {}, typeof ENDGAME_ACT !== 'undefined' ? ENDGAME_ACT : {});
 
 
@@ -2206,6 +2215,10 @@ function mobHubModal() {
       <button class="mob-cmd-card" data-open-sandik aria-label="Ocak Sandığı'nı aç: sunucu envanteri">
         <span class="mc-ic" aria-hidden="true">🧰</span>
         <div><b>Ocak Sandığı</b><small>Sunucu envanterin · Bedesten'de sat</small></div>
+      </button>
+      <button class="mob-cmd-card" data-a="eco-status" aria-label="Sunucu kesesi: hafta bileti ve borç">
+        <span class="mc-ic" aria-hidden="true">🎟</span>
+        <div><b>Hafta Bileti & Borç</b><small>${typeof ECO_LINK !== 'undefined' && ECO_LINK.linked ? esc(ECO_LINK.badge() || 'Sunucu kesesi') : 'Sunucu kesesi · bağlı değil'}</small></div>
       </button>
       <button class="mob-cmd-card hi" data-a="mob-hub-act" data-act="chibi-open">
         <span class="mc-ic">${ui('anvil')}</span>

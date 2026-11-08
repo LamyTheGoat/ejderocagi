@@ -84,6 +84,8 @@ function mpEnsureGuestSession(baseHttp) {
       MP.authHandle = session.handle;
       MP.authenticated = true;
       if (S) { S.handle = session.handle; S.xVerified = !!XAUTH.handle; }
+      // ENG-10: sunucu kesesi (bilet/borç) arka planda okunur; oyunu bekletmez, hata yerel akışı kilitlemez.
+      if (typeof ECO_LINK !== 'undefined') Promise.resolve().then(() => ECO_LINK.boot(true)).catch(() => {});
       return true;
     });
   // Serialize first-time bootstrap across tabs where Web Locks is available.
@@ -174,19 +176,16 @@ function mpOpenWs(baseWs) {
           if (msg.caravans) MP.caravans = msg.caravans;
           if (msg.chatLog) MP.chatLog = msg.chatLog;
           if (msg.marketListings) MP.marketListings = msg.marketListings;
-        } else if (['duel_invite', 'duel_invite_sent', 'duel_invite_result', 'duel_room_start', 'duel_room_resume', 'duel_waiting', 'duel_room_state', 'duel_opponent_disconnected', 'duel_opponent_reconnected', 'duel_error'].includes(msg.type) && typeof handleDragonDuelNetMessage === 'function') {
+        } else if (['duel_invite', 'duel_invite_sent', 'duel_invite_result', 'duel_room_start', 'duel_room_resume', 'duel_waiting', 'duel_room_state', 'duel_opponent_disconnected', 'duel_opponent_reconnected', 'duel_error', 'duel_settlement'].includes(msg.type) && typeof handleDragonDuelNetMessage === 'function') {
           handleDragonDuelNetMessage(msg);
         } else if (msg.type === 'market_update') {
           if (msg.listings) {
             MP.marketListings = msg.listings;
             if (S) S.bedestenListings = msg.listings;
           }
-          if (msg.sale && S && msg.sale.seller === (S.handle || '@ejder_ocagi')) {
-            S.gold += Number(msg.sale.price) || 0;
-            toast(`<b>Bedesten Satışı!</b> ${esc(msg.sale.buyer || 'Bir terbiyeci')}, <b>${esc(msg.sale.title)}</b> ilanını <b>${msg.sale.price}</b> altına satın aldı!`, 'goal');
-            if (typeof SFX !== 'undefined' && SFX.play) SFX.play('coin');
-            saveGame();
-          }
+          // ENG-10 (ENG-09 D-1): yayın yalnız "yenile" sinyalidir; satış geliri yerel S.gold'a ASLA yazılmaz
+          // (Bedesten geliri yalnız sunucu kesesine, sunucu komutuyla girer).
+          if (typeof MARKET_CLIENT !== 'undefined' && UI.view === 'pazar' && UI.stall === 'bedesten') MARKET_CLIENT.refresh();
           if (msg.offer && S && msg.offer.seller === (S.handle || '@ejder_ocagi')) {
             toast(`<b>Canlı Pazarlık Teklifi!</b> ${esc(msg.offer.buyer || 'Bir terbiyeci')}, <b>${esc(msg.offer.title)}</b> ilanın için <b>${msg.offer.price} altın</b> teklif etti!`);
             if (typeof SFX !== 'undefined' && SFX.play) SFX.play('bell');
@@ -483,6 +482,13 @@ function finishMpFight() {
   const drawn = F.winner == null;
   const opts = mpOpts || {};
   FT.result = [];
+  // ENG-10: ödüllü odada ödül YALNIZ sunucudadır (duel_settlement). Yerel altın/ün/taş/bağ yazılmaz;
+  // savaşçı sunucu defterinin kopyasıdır, yerel ejderhaya dokunulmaz.
+  if (opts.ranked) {
+    FT.result.push(drawn ? '<b>Berabere!</b>' : won ? `<b class="good">${esc(peer.handle)} ocağından ${esc(opp.name)} mağlup edildi!</b>` : (F.surrender ? 'Meydandan çekildin.' : `<span class="bad">${esc(opp.name)} bu karşılaşmadan üstün çıktı.</span>`));
+    FT.result.push('<span data-settle class="mute">Ödül sunucuda kesinleşiyor…</span>');
+    return;
+  }
   d.fat = clamp(d.fat + 10, 0, 100);
 
   const wEv = typeof currentWorldEvent === 'function' ? currentWorldEvent() : { raidMult: 1 };

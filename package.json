@@ -10,7 +10,8 @@
     "test:firestore": "node --test tests/firestore_store.integration.js",
     "test:trade-ui": "playwright test --config tests/playwright.config.js trade_ui",
     "test:ocak-sandigi": "playwright test --config tests/playwright.config.js ocak_sandigi",
-    "test:layout": "playwright test --config tests/playwright.config.js eng09_layout"
+    "test:layout": "playwright test --config tests/playwright.config.js eng09_layout",
+    "test:eng10": "playwright test --config tests/playwright.config.js eng10_economy"
   },
   "engines": {
     "node": "^22.13.0 || >=23.4.0"

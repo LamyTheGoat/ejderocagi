@@ -96,7 +96,7 @@ test('HTTP/WS identity, private files and economy isolation survive server resta
   assert.equal((await server.request('/api/economy?accountId=' + a.body.accountId)).status, 401);
   const economic = await server.request('/api/economy?accountId=' + b.body.accountId, { cookie: a.cookie });
   assert.equal(economic.body.economy.accountId, a.body.accountId);
-  assert.equal(economic.body.economy.gold, 0); assert.equal(economic.body.economyReady, false);
+  assert.equal(economic.body.economy.gold, 0); assert.equal(economic.body.economyReady, true); assert.equal(economic.body.week, null);
   assert.equal(economic.headers.get('cache-control'), 'no-store');
   assert.equal(economic.headers.get('access-control-allow-origin'), null);
   assert.equal((await server.request('/api/economy', { method: 'POST', cookie: a.cookie, body: { gold: 9000 } })).status, 405);
@@ -196,7 +196,9 @@ test('Bedesten HTTP: real server settlement, forged ownership rejected, no fake 
     ws.send({ type: 'market_op', op, id, listing: { assetId, price: 10, seller: a.body.handle }, buyer: a.body.handle });
     assert.equal((await ws.next('market_error')).error, 'market_http_only');
   }
-  assert.deepEqual((await server.request('/api/economy', { cookie: a.cookie })).body, before);
+  // ENG-10: `week.serverNow` (ve çapasız biletin nextAt'i) her okumada değişir; ekonomi ve bilet sayısı değişmemeli.
+  const stable = body => ({ ...body, week: body.week && { ...body.week, serverNow: 0, ticket: body.week.ticket && { ...body.week.ticket, nextAt: 0 } } }); // bilet çapası yokken nextAt okuma anına göre
+  assert.deepEqual(stable((await server.request('/api/economy', { cookie: a.cookie })).body), stable(before));
   // Buyer b only has bound starter gold: it cannot pay another player.
   const buyBody = { op: 'buy', requestId: crypto.randomUUID(), listingId: id, quantity: 1, unitPrice: 10 };
   const bound = await post(b.cookie, buyBody);

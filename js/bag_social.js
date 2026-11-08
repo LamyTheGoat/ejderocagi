@@ -195,6 +195,7 @@ function bagModal() {
     <div class="mhead">
       <div><span class="kicker">Ocak Envanteri</span><h2>🎒 Çanta</h2></div>
       <button class="btn sm primary bag-sandik-link" data-open-sandik aria-label="Ocak Sandığı'nı aç: sunucu envanteri">🧰 Ocak Sandığı'nı aç</button>
+      <button class="btn sm ghost bag-eco-link" data-a="eco-status" aria-label="Sunucu kesesi: hafta bileti ve borç">🎟 Bilet & Borç</button>
       <button class="mclose" data-a="mclose" aria-label="Kapat">${typeof ui === 'function' ? ui('x') : '×'}</button>
     </div>
     <div class="bag-grid">
@@ -251,6 +252,7 @@ function socFriendRow(f) {
         <div class="soc-vsmenu">
           <button class="btn sm primary" data-a="soc-vs-topcu" data-h="${hh}">🎯 1v1 Ejder Topçusu Düellosu</button>
           <button class="btn sm primary" data-a="soc-vs-duel" data-h="${hh}">🐉 1v1 Er Meydanı Ejderha Düellosu</button>
+          ${socRankedDuelBtn(hh)}
         </div>` : ''}
     </div>`;
 }
@@ -327,7 +329,8 @@ function socDmTab() {
     </div>
     ${SOC_UI.vsFor === h ? `<div class="soc-vsmenu">
       <button class="btn sm primary" data-a="soc-vs-topcu" data-h="${hh}">🎯 1v1 Ejder Topçusu Düellosu</button>
-      <button class="btn sm primary" data-a="soc-vs-duel" data-h="${hh}">🐉 1v1 Er Meydanı Ejderha Düellosu</button></div>` : ''}
+      <button class="btn sm primary" data-a="soc-vs-duel" data-h="${hh}">🐉 1v1 Er Meydanı Ejderha Düellosu</button>
+      ${socRankedDuelBtn(hh)}</div>` : ''}
     <div class="soc-chatlog" id="soc-chatlog">
       ${log.length ? log.map(m => `<div class="soc-msg ${m.from === socMe() ? 'me' : 'them'}"><span>${socEsc(m.text)}</span></div>`).join('') : '<p class="mute sm">Fısıltı başlat: "selam", "zindan", "vs", "tavla", "kervan", "takas" yazabilirsin.</p>'}
     </div>
@@ -341,6 +344,7 @@ function socInvitesHtml() {
     const label = inv.kind === 'party' ? `🛡️ Parti Daveti: <b>${socEsc(inv.from)}</b> seni partisine çağırıyor!`
       : inv.kind === 'table' ? `🎲 Masa Daveti: <b>${socEsc(inv.from)}</b> seni Kervansaray Kıraathanesi'ne çağırıyor!`
       : inv.kind === 'vs_topcu' ? `🎯 VS Daveti: <b>${socEsc(inv.from)}</b> seni 1v1 Ejder Topçusu Düellosuna çağırıyor!`
+      : inv.ranked ? `🏆 Ödüllü Düello Daveti: <b>${socEsc(inv.from)}</b> seni ödüllü düelloya çağırıyor. Sunucu ejderhanla girersin; ödül sunucuda belirlenir.`
       : `🐉 VS Daveti: <b>${socEsc(inv.from)}</b> seni Er Meydanı Ejderha Düellosuna çağırıyor!`;
     return `<div class="soc-invite"><span>${label}</span><div><button class="btn xs primary" data-a="soc-invite-accept" data-id="${socEsc(inv.id)}">Kabul Et</button><button class="btn xs ghost" data-a="soc-invite-reject" data-id="${socEsc(inv.id)}">Reddet</button></div></div>`;
   }).join('')}</div>`;
@@ -584,14 +588,19 @@ function socStartVsTopcu(handle) {
   } else toast('Topçu Er Meydanı henüz yüklenmedi.');
 }
 
-function socStartVsDuel(handle) {
+// ENG-10: ödüllü düello yalnız sunucu kesesine bağlıyken görünür; vitrin düellosu her zaman kalır.
+function socRankedDuelBtn(hh) {
+  if (typeof ECO_LINK === 'undefined' || !ECO_LINK.linked) return '';
+  return `<button class="btn sm ghost" data-a="soc-vs-duel-ranked" data-h="${hh}" aria-label="Ödüllü düello: ödül sunucuda belirlenir">🏆 Ödüllü Düello <small>(sunucu ejderhan)</small></button>`;
+}
+function socStartVsDuel(handle, ranked) {
   const star = (typeof byId === 'function' && byId(S.star)) || (S.dragons && S.dragons[0]);
   if (!star) { toast('Düello için bir ejderhan olmalı.'); return; }
   if (typeof mpSendDragonDuelInvite !== 'function') { toast('Gerçek Er Meydanı modülü yüklenemedi.'); return; }
   SOC_UI.open = false;
   socRender();
   if (typeof closeModal === 'function' && typeof modalOn !== 'undefined' && modalOn) closeModal();
-  mpSendDragonDuelInvite(handle);
+  mpSendDragonDuelInvite(handle, ranked ? { ranked: true } : undefined);
 }
 
 /* ───────────────────────── Lobi Eşitlemeleri (parti → zindan / PvP / konvoy) ───────────────────────── */
@@ -768,6 +777,7 @@ Object.assign(ACT, {
   'soc-vs-menu'(el) { SOC_UI.vsFor = SOC_UI.vsFor === el.dataset.h ? null : el.dataset.h; socRender(); },
   'soc-vs-topcu'(el) { socStartVsTopcu(el.dataset.h); },
   'soc-vs-duel'(el) { socStartVsDuel(el.dataset.h); },
+  'soc-vs-duel-ranked'(el) { socStartVsDuel(el.dataset.h, true); },
   'soc-invite-accept'(el) {
     const s = ensureSocial();
     const inv = s.invites.find(i => i.id === el.dataset.id);
@@ -785,7 +795,8 @@ Object.assign(ACT, {
     } else if (inv.kind === 'vs_topcu') {
       socStartVsTopcu(inv.from);
     } else if (inv.kind === 'vs_duel') {
-      mpReplyDragonDuelInvite(inv.id, true);
+      // Ödüllü davette sunucu ejderhası yoksa davet açık kalır (geri eklenir), kullanıcı mesajı görür.
+      if (!mpReplyDragonDuelInvite(inv.id, true, { ranked: !!inv.ranked }) && inv.ranked) s.invites.push(inv);
     }
     if (typeof saveGame === 'function') saveGame();
     socRefresh();

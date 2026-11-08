@@ -115,4 +115,20 @@ function weekResult(out, summary, ticket) {
   };
 }
 
-module.exports = { syncTickets, takeTicket, ticketView, runWeek, weekResult, closeDebtWeek };
+// ENG-10 · Salt okunur hafta durumu (GET /api/economy). Kaydı DEĞİŞTİRMEZ: dolum bir kopya üzerinde
+// hesaplanır; gerçek dolum yine yalnız `week.end` komutunda yazılır. Bozuk bilet durumu → ticket:null.
+const SEASON_WEEKS = 20; // js/week.js SEASON ile aynı (testle doğrulanır).
+function weekStatus(game, now, cfg = TICKETS) {
+  if (!game || typeof game !== 'object') return null;
+  let ticket = null;
+  try {
+    const probe = { weekTickets: game.weekTickets === undefined ? undefined : JSON.parse(JSON.stringify(game.weekTickets)) };
+    ticket = ticketView(syncTickets(probe, now, cfg), cfg);
+  } catch (_) { ticket = null; }
+  const debtNow = Number.isSafeInteger(game.debt) && game.debt > 0 ? game.debt : 0;
+  const weeks = count(game.debtWeeks) ? game.debtWeeks : 0;
+  return { week: Number.isSafeInteger(game.week) ? game.week : 1, seasonNo: Number.isSafeInteger(game.seasonNo) ? game.seasonNo : 1,
+    season: SEASON_WEEKS, ticket, debt: debtNow, debtWeeks: weeks, serverNow: now };
+}
+
+module.exports = { syncTickets, takeTicket, ticketView, runWeek, weekResult, closeDebtWeek, weekStatus, SEASON_WEEKS };

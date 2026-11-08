@@ -3,9 +3,12 @@
   // Economic commands have their own queue; neither animation nor movement uses it.
   // Until all dependent game flows are ported, snapshots live here, not in S.
   function createEconomyClient({ fetch: request = root.fetch.bind(root), uuid = () => root.crypto.randomUUID(), onState = () => {} } = {}) {
-    let snapshot = null, loading = null, pending = null, running = null;
+    let snapshot = null, loading = null, pending = null, running = null, week = null, ready = false;
     const accept = data => {
-      if (!snapshot || data.economy.version >= snapshot.version) { snapshot = data.economy; onState(snapshot); }
+      // ENG-10: GET /api/economy salt okunur hafta/bilet/borç görünümünü ve economyReady bayrağını taşır.
+      if (Object.hasOwn(data, 'week')) week = data.week ? { ...data.week, receivedAt: Date.now() } : null;
+      if (Object.hasOwn(data, 'economyReady')) ready = data.economyReady === true;
+      if (data.economy && (!snapshot || data.economy.version >= snapshot.version)) { snapshot = data.economy; onState(snapshot); }
       return snapshot;
     };
     const read = async response => {
@@ -46,7 +49,8 @@
       pending = { requestId: uuid(), expectedVersion: snapshot.version, type, args };
       return sendPending();
     }
-    return { refresh, command, retry: sendPending, get state() { return snapshot; }, get hasPending() { return !!pending; } };
+    return { refresh, command, retry: sendPending, get state() { return snapshot; }, get week() { return week; }, get economyReady() { return ready; },
+      get pendingType() { return pending ? pending.type : null; }, get hasPending() { return !!pending; } };
   }
   if (typeof module !== 'undefined' && module.exports) module.exports = { createEconomyClient };
   else root.createEconomyClient = createEconomyClient;
