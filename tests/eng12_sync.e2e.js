@@ -149,3 +149,52 @@ test('ENG-12 kayıtlı hesap: NPC ejderha + yumurta sunucuda alınır, Sandık v
   expect(errors).toEqual([]);
   await ctx.close();
 });
+
+test('ENG-12 kayıtlı hesap: bina, kuluçka ve Rüstem\'e satış sunucu komutuyla; yerel-only ejderha satışı sunucu altını yazmaz', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1000, height: 768 } });
+  const page = await ctx.newPage(); const errors = []; page.on('pageerror', e => errors.push(String(e)));
+  await page.goto(url + '/api/auth/x/login');
+  await page.goto(url);
+  await page.getByRole('button', { name: /Yeni ocak kur/ }).click();
+  await page.getByRole('button', { name: 'Ocağa gir', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => !!(MP.xVerified && ECO_LINK.linked && ECO_SYNC.active())), { timeout: 20000 }).toBe(true);
+  seedEarnedGold(await page.evaluate(() => MP.accountId), 3000);
+  await page.evaluate(() => ECO_LINK.boot(true)); await idle(page);
+  await closeModals(page);
+  // Bina: Kuluçka Ocağı (yerelde hemen, sunucuda building.buy; sunucu yumurtaları da kuluçkaya girer).
+  await page.evaluate(() => { const tile = S.grid.findIndex(t => t.open && !t.b); UI.view = 'ocak'; UI.tile = tile; ACT.build({ dataset: { k: 'kulucka' } }); });
+  await idle(page);
+  let eco = (await serverEco(page)).economy;
+  expect(eco.game.grid.some(t => t.b === 'kulucka')).toBe(true);
+  expect(await page.evaluate(() => S.grid.some(t => t.b === 'kulucka'))).toBe(true);
+  expect(await page.evaluate(() => S.gold)).toBe(eco.gold);
+  // Yumurta al, kuluçkadan çıkar → egg.incubate.
+  await page.evaluate(() => { UI.view = 'pazar'; UI.stall = 'yumurta'; render(); });
+  await page.locator('[data-a="buyEgg"]').click(); await idle(page);
+  const eggId = await page.evaluate(() => S.eggs.find(e => e.assetId).id);
+  await page.evaluate(id => ACT['egg-out']({ dataset: { id } }), eggId); await idle(page);
+  eco = (await serverEco(page)).economy;
+  const egg = await page.evaluate(id => S.eggs.find(e => e.id === id).assetId, eggId);
+  expect(eco.eggs.find(r => r.assetId === egg).data.inK).toBe(false);
+  // Rüstem: sahiplen, sonra sat → dragon.sell; sunucudan ve yerelden çıkar, altın sunucudan.
+  await page.evaluate(() => { UI.stall = 'ejder'; UI.stallTab = 'al'; render(); });
+  await page.locator('[data-a="buyD"][data-i="0"]').click(); await idle(page);
+  const d = await page.evaluate(() => { const x = S.dragons.find(y => y.assetId); return { id: x.id, assetId: x.assetId }; });
+  await page.evaluate(() => { UI.stallTab = 'sat'; render(); });
+  await page.evaluate(id => { ACT.sell({ dataset: { id: String(id) } }); ACT.sell({ dataset: { id: String(id) } }); }, d.id);
+  expect(await page.evaluate(id => S.dragons.some(x => x.id === id), d.id)).toBe(false);
+  await idle(page);
+  eco = (await serverEco(page)).economy;
+  expect(eco.dragons.some(r => r.assetId === d.assetId)).toBe(false);
+  expect(await page.evaluate(() => S.gold)).toBe(eco.gold);
+  // Yerel-only ejderha (sunucuda yok): satış engellenir, net mesaj; sunucu altını değişmez.
+  const localOnly = await page.evaluate(() => S.dragons.find(x => !x.assetId).id);
+  const goldBefore = eco.gold;
+  await page.evaluate(id => { ACT.sell({ dataset: { id: String(id) } }); ACT.sell({ dataset: { id: String(id) } }); }, localOnly);
+  expect(await page.evaluate(id => S.dragons.some(x => x.id === id), localOnly)).toBe(true);
+  await expect(page.locator('#toasts')).toContainText('yalnız yerel ocağında');
+  await idle(page);
+  expect((await serverEco(page)).economy.gold).toBe(goldBefore);
+  expect(errors).toEqual([]);
+  await ctx.close();
+});
