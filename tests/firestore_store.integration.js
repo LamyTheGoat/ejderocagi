@@ -356,3 +356,71 @@ test('ENG09 Firestore: market read cache (shared open page, per-account fields, 
  await a.executeMarket(seller.accountId,{op:'cancel',requestId:crypto.randomUUID(),listingId:listed.id});cache.invalidate();
  assert.equal((await cache.view(null)).listings.some(l=>l.id===listed.id),false);
 });
+
+test('ENG06 P-D Firestore duel: ledger fighter, lock, replay, exactly-once settlement across instances, K9/K10, debt, void', {timeout:120000}, async t => {
+ const duel=require('../server/duel_service');const DuelEngine=require('../js/duel_engine');const sources=require('../server/economy_sources');
+ let clock=Date.now();
+ const a=openFirestoreStore({...options,now:()=>clock}),b=openFirestoreStore({...options,now:()=>clock});
+ const {Firestore}=require('@google-cloud/firestore');const raw=new Firestore(options);
+ t.after(async()=>{await a.close();await b.close();await raw.terminate();});
+ const users=[];for(let i=0;i<3;i++){const u=await a.createGuest();await a.executeCommand(u.accountId,command('game.start',{},0));users.push(u);}
+ await earnedAccounts(...users.map(u=>u.accountId));
+ for(const u of users)u.dragon=(await a.readEconomy(u.accountId)).dragons[0].assetId;
+ const [x,y,z]=users;
+ const seed=()=>crypto.randomBytes(32).toString('hex');
+ const open=(p,q,extra={})=>a.openMatch({matchId:duel.newMatchId(),seed:seed(),participants:[{accountId:p.accountId,handle:p.handle,dragonAssetId:extra.pd||p.dragon},{accountId:q.accountId,handle:q.handle,dragonAssetId:q.dragon}]}).then(r=>r.match);
+ const play=m=>{const rng=duel.seededRng(m.seed),F=DuelEngine.createFight(m.participants[0].fighter,m.participants[1].fighter),log=[];while(!F.over){log.push({round:F.round+1,actions:['pence','pence']});DuelEngine.resolveRound(F,'pence','pence',rng);}return {log,F};};
+ const settle=(store,u,m)=>store.settleGameplay(u.accountId,{eventId:m.id,kind:duel.SETTLEMENT_KIND});
+ // D-1: başkasının ejderhası ve aynı hesap reddi; savaşçı defterden.
+ await assert.rejects(open(x,y,{pd:y.dragon}),/dragon_not_owned/);
+ await assert.rejects(a.openMatch({matchId:duel.newMatchId(),seed:seed(),participants:[{accountId:x.accountId,dragonAssetId:x.dragon},{accountId:x.accountId,dragonAssetId:x.dragon}]}),/same_account/);
+ await assert.rejects(b.checkDuelEntry(x.accountId,'forged:1'),/dragon_not_owned/);
+ const m1=await open(x,y);
+ const ledger=JSON.parse((await raw.collection('eo_accounts').doc(x.accountId).get()).data().gameJson);
+ assert.deepEqual(m1.participants[0].fighter,duel.fighterFromLedger(ledger,ledger.dragons[0]));
+ // D-2 kilit: diğer örnekte satış, takas teklifi ve ilan reddedilir; ikinci maç açılamaz.
+ const ver=(await b.readEconomy(x.accountId)).version;
+ await assert.rejects(b.executeCommand(x.accountId,command('dragon.sell',{assetId:x.dragon},ver)),/duel_locked_asset/);
+ await assert.rejects(b.executeMarket(x.accountId,{op:'list',requestId:crypto.randomUUID(),kind:'dragon',assetId:x.dragon,quantity:1,unitPrice:5}),/duel_locked_asset/);
+ let tr=(await b.executeTrade(x.accountId,{type:'invite',requestId:crypto.randomUUID(),targetId:z.accountId})).trade;
+ tr=(await b.executeTrade(z.accountId,{type:'accept',requestId:crypto.randomUUID(),tradeId:tr.id})).trade;
+ await assert.rejects(b.executeTrade(x.accountId,{type:'offer',requestId:crypto.randomUUID(),tradeId:tr.id,revision:tr.revision,offer:{dragons:[x.dragon]}}),/duel_locked_asset/);
+ await b.executeTrade(x.accountId,{type:'cancel',requestId:crypto.randomUUID(),tradeId:tr.id});
+ await assert.rejects(open(x,z),/duel_busy/);
+ await assert.rejects(settle(a,x,m1),/match_not_final/);
+ // D-2 kesinleşme + tekrar üretim; D-3 iki örnekten eşzamanlı settle tek ödeme.
+ const {log,F}=play(m1);
+ const [f1,f2]=await Promise.allSettled([a.finalizeMatch(m1.id,{log,forfeit:null}),b.finalizeMatch(m1.id,{log,forfeit:null})]);
+ assert.equal([f1,f2].filter(r=>r.status==='fulfilled').length,1);
+ const final=await b.readMatch(m1.id);
+ assert.equal(final.status,'final');assert.equal(duel.replayMatch(final).winner,F.winner);
+ const winner=final.result.winner===x.accountId?x:y,loser=winner===x?y:x;
+ const gw=(await a.readEconomy(winner.accountId)).gold,gl=(await a.readEconomy(loser.accountId)).gold;
+ const both=await Promise.all([settle(a,winner,m1),settle(b,winner,m1),settle(a,loser,m1),settle(b,loser,m1)]);
+ assert.equal(both.filter(r=>!r.replayed).length,2);
+ assert.equal((await b.readEconomy(winner.accountId)).gold,gw+85);assert.equal((await b.readEconomy(loser.accountId)).gold,gl+20);
+ const wg=JSON.parse((await raw.collection('eo_accounts').doc(winner.accountId).get()).data().gameJson);
+ assert.equal(wg.funds.bound+wg.funds.unknown+wg.funds.earned,wg.gold);
+ assert.doesNotThrow(()=>sources.tradable(wg,{gold:wg.funds.earned,items:[],dragons:[],eggs:[],food:{}}));
+ assert.equal((await raw.collection('eo_accounts').doc(winner.accountId).collection('settlements').get()).size,1);
+ // Kilit kalktı: ejderha yeniden kullanılabilir.
+ assert.equal(await b.checkDuelEntry(x.accountId,x.dragon).then(r=>r.ok),true);
+ // K9 çift limiti: aynı çift günde 3 ödüllü maç; 4. maç ödülsüz.
+ for(let i=0;i<2;i++){const m=await open(x,y);await a.finalizeMatch(m.id,{log:play(m).log,forfeit:null});for(const u of [x,y])assert.equal((await settle(b,u,m)).result.status,'paid');}
+ const m4=await open(x,y);await a.finalizeMatch(m4.id,{log:play(m4).log,forfeit:null});
+ assert.equal((await settle(a,x,m4)).result.reason,'daily_pair_limit');
+ // K10: 1 tur sonra terk → kimse ödül almaz.
+ const m5=await open(x,z);
+ await b.finalizeMatch(m5.id,{log:[{round:1,actions:['savun','savun']}],forfeit:{accountId:z.accountId,reason:'leave'}});
+ assert.deepEqual([(await settle(a,x,m5)).result.reason,(await settle(a,z,m5)).result.reason],['forfeit_too_short','forfeit_leaver']);
+ // D4: borçlu kazanan; ödül önce borcu öder.
+ const zr=raw.collection('eo_accounts').doc(z.accountId);const zg=JSON.parse((await zr.get()).data().gameJson);
+ zg.gold=0;zg.funds={schema:1,bound:0,unknown:0,earned:0};zg.debt=10;await zr.update({gameJson:JSON.stringify(zg)});
+ const m6=await open(z,y);await a.finalizeMatch(m6.id,{log:play(m6).log,forfeit:null});
+ const r6=(await settle(b,z,m6)).result;assert.equal(r6.paidDebt,10);
+ const z2=JSON.parse((await zr.get()).data().gameJson);assert.equal(z2.debt,0);assert.equal(z2.gold,r6.amount-10);assert.equal(z2.funds.earned,r6.amount-10);
+ // Süresi dolan maç void; ödül yok.
+ const m7=await open(x,z);clock+=60*60*1000+1;
+ assert.equal((await a.finalizeMatch(m7.id,{log:[],forfeit:{accountId:z.accountId,reason:'disconnect'}})).status,'void');
+ assert.equal((await settle(b,x,m7)).result.reason,'match_expired');
+});
