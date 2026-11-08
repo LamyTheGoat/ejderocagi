@@ -458,7 +458,7 @@ function wsBroadcast(obj, excludeSocket = null) {
   }
 }
 
-const DUEL_SERVER = createDragonDuelServer({ crypto, WS_CLIENTS, WORLD, encodeWsFrame });
+const DUEL_SERVER = createDragonDuelServer({ crypto, WS_CLIENTS, WORLD, encodeWsFrame, store: ECONOMY }); // ENG06 P-D: ödüllü oda yalnız sunucu deposuyla
 
 const NPC_HANDLES = new Set(['@kuzey_ruzgari', '@leydi_sureyya', '@altin_kervan']);
 

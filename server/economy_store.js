@@ -5,6 +5,7 @@ const crypto = require('node:crypto');
 const {digest,consume,invitationLimits,RETENTION_MS}=require('./service_security');
 const { validateTrade, transition, guardReservation } = require('./trade_service');
 const market = require('./market_service');
+const duel = require('./duel_service');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -70,6 +71,12 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
     CREATE INDEX IF NOT EXISTS market_seller ON market_listings(seller_id, created_at);
     CREATE TABLE IF NOT EXISTS market_holds (id TEXT PRIMARY KEY, json TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS market_receipts (id TEXT PRIMARY KEY, json TEXT NOT NULL);`);
+  // ENG06 P-D: düello maç kaydı, hesap başı aktif maç kilidi, günlük ödül sayacı ve tek seferlik settlement.
+  db.exec(`CREATE TABLE IF NOT EXISTS matches (id TEXT PRIMARY KEY, status TEXT NOT NULL, created_at INTEGER NOT NULL, json TEXT NOT NULL) STRICT;
+    CREATE TABLE IF NOT EXISTS duel_locks (id TEXT PRIMARY KEY, json TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS gameplay_daily (id TEXT PRIMARY KEY, json TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS gameplay_settlements (event_id TEXT NOT NULL, account_id TEXT NOT NULL REFERENCES accounts(account_id), kind TEXT NOT NULL,
+      applied_version INTEGER NOT NULL, created_at INTEGER NOT NULL, result_json TEXT NOT NULL, PRIMARY KEY(event_id, account_id, kind)) STRICT;`);
   function rateInTransaction(key,limit,windowMs) {
     const id='rate:'+digest(key);writeTradeRow('service_state',id,consume(readTradeRow('service_state',id),limit,windowMs,now()));
   }
@@ -115,6 +122,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
       if(command.type==='invite')for(const r of invitationLimits(actor,command.targetId))rateInTransaction(r.key,r.limit,r.windowMs);
       const next = transition(actor, command, trade, games, locks, now());
       market.guardTradeAgainstHolds(next, games, Object.fromEntries(ids.map(p => [p, readTradeRow('market_holds', p)])));
+      for (const p of ids) duel.guardDuelLock(games[p]?.game, readTradeRow('duel_locks', p), now(), { offer: next.status === 'active' ? next.offers[p] : null });
       if(command.type==='reject' && next.status==='rejected')writeTradeRow('service_state','cooldown:'+next.participants[0]+':'+actor,{until:now()+300000});
       for (const p of ids) {
         if (games[p] && games[p].version !== versions[p]) db.prepare('UPDATE game_states SET version=?, game_json=? WHERE account_id=?').run(games[p].version, JSON.stringify(games[p].game), p);
@@ -250,6 +258,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
       const next = reduceCommand(state ? JSON.parse(state.game_json) : null, command, { accountId, seed, now: now() }); // Sunucu saati; istemci zamanı yok.
       guardReservation(state ? JSON.parse(state.game_json) : null, next.game, readTradeRow('trade_locks', accountId), now());
       market.guardMarketHold(next.game, readTradeRow('market_holds', accountId));
+      duel.guardDuelLock(next.game, readTradeRow('duel_locks', accountId), now());
       db.prepare('INSERT INTO game_states VALUES (?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET version=excluded.version, game_json=excluded.game_json').run(accountId, version + 1, JSON.stringify(next.game));
       db.prepare('INSERT INTO command_receipts VALUES (?, ?, ?, ?, ?)').run(accountId, command.requestId, hash, version + 1, JSON.stringify(next.result));
       return { replayed: false, appliedVersion: version + 1, result: next.result, economy: gameEconomy(accountId, version + 1, next.game) };
@@ -277,6 +286,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
         holds[p] = readTradeRow('market_holds', p);
       }
       const out = market.marketTransition(actor, command, { now: now(), listingId, listing, games, handles, tradeLocks, holds });
+      for (const p of ids) duel.guardDuelLock(out.games[p]?.game, readTradeRow('duel_locks', p), now(), { hold: out.holds[p] });
       for (const p of ids) {
         const g = out.games[p];
         if (g && g.version !== versions[p]) db.prepare('UPDATE game_states SET version=?, game_json=? WHERE account_id=?').run(g.version, JSON.stringify(g.game), p);
@@ -302,7 +312,59 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
     return { listings: raw.open.map(l => market.publicListing(l, actor)), mine: raw.mine.map(l => market.publicListing(l, actor)) };
   }
 
+  // ENG06 P-D · Düello. Yalnız sunucu içi (js/duel_server.js) çağırır; HTTP/WS komutu olarak açılmaz.
+  const readGame = id => { const row = db.prepare('SELECT version, game_json FROM game_states WHERE account_id = ?').get(id); return row ? { version: row.version, game: JSON.parse(row.game_json) } : null; };
+  const readMatchRow = id => { const row = db.prepare('SELECT json FROM matches WHERE id = ?').get(id); return row ? JSON.parse(row.json) : null; };
+  const writeMatch = m => db.prepare('INSERT INTO matches VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status, json=excluded.json').run(m.id, m.status, m.createdAt, JSON.stringify(m));
+  function checkDuelEntry(accountId, dragonAssetId) {
+    return atomic(() => {
+      const dragon = duel.duelEntry(readGame(accountId)?.game || null, dragonAssetId, { tradeLock: readTradeRow('trade_locks', accountId), hold: readTradeRow('market_holds', accountId), duelLock: readTradeRow('duel_locks', accountId), now: now() });
+      return { ok: true, dragon: JSON.parse(JSON.stringify(dragon)) };
+    }, 'DEFERRED');
+  }
+  function openMatch(input) {
+    return atomic(() => {
+      if (readMatchRow(input.matchId)) fail('match_id_used');
+      const ids = (input.participants || []).map(p => p.accountId);
+      const pick = fn => Object.fromEntries(ids.map(id => [id, fn(id)]));
+      const out = duel.prepareMatch({ ...input, now: now(), games: pick(id => readGame(id)?.game || null),
+        tradeLocks: pick(id => readTradeRow('trade_locks', id)), holds: pick(id => readTradeRow('market_holds', id)), duelLocks: pick(id => readTradeRow('duel_locks', id)) });
+      writeMatch(out.match);
+      for (const [id, lock] of Object.entries(out.locks)) writeTradeRow('duel_locks', id, lock);
+      return { match: out.match, dragons: out.dragons };
+    });
+  }
+  function finalizeMatch(matchId, final) {
+    return atomic(() => {
+      const next = duel.finalizeTransition(readMatchRow(matchId), final, now());
+      writeMatch(next);
+      for (const p of next.participants) if (readTradeRow('duel_locks', p.accountId)?.matchId === matchId) writeTradeRow('duel_locks', p.accountId, null);
+      return next;
+    });
+  }
+  function settleGameplay(accountId, { eventId, kind } = {}) {
+    if (kind !== duel.SETTLEMENT_KIND || !duel.MATCH_ID.test(eventId || '')) fail('invalid_settlement', 400);
+    return atomic(() => {
+      const saved = db.prepare('SELECT result_json FROM gameplay_settlements WHERE event_id = ? AND account_id = ? AND kind = ?').get(eventId, accountId, kind);
+      if (saved) return { replayed: true, result: JSON.parse(saved.result_json) };
+      const match = readMatchRow(eventId), state = readGame(accountId), day = duel.dayOf(match?.finalAt || now());
+      const dailyKey = 'gameplay-daily:' + duel.dailyId(accountId, day);
+      const out = duel.settleTransition({ match, accountId, game: state?.game || null, version: state?.version ?? 0, daily: readTradeRow('gameplay_daily', dailyKey), now: now() });
+      if (out.game) {
+        guardReservation(state.game, out.game, readTradeRow('trade_locks', accountId), now());
+        market.guardMarketHold(out.game, readTradeRow('market_holds', accountId));
+        duel.guardDuelLock(out.game, readTradeRow('duel_locks', accountId), now());
+        db.prepare('UPDATE game_states SET version=?, game_json=? WHERE account_id=? AND version=?').run(out.version, JSON.stringify(out.game), accountId, state.version);
+      }
+      if (out.daily) writeTradeRow('gameplay_daily', dailyKey, out.daily);
+      db.prepare('INSERT INTO gameplay_settlements VALUES (?,?,?,?,?,?)').run(eventId, accountId, kind, out.version, now(), JSON.stringify(out.result));
+      return { replayed: false, result: out.result };
+    });
+  }
+  function readMatch(matchId) { return atomic(() => readMatchRow(matchId), 'DEFERRED'); }
+
   return Object.freeze({
+    checkDuelEntry, openMatch, finalizeMatch, settleGameplay, readMatch,
     backend: 'sqlite', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
     revokeSession(token) { if (typeof token === 'string') db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token)); },
     close() { db.close(); },

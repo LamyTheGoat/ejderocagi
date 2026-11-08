@@ -3,6 +3,7 @@ const crypto = require('node:crypto');
 const {digest,consume,invitationLimits,RETENTION_MS}=require('./service_security');
 const { validateTrade, transition, guardReservation } = require('./trade_service');
 const market = require('./market_service');
+const duel = require('./duel_service');
 const { validateCommand, reduceCommand, gameEconomy, fail } = require('./economy_commands');
 const SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
@@ -41,6 +42,8 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
   // ENG-07 Bedesten.
   const listings = db.collection('eo_market_listings'), holds = db.collection('eo_market_holds'), marketReceipts = db.collection('eo_market_receipts');
   const parseHold = doc => (doc.exists ? JSON.parse(doc.data().json) : null);
+  // ENG06 P-D düello: maç kaydı, hesap başı aktif maç kilidi, günlük ödül sayacı. Settlement: eo_accounts/{id}/settlements.
+  const matches = db.collection('eo_matches'), duelLocks = db.collection('eo_duel_locks'), daily = db.collection('eo_gameplay_daily');
   async function consumeRate(key,limit,windowMs) {
     const ref=security.doc('rate:'+digest(key));
     return db.runTransaction(async tx=>{const doc=await tx.get(ref);const next=consume(doc.exists?doc.data():null,limit,windowMs,now());tx.set(ref,{...next,kind:'rate',expiresAt:next.until});});
@@ -81,7 +84,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
       const trade = tradeDoc.exists ? JSON.parse(tradeDoc.data().json) : null;
       if (command.type !== 'invite' && (!trade || !trade.participants.includes(actor))) fail('trade_not_found', 404);
       const ids = command.type === 'invite' ? [actor, command.targetId] : trade.participants;
-      const docs = await tx.getAll(...ids.map(p => accounts.doc(p)), ...ids.map(p => locks.doc(p)), ...ids.map(p => holds.doc(p)));
+      const docs = await tx.getAll(...ids.map(p => accounts.doc(p)), ...ids.map(p => locks.doc(p)), ...ids.map(p => holds.doc(p)), ...ids.map(p => duelLocks.doc(p)));
       const games = {}, reservations = {}, versions = {};
       ids.forEach((p, i) => {
         const record = docs[i].exists ? docs[i].data() : null;
@@ -96,6 +99,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
       const nextRates=rates.map((r,i)=>consume(rateDocs[i].exists?rateDocs[i].data():null,r.limit,r.windowMs,now()));
       const next = transition(actor, command, trade, games, reservations, now());
       market.guardTradeAgainstHolds(next, games, Object.fromEntries(ids.map((p, i) => [p, parseHold(docs[i + 2 * ids.length])])));
+      ids.forEach((p, i) => duel.guardDuelLock(games[p]?.game, parseHold(docs[i + 3 * ids.length]), now(), { offer: next.status === 'active' ? next.offers[p] : null }));
       if(command.type==='reject'&&next.status==='rejected')tx.set(security.doc('cooldown:'+next.participants[0]+':'+actor),{kind:'cooldown',expiresAt:now()+300000});
       rates.forEach((r,i)=>tx.set(rateDocs[i].ref,{...nextRates[i],kind:'rate',expiresAt:nextRates[i].until}));
       ids.forEach(p => {
@@ -139,7 +143,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
       if (saved.exists) { const receipt = saved.data(); if (receipt.hash !== hash) fail('request_id_reused', 409); return { ...JSON.parse(receipt.resultJson), replayed: true }; }
       const listing = listingDoc.exists ? JSON.parse(listingDoc.data().json) : null;
       const ids = command.op === 'buy' && listing && listing.sellerId !== actor ? [actor, listing.sellerId] : [actor];
-      const docs = await tx.getAll(...ids.map(p => accounts.doc(p)), ...ids.map(p => locks.doc(p)), ...ids.map(p => holds.doc(p)));
+      const docs = await tx.getAll(...ids.map(p => accounts.doc(p)), ...ids.map(p => locks.doc(p)), ...ids.map(p => holds.doc(p)), ...ids.map(p => duelLocks.doc(p)));
       const games = {}, versions = {}, handles = {}, tradeLocks = {}, current = {};
       ids.forEach((p, i) => {
         const record = docs[i].exists ? docs[i].data() : null;
@@ -149,6 +153,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
         current[p] = parseHold(docs[i + 2 * ids.length]);
       });
       const out = market.marketTransition(actor, command, { now: now(), listingId, listing, games, handles, tradeLocks, holds: current });
+      ids.forEach((p, i) => duel.guardDuelLock(out.games[p]?.game, parseHold(docs[i + 3 * ids.length]), now(), { hold: out.holds[p] }));
       ids.forEach(p => {
         const g = out.games[p];
         if (g && g.version !== versions[p]) tx.update(accounts.doc(p), { version: g.version, gameJson: JSON.stringify(g.game) });
@@ -179,7 +184,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
     const seed = crypto.randomBytes(32); // Stable across SDK transaction retries.
     const accountRef = accounts.doc(accountId), receiptRef = accountRef.collection('commands').doc(command.requestId);
     return db.runTransaction(async tx => {
-      const [account, receipt, reservation, hold] = await tx.getAll(accountRef, receiptRef, locks.doc(accountId), holds.doc(accountId));
+      const [account, receipt, reservation, hold, duelLock] = await tx.getAll(accountRef, receiptRef, locks.doc(accountId), holds.doc(accountId), duelLocks.doc(accountId));
       if (!account.exists) fail('account_missing', 404);
       const record = account.data();
       if (receipt.exists) {
@@ -191,13 +196,75 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
       const next = reduceCommand(record.gameJson ? JSON.parse(record.gameJson) : null, command, { accountId, seed, now: now() }); // Sunucu saati; istemci zamanı yok.
       guardReservation(record.gameJson ? JSON.parse(record.gameJson) : null, next.game, reservation.exists ? JSON.parse(reservation.data().json) : null, now());
       market.guardMarketHold(next.game, parseHold(hold));
+      duel.guardDuelLock(next.game, parseHold(duelLock), now());
       const version = record.version + 1;
       tx.update(accountRef, { version, gameJson: JSON.stringify(next.game) });
       tx.create(receiptRef, { hash, version, type: command.type, createdAt: now(), resultJson: JSON.stringify(next.result) });
       return { replayed: false, appliedVersion: version, result: next.result, economy: gameEconomy(accountId, version, next.game) };
     }, { maxAttempts: 5 });
   }
+  // ENG06 P-D · Düello. Yalnız sunucu içi (js/duel_server.js) çağırır; HTTP/WS komutu olarak açılmaz.
+  const gameOf = doc => (doc.exists && doc.data().gameJson ? JSON.parse(doc.data().gameJson) : null);
+  const matchOf = doc => (doc.exists ? JSON.parse(doc.data().json) : null);
+  const matchDoc = m => ({ json: JSON.stringify(m), status: m.status, createdAt: m.createdAt, expiresAt: m.expiresAt });
+  async function checkDuelEntry(accountId, dragonAssetId) {
+    const [account, lock, hold, duelLock] = await db.getAll(accounts.doc(accountId), locks.doc(accountId), holds.doc(accountId), duelLocks.doc(accountId));
+    const dragon = duel.duelEntry(gameOf(account), dragonAssetId, { tradeLock: parseHold(lock), hold: parseHold(hold), duelLock: parseHold(duelLock), now: now() });
+    return { ok: true, dragon: JSON.parse(JSON.stringify(dragon)) };
+  }
+  async function openMatch(input) {
+    const ids = (input.participants || []).map(p => p.accountId);
+    if (ids.length !== 2 || ids.some(id => typeof id !== 'string' || !id)) fail('invalid_participants', 400);
+    if (!duel.MATCH_ID.test(input.matchId || '')) fail('invalid_match_id', 400);
+    const matchRef = matches.doc(input.matchId);
+    return db.runTransaction(async tx => {
+      const docs = await tx.getAll(matchRef, ...ids.map(p => accounts.doc(p)), ...ids.map(p => locks.doc(p)), ...ids.map(p => holds.doc(p)), ...ids.map(p => duelLocks.doc(p)));
+      if (docs[0].exists) fail('match_id_used');
+      const pick = offset => Object.fromEntries(ids.map((id, i) => [id, offset === 0 ? gameOf(docs[1 + i]) : parseHold(docs[1 + offset * ids.length + i])]));
+      const out = duel.prepareMatch({ ...input, now: now(), games: pick(0), tradeLocks: pick(1), holds: pick(2), duelLocks: pick(3) });
+      tx.create(matchRef, matchDoc(out.match));
+      for (const [id, lock] of Object.entries(out.locks)) tx.set(duelLocks.doc(id), { json: JSON.stringify(lock) });
+      return { match: out.match, dragons: out.dragons };
+    }, { maxAttempts: 5 });
+  }
+  async function finalizeMatch(matchId, final) {
+    if (!duel.MATCH_ID.test(matchId || '')) fail('invalid_match_id', 400);
+    const matchRef = matches.doc(matchId);
+    return db.runTransaction(async tx => {
+      const current = matchOf(await tx.get(matchRef));
+      const next = duel.finalizeTransition(current, final, now());
+      const lockDocs = await tx.getAll(...next.participants.map(p => duelLocks.doc(p.accountId)));
+      tx.set(matchRef, matchDoc(next));
+      lockDocs.forEach((doc, i) => { if (parseHold(doc)?.matchId === matchId) tx.set(duelLocks.doc(next.participants[i].accountId), { json: 'null' }); });
+      return next;
+    }, { maxAttempts: 5 });
+  }
+  async function settleGameplay(accountId, { eventId, kind } = {}) {
+    if (kind !== duel.SETTLEMENT_KIND || !duel.MATCH_ID.test(eventId || '')) fail('invalid_settlement', 400);
+    const accountRef = accounts.doc(accountId), settlementRef = accountRef.collection('settlements').doc(eventId + ':' + kind);
+    return db.runTransaction(async tx => {
+      const [saved, matchSnap, account, lock, hold, duelLock] = await tx.getAll(settlementRef, matches.doc(eventId), accountRef, locks.doc(accountId), holds.doc(accountId), duelLocks.doc(accountId));
+      if (saved.exists) return { replayed: true, result: JSON.parse(saved.data().resultJson) };
+      if (!account.exists) fail('account_missing', 404);
+      const match = matchOf(matchSnap), record = account.data(), game = gameOf(account);
+      const dailyRef = daily.doc(duel.dailyId(accountId, duel.dayOf(match?.finalAt || now())));
+      const dailyDoc = await tx.get(dailyRef);
+      const out = duel.settleTransition({ match, accountId, game, version: record.version, daily: parseHold(dailyDoc), now: now() });
+      if (out.game) {
+        guardReservation(game, out.game, parseHold(lock), now());
+        market.guardMarketHold(out.game, parseHold(hold));
+        duel.guardDuelLock(out.game, parseHold(duelLock), now());
+        tx.update(accountRef, { version: out.version, gameJson: JSON.stringify(out.game) });
+      }
+      if (out.daily) tx.set(dailyRef, { json: JSON.stringify(out.daily) });
+      // tx.create: eşzamanlı ikinci settle çakışır; yeniden denemede kaydı görüp önceki sonucu döndürür.
+      tx.create(settlementRef, { eventId, kind, accountId, appliedVersion: out.version, createdAt: now(), resultJson: JSON.stringify(out.result) });
+      return { replayed: false, result: out.result };
+    }, { maxAttempts: 5 });
+  }
+  async function readMatch(matchId) { return duel.MATCH_ID.test(matchId || '') ? matchOf(await matches.doc(matchId).get()) : null; }
   return {
+    checkDuelEntry, openMatch, finalizeMatch, settleGameplay, readMatch,
     backend: 'firestore', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
     async revokeSession(token) { if (typeof token === 'string') await sessions.doc(hashToken(token)).delete(); },
     async close() { await db.terminate(); },
