@@ -13900,3 +13900,26 @@ button.kir-die{cursor:pointer}
  .sandik-sort{width:118px}
 }
 @media (prefers-reduced-motion:reduce){.sandik-tabs-wrap::before,.sandik-tabs-wrap::after{transition:none}}
+/* ===== ENG-09 düzeltmeleri (yalnız CSS; JS/HTML değişmedi) — ENG09_FIXES_DELIVERY.md ===== */
+/* O-3: tarayıcı varsayılan 8 px body kenar boşluğu, ≤1024'te body{width:100vw} ile birleşip sayfayı 8 px taşırıyordu. */
+body { margin: 0; }
+/* O-4: mobilde yüzen Takas düğmesi üst içeriği (Harita Görünümü, Bedesten NPC metni) örtüyordu.
+   Alt gezinti şeridinin hemen üstüne alınır; sahnenin sonuna aynı yükseklikte boşluk eklenir ki
+   kaydırılan son içerik düğmenin altında kalmasın. */
+@media (max-width: 540px) {
+  .trade-entry { top: auto; bottom: calc(var(--mob-dock-h, 74px) + 10px + env(safe-area-inset-bottom, 0px)); right: 6px; }
+  #stage { padding-bottom: calc(18px + 56px) !important; }
+}
+/* O-5: Bedesten dokunma hedefleri ≥ 44 px (yalnız yükseklik; sekme ve plaka satırları yatay kaydırılabilir kalır). */
+@media (max-width: 760px) {
+  .v-bedesten button, .v-bedesten .vtab, .v-bedesten .plaque { min-height: 44px; }
+}
+/* O-6: 761–1279 px'te üst şerit sığmıyor, "Hafta" bloğu Çanta/Sosyal ve kaynaklarla çakışıyordu.
+   Bu aralıkta yalnız süs öğeleri gizlenir (marka yazısı; arması kalır) ve hafta çubuğu sıkıştırılır. */
+@media (min-width: 761px) and (max-width: 1279px) {
+  #hud { gap: 10px; }
+  .hud-name, #hud .hud-c .ticks { display: none; }
+  .hud-c .wk { font-size: 16px; gap: 4px; }
+  .hud-c .wk b { font-size: 22px; }
+  .hud-c .wk span { font-size: 14px; }
+}
