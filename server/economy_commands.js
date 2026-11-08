@@ -22,6 +22,31 @@ const weekExpose = new vm.Script(`({
   SEASON,
   // endWeek'in kendi checkGoals çağrısı ödül yazmaz; hedefler reduceCommand'da kaynakla ödenir.
   endWeekServer() { const keep = checkGoals; checkGoals = () => []; try { return endWeek(); } finally { checkGoals = keep; } },
+  // ENG-10 (O-2) · Sezon sonu nesil devri: js/season.js seasonStart'ın VERİ kısmının aynısı (DOM, kariyer,
+  // rakip ocak ve albüm sunucuda yok). Yıldız seçimi istemci etkileşimidir; sunucu season.js'teki aday
+  // sırasının ilkini alır (önce yıldızın yavruları, yoksa ocaktaki herhangi bir ejderha; yoksa yıldızsız).
+  // Hiçbir varlık silinmez; yalnız eski yıldız hocalığa çekilir (old/retired/legend, ekipmanı çıkarılır).
+  seasonRollServer() {
+    const n = S.seasonNo || 1, prev = S.star != null ? byId(S.star) : null;
+    const alive = d => !d.dead && !d.old;
+    const kids = prev ? S.dragons.filter(d => alive(d) && d.id !== prev.id && d.pids && d.pids.includes(prev.id)) : [];
+    const list = kids.length ? kids : S.dragons.filter(d => alive(d) && d.id !== S.star);
+    const next = list.length ? list[0] : null;
+    S.seasons = S.seasons || [];
+    S.seasons.push({ n, ending: S.ending, star: prev ? prev.name : null, un: S.un, wins: S.st.wins, champ: prev && prev.champ === 'tac' });
+    if (prev && !prev.old) {
+      prev.old = true; prev.retired = true; prev.legend = true; prev.role = null; for (const s in prev.equip) prev.equip[s] = null;
+      chron(prev.name + ' ' + n + '. sezonun ardından hocalığa çekildi.');
+    }
+    const carryUn = Math.floor(S.un / 2);
+    delete S.flags.demHelped; delete S.flags.demRefused; delete S.flags.demHand;
+    const storyIds = Object.values(STORY).map(x => x.id); S.seenEv = (S.seenEv || []).filter(id => storyIds.includes(id));
+    Object.assign(S, { seasonNo: n + 1, week: 1, over: false, ending: null, tour: null, career: null, races: null, un: carryUn, neg: 0, star: next ? next.id : null });
+    for (const d of S.dragons) { d.task = null; d.fat = 0; d.talked = false; d.fed = false; if (d.id === S.star) delete d.role; }
+    refreshMarket(); refreshArena(); refreshSmith();
+    chron((n + 1) + '. sezon başladı.' + (next ? ' Yıldız: ' + next.name + '.' : '') + ' Ünün yarısı taşındı (+' + carryUn + ').');
+    return { from: n, to: n + 1, star: next ? next.assetId || null : null, retired: prev ? prev.assetId || null : null, carryUn };
+  },
 })`, { filename: 'server_week_expose.js' });
 const expose = new vm.Script(`({
   start() { newGame(); ensureChibi(); return S; },
@@ -210,7 +235,7 @@ function reduceCommand(previous, command, { accountId, seed, now, tickets = TICK
     case 'goals.claim': break;
     case 'week.end': {
       // Bilet önce: biletsiz istek endWeek'i hiç çalıştırmaz. Hata olursa tüm komut geri alınır.
-      if (S.week >= api.SEASON) fail('season_end_unsupported', 409);
+      // ENG-10 (O-2): 20. haftada çıkmaz sokak yok; hafta sonu + nesil devri tek komutta (runWeek).
       const ticket = week.takeTicket(S, now, tickets);
       const { out, summary } = week.runWeek(api, S);
       sources.ensure(S); tagAssets(S, accountId);

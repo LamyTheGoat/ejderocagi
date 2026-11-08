@@ -104,16 +104,44 @@ test('P-C week: age, stage, upkeep from server funds, incubation and starter egg
   assert.ok(r.result.skipped.includes('rivalWeek'));
 });
 
-test('P-C season: week 20 is not advanced, returns explicit code, keeps account and tickets', () => {
-  const g = start(); g.week = 20;
-  const before = plain(g);
-  assert.throws(() => step(g, 'week.end'), err => err.code === 'season_end_unsupported' && err.status === 409);
-  assert.deepEqual(plain(g), before);
-  g.week = 19;
+// ENG-10 (O-2): 20. hafta artık çıkmaz sokak değil; hafta sonu + nesil devri (js/season.js veri kısmı) tek komutta.
+test('P-C season (ENG-10 O-2): week 20 ends the season and starts the next generation; no asset removed, one ticket', () => {
+  let g = start(); g.week = 19;
   const last = step(g, 'week.end').game;
   assert.equal(last.week, 20); assert.equal(last.over, false); assert.equal(last.ending, null);
-  assert.throws(() => step(last, 'week.end', {}, T0 + 10 * HOUR), /season_end_unsupported/);
-  assert.equal(step(last, 'goals.claim').game.dragons.length, 1); // Hesap ve oyun yerinde.
+  last.un = 41;
+  const before = plain(last), oldStar = last.star, ticketsBefore = last.weekTickets.count;
+  const r = step(last, 'week.end', {}, T0 + 10 * HOUR);
+  g = r.game;
+  assert.equal(g.seasonNo, 2); assert.equal(g.week, 1); assert.equal(g.over, false); assert.equal(g.ending, null);
+  assert.equal(r.result.week.from, 20); assert.equal(r.result.week.to, 1);
+  assert.equal(r.result.season.from, 1); assert.equal(r.result.season.to, 2); assert.equal(r.result.season.carryUn, 20);
+  assert.equal(g.un, 20, 'ünün yarısı taşındı');
+  assert.equal(g.seasons.length, 1); assert.equal(g.seasons[0].ending, 'sezon');
+  // Varlık silinmez: aynı ejderha/yumurta/eşya kimlikleri; eski yıldız hocalığa çekilir.
+  for (const k of ['dragons', 'eggs', 'inv']) assert.deepEqual(g[k].map(x => x.assetId).sort(), before[k].map(x => x.assetId).sort(), k);
+  const retired = g.dragons.find(d => d.id === oldStar);
+  assert.equal(retired.old, true); assert.equal(retired.retired, true); assert.equal(retired.legend, true);
+  assert.equal(r.result.season.retired, retired.assetId);
+  // Başka aday yok → yıldızsız sezon (season.js ile aynı: aday yoksa null).
+  assert.equal(g.star, null); assert.equal(r.result.season.star, null);
+  assert.equal(r.result.ticket.count <= ticketsBefore + 10, true);
+  invariants(g);
+  // Yeni sezonda hafta normal ilerler; çıkmaz sokak yok.
+  const next = step(g, 'week.end', {}, T0 + 20 * HOUR).game;
+  assert.equal(next.week, 2); assert.equal(next.seasonNo, 2); invariants(next);
+  assert.equal(step(next, 'goals.claim').game.dragons.length, before.dragons.length);
+});
+
+test('P-C season (ENG-10 O-2): star children are preferred as the next star, like js/season.js', () => {
+  const g = start(); g.week = 20; g.star = g.dragons[0].id;
+  const st = g.dragons[0];
+  const kid = { ...plain(st), id: 99, name: 'Yavru', assetId: 'acct:dragon:99', pids: [st.id], old: false, dead: false, funding: 'bound' };
+  const other = { ...plain(st), id: 98, name: 'Başka', assetId: 'acct:dragon:98', pids: [], old: false, dead: false, funding: 'bound' };
+  g.dragons.push(other, kid);
+  const r = step(g, 'week.end', {}, T0 + HOUR);
+  assert.equal(r.game.star, 99); assert.equal(r.result.season.star, 'acct:dragon:99');
+  assert.equal(r.game.dragons.length, 3);
 });
 
 test('P-D4 debt: balance stops at 0, debt accrues, debtWeeks counts, bankruptcy never triggers', () => {

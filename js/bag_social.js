@@ -109,8 +109,8 @@ function socRefresh() {
 /* ───────────────────────── HUD: ÇANTA + SOSYAL + MİNİ PARTİ ÇUBUĞU ───────────────────────── */
 function hudBagSocialHtml() {
   const n = typeof S !== 'undefined' && S ? socNotifyCount() : 0;
-  return `<button class="hud-bag-btn" data-a="bag-open" title="Çanta / Envanter">🎒 <b>Çanta</b></button>`
-    + `<button class="hud-soc-btn" data-a="social-drawer-open" title="Arkadaşlar, Parti ve Mesajlar">👥 <b>Sosyal</b>${n ? ' <i class="soc-dot" title="Okunmamış mesaj / davet">🔴</i>' : ''}</button>`;
+  return `<button class="hud-bag-btn" data-a="bag-open" title="Çanta / Envanter" aria-label="Çanta">🎒 <b>Çanta</b></button>`
+    + `<button class="hud-soc-btn" data-a="social-drawer-open" title="Arkadaşlar, Parti ve Mesajlar" aria-label="Sosyal">👥 <b>Sosyal</b>${n ? ' <i class="soc-dot" title="Okunmamış mesaj / davet">🔴</i>' : ''}</button>`;
 }
 
 function partyBarHtml() {

@@ -954,6 +954,8 @@ async function handleHttp(req, res) {
     if (!req.identity) return sendJson(res, 401, { ok: false, error: 'guest_session_required' });
     const command = await readJsonBody(req, false, 8192);
     const applied = await ECONOMY.executeCommand(req.identity.accountId, command);
+    // ENG-10 (O-7): ilan önizlemesi değiştiyse okuma önbelleği bırakılır ve açık Bedesten ekranları yenilenir.
+    if (applied.listingsRefreshed) marketChanged(null);
     return sendJson(res, 200, { ok: true, ...applied });
   }
   if (pathname === '/api/economy') {

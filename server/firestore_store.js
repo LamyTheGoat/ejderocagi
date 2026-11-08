@@ -195,12 +195,18 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
       if (record.version !== command.expectedVersion) fail('version_conflict', 409);
       const next = reduceCommand(record.gameJson ? JSON.parse(record.gameJson) : null, command, { accountId, seed, now: now() }); // Sunucu saati; istemci zamanı yok.
       guardReservation(record.gameJson ? JSON.parse(record.gameJson) : null, next.game, reservation.exists ? JSON.parse(reservation.data().json) : null, now());
-      market.guardMarketHold(next.game, parseHold(hold));
+      const heldNow = parseHold(hold);
+      market.guardMarketHold(next.game, heldNow);
       duel.guardDuelLock(next.game, parseHold(duelLock), now());
+      // ENG-10 (O-7): ilan önizlemesi aynı transaction'da tazelenir (tüm okumalar yazmalardan önce).
+      const listingIds = heldNow?.listings?.length ? heldNow.listings : [];
+      const listed = listingIds.length ? (await tx.getAll(...listingIds.map(id => listings.doc(id)))).filter(d => d.exists).map(d => JSON.parse(d.data().json)) : [];
+      const refreshed = market.refreshListings(listed, next.game, now());
       const version = record.version + 1;
       tx.update(accountRef, { version, gameJson: JSON.stringify(next.game) });
+      for (const l of refreshed) tx.update(listings.doc(l.id), { json: JSON.stringify(l) });
       tx.create(receiptRef, { hash, version, type: command.type, createdAt: now(), resultJson: JSON.stringify(next.result) });
-      return { replayed: false, appliedVersion: version, result: next.result, economy: gameEconomy(accountId, version, next.game) };
+      return { replayed: false, appliedVersion: version, result: next.result, economy: gameEconomy(accountId, version, next.game), listingsRefreshed: refreshed.length };
     }, { maxAttempts: 5 });
   }
   // ENG06 P-D · Düello. Yalnız sunucu içi (js/duel_server.js) çağırır; HTTP/WS komutu olarak açılmaz.

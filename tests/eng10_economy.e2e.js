@@ -122,3 +122,31 @@ test('ENG-10 ödüllü düello: davet sunucu ejderhasıyla gider, sonuç sunucud
   for (const p of pages) await p.context().close();
 });
 
+
+test('ENG-10 yerleşim: 375/768/900/1000 px taşma yok, üst şerit çakışmıyor, bilet satırı görünür', async ({ browser }) => {
+  for (const w of [375, 768, 900, 1000]) {
+    const mobile = w < 761;
+    const ctx = await browser.newContext({ viewport: { width: w, height: mobile ? 812 : 768 }, isMobile: mobile, hasTouch: mobile });
+    const page = await ctx.newPage(); const errors = []; page.on('pageerror', e => errors.push(String(e)));
+    await enter(page); await startServerOcak(page);
+    await closeModals(page); await page.evaluate(() => render());
+    const m = await page.evaluate(() => {
+      const vis = el => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden'; };
+      const inter = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+      const name = el => (el.getAttribute('aria-label') || el.textContent || el.className || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+      const els = [...document.querySelectorAll('#hud .hud-bag-btn, #hud .hud-soc-btn, #hud .wk, #hud .ticks, #hud .hud-r > *, #hud .hud-chibi-btn, #hud .hud-name')].filter(vis);
+      const ov = [];
+      for (let i = 0; i < els.length; i++) for (let j = i + 1; j < els.length; j++) if (inter(els[i].getBoundingClientRect(), els[j].getBoundingClientRect())) ov.push(name(els[i]) + ' x ' + name(els[j]));
+      const eco = document.querySelector('.endweek .eco-week');
+      const er = eco.getBoundingClientRect();
+      return { vw: innerWidth, scroll: document.documentElement.scrollWidth, ov, eco: vis(eco) ? eco.textContent : null, ecoInside: er.right <= innerWidth + 0.5 && er.left >= -0.5 };
+    });
+    expect(m.scroll, String(w)).toBe(m.vw);
+    expect(m.ov, String(w)).toEqual([]);
+    expect(m.eco, String(w)).toBe('🎟 2/8');
+    expect(m.ecoInside, String(w)).toBe(true);
+    await page.screenshot({ path: path.join(__dirname, '../test-results/eng10', `w${w}.png`) });
+    expect(errors).toEqual([]);
+    await ctx.close();
+  }
+});

@@ -257,11 +257,16 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
       // Phase-one developer fixtures are not imported into authoritative games.
       const next = reduceCommand(state ? JSON.parse(state.game_json) : null, command, { accountId, seed, now: now() }); // Sunucu saati; istemci zamanı yok.
       guardReservation(state ? JSON.parse(state.game_json) : null, next.game, readTradeRow('trade_locks', accountId), now());
-      market.guardMarketHold(next.game, readTradeRow('market_holds', accountId));
+      const hold = readTradeRow('market_holds', accountId);
+      market.guardMarketHold(next.game, hold);
       duel.guardDuelLock(next.game, readTradeRow('duel_locks', accountId), now());
+      // ENG-10 (O-7): ilan önizlemesi satıcının güncel durumuyla aynı transaction'da tazelenir.
+      const listed = hold?.listings?.length ? hold.listings.map(id => readTradeRow('market_listings', id)).filter(Boolean) : [];
+      const refreshed = market.refreshListings(listed, next.game, now());
+      for (const l of refreshed) db.prepare('UPDATE market_listings SET json = ? WHERE id = ?').run(JSON.stringify(l), l.id);
       db.prepare('INSERT INTO game_states VALUES (?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET version=excluded.version, game_json=excluded.game_json').run(accountId, version + 1, JSON.stringify(next.game));
       db.prepare('INSERT INTO command_receipts VALUES (?, ?, ?, ?, ?)').run(accountId, command.requestId, hash, version + 1, JSON.stringify(next.result));
-      return { replayed: false, appliedVersion: version + 1, result: next.result, economy: gameEconomy(accountId, version + 1, next.game) };
+      return { replayed: false, appliedVersion: version + 1, result: next.result, economy: gameEconomy(accountId, version + 1, next.game), listingsRefreshed: refreshed.length };
     });
   }
 

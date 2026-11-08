@@ -13941,3 +13941,20 @@ body { margin: 0; }
 .eco-modal .eco-rebuild { margin-top: 10px; padding: 10px; border: 1px dashed rgba(120, 60, 20, .5); border-radius: 10px; }
 .eco-modal .btn, .eco-modal .mbtns .btn { min-height: 44px; }
 .soc-vsmenu [data-a="soc-vs-duel-ranked"] { min-height: 44px; }
+/* ENG-10 (O-6): 761–999 px'te üst şerit hâlâ taşıyordu ("Sosyal" × "Hafta", "Hafta" × altın). Bu aralıkta yalnız
+   ikincil metin gizlenir: terbiyeci adı/kudret (avatar kalır, düğme aynı), haftalık gider notu (title'da durur),
+   Çanta/Sosyal etiket boşlukları daralır. Bilgi kaybolmaz: gider altının title'ında, kudret Terbiyeci ekranında. */
+@media (min-width: 761px) and (max-width: 999px) {
+  #hud .hud-ch-txt, #hud .hud-r .res small { display: none; }
+  #hud { gap: 6px; }
+  #hud .hud-r { gap: 6px; }
+}
+/* 761–899 px: Çanta ve Sosyal yalnız simge (aria-label ve title metni korur). */
+@media (min-width: 761px) and (max-width: 899px) {
+  #hud .hud-bag-btn b, #hud .hud-soc-btn b { display: none; }
+  #hud .hud-bag-btn, #hud .hud-soc-btn { margin-left: 4px; padding: 4px 8px; }
+}
+/* 761–819 px: yine sığmıyor; geçici "Kaydedildi" rozeti ve mevsim adı gizlenir (mevsim, hafta bloğunun title'ında okunur). */
+@media (min-width: 761px) and (max-width: 819px) {
+  #hud .save-badge, #hud .hud-c .wk .ssn { display: none; }
+}

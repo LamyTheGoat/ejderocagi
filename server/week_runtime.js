@@ -41,7 +41,9 @@ function takeTicket(game, now, cfg = TICKETS) {
 
 // `api` VM çalışma zamanıdır (makeRuntime({week:true})). `S` onun durum nesnesidir.
 function runWeek(api, S) {
-  if (S.week >= api.SEASON) fail('season_end_unsupported'); // Sezon sonu/nesil geçişi kapsam dışı.
+  // ENG-10 (O-2): son haftada endWeek oyunu 'sezon' sonuyla bitirir (istemcideki gibi); sunucu ardından
+  // nesil devrini (api.seasonRollServer, js/season.js seasonStart'ın veri kısmı) uygular. Çıkmaz sokak yok.
+  const seasonEnd = S.week >= api.SEASON;
   const debtBefore = debt.debtOf(S);
   const gold0 = S.gold, food0 = { ...S.food }, un0 = S.un, week0 = S.week;
   const deltas = [];
@@ -58,7 +60,9 @@ function runWeek(api, S) {
   let out;
   try { out = api.endWeekServer(); }
   finally { Object.defineProperty(S, 'gold', { value: gold0, writable: true, enumerable: true, configurable: true }); }
-  // İflas/sezon bitişi sunucuda onaylı değil; oluşursa komut tamamen geri alınır.
+  let season = null;
+  if (seasonEnd && S.over && S.ending === 'sezon') season = api.seasonRollServer();
+  // İflas ya da beklenmeyen bitiş sunucuda onaylı değil; oluşursa komut tamamen geri alınır.
   if (S.over || S.ending) fail('week_end_state_invalid');
 
   // Altın: endWeek sırasıyla uygula.
@@ -88,6 +92,7 @@ function runWeek(api, S) {
       upkeep: { charged, paid, unpaid, debit },
       income: { amount: income, source: 'unknown', paidDebt },
       debt: { before: debtBefore },
+      ...(season ? { season } : {}),
     },
   };
 }
@@ -111,7 +116,7 @@ function weekResult(out, summary, ticket) {
     ...summary, ticket, hatchReady, events,
     report: out.report.map(r => ({ dragonAssetId: r.d.assetId || null, lines: [...r.lines] })),
     gen: [...out.gen],
-    skipped: ['rivalWeek', 'ordersWeek', 'careerCheck', 'eventChoices', 'seasonEnd'],
+    skipped: summary.season ? ['rivalWeek', 'ordersWeek', 'careerCheck', 'eventChoices', 'seasonStarPick', 'careerSetup'] : ['rivalWeek', 'ordersWeek', 'careerCheck', 'eventChoices'],
   };
 }
 

@@ -47,6 +47,11 @@ function validateMarket(input) {
   if (!Object.hasOwn(SHAPES, input.op)) fail('unsupported_market_operation', 400);
   const keys = ['op', 'requestId', ...SHAPES[input.op]];
   if (input.op === 'list') keys.push(input.kind === 'food' ? 'foodKey' : 'assetId');
+  // ENG-10 (O-7): alıcı gördüğü ilan sürümünü isteğe bağlı bağlar; ilan o arada değiştiyse alım reddedilir.
+  if (input.op === 'buy' && Object.hasOwn(input, 'stateVersion')) {
+    if (!Number.isSafeInteger(input.stateVersion) || input.stateVersion < 1) fail('invalid_state_version', 400);
+    keys.push('stateVersion');
+  }
   if (Object.keys(input).length !== keys.length || keys.some(k => !Object.hasOwn(input, k))) fail('unknown_market_field', 400);
   if (!uuid(input.requestId)) fail('invalid_request_id', 400);
   const qtyMax = input.op === 'list' && input.kind !== 'food' ? 1 : LIMITS.maxFoodQuantity;
@@ -125,7 +130,7 @@ function publicListing(l, viewer) {
   const mine = l.sellerId === viewer;
   return { id: l.id, kind: l.kind, title: l.title, preview: l.preview, seller: l.sellerHandle, mine,
     quantity: l.quantity, remaining: l.remaining, unitPrice: l.unitPrice, sold: l.sold, status: l.status,
-    createdAt: l.createdAt, updatedAt: l.updatedAt, stateVersion: l.stateVersion, foodKey: l.foodKey,
+    createdAt: l.createdAt, updatedAt: l.updatedAt, stateVersion: l.stateVersion, foodKey: l.foodKey, unavailable: l.unavailable || null,
     ...(mine ? { assetId: l.assetId, sales: l.sales } : {}) };
 }
 function releaseHold(hold, listing, quantity) {
@@ -203,6 +208,7 @@ function marketTransition(actor, command, ctx) {
   if (listing.kind !== 'food' && command.quantity !== 1) fail('invalid_quantity', 400);
   if (command.quantity > listing.remaining) fail('listing_quantity_unavailable');
   if (command.unitPrice !== listing.unitPrice) fail('listing_price_mismatch');
+  if (command.stateVersion !== undefined && command.stateVersion !== listing.stateVersion) fail('listing_changed');
   if (!games[actor]?.game) fail('game_not_started');
   if (!games[seller]?.game) fail('listing_unavailable');
   assertNoDebt(games[actor].game);
@@ -239,6 +245,26 @@ function marketTransition(actor, command, ctx) {
     listing: publicListing(listing, actor) } };
 }
 
+// ENG-10 (O-7) · Satıcının durumu bir komutla (week.end, kuluçka vb.) değişince açık ilanların önizlemesi ve
+// "şu an alınamaz" nedeni AYNI transaction'da güncellenir; değişen ilanın stateVersion'ı artar. Sahiplik
+// kuralı (guardMarketHold) değişmez; satın almada kullanılabilirlik yine yeniden denetlenir.
+function refreshListings(rows, game, now) {
+  const changed = [];
+  if (!game) return changed;
+  for (const l of rows) {
+    if (!l || l.status !== 'open' || l.kind === 'food') continue;
+    const found = locate(game, l.assetId);
+    if (!found) continue;
+    const view = preview(found.key, found.row);
+    const blocked = unavailable(found.key, found.row, game) || null;
+    if (JSON.stringify(view) === JSON.stringify(l.preview) && (l.unavailable || null) === blocked) continue;
+    const next = { ...l, preview: view, updatedAt: now, stateVersion: l.stateVersion + 1 };
+    if (blocked) next.unavailable = blocked; else delete next.unavailable;
+    changed.push(next);
+  }
+  return changed;
+}
+
 // Eski arayüz: testler ve olası çağıranlar için ince adaptör. Kimlik oturumdan gelir.
 function createMarketService({ store }) {
   async function execute(identity, input) {
@@ -249,4 +275,4 @@ function createMarketService({ store }) {
 }
 
 module.exports = { createMarketService, validateMarket, marketTransition, guardMarketHold, guardTradeAgainstHolds,
-  publicListing, listingIdFor, emptyHold, LIMITS, MARKET_FEE_BPS };
+  publicListing, listingIdFor, emptyHold, refreshListings, LIMITS, MARKET_FEE_BPS };

@@ -74,7 +74,8 @@
       refresh, retry,
       list: (kind, idOrKey, quantity, unitPrice) => send('list', { kind, ...(kind === 'food' ? { foodKey: idOrKey } : { assetId: idOrKey }), quantity, unitPrice }),
       cancel: listingId => send('cancel', { listingId }),
-      buy: (listing, quantity) => send('buy', { listingId: listing.id, quantity, unitPrice: listing.unitPrice }),
+      // ENG-10 (O-7): alıcının gördüğü ilan sürümü bağlanır; ilan o arada değiştiyse sunucu 'listing_changed' döner.
+      buy: (listing, quantity) => send('buy', { listingId: listing.id, quantity, unitPrice: listing.unitPrice, ...(Number.isSafeInteger(listing.stateVersion) ? { stateVersion: listing.stateVersion } : {}) }),
       get state() { return { accountId, handle, listings, mine, economy, pending, busy, error, notice, loaded }; },
     };
     return api;

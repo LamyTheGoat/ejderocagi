@@ -261,10 +261,11 @@ test('ENG06 P-C Firestore: week.end ticket, concurrency, replay, rollback, egg, 
  tr=(await b.executeTrade(peer.accountId,c('accept',{tradeId:tr.id}))).trade;
  await assert.rejects(a.executeTrade(u.accountId,c('offer',{tradeId:tr.id,revision:tr.revision,offer:{}})),/debt_outstanding/);
  await a.executeTrade(u.accountId,c('cancel',{tradeId:tr.id}));
- // Season end: week 20 is refused with an explicit code; the account stays.
- g=await load();g.week=20;await save(g);clock+=TICKETS.refillMs;
- await assert.rejects(a.executeCommand(u.accountId,command('week.end',{},v)),err=>err.code==='season_end_unsupported');
- assert.equal((await a.readEconomy(u.accountId)).version,v);assert.equal((await load()).week,20);
+ // ENG-10 (O-2): week 20 ends the season and starts the next generation (no dead end); assets stay.
+ g=await load();g.week=20;const ids=g.dragons.map(d=>d.assetId).sort();await save(g);clock+=TICKETS.refillMs;
+ const rolled=await a.executeCommand(u.accountId,command('week.end',{},v));
+ assert.equal(rolled.result.season.to,2);g=await load();assert.equal(g.week,1);assert.equal(g.seasonNo,2);assert.equal(g.over,false);
+ assert.deepEqual(g.dragons.map(d=>d.assetId).sort(),ids);
 });
 
 test('ENG07 Firestore Bedesten: list/cancel, partial and offline sale, concurrency, idempotency, provenance, holds and debt', {timeout:120000}, async t => {

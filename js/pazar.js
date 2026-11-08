@@ -399,6 +399,8 @@ const PAZAR_ACT = {
    Sahte/tohum ilan yoktur: sunucuda ilan yoksa boş durum gösterilir. */
 function bedMarket() { return typeof MARKET_CLIENT !== 'undefined' ? MARKET_CLIENT : null; }
 const BED_KIND_CAT = { dragon: 'dragon', egg: 'egg', item: 'equip', food: 'food' };
+// ENG-10 (O-7): sunucunun ilan üzerinde işaretlediği "şu an alınamaz" nedeni (önizleme güncel tutulur).
+const BED_UNAVAILABLE = { asset_unavailable: 'görevde, kuluçkada, kilitli ya da yaşlı', asset_equipped: 'ekipmanlı ya da kuşanılmış' };
 const BED_MSG = {
   gold_not_transferable: 'Yalnız kazanılmış (earned) altınla başka oyuncudan alınabilir.',
   insufficient_gold: 'Sunucu kesende yeterli altın yok.',
@@ -420,6 +422,7 @@ const BED_MSG = {
   listing_not_owned: 'Bu ilan senin değil.',
   listing_quantity_unavailable: 'İlanda bu kadar miktar kalmadı.',
   listing_price_mismatch: 'İlan fiyatı beklenenden farklı; listeyi yenile.',
+  listing_changed: 'İlan sen bakarken değişti (yaş, evre ya da durum). Güncel hâli gösterildi; yeniden kontrol edip onayla.',
   invalid_price: 'Fiyat 1 ile 2.000.000.000 arasında tam sayı olmalı.',
   invalid_quantity: 'Miktar geçersiz.',
   invalid_total: 'Toplam tutar sınırı aşıyor.',
@@ -580,12 +583,12 @@ function bedestenView() {
             art: bedestenArtFor(L),
             title: esc(bedTitle(L)) + (L.kind === 'food' ? ` <small>(Kalan: ${L.remaining})</small>` : ''),
             sub: `<span class="tag">${bedestenSellerAvatar(L.seller)}${esc(L.seller || 'Oyuncu')}</span>${L.mine ? ' · <b>Senin ilanın</b>' : ''}`,
-            body: `<small class="idesc">${L.kind === 'food' ? 'Birim fiyat' : 'Fiyat'}: ${L.unitPrice} altın · Satıcı belirledi</small>${qtyHtml}`,
+            body: `<small class="idesc">${L.kind === 'food' ? 'Birim fiyat' : 'Fiyat'}: ${L.unitPrice} altın · Satıcı belirledi</small>${L.unavailable ? `<small class="idesc bad">⌛ ${L.mine ? 'Bu ilan' : 'Bu varlık'} şu an satın alınamaz (${esc(BED_UNAVAILABLE[L.unavailable] || 'kullanımda')}).</small>` : ''}${qtyHtml}`,
             price: L.unitPrice * q,
             btn: L.mine ? (armed ? 'Geri çekmeyi onayla' : 'Geri Çek') : (armed ? `Onayla: ${L.unitPrice * q} altın` : 'Satın Al'),
             btnCls: L.mine ? 'ghost' : 'primary',
             act: L.mine ? 'bed-cancel' : 'bed-buy',
-            data: `data-id="${esc(L.id)}" ${locked ? 'disabled' : ''}`
+            data: `data-id="${esc(L.id)}" ${locked || (L.unavailable && !L.mine) ? 'disabled' : ''}`
           });
         })
       : `<div class="vempty">${st.loaded ? 'Şu anda bu kategoride gerçek oyuncu ilanı yok. "Pazara İlan Ver" sekmesinden kendi kazandığın malı satışa çıkarabilirsin.' : 'İlanlar sunucudan okunuyor…'}</div>`;
