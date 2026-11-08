@@ -332,6 +332,29 @@
     send('egg.incubate', { assetId: e.assetId, enabled: !!e.inK }, { soft: true });
   });
 
+  // QA YÜKSEK-2 · Sunucuya bağlı ejderha yerel yollarla (müzayedeye çıkarma, siparişe verme, arena "Locadan Bir
+  // Teklif") satılamaz/verilemez: bu yollar yalnız yerel altın yazar ve sunucu kaydı yerinde kalırdı (tekrar tekrar
+  // verme). Yerel-only ejderha serbest. Bağlı ejderha Rüstem'e (dragon.sell) ya da Bedesten'e konabilir.
+  const LINKED_DRAGON = 'Bu ejderha Ocak Sandığı\'nda (sunucuda) kayıtlı; müzayede, sipariş ya da arena teklifiyle verilemez. Rüstem\'e satabilir ya da Bedesten\'e koyabilirsin.';
+  const linkedDragon = id => { const d = typeof byId === 'function' ? byId(id) : null; return d && d.assetId ? d : null; };
+  const refuse = () => { if (typeof UI !== 'undefined') UI.sellArm = null; if (typeof SFX !== 'undefined') SFX.play('error'); say(LINKED_DRAGON, 'warn'); };
+  wrap('auc-sell', (orig, el) => { if (linkedDragon(el.dataset.id)) { refuse(); return; } return orig(el); });
+  wrap('orderGive', (orig, el) => { if (linkedDragon(el.dataset.id)) { refuse(); if (typeof render === 'function') render(); return; } return orig(el); });
+  // Müzayede salonu açıkken (eski bir modal) bağlı ejderha satışı kapanırsa da yazılmasın.
+  if (typeof aucOpen === 'function') {
+    const keepOpen = aucOpen;
+    root.aucOpen = function (L, sellD) { if (active() && sellD && sellD.assetId) { refuse(); if (typeof closeModal === 'function') closeModal(); return; } return keepOpen.apply(this, arguments); };
+  }
+  if (typeof FIGHT_POST !== 'undefined' && Array.isArray(FIGHT_POST)) {
+    const ev = FIGHT_POST.find(e => e && e.id === 'teklif');
+    const sale = ev && ev.opts && ev.opts[0];
+    if (sale && typeof sale.fx === 'function') {
+      const keepReq = sale.req, keepFx = sale.fx;
+      sale.req = c => (active() && c && c.d && c.d.assetId ? 'Ocak Sandığı\'ndaki ejderha burada satılamaz' : keepReq ? keepReq(c) : null);
+      sale.fx = c => (active() && c && c.d && c.d.assetId ? (refuse(), `${c.d.name} sunucu hesabında kayıtlı; kâtibe "satılık değil" dedin.`) : keepFx(c));
+    }
+  }
+
   root.ECO_SYNC = {
     active, apply, send, purse,
     onLinkChange() { apply(); },
