@@ -24,9 +24,9 @@ const measure = page => page.evaluate(() => {
   const vis = el => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden' && r.bottom > 0 && r.top < innerHeight; };
   const inter = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
   const name = el => (el.getAttribute('aria-label') || el.textContent || el.className || '').trim().replace(/\s+/g, ' ').slice(0, 30);
-  const te = document.querySelector('.trade-entry'), tb = te.getBoundingClientRect();
-  // Kaydırma başında: HUD, alt gezinti, Ocak'ın üst denetimleri (QA: "Harita Görünümü") ve Bedesten metni/düğmeleri
-  // Takas düğmesinin altında kalmamalı. Kaydırılan listeler için aşağıdaki endHits denetimi geçerlidir.
+  // ENG-11: kalıcı Takas düğmesi kaldırıldı. Aynı örtüşme denetimi artık yalnız olay anında çıkan takas bildirimi (.trade-pop)
+  // görünürse uygulanır; görünmüyorsa ölçülecek kutu boştur ve örtüşme olamaz.
+  const te = document.querySelector('.trade-pop:not([hidden])'), tb = te ? te.getBoundingClientRect() : { left: 0, right: 0, top: 0, bottom: 0 };
   const top = [...document.querySelectorAll('#stage button')].filter(el => /Harita Görünümü|Nöbet Dağıt/.test(el.textContent));
   const fixedHits = [...document.querySelectorAll('#hud *, #dock *, .v-bedesten p, .v-bedesten button'), ...top]
     .filter(el => vis(el) && inter(tb, el.getBoundingClientRect())).map(name);
@@ -41,16 +41,17 @@ const measure = page => page.evaluate(() => {
   const hudOverlap = [];
   for (let i = 0; i < hudEls.length; i++) for (let j = i + 1; j < hudEls.length; j++) if (inter(hudEls[i].getBoundingClientRect(), hudEls[j].getBoundingClientRect())) hudOverlap.push(name(hudEls[i]) + ' x ' + name(hudEls[j]));
   return { vw: innerWidth, docScroll: document.documentElement.scrollWidth, bodyMargin: getComputedStyle(document.body).marginLeft,
-    fixedHits, endHits, small, tabs: tabs ? { scroll: tabs.scrollWidth, client: tabs.clientWidth, ox: getComputedStyle(tabs).overflowX } : null, hudOverlap };
+    tradeEntry: document.querySelectorAll('.trade-entry').length, fixedHits, endHits, small, tabs: tabs ? { scroll: tabs.scrollWidth, client: tabs.clientWidth, ox: getComputedStyle(tabs).overflowX } : null, hudOverlap };
 });
 
-test('ENG-09 yerleşim: 390×844 taşma yok, Takas düğmesi içeriği örtmüyor, Bedesten hedefleri ≥ 44 px', async ({ browser }) => {
+test('ENG-09 yerleşim: 390×844 taşma yok, kalıcı Takas düğmesi yok, Bedesten hedefleri ≥ 44 px', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const page = await ctx.newPage(); const errors = []; page.on('pageerror', e => errors.push(String(e)));
   await enter(page);
   const ocak = await measure(page);
   expect(ocak.bodyMargin).toBe('0px');
   expect(ocak.vw).toBe(390); expect(ocak.docScroll).toBe(ocak.vw);
+  expect(ocak.tradeEntry).toBe(0);
   expect(ocak.fixedHits).toEqual([]);
   expect(await page.locator('#stage button', { hasText: 'Harita Görünümü' }).count()).toBeGreaterThan(0);
   expect(ocak.endHits).toEqual([]);
@@ -64,9 +65,8 @@ test('ENG-09 yerleşim: 390×844 taşma yok, Takas düğmesi içeriği örtmüyo
     // Sekme satırı taşarsa yatay kaydırılabilir kalır (yalnız yükseklik değişti).
     expect(['auto', 'scroll']).toContain(bed.tabs.ox);
   }
-  // Takas düğmesi yeni konumunda da aynı diyaloğu açar.
-  await page.locator('.trade-entry').click();
-  await expect(page.locator('dialog.trade-panel')).toBeVisible();
+  // Takas penceresi kendiliğinden açık değildir; başlatma arkadaş listesinden/profilden (bkz. trade_ui, eng11_trade).
+  await expect(page.locator('dialog.trade-panel')).not.toBeVisible();
   expect(errors).toEqual([]);
   await ctx.close();
 });

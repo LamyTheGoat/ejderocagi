@@ -796,6 +796,7 @@ function meydanView() {
                 <button class="btn primary sm" data-a="hub-social-walk" data-i="${H.selPeer}" ${!star ? 'disabled' : ''}>Ejderhaları Tanıştır</button>
                 <button class="btn primary sm" data-a="hub-visit-ocak" data-i="${H.selPeer}">Ocağını Ziyaret Et</button>
                 <button class="btn ghost sm" data-a="hub-trade-open" data-i="${H.selPeer}">Takas Masası</button>
+                ${typeof TRADE_UI !== 'undefined' && TRADE_UI.isTradeable(peer.handle) && !peer.npc ? `<button class="btn primary sm" data-trade-with="${esc(peer.handle)}" aria-label="${esc(peer.handle)} ile takas teklif et">⇄ Takas teklif et</button>` : ''}
                 <button class="btn sm love" data-a="hub-go-stud" data-i="${H.selPeer}">Damızlık (${Math.round((peer.studFee || 95) * (getPeerAff(peer.handle) >= 30 ? 0.65 : 1))} Altın)</button>
                 <button class="btn ghost sm" data-a="hub-live-duel" data-i="${H.selPeer}" ${!star ? 'disabled' : ''}>Er Meydanına Çağır</button>
                 <button class="btn ghost sm" data-a="hub-coop" data-i="${H.selPeer}">${S.coopPartner && S.coopPartner.handle === peer.handle ? 'Ortak Sefer Eskortu (Seçili)' : 'Ortak Sefer Eskortu'}</button>

@@ -15,6 +15,14 @@ test.beforeAll(async()=>{
 test.afterAll(async()=>{for(const child of children)if(child.exitCode===null){const exited=once(child,'exit');child.send('stop');const [code]=await exited;expect(code).toBe(0);}if(dir)fs.rmSync(dir,{recursive:true,force:true});});
 test.afterEach(async({},info)=>{await info.attach('trade-network',{body:JSON.stringify(network,null,2),contentType:'application/json'});});
 
+// ENG-11: kalıcı Takas düğmesi yok. Takas arkadaş satırından ([data-trade-with]) ya da gelen davet bildiriminden açılır.
+async function enterGame(page,target){await page.goto(target);await page.getByRole('button',{name:/Yeni ocak kur/}).click();await page.getByRole('button',{name:'Ocağa gir',exact:true}).click();await expect(page.locator('#hud')).not.toBeEmpty();}
+const handleOf=page=>page.evaluate(()=>fetch('/api/session',{method:'POST',credentials:'same-origin'}).then(r=>r.json()).then(d=>d.handle));
+async function befriend(page,handle){
+ await page.evaluate(()=>ACT['social-drawer-open']());
+ await page.locator('#soc-add-in').fill(handle);await page.getByRole('button',{name:'➕ Arkadaş Ekle',exact:true}).first().click();
+ const open=page.getByRole('button',{name:handle+' ile takas teklif et',exact:true});await expect(open).toBeVisible();return open;
+}
 test('two authenticated player sessions trade inside the game, including mobile and reload',async({browser},testInfo)=>{
  const ca=await browser.newContext({viewport:{width:1280,height:800}}),cb=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
  const a=await ca.newPage(),b=await cb.newPage();
@@ -23,7 +31,12 @@ test('two authenticated player sessions trade inside the game, including mobile 
   try{const data=await response.json();network.push({player:label,status:response.status(),command:response.request().postDataJSON(),error:data.error,trade:data.trade});}catch(_){}
  });
  for(const page of [a,b]){
-  await page.goto(page===a?url:secondUrl);await page.locator('.trade-entry').click();
+  await enterGame(page,page===a?url:secondUrl);
+  await expect(page.locator('.trade-entry')).toHaveCount(0);
+ }
+ const [ha,hb]=[await handleOf(a),await handleOf(b)];
+ for(const [page,other]of [[a,hb],[b,ha]]){
+  await (await befriend(page,other)).click();
   await page.getByRole('button',{name:'Sunucu hesabını hazırla',exact:true}).click();
   await expect(page.getByTestId('server-gold')).toHaveText('420 altın');
  }
@@ -52,7 +65,7 @@ test('two authenticated player sessions trade inside the game, including mobile 
  await b.screenshot({path:testInfo.outputPath('mobile-offer.png')});
  const bounds=await b.locator('.trade-panel').evaluate(el=>({width:el.getBoundingClientRect().width,scroll:el.scrollWidth,client:el.clientWidth}));
  expect(bounds.width).toBeLessThanOrEqual(390);expect(bounds.scroll).toBeLessThanOrEqual(bounds.client+1);
- await b.reload();await b.locator('.trade-entry').click();await expect(b.locator('#trade-gold')).toHaveValue('10');
+ await b.reload();await b.locator('.trade-pop').getByRole('button',{name:'Takasa dön'}).click();await expect(b.locator('#trade-gold')).toHaveValue('10');
  await a.getByRole('button',{name:'İki teklifi onayla',exact:true}).click();
  await expect(a.locator('.trade-columns')).toContainText('Onayladın');
  await b.getByRole('button',{name:'Sunucudan yenile',exact:true}).click();

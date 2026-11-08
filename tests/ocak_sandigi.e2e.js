@@ -29,12 +29,10 @@ async function layout(page) {
     const small = [...d.querySelectorAll('button,select,input')].filter(el => el.offsetParent !== null).map(el => { const b = el.getBoundingClientRect(); return { t: (el.getAttribute('aria-label') || el.textContent).trim().slice(0, 30), w: b.width, h: b.height }; }).filter(b => b.w < 44 || b.h < 44);
     const h2 = d.querySelector('#sandik-title').getBoundingClientRect(), head = d.querySelector('.sandik-head').getBoundingClientRect();
     const content = d.querySelector('.sandik-body, .sandik-empty'); const c = content ? content.getBoundingClientRect() : { top: head.bottom };
-    const te = document.querySelector('.trade-entry'), tb = te.getBoundingClientRect();
-    const hit = document.elementFromPoint(tb.left + tb.width / 2, tb.top + tb.height / 2);
     const tabs = d.querySelector('.sandik-tabs');
     return { left: r.left, right: r.right, width: r.width, vw: innerWidth, dScroll: d.scrollWidth, dClient: d.clientWidth, docScroll: document.documentElement.scrollWidth,
       small, titleInsideHead: h2.bottom <= head.bottom + 1, headAboveContent: head.bottom <= c.top + 1,
-      tradeEntryCovered: !!(hit && hit.closest('dialog.sandik')),
+      tradeEntry: document.querySelectorAll('.trade-entry').length,
       tabs: tabs ? { scroll: tabs.scrollWidth, client: tabs.clientWidth, overflowX: getComputedStyle(tabs).overflowX, more: tabs.parentElement.classList.contains('more-r') } : null };
   });
 }
@@ -46,7 +44,7 @@ function expectClean(l, w) {
   expect(l.small).toEqual([]);
   expect(l.titleInsideHead).toBe(true);
   expect(l.headAboveContent).toBe(true);
-  expect(l.tradeEntryCovered).toBe(true);
+  expect(l.tradeEntry).toBe(0); // ENG-11: kalıcı Takas düğmesi yok
 }
 
 test('Ocak Sandığı: sunucu envanteri, filtre/arama, detay, Bedestende Sat ön seçimi, mobil ve masaüstü', async ({ browser }, testInfo) => {

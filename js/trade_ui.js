@@ -2,17 +2,19 @@
 (function(){
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const dialog=document.createElement('dialog');dialog.className='trade-panel';dialog.setAttribute('aria-label','Oyuncular arası takas');document.body.append(dialog);
- const entry=document.createElement('button');entry.className='trade-entry';entry.textContent='⇄ Takas';entry.type='button';document.body.append(entry);
+ // ENG-11: kalıcı yüzen Takas düğmesi yok. Girişler: arkadaş satırı / oyuncu profili [data-trade-with], gelen davet bildirimi.
+ const pop=document.createElement('div');pop.className='trade-pop';pop.hidden=true;pop.setAttribute('role','status');document.body.append(pop);
+ const NPC=new Set(['@kuzey_ruzgari','@leydi_sureyya','@altin_kervan','@firtina_beyi']);
+ let target=null,popKey='',popDismissed='';
  let open=false,draft=null,draftRevision=null,returnFocus=null,lastTrade=null;
  const messages={gold_not_transferable:'Yalnız kazanılmış altın takas edilebilir.',asset_not_transferable:'Bu varlık hesaba bağlıdır.',food_not_transferable:'Bu yiyecek hesaba bağlıdır.',rate_limited:'Çok sık istek gönderdin. Biraz sonra yeniden dene.',trade_account_changed:'Hesap değişti. Bilgiler yeniden doğrulanıyor.',trade_pending_retry:'Önce bekleyen işlemin sonucunu doğrula.',trade_revision_conflict:'Teklif değişti. Güncel teklifi inceleyip yeniden onayla.',trade_offer_changed:'Teklif içeriği değişti. Yeniden incele.',trade_busy:'Oyunculardan birinin açık takası var.',game_not_started:'İki oyuncu da sunucu hesabını hazırlamalı.',insufficient_gold:'Sunucu hesabında yeterli altın yok.',trade_unavailable:'Sunucuya ulaşılamadı. Sonuç henüz doğrulanmadı.'};
- const client=createTradeClient({onChange:render});window.TRADE_UI={open:show,notify:message=>client.notify(message),reconnect:()=>client.refresh()};
- function show(){open=true;returnFocus=document.activeElement;if(!dialog.open)dialog.showModal();render();dialog.querySelector('button')?.focus();client.refresh();if(typeof mpConnect==='function')mpConnect();}
- entry.addEventListener('click',show);
- dialog.addEventListener('close',()=>{open=false;draft=null;returnFocus?.focus();});
+ const client=createTradeClient({onChange:render});window.TRADE_UI={open:()=>show(null),openWith:handle=>show(handle),isTradeable:handle=>!!handle&&!NPC.has(handle),notify:message=>client.notify(message),reconnect:()=>client.refresh()};
+ function show(handle){target=handle||null;open=true;returnFocus=document.activeElement;if(!dialog.open)dialog.showModal();render();dialog.querySelector('button')?.focus();client.refresh();if(typeof mpConnect==='function')mpConnect();}
+ dialog.addEventListener('close',()=>{open=false;draft=null;returnFocus?.focus();render();});
  function offerText(offer,state){return `<b>${offer.gold} altın</b><ul>${['items','dragons','eggs'].flatMap(kind=>offer[kind].map(id=>`<li>${esc(state.labels[id]||id)}</li>`)).join('')}${Object.entries(offer.food).filter(([,n])=>n).map(([key,n])=>`<li>${esc(key)} × ${n}</li>`).join('')}</ul>`;}
  function render(){
   const s=client.state,t=s.trade;
-  entry.textContent=t&&['invited','active'].includes(t.status)?'⇄ Takas •':'⇄ Takas';
+  renderPop(s,t);
   if(!open)return;
   if(lastTrade!==t?.id||draftRevision!==t?.revision){draft=null;draftRevision=t?.revision;lastTrade=t?.id;}
   const focus=document.activeElement?.id,selection=document.activeElement?.selectionStart,inventoryOpen=!!dialog.querySelector('#trade-inventory')?.open;
@@ -56,6 +58,18 @@
   if(type==='close'){dialog.close();return;}if(type==='refresh'){await client.refresh();return;}if(type==='start'){await client.start();return;}if(type==='retry'){await client.retry();return;}
   try{await client.send(type,type==='invite'?{targetId:el.dataset.target}:{tradeId:t.id,...(type==='confirm'?{revision:t.revision,offerHash:t.offerHash}:{})});}catch(_){}
  });
- document.addEventListener('click',event=>{if(event.target.closest('[data-open-trade]'))show();});
+ function partnerHandle(s,t){const other=t&&t.participants.find(id=>id!==s.accountId);return (other&&s.peers.find(p=>p.accountId===other)?.handle)||'Bir oyuncu';}
+ // Takas yalnız olay varken görünür: sana gelen davet ya da kapalı pencerede açık kalan takas. Kapatılabilir.
+ function renderPop(s,t){
+  const live=!open&&t&&s.accountId&&(t.status==='active'||(t.status==='invited'&&t.participants[1]===s.accountId));
+  const key=live?t.id+':'+t.status:'';
+  if(!live||key===popDismissed){pop.hidden=true;popKey='';pop.innerHTML='';return;}
+  if(key===popKey&&!pop.hidden)return;popKey=key;
+  const who=esc(partnerHandle(s,t));
+  pop.innerHTML=`<span>${t.status==='invited'?`🤝 <b>${who}</b> sana takas teklif ediyor`:`⇄ <b>${who}</b> ile açık bir takasın var`}</span><button type="button" data-trade-pop="open">${t.status==='invited'?'Gör':'Takasa dön'}</button><button type="button" data-trade-pop="dismiss" aria-label="Bildirimi kapat">✕</button>`;
+  pop.hidden=false;
+ }
+ pop.addEventListener('click',event=>{const b=event.target.closest('[data-trade-pop]');if(!b)return;if(b.dataset.tradePop==='dismiss'){popDismissed=popKey;pop.hidden=true;}else{pop.hidden=true;show(null);}});
+ document.addEventListener('click',event=>{const w=event.target.closest('[data-trade-with]');if(w){event.preventDefault();show(w.dataset.tradeWith);return;}if(event.target.closest('[data-open-trade]'))show(null);});
  setInterval(()=>{if(open)client.refresh();},5000);
 })();

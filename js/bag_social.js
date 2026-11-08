@@ -227,6 +227,9 @@ function socRoot() {
   return r;
 }
 
+// ENG-11: oyuncular arası takas yalnız buradan ve oyuncu profilinden başlar (NPC muhafızlarla sunucu takası yok).
+function socCanTrade(h) { return typeof TRADE_UI !== 'undefined' && TRADE_UI.isTradeable(h) && h !== socMe(); }
+
 function socFriendRow(f) {
   const info = socInfo(f.handle);
   const st = socStatus(f.handle);
@@ -244,7 +247,7 @@ function socFriendRow(f) {
         <button class="btn xs primary" data-a="soc-dm-open" data-h="${hh}">💬 Mesaj${un ? ` (${un})` : ''}</button>
         <button class="btn xs" data-a="soc-party-invite" data-h="${hh}">🛡️ Partiye Çağır</button>
         <button class="btn xs" data-a="soc-table-invite" data-h="${hh}">🎲 Masaya Çağır</button>
-        <button class="btn xs" data-open-trade="true">⇄ Takas</button>
+        ${socCanTrade(f.handle) ? `<button class="btn xs" data-trade-with="${hh}" aria-label="${hh} ile takas teklif et">⇄ Takas teklif et</button>` : ''}
         <button class="btn xs danger" data-a="soc-vs-menu" data-h="${hh}">⚔️ VS Çağır</button>
         <button class="soc-x" data-a="soc-friend-del" data-h="${hh}" title="Arkadaşlıktan çıkar">✕</button>
       </div>
