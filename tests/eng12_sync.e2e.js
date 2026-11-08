@@ -213,3 +213,75 @@ test('ENG-12 kayıtlı hesap: bina, kuluçka ve Rüstem\'e satış Ocak Kesesi i
   expect(errors).toEqual([]);
   await ctx.close();
 });
+
+test('ENG-12 QA: yerel altın eşitlemede silinmez/iade edilmez; kayıt öncesi altın korunur; bağlı ejderha müzayede/sipariş/teklifle verilemez, ölünce dirilmez', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1000, height: 768 } });
+  const page = await ctx.newPage(); const errors = []; page.on('pageerror', e => errors.push(String(e)));
+  // Kayıt ÖNCESİ: misafir olarak oyna, yerel kesede 9999 altın biriktir.
+  await page.goto(url);
+  await page.getByRole('button', { name: /Yeni ocak kur/ }).click();
+  await page.getByRole('button', { name: 'Ocağa gir', exact: true }).click();
+  await expect(page.locator('#hud')).not.toBeEmpty();
+  await page.evaluate(() => { S.gold = 9999; saveGame(); });
+  // X ile kayıt: kayıtlı oturum, aynı yerel kayıt.
+  await page.goto(url + '/api/auth/x/login');
+  await page.locator('[data-a="continue"]').click();
+  await expect.poll(() => page.evaluate(() => !!(MP.xVerified && ECO_LINK.linked && ECO_SYNC.active())), { timeout: 20000 }).toBe(true);
+  await idle(page);
+  expect(await page.evaluate(() => S.gold)).toBe(9999); // kayıt öncesi yerel altın korunur
+  seedEarnedGold(await page.evaluate(() => MP.accountId), 3000);
+  await page.evaluate(() => ECO_LINK.boot(true)); await idle(page);
+  await expect.poll(() => page.evaluate(() => ECO_SYNC.purse())).toBe(3000);
+  expect(await page.evaluate(() => S.gold)).toBe(9999);
+
+  // Yerel kazanç (Topçu/olay) ve yerel harcama (müzayede/örs) eşitlemede ne silinir ne iade edilir.
+  await page.evaluate(() => { S.gold += 777; saveGame(); }); await page.evaluate(() => ECO_LINK.boot(true)); await idle(page);
+  expect(await page.evaluate(() => S.gold)).toBe(10776);
+  await page.evaluate(() => { S.gold -= 1000; saveGame(); }); await page.evaluate(() => ECO_LINK.boot(true)); await idle(page);
+  expect(await page.evaluate(() => S.gold)).toBe(9776);
+
+  // Bağlı ejderha edin (Rüstem, Ocak Kesesi).
+  await closeModals(page);
+  await page.evaluate(() => { UI.view = 'pazar'; UI.stall = 'ejder'; UI.stallTab = 'al'; render(); });
+  await page.locator('[data-a="buyD"][data-i="0"]').click(); await idle(page);
+  const ids = await page.evaluate(() => ({ linked: S.dragons.find(d => d.assetId).id, local: S.dragons.find(d => !d.assetId).id, asset: S.dragons.find(d => d.assetId).assetId }));
+  await closeModals(page);
+
+  // Müzayede: bağlı ejderha çıkarılamaz (açık mesaj), yerel-only serbest.
+  await page.evaluate(id => ACT['auc-sell']({ dataset: { id: String(id) } }), ids.linked);
+  await expect(page.locator('#toasts')).toContainText('müzayede, sipariş ya da arena teklifiyle verilemez');
+  expect(await page.evaluate(() => typeof AUC !== 'undefined' && AUC && AUC.sellD ? AUC.sellD.id : null)).toBe(null);
+  await page.evaluate(id => { window.__fastFx = true; ACT['auc-sell']({ dataset: { id: String(id) } }); }, ids.local);
+  await expect.poll(() => page.evaluate(() => !!(AUC && AUC.sellD))).toBe(true);
+  await page.evaluate(() => { if (AUC.timer) clearTimeout(AUC.timer); AUC = null; });
+  await closeModals(page);
+
+  // Sipariş: bağlı ejderha verilemez (iki tık dahil), tekrar tekrar verme yok; yerel-only verilebilir.
+  const give = id => page.evaluate(i => {
+    const O = orders(); O.list = O.list.filter(o => o.id !== 't1'); O.list.push({ id: 't1', reqs: [], gold: 50, un: 1, who: 'Test', by: S.week + 5 });
+    UI.view = 'pazar'; UI.stall = null; ACT.orderGive({ dataset: { o: 't1', id: String(i) } }); ACT.orderGive({ dataset: { o: 't1', id: String(i) } });
+    return S.dragons.some(d => d.id === i);
+  }, id);
+  const g1 = await page.evaluate(() => S.gold);
+  expect(await give(ids.linked)).toBe(true);
+  expect(await page.evaluate(() => S.gold)).toBe(g1);
+  expect(await give(ids.linked)).toBe(true);
+  expect(await page.evaluate(() => S.gold)).toBe(g1);
+  await page.evaluate(() => ECO_LINK.boot(true)); await idle(page);
+  expect(await page.evaluate(a => S.dragons.filter(d => d.assetId === a).length, ids.asset)).toBe(1);
+  // Arena "Locadan Bir Teklif": bağlı ejderhada satış seçeneği kapalı, yerel-only'de açık.
+  expect(await page.evaluate(id => FIGHT_POST.find(e => e.id === 'teklif').opts[0].req({ d: byId(id), price: 10 }), ids.linked)).toContain('satılamaz');
+  expect(await page.evaluate(id => FIGHT_POST.find(e => e.id === 'teklif').opts[0].req({ d: byId(id), price: 10 }), ids.local)).toBe(null);
+  // Yerel-only ejderha siparişe verilir; bedel yerel kesene.
+  expect(await give(ids.local)).toBe(false);
+  expect(await page.evaluate(() => S.gold)).toBe(g1 + 50);
+
+  // Ölüm: bağlı ejderha yerelde ölünce eşitleme onu diriltmez (sunucuda ölüm komutu yok; ayrı karar).
+  await page.evaluate(id => killDragon(byId(id), 'test'), ids.linked);
+  for (let i = 0; i < 2; i++) { await page.evaluate(() => ECO_LINK.boot(true)); await idle(page); }
+  expect(await page.evaluate(a => S.dragons.some(d => d.assetId === a), ids.asset)).toBe(false);
+  expect(await page.evaluate(a => S.dead.some(d => d.assetId === a), ids.asset)).toBe(true);
+  expect((await serverEco(page)).economy.dragons.some(r => r.assetId === ids.asset)).toBe(true); // sunucuda duruyor (belgelendi)
+  expect(errors).toEqual([]);
+  await ctx.close();
+});
