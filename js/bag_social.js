@@ -591,7 +591,8 @@ function socStartVsTopcu(handle) {
 // ENG-10: ödüllü düello yalnız sunucu kesesine bağlıyken görünür; vitrin düellosu her zaman kalır.
 function socRankedDuelBtn(hh) {
   if (typeof ECO_LINK === 'undefined' || !ECO_LINK.linked) return '';
-  return `<button class="btn sm ghost" data-a="soc-vs-duel-ranked" data-h="${hh}" aria-label="Ödüllü düello: ödül sunucuda belirlenir">🏆 Ödüllü Düello <small>(sunucu ejderhan)</small></button>`;
+  const reg = typeof mpRegistered === 'function' && mpRegistered();
+  return `<button class="btn sm ghost" data-a="soc-vs-duel-ranked" data-h="${hh}" aria-label="Ödüllü düello: ödül sunucuda belirlenir${reg ? '' : '; kayıtlı hesap gerekir'}">🏆 Ödüllü Düello <small>(${reg ? 'sunucu ejderhan' : 'hesap gerekir'})</small></button>`;
 }
 function socStartVsDuel(handle, ranked) {
   const star = (typeof byId === 'function' && byId(S.star)) || (S.dragons && S.dragons[0]);

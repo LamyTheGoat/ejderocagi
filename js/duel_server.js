@@ -27,6 +27,8 @@ function createDragonDuelServer(deps) {
     game_not_started: 'Sunucu ocağın henüz kurulmadı; ödüllü düello açılamaz.',
     invalid_dragon_asset: 'Geçerli bir ejderha seçilmedi.',
     account_required: 'Ödüllü düello için iki tarafın da oturumu olmalı.',
+    registered_account_required: 'Ödüllü düello için hesap aç (X ile giriş yap). Dostça (vitrin) düello misafire de açık.',
+    opponent_registered_required: 'Rakibin kayıtlı hesabı yok; ödüllü düello açılamaz. Dostça (vitrin) düello açık.',
   };
 
   const copy = value => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -42,6 +44,9 @@ function createDragonDuelServer(deps) {
   const handleOf = socket => socket && socket.playerInfo && socket.playerInfo.handle;
   const accountOf = socket => socket && socket.playerInfo && socket.playerInfo.accountId || null;
   const isAuthed = socket => !!(socket && socket.playerInfo && socket.playerInfo.authenticated && handleOf(socket));
+  // ENG-10 Y-1 (K9): ödüllü oda yalnız kayıtlı hesaplara açık. Kayıtlı = WS bağlantısında geçerli, imzalı X oturumu
+  // (`eo_sess`, server.js getSessionHandle → playerInfo.xVerified). Misafir oturumu yalnız vitrin düellosuna girer.
+  const isRegistered = socket => !!(socket && socket.playerInfo && socket.playerInfo.xVerified === true);
   const socketFor = handle => [...WS_CLIENTS].find(s => !s.destroyed && isAuthed(s) && handleOf(s) === handle) || null;
   const playerFor = handle => WORLD.players && WORLD.players[handle] || null;
   const validAssetId = v => typeof v === 'string' && v.length > 0 && v.length <= 200;
@@ -233,6 +238,8 @@ function createDragonDuelServer(deps) {
       if (!store || !fromAccount || !toAccount) return sendEconomyError(socket, { code: 'account_required' });
       if (!validAssetId(msg.dragonAssetId)) return sendEconomyError(socket, { code: 'invalid_dragon_asset' });
       if (fromAccount === toAccount) return sendEconomyError(socket, { code: 'same_account' });
+      if (!isRegistered(socket)) return sendEconomyError(socket, { code: 'registered_account_required' });
+      if (!isRegistered(targetSocket)) return sendEconomyError(socket, { code: 'opponent_registered_required' });
       const dragonAssetId = msg.dragonAssetId;
       return run(async () => {
         let entry;
@@ -258,6 +265,11 @@ function createDragonDuelServer(deps) {
     if (!store || !toAccount || accountOf(senderSocket) !== pendingInvite.fromAccount) {
       send(senderSocket, { type: 'duel_invite_result', status: 'expired', to });
       return sendEconomyError(socket, { code: 'account_required' });
+    }
+    // Kabulde iki taraf yeniden denetlenir (davetten sonra oturum değişmiş olabilir).
+    if (!isRegistered(socket) || !isRegistered(senderSocket)) {
+      send(senderSocket, { type: 'duel_invite_result', status: 'failed', to, code: !isRegistered(senderSocket) ? 'registered_account_required' : 'opponent_registered_required' });
+      return sendEconomyError(socket, { code: !isRegistered(socket) ? 'registered_account_required' : 'opponent_registered_required' });
     }
     starting.add(from); starting.add(to);
     run(async () => {

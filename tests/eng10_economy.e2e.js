@@ -14,7 +14,9 @@ test.afterAll(async () => {
   if (child && child.exitCode === null) { const exited = once(child, 'exit'); child.send('stop'); const [code] = await exited; expect(code).toBe(0); }
   if (dir) fs.rmSync(dir, { recursive: true, force: true });
 });
-async function enter(page) {
+async function enter(page, { register = false } = {}) {
+  // Kayıtlı hesap: yerelde X simülasyon girişi (yalnız localhost, X_CLIENT_ID yokken) imzalı eo_sess çerezi verir.
+  if (register) await page.goto(url + '/api/auth/x/login');
   await page.goto(url);
   await page.getByRole('button', { name: /Yeni ocak kur/ }).click();
   await page.getByRole('button', { name: 'Ocağa gir', exact: true }).click();
@@ -97,12 +99,25 @@ test('ENG-10 ödüllü düello: davet sunucu ejderhasıyla gider, sonuç sunucud
   for (let i = 0; i < 2; i++) {
     const ctx = await browser.newContext({ viewport: { width: 1000, height: 768 } });
     const page = await ctx.newPage(); page.errors = []; page.on('pageerror', e => page.errors.push(String(e)));
-    await enter(page); await startServerOcak(page);
-    await expect.poll(() => page.evaluate(() => !!(MP.ws && MP.ws.readyState === 1))).toBe(true);
+    await enter(page, { register: true }); await startServerOcak(page);
+    await expect.poll(() => page.evaluate(() => !!(MP.ws && MP.ws.readyState === 1 && MP.xVerified))).toBe(true);
     pages.push(page);
   }
   const [a, b] = pages;
   const handleB = await b.evaluate(() => MP.authHandle);
+  // Y-1: misafir ödüllü düelloya giremez (istemci ve sunucu), net mesaj; vitrin düellosu misafire açık.
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1000, height: 768 } });
+    const g = await ctx.newPage(); await enter(g); await startServerOcak(g);
+    await expect.poll(() => g.evaluate(() => !!(MP.ws && MP.ws.readyState === 1))).toBe(true);
+    expect(await g.evaluate(() => MP.xVerified)).toBe(false);
+    expect(await g.evaluate(h => mpSendDragonDuelInvite(h, { ranked: true }), handleB)).toBe(false);
+    await expect(g.locator('#toasts')).toContainText('Ödüllü düello için hesap aç');
+    await g.evaluate(h => mpSendWs({ type: 'duel_invite', to: h, dragonAssetId: ECO_LINK.duelDragon().assetId }), handleB);
+    await expect(g.locator('#toasts')).toContainText('X ile giriş yap');
+    expect(await b.evaluate(() => (ensureSocial().invites || []).filter(i => i.kind === 'vs_duel').length)).toBe(0);
+    await ctx.close();
+  }
   const goldA = await a.evaluate(() => S.gold), goldB = await b.evaluate(() => S.gold);
   // Sosyal menüde iki seçenek birlikte: vitrin (eski) ve ödüllü.
   expect(await a.evaluate(h => socRankedDuelBtn(h), 'x')).toContain('soc-vs-duel-ranked');

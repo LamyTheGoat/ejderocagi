@@ -63,7 +63,7 @@ const byAccount = (match, settle, u) => settle.find(s => s.accountId === u.accou
 // ---------- Duel server harness (gerçek WS mesaj yolu, sahte soket) ----------
 function makeSocket(user) {
   return {
-    playerInfo: { handle: user.handle, accountId: user.accountId, authenticated: true },
+    playerInfo: { handle: user.handle, accountId: user.accountId, authenticated: true, xVerified: user.xVerified !== false },
     destroyed: false, messages: [],
     write(frame) { this.messages.push(JSON.parse(frame)); },
     take(type) { return this.messages.filter(m => m.type === type); },
@@ -388,4 +388,36 @@ test('P-D D-2: a tampered log (illegal action, wrong round) is rejected; log len
   assert.throws(() => f.store.finalizeMatch(match.id, { log: Array.from({ length: 31 }, (_, i) => ({ round: i + 1, actions: ['savun', 'savun'] })), forfeit: null }), /match_log_invalid/);
   assert.throws(() => f.store.finalizeMatch(match.id, { log: [{ round: 1, actions: ['savun', 'savun'] }], forfeit: null }), /match_not_over/);
   assert.equal(f.store.readMatch(match.id).status, 'active');
+});
+
+test('ENG-10 Y-1 (K9): ödüllü düello yalnız kayıtlı (X oturumlu) hesaplara; davette ve kabulde iki taraf; vitrin misafire açık', async t => {
+  const f = fixture(t), a = f.fresh(), b = f.fresh();
+  const fighter = { name: 'K', el: 'ates', gu: 40, ce: 40, da: 40, ze: 40, maxHp: 120 };
+  const h = harness(f, { players: { [a.handle]: { handle: a.handle, star: { name: 'K', st: {} }, duelFighter: fighter }, [b.handle]: { handle: b.handle, star: { name: 'L', st: {} }, duelFighter: fighter } } });
+  const ga = h.join({ ...a, xVerified: false }), sb = h.join(b);
+  // Misafir davet eden → net mesaj, maç yok.
+  h.server.onMessage(ga, { type: 'duel_invite', to: b.handle, dragonAssetId: a.dragon });
+  await h.server.idle();
+  assert.equal(ga.last('duel_error').code, 'registered_account_required');
+  assert.match(ga.last('duel_error').message, /hesap aç/);
+  assert.equal(sb.take('duel_invite').length, 0);
+  // Kayıtlı davet eden, misafir rakip → reddedilir.
+  h.server.onMessage(sb, { type: 'duel_invite', to: a.handle, dragonAssetId: b.dragon });
+  await h.server.idle();
+  assert.equal(sb.last('duel_error').code, 'opponent_registered_required');
+  // Davetten sonra kabul eden oturumunu kaybederse (misafire düşerse) kabulde de reddedilir.
+  h.clients.delete(ga); const ra = h.join(a);
+  h.server.onMessage(sb, { type: 'duel_invite', to: a.handle, dragonAssetId: b.dragon });
+  await h.server.idle();
+  const inv = ra.last('duel_invite'); assert.ok(inv && inv.ranked);
+  ra.playerInfo.xVerified = false;
+  h.server.onMessage(ra, { type: 'duel_invite_reply', inviteId: inv.id, accept: true, dragonAssetId: a.dragon });
+  await h.server.idle();
+  assert.equal(ra.last('duel_error').code, 'registered_account_required');
+  assert.equal(sb.last('duel_invite_result').status, 'failed');
+  assert.equal(f.raw.prepare('SELECT count(*) n FROM matches').get().n, 0);
+  // Vitrin (ödülsüz) düello misafire açık kalır.
+  h.server.onMessage(ra, { type: 'duel_invite', to: b.handle });
+  h.server.onMessage(sb, { type: 'duel_invite_reply', inviteId: sb.last('duel_invite').id, accept: true });
+  assert.equal(ra.last('duel_room_start').ranked, false);
 });

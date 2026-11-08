@@ -8,6 +8,8 @@ function mpDuelToast(message, kind) {
 // ENG-10 · Ödüllü düello (isteğe bağlı): davet ve kabul sunucu defterindeki ejderhanın `dragonAssetId`'sini taşır.
 // Ödül (zafer/beraberlik/yenilgi tutarı, günlük ve rakip limiti) yalnız sunucuda belirlenir; istemci yalnız gösterir.
 // Vitrin (dostça) düello kalıcıdır ve eskisi gibi çalışır (kullanıcı kararı A-12 revize).
+const MP_REGISTER_MSG = 'Ödüllü düello için hesap aç (X ile giriş yap). Dostça (vitrin) düello misafire de açık.';
+function mpRegistered() { return typeof MP !== 'undefined' && MP.xVerified === true; }
 function mpRankedDuelDragon() {
   return typeof ECO_LINK !== 'undefined' && ECO_LINK.linked ? ECO_LINK.duelDragon() : null;
 }
@@ -23,6 +25,7 @@ function mpSendDragonDuelInvite(handle, opts) {
     return false;
   }
   const dragon = (typeof byId === 'function' && byId(S.star)) || (S.dragons && S.dragons[0]);
+  if (ranked && !mpRegistered()) { mpDuelToast(MP_REGISTER_MSG, 'warn'); return false; }
   const rankedDragon = ranked ? mpRankedDuelDragon() : null;
   if (ranked && !rankedDragon) {
     mpDuelToast(typeof ECO_LINK !== 'undefined' && ECO_LINK.linked ? 'Sunucu kesende düelloya çıkabilecek bir ejderha yok (görevde, kilitli ya da ölü).' : 'Ödüllü düello için sunucu kesene bağlı olmalısın. Dostça (vitrin) düello açık.');
@@ -52,6 +55,7 @@ function mpReplyDragonDuelInvite(inviteId, accept, opts) {
     return false;
   }
   if (accept && opts && opts.ranked) {
+    if (!mpRegistered()) { mpDuelToast(MP_REGISTER_MSG, 'warn'); return false; }
     const mine = mpRankedDuelDragon();
     if (!mine) {
       mpDuelToast('Ödüllü düello için sunucu kesende düelloya çıkabilecek bir ejderha olmalı. Davet açık kaldı.', 'warn');
