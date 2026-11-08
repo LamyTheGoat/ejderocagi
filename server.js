@@ -21,6 +21,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { createDragonDuelServer } = require('./js/duel_server.js');
+const { createPvpRooms } = require('./server/pvp_rooms.js');
 const { createEconomyStore } = require('./server/store_factory');
 const { createMarketService, publicListing } = require('./server/market_service');
 const { createMarketReadCache } = require('./server/market_read_cache');
@@ -461,6 +462,8 @@ function wsBroadcast(obj, excludeSocket = null) {
 
 const DUEL_SERVER = createDragonDuelServer({ crypto, WS_CLIENTS, WORLD, encodeWsFrame, store: ECONOMY }); // ENG06 P-D: ödüllü oda yalnız sunucu deposuyla
 
+const PVP_ROOMS = createPvpRooms({ crypto, WS_CLIENTS, encodeWsFrame }); // ENG-14: Topçu PvP odaları; mesajlar yalnız oda üyelerine
+
 const NPC_HANDLES = new Set(['@kuzey_ruzgari', '@leydi_sureyya', '@altin_kervan']);
 
 function getActiveHubPeers() {
@@ -532,6 +535,7 @@ async function handleWsUpgrade(req, socket, head) {
 
   wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size });
   DUEL_SERVER.onConnect(socket);
+  PVP_ROOMS.onConnect(socket);
 
   const authTimer = setInterval(() => {
     track(GUEST_SESSIONS.resolve(req, {fresh:true}).then(async session => { if (!session) socket.destroy(); else if(!socket.destroyed) await ECONOMY.publishPresence(socket.presenceId,session); })).catch(() => socket.destroy());
@@ -561,11 +565,13 @@ async function handleWsUpgrade(req, socket, head) {
   socket.on('close', () => {
     WS_CLIENTS.delete(socket);
     DUEL_SERVER.onDisconnect(socket);
+    PVP_ROOMS.onDisconnect(socket);
     wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size });
   });
   socket.on('error', () => {
     WS_CLIENTS.delete(socket);
     DUEL_SERVER.onDisconnect(socket);
+    PVP_ROOMS.onDisconnect(socket);
   });
 }
 
@@ -587,6 +593,7 @@ async function handleWsMessage(socket, msg) {
     return;
   }
   if (DUEL_SERVER.onMessage(socket, msg)) return;
+  if (PVP_ROOMS.onMessage(socket, msg)) return;
 
   if (msg.type === 'hub_update' || msg.type === 'hub_actor') {
     const h = socket.playerInfo.handle;
@@ -688,34 +695,10 @@ async function handleWsMessage(socket, msg) {
     }, socket);
   }
 
-  // Canlı Ejder Topçusu 1v1 PvP Senkronizasyonu
-  if (msg.type === 'pvp_sync') {
-    wsBroadcast({
-      type: 'pvp_sync',
-      from: msg.from || msg.handle || socket.playerInfo.handle,
-      to: msg.to || null,
-      roomId: msg.roomId || 'pvp_main',
-      slot: msg.slot,
-      raidId: msg.raidId,
-      mapId: msg.mapId || 'skybridge',
-      action: msg.action, // 'join_map' | 'invite' | 'accept_invite' | 'move_aim' | 'fire' | 'hit' | 'turn_handoff' | 'taunt'
-      x: msg.x,
-      y: msg.y,
-      relX: msg.relX,
-      facing: msg.facing,
-      angle: msg.angle,
-      power: msg.power,
-      dmg: msg.dmg,
-      el: msg.el,
-      chibi: msg.chibi || null,
-      mods: msg.mods,
-      hp: msg.hp,
-      enemyHp: msg.enemyHp,
-      rivalHp: msg.rivalHp ?? msg.enemyHp,
-      wind: msg.wind,
-      text: msg.text,
-      ts: Date.now(),
-    }, socket);
+  // ENG-14: PvP `pvp_sync` artık PVP_ROOMS içinde, yalnız oda üyelerine yönlenir. Burada yalnız eski PvE sefer
+  // daveti (raidId, oda yok) kalır; PvP ile ilgisi yoktur ve davranışı değişmedi.
+  if (msg.type === 'pvp_sync' && msg.action === 'invite' && msg.raidId) {
+    wsBroadcast({ type: 'pvp_sync', action: 'invite', from: socket.playerInfo.handle, to: msg.to || null, raidId: msg.raidId, slot: msg.slot, ts: Date.now() }, socket);
   }
 
   // Sosyal sistem: özel mesaj (fısıltı), parti ve masa/VS davetleri (hedefe yönelik, istemci 'to' ile süzer)
