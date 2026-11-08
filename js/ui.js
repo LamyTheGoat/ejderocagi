@@ -2228,7 +2228,7 @@ function mobHubModal() {
         <span class="mc-ic">${ui('gold')}</span>
         <div><b>Sırt Çantası & Kiler</b><small>Eşyalar, İksirler & Yemler</small></div>
       </button>
-      <button class="mob-cmd-card" data-a="mob-hub-act" data-act="soc-open">
+      <button class="mob-cmd-card" data-a="mob-hub-act" data-act="social-drawer-open">
         <span class="mc-ic">${ui('crown')}</span>
         <div><b>Sosyal & Lonca</b><small>Oyuncular, Parti & Dostlar</small></div>
       </button>
