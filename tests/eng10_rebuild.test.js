@@ -28,7 +28,7 @@ test('ENG-10 K5: eşik öncesi yeniden kurma yok; eşikte borç silinir, varlık
   assert.equal(weekStatus(g, T0).rebuild.available, false);
   g = step(g, 'week.end', {}, T0 + 3 * HOUR).game;
   assert.equal(g.debtWeeks, debt.REBUILD_DEBT_WEEKS); assert.ok(g.debt > 0);
-  assert.deepEqual(weekStatus(g, T0).rebuild, { available: true, threshold: 3, cooldown: 8, waitWeeks: 0 });
+  assert.deepEqual(weekStatus(g, T0).rebuild, { available: true, threshold: 3, cooldown: 8, waitWeeks: 0, waitMs: 0 });
   const before = plain(g);
   const r = step(g, 'ocak.rebuild');
   assert.deepEqual(r.result.rebuilt, true); assert.equal(r.result.writtenOff, before.debt); assert.equal(r.result.rebuilds, 1);
@@ -83,11 +83,33 @@ test('ENG-10 Y-2: yeniden kurmadan sonra 8 hafta geçmeden tekrar yok (rebuild_c
   const st = weekStatus(g, t).rebuild;
   assert.equal(st.available, false); assert.equal(st.waitWeeks, 5); assert.equal(st.cooldown, 8);
   for (let i = 0; i < 5; i++) g = step(g, 'week.end', {}, (t += HOUR)).game;
+  // ENG-12 QA ORTA-1: 8 hafta doldu ama gerçek zamanda 24 saat geçmedi → hâlâ kapalı (iki şart birlikte).
+  const early = weekStatus(g, t).rebuild;
+  assert.equal(early.waitWeeks, 0); assert.ok(early.waitMs > 0); assert.equal(early.available, false);
+  assert.throws(() => step(g, 'ocak.rebuild', {}, t), err => err.code === 'rebuild_cooldown');
+  t = g.lastRebuildAt + debt.REBUILD_COOLDOWN_MS;
   assert.equal(weekStatus(g, t).rebuild.available, true);
   const before = plain(g);
-  const r = step(g, 'ocak.rebuild');
+  const r = step(g, 'ocak.rebuild', {}, t);
   assert.equal(r.result.rebuilds, 2); assert.deepEqual(assets(r.game), assets(before), 'varlık bedeli yok');
   // Sezon devri: hafta 1'e dönse de bekleme tekdüze hafta sayacıyla sürer.
   const h = plain(r.game); h.seasonNo = 2; h.week = 1; h.lastRebuildWeek = 18; h.debt = 5; h.gold = 0; h.funds = { schema: 1, bound: 0, unknown: 0, earned: 0 }; h.debtWeeks = 3;
   assert.equal(debt.rebuildStatus(h).waitWeeks, 5, '18 + 8 − 21');
+});
+
+test('ENG-12 QA ORTA-1: 24 saat yeterli değil, 8 hafta da gerekir; sunucu saati yoksa reddedilir; eski kayıtta yalnız hafta şartı', () => {
+  assert.equal(debt.REBUILD_COOLDOWN_MS, 24 * HOUR);
+  const g = { gold: 0, debt: 50, debtWeeks: 3, week: 5, lastRebuildWeek: 4, lastRebuildAt: T0 };
+  let st = debt.rebuildStatus(g, 8, T0 + 48 * HOUR);
+  assert.equal(st.waitMs, 0); assert.equal(st.waitWeeks, 7); assert.equal(st.available, false, 'saat geçti, hafta geçmedi');
+  assert.throws(() => debt.rebuild(g, 8, T0 + 48 * HOUR), /rebuild_cooldown/);
+  g.week = 12;
+  st = debt.rebuildStatus(g, 8, T0 + 23 * HOUR);
+  assert.equal(st.waitWeeks, 0); assert.equal(st.waitMs, HOUR); assert.equal(st.available, false, 'hafta geçti, saat geçmedi');
+  assert.equal(debt.rebuildStatus(g, 8, null).waitMs, 24 * HOUR, 'saat bilinmiyorsa en muhafazakâr');
+  assert.throws(() => debt.rebuild(g, 8, undefined), err => err.code === 'server_time_unavailable' && err.status === 503);
+  assert.equal(debt.rebuild(g, 8, T0 + 24 * HOUR).rebuilt, true);
+  assert.equal(g.lastRebuildAt, T0 + 24 * HOUR);
+  const legacy = { gold: 0, debt: 50, debtWeeks: 3, week: 12, lastRebuildWeek: 4 };
+  assert.equal(debt.rebuildStatus(legacy, 8, T0).available, true, 'eski kayıt: lastRebuildAt yok');
 });

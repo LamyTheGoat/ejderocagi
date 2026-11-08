@@ -111,7 +111,7 @@ function tagAssets(game, accountId) {
     for (const row of rows) row.assetId ||= `${accountId}:${kind}:${row[key]}`;
   }
 }
-function reduceCommand(previous, command, { accountId, seed }) {
+function reduceCommand(previous, command, { accountId, seed, now }) {
   if (!previous && command.type !== 'game.start') fail('game_not_started', 409);
   const api = makeRuntime(previous ? sources.ensure(clone(previous)) : null, seed, { weekRuntime: command.type === 'week.end' });
   if (!previous) {
@@ -241,7 +241,7 @@ function reduceCommand(previous, command, { accountId, seed }) {
       sources.ensure(S); tagAssets(S, accountId);
       result = week.weekResult(out, summary); break;
     }
-    case 'ocak.rebuild': result = debt.rebuild(S); break;
+    case 'ocak.rebuild': result = debt.rebuild(S, undefined, now); break; // ENG-12: 8 hafta + 24 sa (sunucu saati)
     default: fail('unsupported_command');
   }
   result.payment = {...payment};

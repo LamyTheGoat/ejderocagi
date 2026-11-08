@@ -56,22 +56,31 @@ function readRebuildCooldown(env = process.env) {
   return Number(raw);
 }
 const REBUILD_COOLDOWN_WEEKS = readRebuildCooldown();
+// ENG-12 QA ORTA-1 · Ek koruma: hafta artık sınırsız olduğu için 8 sunucu haftası tek başına gerçek zamanda dakikalar
+// sürebilir. Yeniden kurma için İKİ şart birlikte aranır: en az 8 sunucu haftası VE sunucu saatiyle en az 24 saat.
+// Zaman yalnız sunucu saatidir (`now`). Eski kayıtta `lastRebuildAt` yoksa yalnız hafta şartı uygulanır.
+const REBUILD_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 // Sezonlar arası tekdüze hafta sayısı (sezon başına 20 hafta; js/week.js SEASON): sezon devrinde sayaç sıfırlanmaz.
 const absWeek = game => ((Number.isSafeInteger(game.seasonNo) && game.seasonNo > 0 ? game.seasonNo : 1) - 1) * 20 + (Number.isSafeInteger(game.week) ? game.week : 1);
-function rebuildStatus(game, cooldown = REBUILD_COOLDOWN_WEEKS) {
+function rebuildStatus(game, cooldown = REBUILD_COOLDOWN_WEEKS, now = null, cooldownMs = REBUILD_COOLDOWN_MS) {
   const owed = debtOf(game), weeks = count(game.debtWeeks) ? game.debtWeeks : 0;
   const last = count(game.lastRebuildWeek) ? game.lastRebuildWeek : null;
   const waitWeeks = last == null ? 0 : Math.max(0, last + cooldown - absWeek(game));
-  return { available: owed > 0 && weeks >= REBUILD_DEBT_WEEKS && waitWeeks === 0, threshold: REBUILD_DEBT_WEEKS, cooldown, waitWeeks, debt: owed, debtWeeks: weeks };
+  const lastAt = count(game.lastRebuildAt) ? game.lastRebuildAt : null;
+  // Sunucu saati bilinmiyorsa (yalnız okuma yardımcıları) en muhafazakâr değer: tam bekleme.
+  const waitMs = lastAt == null ? 0 : Number.isSafeInteger(now) && now > 0 ? Math.max(0, lastAt + cooldownMs - now) : cooldownMs;
+  return { available: owed > 0 && weeks >= REBUILD_DEBT_WEEKS && waitWeeks === 0 && waitMs === 0, threshold: REBUILD_DEBT_WEEKS, cooldown, waitWeeks, waitMs, debt: owed, debtWeeks: weeks };
 }
-function rebuild(game, cooldown = REBUILD_COOLDOWN_WEEKS) {
-  const st = rebuildStatus(game, cooldown);
-  if (st.debt > 0 && st.debtWeeks >= REBUILD_DEBT_WEEKS && st.waitWeeks > 0) fail('rebuild_cooldown');
+function rebuild(game, cooldown = REBUILD_COOLDOWN_WEEKS, now = null, cooldownMs = REBUILD_COOLDOWN_MS) {
+  if (!Number.isSafeInteger(now) || now <= 0) fail('server_time_unavailable', 503);
+  const st = rebuildStatus(game, cooldown, now, cooldownMs);
+  if (st.debt > 0 && st.debtWeeks >= REBUILD_DEBT_WEEKS && (st.waitWeeks > 0 || st.waitMs > 0)) fail('rebuild_cooldown');
   if (!st.available) fail('rebuild_unavailable');
   game.debt = 0; game.debtWeeks = 0;
   game.rebuilds = (count(game.rebuilds) ? game.rebuilds : 0) + 1;
   game.lastRebuildWeek = absWeek(game);
+  game.lastRebuildAt = now;
   return { rebuilt: true, writtenOff: st.debt, debtWeeks: st.debtWeeks, rebuilds: game.rebuilds, nextAfterWeeks: cooldown };
 }
 
-module.exports = { debtOf, assertNoDebt, receive, charge, MAX_DEBT, REBUILD_DEBT_WEEKS, REBUILD_COOLDOWN_WEEKS, readRebuildCooldown, rebuildStatus, rebuild };
+module.exports = { debtOf, assertNoDebt, receive, charge, MAX_DEBT, REBUILD_DEBT_WEEKS, REBUILD_COOLDOWN_WEEKS, REBUILD_COOLDOWN_MS, readRebuildCooldown, rebuildStatus, rebuild };

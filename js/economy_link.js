@@ -284,7 +284,7 @@
         lines.push(`<p><b>Sunucu haftası:</b> ${w.seasonNo > 1 ? `${w.seasonNo}. sezon · ` : ''}${w.week}/${w.season}</p>`);
         lines.push(`<p><b>Borç:</b> ${w.debt > 0 ? `${w.debt} altın · ${w.debtWeeks} haftadır borçlu. Takas, Bedesten alımı ve harcama kapalı; kazançlar önce borca gider.` : 'yok'}</p>`);
         if (w.rebuild && w.rebuild.available) lines.push(`<div class="eco-rebuild"><p><b>Ocak iflasın eşiğinde.</b> Hesabın silinmez. "Ocağı yeniden kur" borcu siler; ejderha, yumurta, eşya ve yemin olduğu gibi kalır.</p><button class="btn primary" data-a="eco-rebuild">Ocağı yeniden kur</button></div>`);
-        else if (w.debt > 0 && w.rebuild && w.rebuild.waitWeeks > 0) lines.push(`<p class="mute sm">Ocağı son yeniden kuruşundan beri yeterli hafta geçmedi; ${w.rebuild.waitWeeks} hafta sonra yeniden açılır.</p>`);
+        else if (w.debt > 0 && w.rebuild && (w.rebuild.waitWeeks > 0 || w.rebuild.waitMs > 0)) lines.push(`<p class="mute sm">Ocağı son yeniden kuruşundan beri yeterli süre geçmedi (en az ${w.rebuild.cooldown || 8} sunucu haftası ve 24 saat). ${[w.rebuild.waitWeeks > 0 ? `${w.rebuild.waitWeeks} hafta` : '', w.rebuild.waitMs > 0 ? `${Math.ceil(w.rebuild.waitMs / 3600000)} saat` : ''].filter(Boolean).join(' ve ')} sonra yeniden açılır.</p>`);
         else if (w.debt > 0 && w.rebuild) lines.push(`<p class="mute sm">Borç ${w.rebuild.threshold} hafta üst üste sürerse "Ocağı yeniden kur" açılır.</p>`);
       }
       if (st.lastError) lines.push(`<p class="mute sm">${escHtml(errorText(st.lastError))}</p>`);

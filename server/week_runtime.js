@@ -107,7 +107,7 @@ function weekStatus(game, now) {
   const debtNow = Number.isSafeInteger(game.debt) && game.debt > 0 ? game.debt : 0;
   const weeks = count(game.debtWeeks) ? game.debtWeeks : 0;
   let rebuild = null;
-  try { const r = debt.rebuildStatus(game); rebuild = { available: r.available, threshold: r.threshold, cooldown: r.cooldown, waitWeeks: r.waitWeeks }; } catch (_) { rebuild = null; }
+  try { const r = debt.rebuildStatus(game, undefined, now); rebuild = { available: r.available, threshold: r.threshold, cooldown: r.cooldown, waitWeeks: r.waitWeeks, waitMs: r.waitMs }; } catch (_) { rebuild = null; }
   return { week: Number.isSafeInteger(game.week) ? game.week : 1, seasonNo: Number.isSafeInteger(game.seasonNo) ? game.seasonNo : 1,
     season: SEASON_WEEKS, debt: debtNow, debtWeeks: weeks, rebuild, serverNow: now };
 }
