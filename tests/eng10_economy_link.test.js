@@ -184,3 +184,25 @@ test('ENG-10 O-1: zaman aşımı belirsiz sayılır (askıdaki komut aynı reque
   assert.equal(await L.bounded(slow, 20, () => 'fallback'), 'fallback');
   assert.equal(await L.bounded(Promise.resolve('fast'), 200, () => 'fallback'), 'fast');
 });
+
+test('ENG-10 O-2: askıda başka komut varken hafta kaybolmaz; önce askıdaki aynen, sonra week.end; kuyruk bilet sayısından düşülür', async () => {
+  const srv = fakeServer({ count: 3 });
+  const { link, client } = harness(srv);
+  await link.sync();
+  srv.mode = 'lost';
+  await assert.rejects(client.command('ocak.rebuild', {}), /response_lost/);
+  assert.equal(client.pendingType, 'ocak.rebuild');
+  // Doğrudan command() askı yüzünden reddeder: eski kod burada haftayı kaybediyordu.
+  await assert.rejects(client.command('week.end', {}), /command_pending_retry_required/);
+  let local = 0;
+  assert.equal(link.endWeek(() => local++), 'server');
+  assert.equal(link.state.queued, 1, 'hafta kuyrukta');
+  await link.whenIdle();
+  assert.equal(local, 1);
+  const types = srv.posts.map(p => p.type);
+  assert.deepEqual(types.slice(-2), ['ocak.rebuild', 'week.end']);
+  assert.equal(srv.posts.at(-2).requestId, srv.posts[0].requestId, 'askıdaki aynı requestId ile');
+  assert.equal(link.state.queued, 0); assert.equal(client.hasPending, false);
+  // Kuyruk biletten düşülür: 1 bilet + 1 kuyruktaki hafta → bekle.
+  assert.equal(L.weekGate({ linked: true, week: weekView(1), queued: 1 }, T0).mode, 'wait');
+});

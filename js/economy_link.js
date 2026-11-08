@@ -42,11 +42,11 @@
   //  local  → bağlı değil ya da bilet görünümü yok: eski akış (yerel hafta, sunucu çağrısı yok)
   //  server → yerel hafta hemen biter, sunucu week.end arka planda
   //  wait   → bilet yok; yeni hafta bekletilir (waitMs: sonraki bilete kalan süre, bilinmiyorsa null)
-  function weekGate({ linked, week, pendingWeek = false }, localNow) {
+  function weekGate({ linked, week, pendingWeek = false, queued = 0 }, localNow) {
     if (!linked || !week || !week.ticket) return { mode: 'local' };
     const t = week.ticket, nowS = estimateServerNow(week, localNow);
     const refilled = t.nextAt != null && nowS >= t.nextAt ? 1 : 0;
-    const have = t.count + refilled - (pendingWeek ? 1 : 0);
+    const have = t.count + refilled - (pendingWeek ? 1 : 0) - (queued > 0 ? queued : 0);
     if (have > 0) return { mode: 'server', count: have, cap: t.cap };
     return { mode: 'wait', waitMs: t.nextAt == null ? null : Math.max(0, t.nextAt - nowS), cap: t.cap };
   }
@@ -58,9 +58,9 @@
     return r ? `${h} sa ${r} dk` : `${h} sa`;
   }
   // Hafta düğmesinin altındaki kısa satır (mobilde de sığacak kadar kısa).
-  function badgeText({ linked, week, pendingWeek = false }, localNow) {
+  function badgeText({ linked, week, pendingWeek = false, queued = 0 }, localNow) {
     if (!linked || !week) return '';
-    const g = weekGate({ linked, week, pendingWeek }, localNow);
+    const g = weekGate({ linked, week, pendingWeek, queued }, localNow);
     const debt = week.debt > 0 ? ` · Borç ${week.debt}` : '';
     if (g.mode === 'wait') return `🎟 0 · ${formatWait(g.waitMs)}${debt}`;
     if (g.mode === 'server') return `🎟 ${Math.min(g.count, g.cap)}/${g.cap}${debt}`;
@@ -106,7 +106,8 @@
 
   // createEconomyLink: tarayıcı dışı testte `client` sahte verilir.
   function createEconomyLink({ getClient, isOnline = () => true, now = () => Date.now(), notify = () => {}, onChange = () => {} } = {}) {
-    let status = 'off', lastError = '', lastWeek = null, inflight = null, conflictRetried = false;
+    let status = 'off', lastError = '', lastWeek = null, inflight = null, conflictRetried = false, owed = 0;
+    const saveOwed = () => {};
     const client = () => (getClient && getClient()) || null;
     const linked = () => {
       const c = client();
@@ -114,7 +115,7 @@
     };
     const week = () => (client() ? client().week : null);
     const pendingWeek = () => !!(client() && client().pendingType === 'week.end');
-    const gate = () => weekGate({ linked: linked(), week: week(), pendingWeek: pendingWeek() }, now());
+    const gate = () => weekGate({ linked: linked(), week: week(), pendingWeek: pendingWeek(), queued: owed }, now());
     const changed = () => { try { onChange(); } catch (_) {} };
 
     async function sync() {
@@ -128,24 +129,41 @@
       changed();
       return status;
     }
-    async function sendWeek() {
+    // O-2: haftalar kuyruğu. Her bağlı yerel hafta sonu bir `week.end` borcudur (`owed`). Kuyruk boşaltılırken önce
+    // askıdaki HER komut (week.end ya da başka) aynı gövdeyle yeniden denenir; `command_pending_retry_required`
+    // gelirse hafta kaybolmaz, askıdaki iş bitince sıradaki hafta gönderilir.
+    const AMBIGUOUS = 'Sunucu haftası doğrulanamadı; aynı istek sonra otomatik yeniden denenecek. Yerel oyun etkilenmedi.';
+    const definite = e => e && e.status >= 400 && e.status < 500;
+    async function flush() {
       const c = client();
       if (!c) return null;
+      let last = null, guard = 0;
       try {
-        // Önce belirsiz kalan eski hafta isteği AYNEN (aynı requestId) gönderilir.
-        if (c.pendingType === 'week.end') await c.retry();
-        const data = await c.command('week.end', {});
-        conflictRetried = false; lastWeek = data.result || null; lastError = '';
-        const text = weekSummary(lastWeek);
-        if (text) notify(text, 'mute');
-        return data;
-      } catch (e) {
-        const code = e.message;
-        if (code === 'version_conflict' && !conflictRetried) { conflictRetried = true; return sendWeek(); }
-        conflictRetried = false; lastError = code;
-        if (!(e.status >= 400 && e.status < 500)) notify('Sunucu haftası doğrulanamadı; aynı istek sonra otomatik yeniden denenecek. Yerel oyun etkilenmedi.', 'warn');
-        else notify(errorText(code), 'warn');
-        return null;
+        while (guard++ < 50) {
+          if (c.hasPending) {
+            try { await c.retry(); } catch (e) {
+              if (!definite(e)) { lastError = e.message; notify(AMBIGUOUS, 'warn'); return last; }
+              lastError = e.message; // kesin ret: askı temizlendi, sıradakine geç
+            }
+            continue;
+          }
+          if (owed <= 0) break;
+          try {
+            const data = await c.command('week.end', {});
+            owed--; saveOwed(); conflictRetried = false; lastWeek = data.result || null; lastError = ''; last = data;
+            const text = weekSummary(lastWeek);
+            if (text) notify(text, 'mute');
+          } catch (e) {
+            const code = e.message;
+            if (code === 'command_pending_retry_required') continue;
+            if (code === 'version_conflict' && !conflictRetried) { conflictRetried = true; continue; }
+            conflictRetried = false; lastError = code;
+            owed--; saveOwed(); // belirsizse artık askıdaki komuttur; kesinse sunucu reddetti
+            notify(definite(e) ? errorText(code) : AMBIGUOUS, 'warn');
+            if (!definite(e)) return last;
+          }
+        }
+        return last;
       } finally {
         try { await c.refresh(); } catch (_) {}
         // K5: eşik aşıldıysa yol göster (sunucu bayrağı; eşik sayısı istemcide tutulmaz).
@@ -153,15 +171,17 @@
         changed();
       }
     }
+    function schedule() {
+      const job = (inflight || Promise.resolve()).then(flush);
+      inflight = job.finally(() => { if (inflight === job) inflight = null; });
+      return inflight;
+    }
     // runLocal: mevcut yerel hafta sonu (ACT.endweek gövdesi). Dönen: 'local' | 'server' | 'wait'.
     function endWeek(runLocal) {
       const g = gate();
       if (g.mode === 'wait') { notify(waitMessage(g), 'warn'); changed(); return 'wait'; }
       runLocal();
-      if (g.mode === 'server') {
-        const job = (inflight || Promise.resolve()).then(sendWeek);
-        inflight = job.finally(() => { if (inflight === job) inflight = null; });
-      }
+      if (g.mode === 'server') { owed++; saveOwed(); schedule(); }
       return g.mode;
     }
     async function rebuild() {
@@ -173,20 +193,19 @@
         return data;
       } catch (e) { notify(errorText(e.message), 'warn'); return null; } finally { await sync(); }
     }
+    // Açılışta/odakta: askıdaki komut ve bekleyen haftalar varsa kuyruk boşaltılır.
     async function retryPending() {
       const c = client();
-      if (!c || !c.hasPending || c.pendingType !== 'week.end' || !isOnline()) return;
-      try { await c.retry(); } catch (_) {}
-      try { await c.refresh(); } catch (_) {}
-      changed();
+      if (!c || !isOnline() || (!c.hasPending && owed <= 0)) return;
+      await schedule();
     }
     return {
       sync, endWeek, rebuild, retryPending, gate,
-      badge: () => badgeText({ linked: linked(), week: week(), pendingWeek: pendingWeek() }, now()),
+      badge: () => badgeText({ linked: linked(), week: week(), pendingWeek: pendingWeek(), queued: owed }, now()),
       duelDragon: () => (linked() ? pickDuelDragon(client().state) : null),
       get linked() { return linked(); },
       get idle() { return !inflight; },
-      get state() { return { status, lastError, lastWeek, week: week(), linked: linked(), pendingWeek: pendingWeek() }; },
+      get state() { return { status, lastError, lastWeek, week: week(), linked: linked(), pendingWeek: pendingWeek(), queued: owed }; },
       whenIdle: () => inflight || Promise.resolve(),
     };
   }
