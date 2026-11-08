@@ -51,3 +51,78 @@ Gider (`amount < 0`) yalnız düşer; istemci kendi altınını azaltabilir, art
 | Ün (`S.un`), ejderha istatistikleri, yara, görev | yerel (R-2) |
 | Besleme | yerel; sunucu yemi azalmaz (R-4) |
 
+## 2. Commit'ler
+| # | SHA | Konu |
+|---|---|---|
+| 0 | `664efd5` | Topçu maç sonu hatası: `shm_ui.js:1502` kapanmayan banner yorumu kapatıldı (ilk commit, koordinatör isteği) |
+| 1 | `921c584` | Envanter (bu belge §1) |
+| 2-3 | `7f8d60c` | Sunucu: `dragon.die`, `auction.sell`, `offer.sell`, `order.deliver`, `topcu.clear`, `topcu.spin`, `goal.reach`, `gold.local`, `gold.import` + birim testleri |
+| 3 | `c8544be` | Sunucu: Topçu garantili düşüşleri ve çark tohumlu VM RNG'sinde; `order`/`sale` defter türleri; Firestore emülatör testi |
+| 4 | `f067fd3` | İstemci: tek kese, A-7 akışları, Topçu sunucu akışı, etiketler; e2e (`eng13_sync`), `eng12_sync` güncellendi |
+| 5 | (bu commit) | Belge |
+
+## 3. Topçu maç sonu hatası (koordinatör eki)
+- **Bulgu:** `js/minigame/shm_ui.js:1502`'de açılan `/* ====` banner'ı 1645'teki `*/`'a kadar kapanmıyordu. `openStageDefeatRetryModal`, `openStageClearBlessingModal`, `completeSahmeranDungeonVictory` hiç tanımlanmıyordu. Dosya `6df80ec`'te bu hâliyle eklenmiş (`git show 6df80ec`: tek seferde 2939 satır; başka banner'lar iki satırlı `/* ==== … ==== */` biçiminde). Çağıranlar: `minigame.js:1892/1894/1912/1928/1961/1964/2023/2026/2477` ve `shm_ui.js` dışa aktarım bloğu; yani bu fonksiyonların yaşaması gerekir.
+- **Düzeltme:** yalnız banner kapatıldı (2 satır). Fonksiyon gövdeleri değişmedi.
+- **Açığa çıkan yan etkiler:** aşama geçişi +150, kervan +180, zindan +250/500/950 yerel altın; `awardChibiStones` ile taş/cevher/kalıp; çark ödülleri. **Kayıtlı hesapta** bunlar ENG-13 sunucu akışına bağlandı: altın ve garantili düşüşler `topcu.clear` ile sunucuda (yerel altın ve yerel taş yazılmaz, sunucu düşüşü yerelde aynen gösterilir), çark `topcu.spin` ile sunucuda zarlanır. **Misafirde** eski davranış (e2e ile doğrulandı).
+- **Regresyon testi:** `tests/eng13_sync.e2e.js` 1. test: tarayıcıda gerçek oyun akışıyla (`initSahmeranBattleStage` → düşmanlar yenilir → `advanceTurnAfterVolley`) aşama 1 geçişi (zafer ekranı, küçük çark), çark çevirme, aşama 4 final zaferi (büyük çark, garanti ganimet), yenilgi ekranı ("GERİ ÇEKİLME"); `pageerror` yok. Düşmanlara vurma kısmı test kısayoludur (canlar sıfırlanır); tur akışı ve ekranlar gerçektir.
+
+## 4. Kararlar
+- **K13-1 Tek kese:** kayıtlı (X oturumlu ve bağlı) hesapta HUD altını sunucu kesesidir. `S.gold` bir erişimciyle izlenir; yerel kod değişmeden her yazım görülür. Komutu olan akış kendi komutunu gönderir (yerel değişim iyimser görünür, deftere yazılmaz); kalan her yerel değişim tavanlı deftere (`gold.local`) gider. Komut kuyruğu boşalınca HUD sunucu değerine eşitlenir. Oyun beklemez.
+- **K13-2 Gelir sınıfı:** yeni sunucu gelirleri (`gold.local`, Topçu, müzayede, sipariş, teklif) `unknown` girer (takas/Bedesten'de verilemez). Gerekçe: olayın yaşandığı sunucuda doğrulanamıyor. `goal.reach` mevcut `goalSource` politikasıyla (bound/unknown), aktarım `bound`. `economy_sources.js` değişmedi. **Sonuç (00/01 kararı gerekir):** harcama sırası bound → unknown → earned olduğundan, yerel kazançla dolu kesede NPC'den alınan varlık `unknown` olur ve Bedesten'e konamaz. Hangi gelirin "doğrulanmış oyun ödülü" (earned) sayılacağı ürün kararıdır (ör. Topçu'nun sunucu doğrulamalı savaşa geçmesi).
+- **K13-3 Aktarım:** ilk etkinleşmede kayıt öncesi yerel altın bir kez `gold.import` ile `bound` aktarılır; tavan `EO_LOCAL_IMPORT_CAP` (2000). Yerel yeni oyunun 420 başlangıcı sunucu başlangıcıyla aynı olduğu için düşülür (iki kez sayılmaz); 0 ise komut gitmez. Açıklama bir kez gösterilir ("Tek kese …", aktarılmayan miktar dahil). ENG-12 iki kese hesabı olan kayıtlar da bu yolla bir kez geçer.
+- **K13-4 Hafta:** bağlıyken yerel hafta altını (bakım, rol geliri) yok sayılır; sunucu `week.end` esastır. Çevrimdışı haftanın altını deftere (`other`) gider.
+- **K13-5 Hedefler (DÜŞÜK-1):** yerel hedef ödülü yerelde yazılmaz; `goal.reach` eylemin kendi komutundan SONRA gider; sunucu kendi durumuyla zaten ödediyse `already`. Hesap başına bir kez, toplam en çok 720.
+- **K13-6 A-7:** yerel ölüm engellenmez; `dragon.die` kuyruğa girer (kayıtta saklanır, çevrimdışıysa bağlanınca gider). İlandaysa sunucu reddeder (`market_reserved_asset`), istemci ilanı geri çekip yeniden dener; takastaysa takas bitince yeniden dener. Müzayede, sipariş ve teklif artık sunucuda: ilandaki/takastaki/kilitli ejderha için net ret, yerel değişiklik geri alınır, ejderha ocakta kalır. ENG-12 engelleri kaldırıldı. Çevrimdışıyken bağlı ejderha verilemez/satılamaz (açık mesaj).
+- **K13-7 Müzayede:** salon hemen açılır; teklifçiler sunucunun tohumlu sonucunu (`auction.sell` günlüğü) sırayla oynar; yanıt gecikirse bekler. Gösterilen fiyat = sunucu fiyatı.
+- **K13-8 Topçu:** `topcu.clear {tür[:alt]}` sabit geçiş altını + garantili düşüş (aynı formüller); canlı sunucu ejderhası şart; çark hakkı verir. `topcu.spin {çark}` hak tüketir; ek büyük çark 120 ücretli. Kervan ortaklığı ve üçlü sancak bonusları istemci durumudur, sunucuda uygulanmaz. Çarkın cevher ve kalıp parçası dilimleri yerel ganimet listesine bağlı olduğundan yerel kalır; sabit taş dilimleri iki tarafta da yazılır.
+- **K13-9 Etiket:** kayıtlı hesapta "Ocak Kesesi" adı ve iki kese ipucu yok ("Kese"/"Kesende"). Misafirin sunucu hesabı (Bedesten) yerel altından ayrı olduğu için misafirde eski etiket kalır.
+
+## 5. Tavanlar ve "kolayca sömürülür" kalanlar (dürüst liste)
+Hepsi sunucu yapılandırması; oyuncular arası ekonomiye sızmaz (`unknown`), yalnız oyuncunun kendi NPC alışverişini etkiler.
+| Konu | Sınır | Kalan istismar |
+|---|---|---|
+| `gold.local` (yerel olay, arena, yarış…) | tür başına tek bildirim tavanı (§1b), günde 15000 | Hile yapan istemci her gün 15000 `unknown` altın bildirebilir. Tutar doğrulanamaz. |
+| `topcu.clear` | sabit tablo, canlı ejderha, günde 12000 (çarkla ortak) | Savaş sunucuda oynanmadığı için geçiş iddiası doğrulanamaz; güç kontrolü yok. |
+| `topcu.spin` ücretli çark | yalnız büyük çark açıkken, günlük Topçu tavanı | Yerel kuralın beklenen değeri pozitif (120 → ≈126/252); tavanla sınırlı. |
+| `order.deliver` | gen şartları sunucu ejderhasında; haftada 3, günde 10; `wk` 1–20 | Siparişin panoda gerçekten olduğu doğrulanamaz; `stat`/`stage` doğrulanmaz (R-2). Hafta atlama sınırsız olduğundan haftalık sınır gevşektir (günlük sınır kalır). |
+| `offer.sell` | haftada 1, günde 4 | Teklif olayı doğrulanamaz; value × 1.4 (Rüstem 0.6). |
+| `auction.sell` | sunucu haftasında bir satış | Hafta atlama sınırsız; satılmazsa yeniden denenebilir (yerel kuralla aynı). |
+| `gold.import` | bir kez, 2000, bound | — |
+| Gider reddi | `insufficient_gold` | Çok sekmede yarışta yerel harcama sunucuda reddedilirse bedava kalır (kese sunucuya döner). |
+| Defter yenileme penceresi | — | Kayıt kuyruğa devredildiği an ile komutun saklanması arasında sayfa kapanırsa o kayıt kaybolur (komut zinciri doluysa pencere uzar). |
+
+## 6. Bilinen riskler (ENG-12 R-2…R-5 ve yeniler)
+- **R-1 (A-7): kapandı.** Ölen/satılan/verilen bağlı ejderha sunucudan, Sandık'tan ve Bedesten listesinden kalkar.
+- **R-2 sürüyor:** yerel ve sunucu ejderhası ayrı evrilir (antrenman, yara, ün). Müzayede ve teklif fiyatı sunucu ejderhasının `value`'sundan; sipariş `stat` şartı doğrulanmaz. Sunucu haftası sunucu ejderhalarına bakım yazar; kayıt öncesi yerel-only ejderhaların bakımı ve rol geliri tek kesede yok.
+- **R-3 sürüyor:** yerelde çatlayan bağlı yumurta, sunucu çatlayana dek Sandık'ta yumurta görünür.
+- **R-4 sürüyor:** yerel besleme sunucu yemini azaltmaz; Kerim'den (yerel) eşya ve Kor Örsü/taş/cevher işlemleri yalnız altın tarafında tek kesededir (gider defteri), taş ve eşya yerel kalır (**R-8**, A-3).
+- **R-5 sürüyor (talimat gereği dokunulmadı):** sınırsız hafta; NPC tezgâhı yenileme ve haftalık sınırlar hafta atlamayla gevşer.
+- **R-9:** arena, kervan, düello taşları (`awardChibiStones`, Topçu dışı) yerel kalır.
+- **R-10:** iyimser HUD kısa süre sunucudan farklı görünebilir (yerel hedef ödülü, çark animasyonu); kuyruk boşalınca eşitlenir.
+
+## 7. Codex ile ortak dosyalar (küçük tutuldu)
+- `server/economy_commands.js`: +14/−2 (yeni şemalar, `amount` doğrulaması, `auction` kural dosyası, `local_income` devri). Mantık yeni dosyada: `server/local_income.js`.
+- `js/pazar.js`: 4 satır (etiket ve ret metni). `economy_store.js`, `firestore_store.js`, `net.js`, `server.js`: **değişmedi**.
+
+## 8. Testler (2026-11-09, Windows, Node 24, msedge headless)
+| Komut | Sonuç |
+|---|---|
+| `npm test` | **160/160** (taban 146; yeni `tests/eng13_income.test.js` 14) |
+| `firebase emulators:exec --only firestore … "npm run test:firestore"` | **14/14** (yeni ENG13: ilandaki ejderha ölemez, iki örnekte Topçu tek kez, defter tavanı) |
+| `npx playwright test` (tüm e2e) | **16/16**: layout 2, eng10 5, eng11 1, eng12 3 (güncellendi), eng13 3 (yeni), ocak-sandigi 1, trade-ui 1 |
+| `ENG05_MULTI_SERVER=1` + emülatör + `test:trade-ui` (iki sunucu) | **1/1** |
+
+Yeni e2e (`npm run test:eng13`): (1) misafir Topçu regresyonu; (2) kayıtlı: aktarım 9999 → 420 + 2000 (7579 atıldı, mesaj), HUD = kese, yerel +200/−120 ve tavan (5000 → 300) sunucuda, NPC tezgâhı aynı keseden, Topçu geçişi +150, çark (sunucu dilimi), final +250 ve sunucu taş düşüşü, yenilemeden sonra aynı altın; (3) kayıtlı: ölüm → sunucu/Sandık/Bedesten'den kalkar ve `dead`'e geçer; ilandayken ölüm → ilan geri çekilir, ölüm uygulanır; müzayede (sunucu senaryosu, fiyat × 0.9); sipariş (formül altını); teklif; çevrimdışı ölüm kuyruğu bağlanınca uygulanır, çevrimdışı verme reddi; yenilemede dirilme yok.
+Ekran görüntüleri (yerel): `test-results/eng13/*.png` (misafir aşama geçişi/final/yenilgi, tek kese HUD, kayıtlı Topçu zaferi, müzayede, Sandık, yenileme).
+
+**Koşulmayanlar:** gerçek telefon/iOS Safari, Cloud Run, gerçek X OAuth (yerel simülasyon), yük testi; tam elle oynanmış Topçu savaşı (düşman canları test kısayoluyla sıfırlandı); kervan ve PvP Topçu kipinin kayıtlı hesapta uçtan uca akışı (yalnız birim); `topcu.spin` ücretli çark ve günlük tavan tarayıcıda (birimde var); `gold.local` gün dönümü tarayıcıda; çok sekme yarışı; ağ kesintisinde sayfa kapanması.
+
+## 9. Sonraki adımlar
+1. 00/01: K13-2 (hangi gelir `earned` olur) ve tavan değerleri onayı.
+2. A-3: Kor Örsü/taş/cevher (`chibi.*`) ve Kerim eşya alımı sunucuya (taş tek kaynağa iner).
+3. A-4: besleme/yem.
+4. Hafta atlama için ileride çözüm (kullanıcı notu): haftalık sınırlar gerçek zamana bağlanabilir.
+
+## 10. 00'a kısa özet
+Kayıtlı hesapta artık tek kese var: HUD sunucu altınıdır, yerel kazanç/harcama sunucuda kalıcıdır (komutlu akışlar sunucuda hesaplanır, kalan tavanlı `unknown` defter). Ölen/satılan/verilen bağlı ejderha sunucudan ve Bedesten'den kalkar. Topçu'nun maç sonu donması (açık yorum) düzeltildi; kayıtlı hesapta Topçu ödülü sunucuda. Karar bekleyen: yeni gelirlerin `unknown` sınıfı Bedesten satılabilirliğini azaltır.
