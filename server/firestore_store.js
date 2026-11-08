@@ -161,13 +161,18 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
       return result;
     }, { maxAttempts: 5 });
   }
-  async function listMarket(actor) {
+  // ENG-09 Y-1: ham (sunucu içi) ilanlar; yanıta yalnız publicListing ile çevrilerek çıkar.
+  async function listMarketRaw(actor, { open: withOpen = true } = {}) {
     const [open, mine] = await Promise.all([
-      listings.where('status', '==', 'open').orderBy('createdAt', 'desc').limit(market.LIMITS.publicPage).get(),
+      withOpen ? listings.where('status', '==', 'open').orderBy('createdAt', 'desc').limit(market.LIMITS.publicPage).get() : null,
       actor ? listings.where('sellerId', '==', actor).orderBy('createdAt', 'desc').limit(market.LIMITS.minePage).get() : null,
     ]);
-    const view = snap => (snap ? snap.docs.map(d => market.publicListing(JSON.parse(d.data().json), actor)) : []);
-    return { listings: view(open), mine: view(mine) };
+    const raw = snap => (snap ? snap.docs.map(d => JSON.parse(d.data().json)) : []);
+    return { open: raw(open), mine: raw(mine) };
+  }
+  async function listMarket(actor) {
+    const raw = await listMarketRaw(actor);
+    return { listings: raw.open.map(l => market.publicListing(l, actor)), mine: raw.mine.map(l => market.publicListing(l, actor)) };
   }
   async function executeCommand(accountId, input) {
     const { command, hash } = validateCommand(input);
@@ -193,7 +198,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
     }, { maxAttempts: 5 });
   }
   return {
-    backend: 'firestore', executeMarket, listMarket, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
+    backend: 'firestore', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
     async revokeSession(token) { if (typeof token === 'string') await sessions.doc(hashToken(token)).delete(); },
     async close() { await db.terminate(); },
   };

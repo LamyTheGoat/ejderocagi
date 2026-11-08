@@ -22,7 +22,9 @@ const fs = require('fs');
 const path = require('path');
 const { createDragonDuelServer } = require('./js/duel_server.js');
 const { createEconomyStore } = require('./server/store_factory');
-const { createMarketService } = require('./server/market_service');
+const { createMarketService, publicListing } = require('./server/market_service');
+const { createMarketReadCache } = require('./server/market_read_cache');
+const { consume } = require('./server/service_security');
 const { COMMAND_TYPES } = require('./server/economy_commands');
 const { createGuestSessions } = require('./server/guest_session');
 const { createPublicFiles } = require('./server/public_files');
@@ -309,8 +311,35 @@ let WORLD = loadWorld();
 // ENG-07: Bedesten artık ekonomi deposunda (SQLite/Firestore). WORLD.marketListings eski tohum
 // verisidir; hiçbir yanıtta gösterilmez (sahte "canlı ilan" yok).
 const MARKET = createMarketService({ store: ECONOMY });
+// ENG-09 Y-1: okuma uçları için cömert limit (dakikada; ortamdan ayarlanır) ve kısa ömürlü Bedesten önbelleği.
+// Normal istemci: Bedesten 10 sn'de /api/market + /api/economy (12/dk), Takas 5 sn'de state + peers (24/dk).
+// Hesap başına 300/dk, iki ekran açık 8 sekmeyi (288/dk) karşılar. Oturumsuz okuma normal istemcide yoktur
+// (istemci önce /api/session alır); IP başına 120/dk yalnız oturumsuz çağrıları sınırlar.
+// Kova, POST limitinin kullandığı consume() kuralıyla süreç belleğindedir (örnek başına), depoda DEĞİL:
+// Firestore'da her GET bir işlem (okuma + yazma) ekler ve aynı hesabın paralel GET'leri (market + economy,
+// state + peers) aynı belgede çekişir (emülatörde ~3 sn). Bu, Y-1'in amacı olan okuma maliyetini büyütürdü.
+const envInt = (value, fallback, min) => { const n = Number(value); return Number.isInteger(n) && n >= min ? n : fallback; };
+const READ_RATE = Object.freeze({
+  account: envInt(process.env.READ_RATE_PER_ACCOUNT, 300, 1),
+  ip: envInt(process.env.READ_RATE_PER_IP, 120, 1),
+  windowMs: 60000,
+  maxKeys: 20000,
+});
+const readWindows = new Map();
+function consumeReadRate(key, limit) {
+  const now = Date.now();
+  if (readWindows.size >= READ_RATE.maxKeys) {
+    for (const [k, w] of readWindows) if (w.until <= now) readWindows.delete(k);
+    // Bellek sınırı: hâlâ doluysa en eski pencereler bırakılır (o anahtarlar için sınır sıfırlanır, istek reddedilmez).
+    for (const k of readWindows.keys()) { if (readWindows.size < READ_RATE.maxKeys) break; readWindows.delete(k); }
+  }
+  const next = consume(readWindows.get(key), limit, READ_RATE.windowMs, now); // aşımda 429 rate_limited fırlatır
+  readWindows.delete(key); readWindows.set(key, next);
+}
+const READ_RATE_PATHS = new Set(['/api/market', '/api/economy', '/api/trade/state', '/api/trade/peers']);
+const MARKET_READS = createMarketReadCache({ store: ECONOMY, publicListing, ttlMs: envInt(process.env.MARKET_CACHE_TTL_MS, 2500, 0) });
 // Yayın yalnız "yenile" sinyalidir: ilan listesi, satış veya altın taşımaz (eski istemci yerel altın yazmasın).
-const marketChanged = listingId => wsBroadcast({ type: 'market_update', listingId });
+const marketChanged = listingId => { MARKET_READS.invalidate(); wsBroadcast({ type: 'market_update', listingId }); };
 
 function prunePlayers(w = WORLD) {
   const pKeys = Object.keys(w.players || {});
@@ -886,6 +915,11 @@ async function handleHttp(req, res) {
     return sendJson(res, 200, { ok: true, accountId: identity.accountId, handle: identity.handle, expiresAt: identity.expiresAt, economyReady: false });
   }
   if(req.identity && req.method==='POST' && ['/api/trade','/api/economy/command','/api/market'].includes(pathname)) await ECONOMY.consumeRate('economy:'+req.identity.accountId,120,60000);
+  // ENG-09 Y-1: okuma limiti POST kovasından ayrı ('read:'); aşımda aynı 429 { error: 'rate_limited' }.
+  if(req.method==='GET' && READ_RATE_PATHS.has(pathname)) {
+    if(req.identity) consumeReadRate('read:'+req.identity.accountId,READ_RATE.account);
+    else consumeReadRate('read-ip:'+req.socket.remoteAddress,READ_RATE.ip);
+  }
   if (pathname.startsWith('/api/trade') && req.headers['x-trade-account'] && req.headers['x-trade-account'] !== req.identity?.accountId) return sendJson(res,409,{ok:false,error:'trade_account_changed'});
   if (pathname === '/api/trade/state' && req.method === 'GET') {
     if(!req.identity)return sendJson(res,401,{ok:false,error:'guest_session_required'});
@@ -1225,7 +1259,7 @@ async function handleHttp(req, res) {
   // 8b. GET & POST /api/market — Canlı Oyuncu Bedesteni (Marketplace)
   if (pathname === '/api/market' && req.method === 'GET') {
     try {
-      const view = await ECONOMY.listMarket(req.identity?.accountId || null);
+      const view = await MARKET_READS.view(req.identity?.accountId || null);
       return sendJson(res, 200, { ok: true, settlementReady: true, ...view, serverNow: Date.now() });
     } catch (_) { return sendJson(res, 503, { ok: false, error: 'market_unavailable' }); }
   }

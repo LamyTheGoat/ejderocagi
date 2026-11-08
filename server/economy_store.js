@@ -289,16 +289,21 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
       return result;
     });
   }
-  function listMarket(actor) {
+  // ENG-09 Y-1: ham (sunucu içi) ilanlar; yanıta yalnız publicListing ile çevrilerek çıkar.
+  function listMarketRaw(actor, { open: withOpen = true } = {}) {
     return atomic(() => {
-      const open = db.prepare("SELECT json FROM market_listings WHERE status = 'open' ORDER BY created_at DESC LIMIT ?").all(market.LIMITS.publicPage);
+      const open = withOpen ? db.prepare("SELECT json FROM market_listings WHERE status = 'open' ORDER BY created_at DESC LIMIT ?").all(market.LIMITS.publicPage) : [];
       const mine = actor ? db.prepare('SELECT json FROM market_listings WHERE seller_id = ? ORDER BY created_at DESC LIMIT ?').all(actor, market.LIMITS.minePage) : [];
-      return { listings: open.map(r => market.publicListing(JSON.parse(r.json), actor)), mine: mine.map(r => market.publicListing(JSON.parse(r.json), actor)) };
+      return { open: open.map(r => JSON.parse(r.json)), mine: mine.map(r => JSON.parse(r.json)) };
     }, 'DEFERRED');
+  }
+  function listMarket(actor) {
+    const raw = listMarketRaw(actor);
+    return { listings: raw.open.map(l => market.publicListing(l, actor)), mine: raw.mine.map(l => market.publicListing(l, actor)) };
   }
 
   return Object.freeze({
-    backend: 'sqlite', executeMarket, listMarket, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
+    backend: 'sqlite', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
     revokeSession(token) { if (typeof token === 'string') db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token)); },
     close() { db.close(); },
   });

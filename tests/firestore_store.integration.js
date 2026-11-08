@@ -330,3 +330,29 @@ test('ENG07 Firestore Bedesten: list/cancel, partial and offline sale, concurren
  const hold=JSON.parse((await raw.collection('eo_market_holds').doc(seller).get()).data().json);
  assert.deepEqual(hold,{schema:1,listings:[],items:[],dragons:[],eggs:[],food:{}});
 });
+
+test('ENG09 Firestore: market read cache (shared open page, per-account fields, invalidation)', {timeout:60000}, async t => {
+ const {createMarketReadCache}=require('../server/market_read_cache');const {publicListing}=require('../server/market_service');
+ const a=openFirestoreStore(options),b=openFirestoreStore(options);
+ t.after(async()=>{await a.close();await b.close();});
+ const seller=await a.createGuest(),viewer=await a.createGuest();
+ for(const u of [seller,viewer])await a.executeCommand(u.accountId,command('game.start',{},0));
+ await earnedAccounts(seller.accountId);
+ const S=await a.readEconomy(seller.accountId);
+ let clock=Date.now();
+ const cache=createMarketReadCache({store:b,publicListing,ttlMs:60000,now:()=>clock});
+ const before=(await cache.view(viewer.accountId)).listings.length;
+ const listed=(await a.executeMarket(seller.accountId,{op:'list',requestId:crypto.randomUUID(),kind:'dragon',assetId:S.dragons[0].assetId,quantity:1,unitPrice:7})).listing;
+ // Diğer örnekte yazılan ilan en çok TTL kadar gecikir; aynı örnekte marketChanged geçersiz kılar.
+ assert.equal((await cache.view(viewer.accountId)).listings.length,before,'cached within TTL');
+ cache.invalidate();
+ const pub=await cache.view(viewer.accountId),own=await cache.view(seller.accountId),anon=await cache.view(null);
+ const p=pub.listings.find(l=>l.id===listed.id),o=own.listings.find(l=>l.id===listed.id),n=anon.listings.find(l=>l.id===listed.id);
+ assert.ok(p&&o&&n);
+ assert.equal(p.mine,false);assert.equal(p.assetId,undefined);assert.equal(p.sellerId,undefined);assert.equal(n.assetId,undefined);
+ assert.equal(o.mine,true);assert.equal(o.assetId,S.dragons[0].assetId);assert.ok(own.mine.some(l=>l.id===listed.id));
+ assert.equal(pub.mine.length,0);
+ assert.equal(cache.stats.misses,2,'open page read from Firestore only twice for five views');
+ await a.executeMarket(seller.accountId,{op:'cancel',requestId:crypto.randomUUID(),listingId:listed.id});cache.invalidate();
+ assert.equal((await cache.view(null)).listings.some(l=>l.id===listed.id),false);
+});
