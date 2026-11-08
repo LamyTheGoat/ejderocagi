@@ -269,7 +269,7 @@ function vendorView(k) {
     <div class="vright">
       <div class="vspeech"><p id="vsay">${esc(UI.vsay)}</p></div>
       <div class="vcounter">${tabs}<div class="vgoods">${goods}</div>
-        <div class="vfoot"><span>${ui('gold')} Kesende <b>${S.gold}</b> altın</span>${k === 'ejder' ? `<span>İnlerde boş yer: <b>${freeSlots()}</b></span>` : ''}</div></div>
+        <div class="vfoot"><span>${ui('gold')} ${typeof ECO_SYNC !== 'undefined' && ECO_SYNC.active() ? `Ocak Kesesi <b>${ECO_SYNC.purse()}</b> altın` : `Kesende <b>${S.gold}</b> altın`}</span>${k === 'ejder' ? `<span>İnlerde boş yer: <b>${freeSlots()}</b></span>` : ''}</div></div>
     </div>
   </div>`;
 }
@@ -403,7 +403,7 @@ const BED_KIND_CAT = { dragon: 'dragon', egg: 'egg', item: 'equip', food: 'food'
 const BED_UNAVAILABLE = { asset_unavailable: 'görevde, kuluçkada, kilitli ya da yaşlı', asset_equipped: 'ekipmanlı ya da kuşanılmış' };
 const BED_MSG = {
   gold_not_transferable: 'Yalnız kazanılmış (earned) altınla başka oyuncudan alınabilir.',
-  insufficient_gold: 'Sunucu kesende yeterli altın yok.',
+  insufficient_gold: 'Ocak Kesesi\'nde yeterli altın yok.',
   asset_not_transferable: 'Bu varlık hesaba bağlı (başlangıç/bilinmeyen kaynak); satışa konamaz.',
   food_not_transferable: 'Bu yemin kazanılmış miktarı yetmiyor; bağlı yem satışa konamaz.',
   food_reserved: 'Bu yemin bir kısmı zaten ilanda veya takasta.',
@@ -559,7 +559,7 @@ function bedestenView() {
     : st.error ? bedErr(st.error)
     : st.notice ? esc(st.notice)
     : !st.loaded ? 'Bedesten defteri sunucudan okunuyor…'
-    : 'Bedesten sunucu hesabını kullanır; yerel oyundaki altın ve varlıklar ayrıdır.';
+    : 'Bedesten Ocak Kesesi\'ni (sunucu hesabın) kullanır; yerel kesendeki altın ayrıdır.';
   const statusHtml = `<p role="status" aria-live="polite" class="mute sm" style="margin:0 0 6px">${status}${st.pending ? ' <button class="btn ghost sm" data-a="bed-retry">Sonucu doğrula / yeniden dene</button>' : ''}</p>`;
 
   let bodyHtml = '';
@@ -707,7 +707,7 @@ function bedestenView() {
         ${tabsHtml}
         <div class="vgoods">${bodyHtml}</div>
         <div class="vfoot">
-          <span>${ui('gold')} Sunucu kesesi <b>${eco ? eco.gold : '—'}</b> altın${eco && eco.funds ? ` (alışverişe açık: <b>${eco.funds.earned}</b>)` : ''}</span>
+          <span>${ui('gold')} Ocak Kesesi <b>${eco ? eco.gold : '—'}</b> altın${eco && eco.funds ? ` (alışverişe açık: <b>${eco.funds.earned}</b>)` : ''}</span>
           <span>Aktif İlan: <b>${allListings.length}</b> · Senin İlanın: <b>${myOpen.length}</b></span>
         </div>
       </div>

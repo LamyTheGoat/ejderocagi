@@ -2086,7 +2086,6 @@ const ACT = {
 function localEndWeek() {
   PRE = snapshot();
   window.__grew = []; const R = endWeek();
-  if (typeof ECO_SYNC !== 'undefined') ECO_SYNC.afterLocalWeek(); // ENG-12: kayıtlı hesapta yerel iflas yok (borç sunucuda)
   saveGame(); SFX.play('bell'); if (window.__grew.length) setTimeout(() => SFX.play('grow'), 1300);
   UI.tile = null; UI.drawer = null; UI.stall = null;
   $('#app').classList.add('dusk'); setTimeout(() => $('#app').classList.remove('dusk'), 1400);
@@ -2219,7 +2218,7 @@ function mobHubModal() {
       </button>
       <button class="mob-cmd-card" data-a="eco-status" aria-label="Sunucu kesesi: hafta ve borç">
         <span class="mc-ic" aria-hidden="true">⚖</span>
-        <div><b>Sunucu Kesesi</b><small>${typeof ECO_LINK !== 'undefined' && ECO_LINK.linked ? esc(ECO_LINK.badge() || 'Sunucu kesesi') : 'Sunucu kesesi · bağlı değil'}</small></div>
+        <div><b>Ocak Kesesi</b><small>${typeof ECO_LINK !== 'undefined' && ECO_LINK.linked ? esc(ECO_LINK.badge() || 'Sunucu kesesi') : 'Sunucu kesesi · bağlı değil'}</small></div>
       </button>
       <button class="mob-cmd-card hi" data-a="mob-hub-act" data-act="chibi-open">
         <span class="mc-ic">${ui('anvil')}</span>

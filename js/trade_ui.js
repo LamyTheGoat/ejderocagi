@@ -207,7 +207,7 @@
   else if(checking&&target)screen={html:'<div class="tr-card tr-center"><p>Bakılıyor…</p></div>',foot:''};
   else screen=idleScreen(s,t,locked);
   const title=t&&['invited','active'].includes(t.status)?`${esc(partnerHandle(s,t))} ile takas`:target&&!NPC.has(target)?`${esc(target)} ile takas`:'Takas';
-  const purse=s.economy?.game?`<small class="tr-purse">Kesende <b data-testid="server-gold">${esc(s.economy.gold)} altın</b></small>`:'';
+  const purse=s.economy?.game?`<small class="tr-purse">Ocak Kesesi <b data-testid="server-gold">${esc(s.economy.gold)} altın</b></small>`:'';
   const band=s.pending?`<div class="tr-band warn" role="alert"><span>Son işlemin sonucu henüz gelmedi.</span>${btn('retry','Sonucu kontrol et',{cls:'sm',dis:s.busy})}</div>`
    :s.error&&s.accountId?`<div class="tr-band err" role="alert"><span>${esc(human(s.error))}</span></div>`:'';
   const html=`<header class="tr-head"><div class="tr-titles"><h2 id="trade-title" tabindex="-1">${title}</h2>${purse}</div>

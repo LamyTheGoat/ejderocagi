@@ -20,11 +20,11 @@ function localGame() {
 }
 const kf = S => () => 2 - S.eggs.filter(e => e.inK).length;
 
-test('ENG-12 ilk etkinleşme: tek altın (sunucu), sunucu pazarı; sunucu başlangıç varlıkları yerele kopyalanmaz; yerel ejderhalar kalır', () => {
+test('ENG-12 ilk etkinleşme: iki kese (yerel altın korunur), sunucu pazarı; sunucu başlangıç varlıkları yerele kopyalanmaz; yerel ejderhalar kalır', () => {
   const srv = srvStart(), S = localGame();
   const r = Y.reconcile(S, ecoOf(srv), { kuluckaFree: kf(S) });
   assert.equal(r.first, true); assert.equal(r.changed, true);
-  assert.equal(S.gold, 420, 'kese sunucu kesesi'); assert.equal(S.srvSync.localGold, 1234, 'eski yerel kese kayıt altında');
+  assert.equal(S.gold, 1234, 'iki kese: yerel altın (kayıt öncesi dahil) korunur, sunucu altını yazılmaz'); assert.equal('localGold' in S.srvSync, false);
   assert.deepEqual(S.market, srv.market, 'Rüstem/Hatice sunucu pazarını gösterir');
   assert.deepEqual(S.dragons.map(d => d.name), ['YerelKor']); assert.equal(S.eggs.length, 1);
   assert.deepEqual(S.srvSync.base.sort(), [...srv.dragons, ...srv.eggs].map(x => x.assetId).sort());
@@ -36,7 +36,7 @@ test('ENG-12 NPC ejderha + yumurta alımı: iyimser yerel kopya sunucu kaydına 
   let srv = srvStart(); const S = localGame();
   Y.reconcile(S, ecoOf(srv), { kuluckaFree: kf(S) });
   // Yerel ACT.buyD/buyEgg ile aynı iyimser değişiklik (yerel kimlik, fiyat silinir).
-  const d = S.market.dragons[0], srvId = d.id; S.gold -= d.price; d.id = S.nid++; delete d.price; S.dragons.push(d); S.market.dragons.splice(0, 1);
+  const d = S.market.dragons[0], srvId = d.id; d.id = S.nid++; delete d.price; S.dragons.push(d); S.market.dragons.splice(0, 1);
   const e = S.market.egg; S.gold -= 0; delete e.price; S.eggs.push(e); S.market.egg = null;
   srv = srvStep(srv, 'shop.dragon', { id: srvId }); srv = srvStep(srv, 'shop.egg', { id: srv.market.egg.id });
   const r = Y.reconcile(S, ecoOf(srv), { kuluckaFree: kf(S) });
@@ -45,7 +45,7 @@ test('ENG-12 NPC ejderha + yumurta alımı: iyimser yerel kopya sunucu kaydına 
   const linked = S.dragons.find(x => x.assetId);
   assert.equal(linked, d); assert.equal(linked.funding, 'bound'); assert.equal(linked.id, d.id, 'yerel kimlik korunur');
   assert.equal(S.eggs.find(x => x.assetId), e);
-  assert.equal(S.gold, srv.gold); assert.equal(S.market.egg, null);
+  assert.equal(S.gold, 1234, 'yerel kese değişmez'); assert.equal(S.market.egg, null);
   assert.equal(Y.reconcile(S, ecoOf(srv), { kuluckaFree: kf(S) }).changed, false);
 });
 
@@ -76,7 +76,7 @@ test('ENG-12 iyimser satış askıdayken (gone) sunucu kaydı geri gelmez; ret o
   assert.equal(S.dragons.some(x => x.assetId === d.assetId), false, 'askıda: yeniden içe alınmaz');
   srv = srvStep(srv, 'dragon.sell', { assetId: d.assetId });
   Y.reconcile(S, ecoOf(srv), { kuluckaFree: kf(S) });
-  assert.deepEqual(S.srvSync.gone, [], 'onaylanınca temizlenir'); assert.equal(S.gold, srv.gold);
+  assert.deepEqual(S.srvSync.gone, [], 'onaylanınca temizlenir'); assert.equal(S.gold, 1234);
 });
 
 test('ENG-12 yumurta: yerelde çatlayan bağlı yumurta yeniden gelmez; sunucuda çatlayınca doğan ejderha yerel yavruya bağlanır', () => {
@@ -129,4 +129,38 @@ test('ENG-12 art arda iki alım: eski "önce" görüntüsüyle bile her yerel ko
   const rowB = Y.pickNewRow(S, before, end, 'dragons', b); // "önce" iki alım öncesinden: yine doğru satır
   assert.notEqual(rowA.assetId, rowB.assetId);
   assert.equal(rowB.data.name, b.name);
+});
+
+test('ENG-12 QA YÜKSEK-1: yerel altın kazanç ve harcamaları eşitlemede silinmez, iade edilmez; sunucu altını yerele yazılmaz', () => {
+  let srv = srvStart(); const S = localGame();
+  Y.reconcile(S, ecoOf(srv), { kuluckaFree: kf(S) });
+  S.gold += 500; // Topçu/olay/sipariş kazancı
+  Y.reconcile(S, ecoOf(srv), { kuluckaFree: kf(S) });
+  assert.equal(S.gold, 1734, 'kazanç silinmedi');
+  S.gold -= 300; // müzayede/örs harcaması
+  srv = srvStep(srv, 'week.end');
+  Y.reconcile(S, ecoOf(srv), { kuluckaFree: kf(S) });
+  assert.equal(S.gold, 1434, 'harcama iade edilmedi');
+  assert.notEqual(S.gold, srv.gold);
+});
+
+test('ENG-12 QA YÜKSEK-2: ölen ya da verilen bağlı ejderha sunucuda dursa bile yeniden içe alınmaz (dirilme/tekrar verme yok)', () => {
+  let srv = srvStart(); const S = localGame();
+  Y.reconcile(S, ecoOf(srv), { kuluckaFree: kf(S) });
+  srv.gold = 5000; srv.funds = { schema: 1, bound: 0, unknown: 0, earned: 5000 };
+  srv = srvStep(srv, 'building.buy', { kind: 'in', tile: Y.serverBuildTile(srv, 0) });
+  srv = srvStep(srv, 'shop.dragon', { id: srv.market.dragons[0].id });
+  srv = srvStep(srv, 'shop.dragon', { id: srv.market.dragons[0].id });
+  Y.reconcile(S, ecoOf(srv), { kuluckaFree: kf(S) });
+  const [dead, given] = S.dragons.filter(d => d.assetId);
+  assert.ok(dead && given);
+  // killDragon: S.dragons'tan çıkar, S.dead'e girer. Sipariş: S.dragons'tan çıkar.
+  S.dragons = S.dragons.filter(d => d !== dead && d !== given); S.dead = [...(S.dead || []), dead];
+  for (let i = 0; i < 3; i++) Y.reconcile(S, ecoOf(srv), { kuluckaFree: kf(S) });
+  assert.equal(S.dragons.some(d => d.assetId === dead.assetId || d.assetId === given.assetId), false);
+  assert.ok(S.srvSync.known.includes(dead.assetId) && S.srvSync.known.includes(given.assetId));
+  // Sunucudan gidince (ör. Bedesten'de satıldı) iz temizlenir.
+  srv = srvStep(srv, 'dragon.sell', { assetId: given.assetId });
+  Y.reconcile(S, ecoOf(srv), { kuluckaFree: kf(S) });
+  assert.equal(S.srvSync.known.includes(given.assetId), false);
 });
