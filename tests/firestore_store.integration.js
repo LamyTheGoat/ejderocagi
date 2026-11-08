@@ -472,19 +472,21 @@ test('ENG13 Firestore: ilandaki ejderha ölemez (net ret), ilan çekilince ölü
   const both = await Promise.allSettled([a.executeCommand(id, clear), b.executeCommand(id, clear)]);
   assert.ok(both.some(r => r.status === 'fulfilled'));
   eco = await b.readEconomy(id);
-  // K13-2: sunucunun hesapladığı Topçu geliri günlük tavan altında earned; iki örnekte tek kez.
+  // Topçu geliri earned; iki örnekte aynı istek tek kez.
   assert.equal(eco.gold, 420 + 150); assert.equal(eco.funds.earned, earned0 + 150); assert.equal(eco.funds.unknown, 0);
   const die = await a.executeCommand(id, command('dragon.die', { assetId: dragon }, eco.version));
   assert.equal(die.result.died, dragon);
   eco = await b.readEconomy(id);
   assert.equal(eco.dragons.some(r => r.assetId === dragon), false);
   const local = await b.executeCommand(id, command('gold.local', { reason: 'race', amount: 9999 }, eco.version));
-  assert.equal(local.result.credited, 300); assert.equal((await a.readEconomy(id)).gold, 570 + 300);
-  assert.equal((await a.readEconomy(id)).funds.unknown, 300); // istemci defteri earned olmaz
-  // Tavan: günlük earned 3000'i aşan Topçu geliri unknown girer (iki örnek aynı sayacı görür).
+  // Kullanıcı kararı: tavan yok; yerel defter ve Topçu geliri earned (takas edilebilir).
+  assert.equal(local.result.credited, 9999);
+  const after = await a.readEconomy(id);
+  assert.equal(after.gold, 570 + 9999); assert.equal(after.funds.earned, earned0 + 150 + 9999); assert.equal(after.funds.unknown, 0);
+  // İki örnek dönüşümlü: tavan yok, her geçiş tam earned; invariant korunur.
   const g2 = await a.createGuest(), id2 = g2.accountId;
-  let v = (await a.executeCommand(id2, command('game.start', {}, 0))).economy.version, earnedSum = 0;
-  const u0 = (await a.readEconomy(id2)).funds.unknown;
-  for (let i = 0; i < 4; i++) { const r = await (i % 2 ? a : b).executeCommand(id2, command('topcu.clear', { mode: 'raid_extreme:komutan' }, v)); v = r.economy.version; earnedSum += r.result.credit.earned; }
-  assert.equal(earnedSum, 3000); assert.equal((await b.readEconomy(id2)).funds.unknown, u0 + 4 * 950 - 3000);
+  let v = (await a.executeCommand(id2, command('game.start', {}, 0))).economy.version, sum = 0;
+  for (let i = 0; i < 4; i++) { const r = await (i % 2 ? a : b).executeCommand(id2, command('topcu.clear', { mode: 'raid_extreme:komutan' }, v)); v = r.economy.version; sum += r.result.gold; }
+  const e2 = await b.readEconomy(id2);
+  assert.equal(sum, 4 * 950); assert.equal(e2.funds.earned, 4 * 950); assert.equal(e2.funds.bound + e2.funds.unknown + e2.funds.earned, e2.gold);
 });

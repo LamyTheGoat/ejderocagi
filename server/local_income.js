@@ -6,11 +6,11 @@
 //  - Yeni mekanik yok: formüller js/auction.js, js/orders.js, js/fightev.js, js/minigame/shm_*.js ve js/core.js GOALS
 //    ile birebir aynıdır. `economy_sources.js` kaynak politikası DEĞİŞMEDİ; yeni gelirler `sources.credit` üzerinden
 //    (debt.receive) mevcut sınıflarla girer.
-//  - K13-2 (00 kararı): sunucunun KENDİ hesapladığı gelir (topcu.clear/spin, auction.sell, order.deliver, offer.sell)
-//    günlük `earned` tavanına (EO_EARNED_DAILY_CAP, 3000) kadar `earned`, aşanı `unknown` girer. İstemcinin bildirdiği
-//    tavanlı defter (gold.local) `unknown`, aktarım (gold.import) `bound`, hedef (goal.reach) mevcut goalSource
-//    politikasıyla (bound/unknown) kalır. Doğrulanamayan her şeyde ayrıca tavan + oran sınırı vardır.
-//  - Tavanlar sunucu yapılandırmasıdır (ortam değişkeni, açılışta doğrulanır; geçersiz değer = açılış hatası).
+//  - KULLANICI KARARI (2026-11-09, K13-2'nin yerine geçer): hile koruması ve gelir tavanı YOK. Sunucunun hesapladığı
+//    bütün gelirler (topcu.clear/spin, gold.local) `earned` (takas edilebilir) girer; ejderha çıkışları (auction/order/
+//    offer.sell) ejderhanın kaynağını korur (Y-1, dragon.sell gibi). gold.import ve hedef ödülü `bound` (D15).
+//    `unknown` yalnız eski veriler içindir. Yalnız geçerlilik denetimi kalır (tür, şema, tam sayı, tek istek ≤ 1.000.000).
+//    Haftada bir müzayede, çark hakkı ve siparişin ejderhaya uyması yerel OYUN KURALLARIDIR (hile önlemi değil).
 const vm = require('node:vm');
 const debt = require('./economy_debt');
 const sources = require('./economy_sources');
@@ -25,37 +25,14 @@ function envInt(env, name, def, max = 10_000_000) {
 }
 function readCaps(env = process.env) {
   return Object.freeze({
-    // Doğrulanamayan yerel gelirlerin (arena, yarış, olay, kıraathane...) UTC günü başına toplam tavanı.
-    localDaily: envInt(env, 'EO_LOCAL_INCOME_DAILY_CAP', 15000),
-    // Topçu (Şahmeran/Kalgarot seferleri) altınının UTC günü başına tavanı (geçiş ödülü + çark).
-    topcuDaily: envInt(env, 'EO_TOPCU_DAILY_GOLD', 12000),
-    // Sipariş teslimi: sunucu haftası ve UTC günü başına en çok (yerel pano en çok 3 sipariş tutar).
-    ordersPerWeek: envInt(env, 'EO_ORDERS_PER_WEEK', 3, 100), ordersPerDay: envInt(env, 'EO_ORDERS_PER_DAY', 10, 1000),
-    // Arena "Locadan Bir Teklif": sunucu haftası ve UTC günü başına en çok.
-    offersPerWeek: envInt(env, 'EO_OFFERS_PER_WEEK', 1, 100), offersPerDay: envInt(env, 'EO_OFFERS_PER_DAY', 4, 1000),
-    // Kayıt öncesi yerel altının tek seferlik aktarım tavanı (bound).
+    // Kayıt öncesi yerel altının tek seferlik aktarım tavanı (bound). Gelir tavanı DEĞİL (kullanıcının ilk ENG-13 talimatı).
     importCap: envInt(env, 'EO_LOCAL_IMPORT_CAP', 2000),
-    // K13-2: sunucunun hesapladığı gelirin earned girebileceği UTC günü toplamı (aşan kısım unknown).
-    earnedDaily: envInt(env, 'EO_EARNED_DAILY_CAP', 3000),
   });
 }
 const CAPS = readCaps();
 
-// Doğrulanamayan yerel gelir türleri ve TEK bildirim tavanı (yerel formülün üst sınırı + pay; kaynak dosya parantezde).
-// Tavan ödül DEĞİLDİR: sunucu bildirilen yerel tutarı en çok bu kadar kabul eder.
-const LOCAL_REASONS = Object.freeze({
-  arena: 800,      // week.js fightOutcome: rakip ödülü (≤360) + eşya altını + bahis (180)  · ui.js bahis
-  race: 300,       // race.js: birincilik 220
-  pageant: 800,    // pageant.js: 240 × divan çarpanı + soy telifi (gen × 18)
-  kiraathane: 1000,// kiraathane.js: 50 × çarpan
-  dungeon: 2500,   // endgame.js: (35 + kat × 18) × 1.35
-  hub: 1500,       // hub.js: sefer, kervan, dünya patronu (≤ 320 × olay çarpanı), kervan yükü
-  raid: 1000,      // net.js: dostluk baskını (85 × çarpanlar + bahis × 2)
-  event: 300,      // content.js, fightev.js, arenastory.js, comic.js, star.js, social.js olayları (≤ 150)
-  order: 1500,     // orders.js: sunucuya bağlı OLMAYAN (kayıt öncesi) ejderhanın sipariş teslimi (orderGen üst sınırı ≈ 1450)
-  sale: 2500,      // auction.js / fightev.js / pazar.js: bağlı olmayan ejderhanın müzayede, teklif ya da Rüstem satışı
-  other: 300,      // atfedilemeyen yerel gelir (ör. bina yıkım iadesi)
-});
+// Yerel gelir/gider türleri (yalnız geçerli tür listesi; tutar tavanı YOK). Kaynak dosyalar parantezde.
+const LOCAL_REASONS = Object.freeze(Object.fromEntries(['arena', 'race', 'pageant', 'kiraathane', 'dungeon', 'hub', 'raid', 'event', 'order', 'sale', 'other'].map(k => [k, true])));
 // Topçu geçiş ödülleri (js/minigame/shm_ui.js: openStageClearBlessingModal, completeSahmeranDungeonVictory).
 const TOPCU_CLEAR = Object.freeze({ stage: 150, caravan: 180, raid_normal: 250, raid_hard: 500, raid_extreme: 950, pvp: 0 });
 const TOPCU_SPIN_FEE = 120; // shm_ui.js spinSahmeranLootWheel: ücretli ek büyük çark
@@ -179,15 +156,8 @@ const vmExpose = new vm.Script(`({
   },
 })`, { filename: 'server_eng13_expose.js' });
 
-const utcDay = now => new Date(now).toISOString().slice(0, 10);
 const absWeek = S => ((Number.isSafeInteger(S.seasonNo) && S.seasonNo > 0 ? S.seasonNo : 1) - 1) * 20 + (Number.isSafeInteger(S.week) ? S.week : 1);
-function daily(S, now) {
-  if (!Number.isSafeInteger(now) || now <= 0) fail('server_time_unavailable', 503);
-  const day = utcDay(now);
-  if (!S.srvDaily || typeof S.srvDaily !== 'object' || S.srvDaily.day !== day) S.srvDaily = { day, local: 0, topcu: 0, orders: 0, offers: 0, earned: 0 };
-  for (const k of ['local', 'topcu', 'orders', 'offers', 'earned']) if (!count(S.srvDaily[k])) S.srvDaily[k] = 0;
-  return S.srvDaily;
-}
+// Oyun kuralı (yerel auction.js ile aynı): haftada bir kendi ejderhanı müzayedeye çıkarırsın. Hile önlemi değildir.
 function weekly(S, key) {
   const w = absWeek(S);
   S.srvWeekly = S.srvWeekly && typeof S.srvWeekly === 'object' && S.srvWeekly.week === w ? S.srvWeekly : { week: w };
@@ -204,17 +174,9 @@ function removeDragon(S, api, d) {
 // ilandaki ya da takastaki ejderha için komut `market_reserved_asset` / `trade_reserved_asset` ile reddedilir.
 function exitable(d) { if (d.task || d.dead || d.tradeLocked || d.busy) fail('dragon_busy', 409); return d; }
 const income = (S, amount, source) => (amount > 0 ? debt.receive(S, amount, source) : { paidDebt: 0, credited: 0 });
-// K13-2 (00 kararı, 2026-11-09): sunucunun KENDİ hesapladığı gelir (Topçu, müzayede, sipariş, teklif) UTC günü başına
-// `earnedDaily` toplamına kadar `earned` (takas edilebilir), aşan kısım `unknown` girer. economy_sources.js politikası
-// değişmedi: yalnız komutun hangi MEVCUT sınıfa yazdığı burada seçilir; her parça debt.receive → sources.credit ile
-// girer (bound + unknown + earned == gold korunur). Harcama sırası (bound → unknown → earned) değişmedi.
-function earnedIncome(S, amount, now, caps) {
-  if (!(amount > 0)) return { paidDebt: 0, credited: 0, earned: 0, unknown: 0 };
-  const D = daily(S, now), e = Math.min(amount, Math.max(0, caps.earnedDaily - D.earned)), u = amount - e;
-  D.earned += e;
-  const a = income(S, e, 'earned'), b = income(S, u, 'unknown');
-  return { paidDebt: a.paidDebt + b.paidDebt, credited: a.credited + b.credited, earned: e, unknown: u };
-}
+// Y-1 (D15): ejderhanın çıkışından gelen bedel ejderhanın kaynağını korur (dragon.sell ile aynı); başlangıç/bound
+// ejderha satılınca gelir bound girer.
+const dragonSource = d => (['bound', 'unknown', 'earned'].includes(d.funding) ? d.funding : 'unknown');
 
 const TYPES = new Set(['dragon.die', 'auction.sell', 'offer.sell', 'order.deliver', 'topcu.clear', 'topcu.spin', 'goal.reach', 'gold.local', 'gold.import']);
 // Komutları uygular. `ctx`: { api, now, owned, spend, caps }. Döner: result nesnesi.
@@ -233,55 +195,45 @@ function reduce(type, S, a, ctx) {
     case 'auction.sell': {
       const d = exitable(owned(S.dragons, a.assetId));
       const W = weekly(S, 'auction');
-      if (W.auction >= 1) fail('auction_weekly_limit', 409); // auction.js: haftada bir kendi ejderhanı çıkarırsın
+      if (W.auction >= 1) fail('auction_weekly_limit', 409); // auction.js oyun kuralı: haftada bir
       const sim = JSON.parse(JSON.stringify(api.aucSimServer(d))); // VM nesnesi → düz veri
       if (!sim.leader) return { auction: sim, sold: false, got: 0 };
       W.auction++;
-      const got = Math.round(sim.price * 0.9); // %10 komisyon
-      const credit = earnedIncome(S, got, now, caps);
+      const got = Math.round(sim.price * 0.9), source = dragonSource(d); // %10 komisyon
+      const credit = income(S, got, source);
       removeDragon(S, api, d);
-      return { auction: sim, sold: true, got, credit };
+      return { auction: sim, sold: true, got, source, credit };
     }
     case 'offer.sell': {
       const d = exitable(owned(S.dragons, a.assetId));
-      const D = daily(S, now), W = weekly(S, 'offers');
-      if (W.offers >= caps.offersPerWeek || D.offers >= caps.offersPerDay) fail('offer_limit', 409);
-      const price = Math.round(api.value(d) * 1.4); // fightev.js teklif: value × 1.4
-      W.offers++; D.offers++;
-      const credit = earnedIncome(S, price, now, caps);
+      const price = Math.round(api.value(d) * 1.4), source = dragonSource(d); // fightev.js teklif: value × 1.4
+      const credit = income(S, price, source);
       removeDragon(S, api, d);
-      return { price, credit };
+      return { price, source, credit };
     }
     case 'order.deliver': {
       const d = exitable(owned(S.dragons, a.assetId));
       if (d.old || d.inj) fail('order_unfit', 409);
       const o = parseOrder(a.spec, Object.keys(api.EL_AD));
-      for (const [k, v] of o.reqs) if (!api.orderGeneOk(d, k, v)) fail('order_unfit', 409);
-      const D = daily(S, now), W = weekly(S, 'orders');
-      if (W.orders >= caps.ordersPerWeek || D.orders >= caps.ordersPerDay) fail('order_limit', 409);
+      for (const [k, v] of o.reqs) if (!api.orderGeneOk(d, k, v)) fail('order_unfit', 409); // oyun kuralı: ejderha siparişi tutmalı
       const wsum = o.reqs.reduce((t, [k]) => t + REQ_W[k], 0), adult = o.reqs.find(r => r[0] === 'stage')[1] === 'yetiskin';
       const gold = Math.round((140 + wsum * 120 + o.wk * 12) * (adult ? 1.2 : 1) / 10) * 10; // orders.js orderGen
-      W.orders++; D.orders++;
-      const credit = earnedIncome(S, gold, now, caps);
+      const source = dragonSource(d), credit = income(S, gold, source);
       removeDragon(S, api, d);
       S.st.orders = (S.st.orders || 0) + 1;
-      return { gold, credit };
+      return { gold, source, credit };
     }
     case 'topcu.clear': {
       // mode = tür[:alt] (alt: zindan kimliği ya da kervan yolu; yalnız düşüş tablosunu seçer).
       const [kind, sub = ''] = String(a.mode).split(':');
       if (!Object.hasOwn(TOPCU_CLEAR, kind) || !/^[a-z_]{0,24}$/.test(sub)) fail('unknown_topcu_mode', 400);
-      // Bilinen ejderha: sunucu ocağında canlı bir ejderha olmadan sefer ödülü yok.
-      if (!S.dragons.some(d => !d.dead && !d.old)) fail('topcu_no_dragon', 409);
-      const D = daily(S, now);
       const T = S.topcu = S.topcu && typeof S.topcu === 'object' ? S.topcu : { minor: 0, major: 0, open: false };
-      const fam = kind === 'stage' ? 'minor' : 'major';
+      const fam = kind === 'stage' ? 'minor' : 'major'; // oyun kuralı: her geçiş bir çark hakkı verir
       T[fam] = Math.min(TOPCU_TOKEN_MAX, (count(T[fam]) ? T[fam] : 0) + 1); T.open = false;
-      const gold = Math.min(TOPCU_CLEAR[kind], Math.max(0, caps.topcuDaily - D.topcu));
-      D.topcu += gold;
+      const gold = TOPCU_CLEAR[kind];
       const drops = JSON.parse(JSON.stringify(api.topcuDrops(kind, sub)));
       if (Object.keys(drops).length) api.award(drops);
-      return { mode: kind, gold, capped: TOPCU_CLEAR[kind] - gold, drops, credit: earnedIncome(S, gold, now, caps) };
+      return { mode: kind, gold, drops, credit: income(S, gold, 'earned') };
     }
     case 'topcu.spin': {
       const slices = wheel(a.wheel);
@@ -295,12 +247,10 @@ function reduce(type, S, a, ctx) {
       const total = slices.reduce((t, s) => t + s[1], 0);
       let r = api.rand() * total, idx = 0;
       for (let i = 0; i < slices.length; i++) { r -= slices[i][1]; if (r <= 0) { idx = i; break; } }
-      const [id, , want] = slices[idx];
-      const D = daily(S, now), gold = Math.min(want, Math.max(0, caps.topcuDaily - D.topcu));
-      D.topcu += gold;
+      const [id, , gold] = slices[idx];
       const drops = SPIN_DROPS[id] ? { ...SPIN_DROPS[id] } : {};
       if (Object.keys(drops).length) api.award(drops);
-      return { drops, wheel: a.wheel, idx, id, gold, capped: want - gold, paid, fee: paid ? TOPCU_SPIN_FEE : 0, credit: earnedIncome(S, gold, now, caps) };
+      return { drops, wheel: a.wheel, idx, id, gold, paid, fee: paid ? TOPCU_SPIN_FEE : 0, credit: income(S, gold, 'earned') };
     }
     case 'goal.reach': {
       const g = api.GOALS.find(x => x.id === a.id);
@@ -308,16 +258,13 @@ function reduce(type, S, a, ctx) {
       S.goals = Array.isArray(S.goals) ? S.goals : [];
       if (S.goals.includes(g.id)) return { goal: g.id, already: true, gold: 0 }; // hesap başına bir kez (DÜŞÜK-1)
       S.goals.push(g.id);
-      const source = sources.goalSource(S, g.id);
+      const source = sources.goalSource(S, g.id); // D15: hedef ödülü bound (mevcut politika)
       return { goal: g.id, gold: g.r, source, credit: income(S, g.r, source) };
     }
     case 'gold.local': {
       if (!Object.hasOwn(LOCAL_REASONS, a.reason)) fail('unknown_reason', 400);
-      if (a.amount < 0) { spend(-a.amount); return { reason: a.reason, spent: -a.amount }; } // gider: yalnız düşer (güvenli)
-      const D = daily(S, now);
-      const credited = Math.min(a.amount, LOCAL_REASONS[a.reason], Math.max(0, caps.localDaily - D.local));
-      D.local += credited;
-      return { reason: a.reason, credited, clipped: a.amount - credited, credit: income(S, credited, 'unknown') };
+      if (a.amount < 0) { spend(-a.amount); return { reason: a.reason, spent: -a.amount }; }
+      return { reason: a.reason, credited: a.amount, credit: income(S, a.amount, 'earned') };
     }
     case 'gold.import': {
       if (S.localImport) return { already: true, credited: 0 };
