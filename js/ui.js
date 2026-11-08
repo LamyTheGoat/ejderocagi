@@ -2218,7 +2218,7 @@ function mobHubModal() {
       </button>
       <button class="mob-cmd-card" data-a="eco-status" aria-label="Sunucu kesesi: hafta ve borç">
         <span class="mc-ic" aria-hidden="true">⚖</span>
-        <div><b>Ocak Kesesi</b><small>${typeof ECO_LINK !== 'undefined' && ECO_LINK.linked ? esc(ECO_LINK.badge() || 'Sunucu kesesi') : 'Sunucu kesesi · bağlı değil'}</small></div>
+        <div><b>${(typeof ECO_SYNC !== 'undefined' && ECO_SYNC.purseName ? ECO_SYNC.purseName() : 'Ocak Kesesi')}</b><small>${typeof ECO_LINK !== 'undefined' && ECO_LINK.linked ? esc(ECO_LINK.badge() || 'Sunucu kesesi') : 'Sunucu kesesi · bağlı değil'}</small></div>
       </button>
       <button class="mob-cmd-card hi" data-a="mob-hub-act" data-act="chibi-open">
         <span class="mc-ic">${ui('anvil')}</span>

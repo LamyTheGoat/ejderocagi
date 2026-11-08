@@ -41,13 +41,13 @@ test('ENG-12 kayıtlı hesap: NPC ejderha + yumurta sunucuda alınır, Sandık v
   await expect.poll(() => page.evaluate(() => !!(MP.xVerified && ECO_LINK.linked && ECO_SYNC.active())), { timeout: 20000 }).toBe(true);
   const accountId = await page.evaluate(() => MP.accountId);
 
-  // İki kese: Ocak Kesesi'ne kazanılmış altın; HUD'daki yerel altın (kayıt öncesi dahil) olduğu gibi kalır.
-  await expect(page.locator('#toasts')).toContainText('İki kese'); // bir kez gösterilen ipucu
-  const L0 = await page.evaluate(() => S.gold);
+  // ENG-13 tek kese: HUD altını sunucu kesesidir (ipucu bir kez; ayrı 'Ocak Kesesi' yok).
+  await expect(page.locator('#toasts')).toContainText('Tek kese');
   seedEarnedGold(accountId, 3000);
   await page.evaluate(() => ECO_LINK.boot(true)); await idle(page);
   await expect.poll(() => page.evaluate(() => ECO_SYNC.purse())).toBe(3000);
-  expect(await page.evaluate(() => S.gold)).toBe(L0);
+  await expect.poll(() => page.evaluate(() => S.gold)).toBe(3000);
+  const L0 = 3000;
   await closeModals(page); await page.evaluate(() => render());
   await expect(page.locator('#hud .res').first()).toContainText(String(L0));
   // Bilet göstergesi yok.
@@ -59,12 +59,12 @@ test('ENG-12 kayıtlı hesap: NPC ejderha + yumurta sunucuda alınır, Sandık v
   const srvMarket = (await serverEco(page)).economy.game.market;
   const pick = await page.evaluate(() => ({ name: S.market.dragons[0].name, price: S.market.dragons[0].price, n: S.dragons.length }));
   expect(pick.name).toBe(srvMarket.dragons[0].name); // tezgâh sunucu pazarı
-  await expect(page.locator('.vfoot')).toContainText('Ocak Kesesi 3000');
+  await expect(page.locator('.vfoot')).toContainText('Kesende 3000');
   const gBuy = await page.evaluate(() => S.gold);
   await page.locator('[data-a="buyD"][data-i="0"]').click();
   expect(await page.evaluate(() => S.dragons.length)).toBe(pick.n + 1); // sunucuyu beklemeden
-  // Yerel altından düşülmez (yalnız yerel hedef ödülü yerel kesene girebilir).
-  expect(await page.evaluate(() => S.gold)).toBeGreaterThanOrEqual(gBuy);
+  // Tek kese: bedel kesenden iyimser düşer (sunucu komutu arka planda).
+  expect(await page.evaluate(() => S.gold)).toBeLessThan(gBuy); // (yerelde biten hedefin ödülü de iyimser görünür; sunucu bir kez öder)
   await page.waitForTimeout(900); await page.screenshot({ path: path.join(shots, 'rustem-alim.png') });
   await idle(page);
   const bought = await page.evaluate(n => { const d = S.dragons.find(x => x.name === n); return d && { assetId: d.assetId, funding: d.funding }; }, pick.name);
@@ -86,12 +86,12 @@ test('ENG-12 kayıtlı hesap: NPC ejderha + yumurta sunucuda alınır, Sandık v
   await page.evaluate(() => { UI.stall = 'yem'; UI.vsay = null; render(); });
   await page.locator('[data-a="buyFood"][data-f="balik"]').click(); await idle(page);
 
-  // Ocak Kesesi: altın düştü, varlıklar kazanılmış; yerel kese bu alımlarda azalmadı.
+  // Tek kese: altın sunucuda düştü, varlıklar kazanılmış; HUD sunucuya eşit.
   const eco = (await serverEco(page)).economy;
   expect(eco.dragons.find(r => r.assetId === bought.assetId).data.funding).toBe('earned');
   expect(eco.eggs.filter(r => r.data.funding === 'earned').length).toBe(1);
   expect(eco.game.foodSources.balik.earned).toBe(1);
-  expect(await page.evaluate(() => S.gold)).toBeGreaterThanOrEqual(L0);
+  await expect.poll(() => page.evaluate(() => S.gold)).toBe(eco.gold);
   expect(eco.gold).toBeLessThan(3000);
 
   // 4) Kesin ret: sunucuda olmayan tezgâh kaydı → yerel iyimser alım geri alınır, yerel altın değişmez, mesaj çıkar.
@@ -132,11 +132,11 @@ test('ENG-12 kayıtlı hesap: NPC ejderha + yumurta sunucuda alınır, Sandık v
   await page.evaluate(() => { UI.stall = null; UI.view = 'ocak'; render(); });
   const w0 = (await serverEco(page)).week.week;
   for (let i = 0; i < 3; i++) { await closeModals(page); await page.evaluate(() => { UI.arm = 'endweek'; ACT.endweek(); }); }
-  const gWeek = await page.evaluate(() => S.gold);
   await idle(page); await page.evaluate(() => ECO_LINK.boot(true)); await idle(page);
   const after = await serverEco(page);
   expect(after.week.week).toBe(w0 + 3);
-  expect(await page.evaluate(() => S.gold)).toBe(gWeek);
+  // Tek kese: yerel hafta altını yok sayılır; bakım/gelir sunucu week.end'den, HUD ona eşit.
+  await expect.poll(() => page.evaluate(() => S.gold)).toBe(after.economy.gold);
   await expect(page.locator('#toasts')).not.toContainText('bekleniyor');
 
   // 8) Sunucu kapandı (ekonomi uçları erişilemez): oyun eskisi gibi yerel çalışır, sunucuya istek gitmez.
@@ -179,8 +179,8 @@ test('ENG-12 kayıtlı hesap: bina, kuluçka ve Rüstem\'e satış Ocak Kesesi i
   let eco = (await serverEco(page)).economy;
   expect(eco.game.grid.some(t => t.b === 'kulucka')).toBe(true);
   expect(await page.evaluate(() => S.grid.some(t => t.b === 'kulucka'))).toBe(true);
-  expect(eco.gold).toBe(3000 - 160 + 40); // Ocak Kesesi ödedi (160), sunucu hedefi "kuluçka" +40 (bound)
-  expect(await page.evaluate(() => S.gold)).toBe(g0 + 40); // bina bedeli yerelden düşmedi; yerel hedef ödülü (+40) yerel kesede
+  expect(eco.gold).toBe(3000 - 160 + 40); // kese ödedi (160), hedef "kuluçka" +40 bir kez (DÜŞÜK-1)
+  await expect.poll(() => page.evaluate(() => S.gold)).toBe(eco.gold); void g0;
   // Yumurta al, kuluçkadan çıkar → egg.incubate.
   await page.evaluate(() => { UI.view = 'pazar'; UI.stall = 'yumurta'; render(); });
   await page.locator('[data-a="buyEgg"]').click(); await idle(page);
@@ -201,20 +201,20 @@ test('ENG-12 kayıtlı hesap: bina, kuluçka ve Rüstem\'e satış Ocak Kesesi i
   eco = (await serverEco(page)).economy;
   expect(eco.dragons.some(r => r.assetId === d.assetId)).toBe(false);
   expect(eco.gold).toBeGreaterThan(srvSell);
-  expect(await page.evaluate(() => S.gold)).toBe(gSell);
-  // Yerel-only ejderha (sunucuda yok): eski yerel satış; bedel yerel kesene, Ocak Kesesi değişmez.
+  await expect.poll(() => page.evaluate(() => S.gold)).toBe(eco.gold); void gSell;
+  // Bağlı olmayan ejderha (sunucuda yok): yerel satış; bedel tavanlı defterle ('sale', unknown) aynı keseye.
   const localOnly = await page.evaluate(() => { const x = S.dragons.find(y => !y.assetId); return { id: x.id, v: Math.round(value(x) * 0.6) }; });
   const goldBefore = eco.gold, localBefore = await page.evaluate(() => S.gold);
   await page.evaluate(id => { ACT.sell({ dataset: { id: String(id) } }); ACT.sell({ dataset: { id: String(id) } }); }, localOnly.id);
   expect(await page.evaluate(id => S.dragons.some(x => x.id === id), localOnly.id)).toBe(false);
-  await idle(page); await page.evaluate(() => ECO_LINK.boot(true)); await idle(page);
-  expect(await page.evaluate(() => S.gold)).toBe(localBefore + localOnly.v);
-  expect((await serverEco(page)).economy.gold).toBe(goldBefore);
+  await expect.poll(async () => (await serverEco(page)).economy.gold, { timeout: 15000 }).toBe(goldBefore + localOnly.v);
+  await page.evaluate(() => ECO_LINK.boot(true)); await idle(page);
+  await expect.poll(() => page.evaluate(() => S.gold)).toBe(localBefore + localOnly.v);
   expect(errors).toEqual([]);
   await ctx.close();
 });
 
-test('ENG-12 QA: yerel altın eşitlemede silinmez/iade edilmez; kayıt öncesi altın korunur; bağlı ejderha müzayede/sipariş/teklifle verilemez, ölünce dirilmez', async ({ browser }) => {
+test('ENG-12 QA (ENG-13 ile güncellendi): kayıt öncesi altın tavanla bir kez aktarılır; bağlı ejderha siparişe verilince sunucudan kalkar, tekrar verilemez, ölünce dirilmez', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 1000, height: 768 } });
   const page = await ctx.newPage(); const errors = []; page.on('pageerror', e => errors.push(String(e)));
   // Kayıt ÖNCESİ: misafir olarak oyna, yerel kesede 9999 altın biriktir.
@@ -223,65 +223,44 @@ test('ENG-12 QA: yerel altın eşitlemede silinmez/iade edilmez; kayıt öncesi 
   await page.getByRole('button', { name: 'Ocağa gir', exact: true }).click();
   await expect(page.locator('#hud')).not.toBeEmpty();
   await page.evaluate(() => { S.gold = 9999; saveGame(); });
-  // X ile kayıt: kayıtlı oturum, aynı yerel kayıt.
   await page.goto(url + '/api/auth/x/login');
   await page.locator('[data-a="continue"]').click();
   await expect.poll(() => page.evaluate(() => !!(MP.xVerified && ECO_LINK.linked && ECO_SYNC.active())), { timeout: 20000 }).toBe(true);
   await idle(page);
-  expect(await page.evaluate(() => S.gold)).toBe(9999); // kayıt öncesi yerel altın korunur
+  // Tek kese: 420 (sunucu başlangıcı = yerel başlangıç) + 2000 (tavanlı aktarım); kalan 7579 atıldı, bir kez açıklandı.
+  await expect.poll(() => page.evaluate(() => S.gold)).toBe(2420);
+  await expect(page.locator('#toasts')).toContainText('7579 altın aktarılmadı');
   seedEarnedGold(await page.evaluate(() => MP.accountId), 3000);
   await page.evaluate(() => ECO_LINK.boot(true)); await idle(page);
-  await expect.poll(() => page.evaluate(() => ECO_SYNC.purse())).toBe(3000);
-  expect(await page.evaluate(() => S.gold)).toBe(9999);
+  await expect.poll(() => page.evaluate(() => S.gold)).toBe(3000);
 
-  // Yerel kazanç (Topçu/olay) ve yerel harcama (müzayede/örs) eşitlemede ne silinir ne iade edilir.
-  await page.evaluate(() => { S.gold += 777; saveGame(); }); await page.evaluate(() => ECO_LINK.boot(true)); await idle(page);
-  expect(await page.evaluate(() => S.gold)).toBe(10776);
-  await page.evaluate(() => { S.gold -= 1000; saveGame(); }); await page.evaluate(() => ECO_LINK.boot(true)); await idle(page);
-  expect(await page.evaluate(() => S.gold)).toBe(9776);
-
-  // Bağlı ejderha edin (Rüstem, Ocak Kesesi).
+  // Bağlı ejderha edin (Rüstem).
   await closeModals(page);
   await page.evaluate(() => { UI.view = 'pazar'; UI.stall = 'ejder'; UI.stallTab = 'al'; render(); });
   await page.locator('[data-a="buyD"][data-i="0"]').click(); await idle(page);
-  const ids = await page.evaluate(() => ({ linked: S.dragons.find(d => d.assetId).id, local: S.dragons.find(d => !d.assetId).id, asset: S.dragons.find(d => d.assetId).assetId }));
+  const ids = await page.evaluate(() => { const d = S.dragons.find(x => x.assetId); return { linked: d.id, asset: d.assetId, el: d.el, stage: d.stage }; });
   await closeModals(page);
-
-  // Müzayede: bağlı ejderha çıkarılamaz (açık mesaj), yerel-only serbest.
-  await page.evaluate(id => ACT['auc-sell']({ dataset: { id: String(id) } }), ids.linked);
-  await expect(page.locator('#toasts')).toContainText('müzayede, sipariş ya da arena teklifiyle verilemez');
-  expect(await page.evaluate(() => typeof AUC !== 'undefined' && AUC && AUC.sellD ? AUC.sellD.id : null)).toBe(null);
-  await page.evaluate(id => { window.__fastFx = true; ACT['auc-sell']({ dataset: { id: String(id) } }); }, ids.local);
-  await expect.poll(() => page.evaluate(() => !!(AUC && AUC.sellD))).toBe(true);
-  await page.evaluate(() => { if (AUC.timer) clearTimeout(AUC.timer); AUC = null; });
-  await closeModals(page);
-
-  // Sipariş: bağlı ejderha verilemez (iki tık dahil), tekrar tekrar verme yok; yerel-only verilebilir.
-  const give = id => page.evaluate(i => {
-    const O = orders(); O.list = O.list.filter(o => o.id !== 't1'); O.list.push({ id: 't1', reqs: [], gold: 50, un: 1, who: 'Test', by: S.week + 5 });
+  // Sipariş: bağlı ejderha artık verilebilir; sunucu kaydı kalkar ve iki kez verilemez (kopya yok).
+  const give = () => page.evaluate(([i, el, st]) => {
+    const O = orders(); O.list = O.list.filter(o => o.id !== 't1');
+    O.list.push({ id: 't1', lv: 0, reqs: [['el', el], ['stage', st]], gold: 50, un: 1, who: 'Test', d: 't', s: 't', by: S.week + 4 });
     UI.view = 'pazar'; UI.stall = null; ACT.orderGive({ dataset: { o: 't1', id: String(i) } }); ACT.orderGive({ dataset: { o: 't1', id: String(i) } });
     return S.dragons.some(d => d.id === i);
-  }, id);
-  const g1 = await page.evaluate(() => S.gold);
-  expect(await give(ids.linked)).toBe(true);
-  expect(await page.evaluate(() => S.gold)).toBe(g1);
-  expect(await give(ids.linked)).toBe(true);
-  expect(await page.evaluate(() => S.gold)).toBe(g1);
-  await page.evaluate(() => ECO_LINK.boot(true)); await idle(page);
-  expect(await page.evaluate(a => S.dragons.filter(d => d.assetId === a).length, ids.asset)).toBe(1);
-  // Arena "Locadan Bir Teklif": bağlı ejderhada satış seçeneği kapalı, yerel-only'de açık.
-  expect(await page.evaluate(id => FIGHT_POST.find(e => e.id === 'teklif').opts[0].req({ d: byId(id), price: 10 }), ids.linked)).toContain('satılamaz');
-  expect(await page.evaluate(id => FIGHT_POST.find(e => e.id === 'teklif').opts[0].req({ d: byId(id), price: 10 }), ids.local)).toBe(null);
-  // Yerel-only ejderha siparişe verilir; bedel yerel kesene.
-  expect(await give(ids.local)).toBe(false);
-  expect(await page.evaluate(() => S.gold)).toBe(g1 + 50);
-
-  // Ölüm: bağlı ejderha yerelde ölünce eşitleme onu diriltmez (sunucuda ölüm komutu yok; ayrı karar).
-  await page.evaluate(id => killDragon(byId(id), 'test'), ids.linked);
-  for (let i = 0; i < 2; i++) { await page.evaluate(() => ECO_LINK.boot(true)); await idle(page); }
-  expect(await page.evaluate(a => S.dragons.some(d => d.assetId === a), ids.asset)).toBe(false);
-  expect(await page.evaluate(a => S.dead.some(d => d.assetId === a), ids.asset)).toBe(true);
-  expect((await serverEco(page)).economy.dragons.some(r => r.assetId === ids.asset)).toBe(true); // sunucuda duruyor (belgelendi)
+  }, [ids.linked, ids.el, ids.stage]);
+  if (['genc', 'yetiskin'].includes(ids.stage)) {
+    expect(await give()).toBe(false);
+    await idle(page); await page.evaluate(() => ECO_LINK.boot(true)); await idle(page);
+    expect((await serverEco(page)).economy.dragons.some(r => r.assetId === ids.asset)).toBe(false);
+    expect(await page.evaluate(a => S.dragons.filter(d => d.assetId === a).length, ids.asset)).toBe(0);
+  } else {
+    // Yavru: sipariş şartı tutmaz; ölüm yoluyla A-7 denetlenir.
+    await page.evaluate(id => killDragon(byId(id), 'test'), ids.linked);
+    for (let i = 0; i < 2; i++) { await page.evaluate(() => ECO_LINK.boot(true)); await idle(page); }
+    expect(await page.evaluate(a => S.dragons.some(d => d.assetId === a), ids.asset)).toBe(false);
+    await expect.poll(async () => (await serverEco(page)).economy.dragons.some(r => r.assetId === ids.asset)).toBe(false);
+  }
+  // Arena teklifi: bağlıyken seçenek açık (sunucu doğrular).
+  expect(await page.evaluate(() => { const d = S.dragons[0]; return FIGHT_POST.find(e => e.id === 'teklif').opts[0].req({ d, price: 10 }); })).toBe(null);
   expect(errors).toEqual([]);
   await ctx.close();
 });

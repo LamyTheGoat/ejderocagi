@@ -11,7 +11,7 @@
 // Üst kısım saf mantıktır (DOM'suz; tests/eng10_economy_link.test.js), alt kısım yalnız tarayıcıda çalışır.
 (function (root) {
   const WEEK_ERRORS = {
-    debt_outstanding: 'Ocak Kesesi\'nde borç var: takas, Bedesten alımı ve harcama kapalı. Kazançların önce borca gider.',
+    debt_outstanding: 'Kesende borç var: takas, Bedesten alımı ve harcama kapalı. Kazançların önce borca gider.',
     version_conflict: 'Sunucu kesen başka bir sekmede değişti; yeniden denendi.',
     request_id_reused: 'Hafta isteği çakıştı; durum yenilendi.',
     game_not_started: 'Sunucu ocağın henüz kurulmadı; hafta yalnız yerelde ilerledi.',
@@ -280,7 +280,7 @@
       const lines = [];
       if (!st.linked) lines.push('<p>Sunucu kesesine bağlı değilsin; oyun yerel olarak eskisi gibi oynanır. Takas, Bedesten ve Ocak Sandığı açıldığında sunucu ocağın kurulur.</p>');
       else {
-        lines.push(`<p><b>Ocak Kesesi:</b> ${c0 && c0.state ? c0.state.gold : '—'} altın <span class="mute sm">(sunucuda; yerel kesenden ayrı)</span></p>`);
+        lines.push(root.ECO_SYNC && root.ECO_SYNC.one() ? `<p><b>Kese:</b> ${c0 && c0.state ? c0.state.gold : '—'} altın <span class="mute sm">(sunucuda; tek kese)</span></p>` : `<p><b>Ocak Kesesi:</b> ${c0 && c0.state ? c0.state.gold : '—'} altın <span class="mute sm">(sunucuda; yerel kesenden ayrı)</span></p>`);
         lines.push(`<p><b>Sunucu haftası:</b> ${w.seasonNo > 1 ? `${w.seasonNo}. sezon · ` : ''}${w.week}/${w.season}</p>`);
         lines.push(`<p><b>Borç:</b> ${w.debt > 0 ? `${w.debt} altın · ${w.debtWeeks} haftadır borçlu. Takas, Bedesten alımı ve harcama kapalı; kazançlar önce borca gider.` : 'yok'}</p>`);
         if (w.rebuild && w.rebuild.available) lines.push(`<div class="eco-rebuild"><p><b>Ocak iflasın eşiğinde.</b> Hesabın silinmez. "Ocağı yeniden kur" borcu siler; ejderha, yumurta, eşya ve yemin olduğu gibi kalır.</p><button class="btn primary" data-a="eco-rebuild">Ocağı yeniden kur</button></div>`);
@@ -288,7 +288,7 @@
         else if (w.debt > 0 && w.rebuild) lines.push(`<p class="mute sm">Borç ${w.rebuild.threshold} hafta üst üste sürerse "Ocağı yeniden kur" açılır.</p>`);
       }
       if (st.lastError) lines.push(`<p class="mute sm">${escHtml(errorText(st.lastError))}</p>`);
-      showModal(`<div class="parch eco-modal"><p class="kicker">Ocak Kesesi</p><h2>Sunucu haftası ve borç</h2>${lines.join('')}<div class="mbtns"><button class="btn ghost" data-a="mclose">Kapat</button></div></div>`, 'paper');
+      showModal(`<div class="parch eco-modal"><p class="kicker">${root.ECO_SYNC && root.ECO_SYNC.purseName ? root.ECO_SYNC.purseName() : 'Ocak Kesesi'}</p><h2>Sunucu haftası ve borç</h2>${lines.join('')}<div class="mbtns"><button class="btn ghost" data-a="mclose">Kapat</button></div></div>`, 'paper');
     },
   });
   if (typeof ACT !== 'undefined') Object.assign(ACT, {

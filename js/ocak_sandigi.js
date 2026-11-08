@@ -273,7 +273,7 @@
         <button class="sandik-icb" data-sandik="refresh" aria-label="Sunucudan yenile" ${busy ? 'disabled' : ''}>⟳</button>
         <button class="sandik-icb sandik-close" data-sandik="close" aria-label="Ocak Sandığı'nı kapat">✕</button>
       </header>
-      <p class="sandik-live" aria-live="polite">${busy ? 'Sunucudan okunuyor…' : st.economy && st.economy.game ? `Sunucu hesabındaki kalemler · Ocak Kesesi ${h(st.economy.gold)} altın. Yerel oyundaki varlıklar ve yerel kese ayrıdır.` : ''}</p>
+      <p class="sandik-live" aria-live="polite">${busy ? 'Sunucudan okunuyor…' : st.economy && st.economy.game ? (typeof ECO_SYNC !== 'undefined' && ECO_SYNC.one() ? `Sunucu hesabındaki kalemler · Kese ${h(st.economy.gold)} altın.` : `Sunucu hesabındaki kalemler · Ocak Kesesi ${h(st.economy.gold)} altın. Yerel oyundaki varlıklar ve yerel kese ayrıdır.`) : ''}</p>
       ${body}`;
     if (focusKey) {
       const el = focusKey.startsWith('k:') ? dlg.querySelector(`[data-key="${CSS.escape(focusKey.slice(2))}"]`) : dlg.querySelector(focusKey);
