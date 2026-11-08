@@ -153,4 +153,5 @@ function transition(actor, command, trade, games, locks, now) {
   if (JSON.stringify(trade) !== previous) trade.stateVersion = (trade.stateVersion || 0) + 1;
   return trade;
 }
-module.exports = { validateTrade, transition, guardReservation };
+// ENG-07: Bedesten satın alması aynı aktarım çekirdeğini (`transfer`) kullanır.
+module.exports = { validateTrade, transition, guardReservation, transfer };

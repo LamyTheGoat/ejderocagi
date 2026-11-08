@@ -306,10 +306,11 @@ function loadWorld() {
 }
 
 let WORLD = loadWorld();
-const MARKET = createMarketService({
-  store: ECONOMY, world: WORLD,
-  changed(event) { saveWorld(); wsBroadcast({ type: 'market_update', ...event, listings: WORLD.marketListings }); },
-});
+// ENG-07: Bedesten artık ekonomi deposunda (SQLite/Firestore). WORLD.marketListings eski tohum
+// verisidir; hiçbir yanıtta gösterilmez (sahte "canlı ilan" yok).
+const MARKET = createMarketService({ store: ECONOMY });
+// Yayın yalnız "yenile" sinyalidir: ilan listesi, satış veya altın taşımaz (eski istemci yerel altın yazmasın).
+const marketChanged = listingId => wsBroadcast({ type: 'market_update', listingId });
 
 function prunePlayers(w = WORLD) {
   const pKeys = Object.keys(w.players || {});
@@ -495,7 +496,7 @@ async function handleWsUpgrade(req, socket, head) {
     caravans: WORLD.caravans,
     chatLog: WORLD.chatLog.slice(-15),
     peers: getActiveHubPeers(),
-    marketListings: WORLD.marketListings || [],
+    marketListings: [],
   }));
 
   wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size });
@@ -629,12 +630,9 @@ async function handleWsMessage(socket, msg) {
   }
 
   // Both transports share the same ownership and settlement boundary.
+  // ENG-07: Bedesten mutasyonları yalnız POST /api/market (makbuzlu, yeniden denenebilir). WS yolu kapalı.
   if (msg.type === 'market_op') {
-    await MARKET.execute(socket.playerInfo, msg).then(result => {
-      if (!socket.destroyed) socket.write(encodeWsFrame({ type: 'market_result', ok: true, ...result }));
-    }).catch(error => {
-      if (!socket.destroyed) socket.write(encodeWsFrame({ type: 'market_error', ok: false, error: error.code || 'market_unavailable' }));
-    });
+    if (!socket.destroyed) socket.write(encodeWsFrame({ type: 'market_error', ok: false, error: 'market_http_only' }));
     return;
   }
 
@@ -1226,19 +1224,22 @@ async function handleHttp(req, res) {
 
   // 8b. GET & POST /api/market — Canlı Oyuncu Bedesteni (Marketplace)
   if (pathname === '/api/market' && req.method === 'GET') {
-    return sendJson(res, 200, {
-      ok: true,
-      listings: WORLD.marketListings || [],
-      sales: (WORLD.marketSales || []).slice(-20),
-    });
+    try {
+      const view = await ECONOMY.listMarket(req.identity?.accountId || null);
+      return sendJson(res, 200, { ok: true, settlementReady: true, ...view, serverNow: Date.now() });
+    } catch (_) { return sendJson(res, 503, { ok: false, error: 'market_unavailable' }); }
   }
   if (pathname === '/api/market' && req.method === 'POST') {
-    const body = await readJsonBody(req);
+    // Kimlik yalnız oturumdan; gövdeye satıcı/alıcı alanı enjekte edilmez (katı şema).
     try {
+      const body = await readJsonBody(req, false, 4096);
       const result = await MARKET.execute(req.identity, body);
+      marketChanged(result.listing?.id);
       return sendJson(res, 200, { ok: true, ...result });
     } catch (error) {
-      return sendJson(res, error.status || 503, { ok: false, error: error.code || 'market_unavailable' });
+      // Kodsuz hata (depo/ağ) belirsizdir: 503 → istemci aynı gövdeyle yeniden dener, başarı göstermez.
+      const known = Number.isInteger(error.status);
+      return sendJson(res, known ? error.status : 503, { ok: false, error: known ? (error.code || error.message) : 'market_unavailable' });
     }
   }
 

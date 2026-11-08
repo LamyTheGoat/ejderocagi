@@ -153,7 +153,7 @@ test('HTTP/WS identity, private files and economy isolation survive server resta
 });
 
 
-test('Bedesten HTTP and WS reject forged ownership and cannot settle purchases', { timeout: 20000 }, async t => {
+test('Bedesten HTTP: real server settlement, forged ownership rejected, no fake listings, WS mutations closed (ENG-07)', { timeout: 30000 }, async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'eo-market-'));
   const server = await startServer(dir);
   const sockets = [];
@@ -161,58 +161,62 @@ test('Bedesten HTTP and WS reject forged ownership and cannot settle purchases',
   const a = await server.request('/api/session', { method: 'POST' });
   const b = await server.request('/api/session', { method: 'POST' });
   const post = (cookie, body) => server.request('/api/market', { method: 'POST', cookie, body });
-  const started = await server.request('/api/economy/command', { method: 'POST', cookie: a.cookie,
-    body: { requestId: crypto.randomUUID(), expectedVersion: 0, type: 'game.start', args: {} } });
-  require('./helpers/earned_fixture').seedSQLite(path.join(dir,'local-economy','economy.sqlite'),a.body.accountId);
+  const start = cookie => server.request('/api/economy/command', { method: 'POST', cookie, body: { requestId: crypto.randomUUID(), expectedVersion: 0, type: 'game.start', args: {} } });
+  const started = await start(a.cookie); await start(b.cookie);
+  const file = path.join(dir, 'local-economy', 'economy.sqlite');
+  require('./helpers/earned_fixture').seedSQLite(file, a.body.accountId);
   const assetId = started.body.economy.dragons[0].assetId;
-  const before = (await server.request('/api/economy', { cookie: a.cookie })).body;
-  const buyerBefore = (await server.request('/api/economy', { cookie: b.cookie })).body;
-  assert.equal((await post(undefined, { op: 'buy', id: 'fake' })).status, 401);
+  const list = (cookie, extra = {}) => post(cookie, { op: 'list', requestId: crypto.randomUUID(), kind: 'dragon', assetId, quantity: 1, unitPrice: 10, ...extra });
   const initialMarket = (await server.request('/api/market')).body;
-  assert.equal((await post(undefined, { op: 'list', listing: { assetId, price: 10 } })).status, 401);
-  assert.equal((await post(b.cookie, { op: 'list', listing: { assetId, price: 10 } })).status, 403);
-  assert.equal((await post(a.cookie, { op: 'list', listing: { assetId: 'forged', price: 10 } })).status, 403);
-  for (const price of [-1, 0, 1.5, '10', 2000000001]) {
-    assert.equal((await post(a.cookie, { op: 'list', listing: { assetId, price } })).status, 400);
-  }
-  assert.equal((await post(a.cookie, { op: 'list', listing: { assetId, price: 10, payload: { gold: 9999 } } })).status, 400);
-  assert.deepEqual((await server.request('/api/market')).body, initialMarket);
-  const created = await post(a.cookie, { op: 'list', listing: { assetId, price: 10, seller: b.body.handle } });
+  assert.equal(initialMarket.ok, true); assert.equal(initialMarket.settlementReady, true);
+  assert.deepEqual(initialMarket.listings, [], 'no seeded/fake live listings');
+  assert.equal((await post(undefined, { op: 'buy', id: 'fake' })).status, 401);
+  assert.equal((await list(undefined)).status, 401);
+  assert.equal((await list(b.cookie)).status, 403);
+  assert.equal((await list(a.cookie, { assetId: 'forged' })).status, 403);
+  for (const unitPrice of [-1, 0, 1.5, '10', 2000000001]) assert.equal((await list(a.cookie, { unitPrice })).status, 400);
+  assert.equal((await list(a.cookie, { seller: b.body.handle })).status, 400);
+  assert.equal((await post(a.cookie, { op: 'list', listing: { assetId, price: 10 } })).status, 400);
+  assert.equal((await post(a.cookie, { op: 'offer', id: 'x' })).status, 503);
+  assert.deepEqual((await server.request('/api/market')).body.listings, []);
+  const before = (await server.request('/api/economy', { cookie: a.cookie })).body;
+  const created = await list(a.cookie);
   assert.equal(created.status, 200);
   assert.equal(created.body.listing.seller, a.body.handle);
-  assert.equal(created.body.listing.sellerAccountId, a.body.accountId);
-  assert.equal(created.body.settlementReady, false);
+  assert.equal(created.body.listing.sellerAccountId, undefined);
   const id = created.body.listing.id;
-  assert.equal((await post(a.cookie, { op: 'list', listing: { assetId, price: 10 } })).status, 409);
-  assert.equal((await post(b.cookie, { op: 'cancel', id })).status, 403);
-  const market = (await server.request('/api/market')).body;
-  for (const op of ['buy', 'offer']) {
-    const denied = await post(b.cookie, { op, id });
-    assert.equal(denied.status, 503); assert.equal(denied.body.ok, false);
-  }
+  assert.equal((await list(a.cookie)).status, 409);
+  assert.equal((await post(b.cookie, { op: 'cancel', requestId: crypto.randomUUID(), listingId: id })).status, 403);
+  const publicView = (await server.request('/api/market', { cookie: b.cookie })).body.listings;
+  assert.equal(publicView.length, 1); assert.equal(publicView[0].mine, false); assert.equal(publicView[0].assetId, undefined);
+  // WS mutation path is closed for every op, including forged seller/buyer fields.
   const ws = await openWs(server.port, b.cookie); sockets.push(ws.socket);
   await ws.next('welcome');
-  ws.send({ type: 'market_op', op: 'list', listing: { assetId, price: 10, seller: a.body.handle } });
-  assert.equal((await ws.next('market_error')).error, 'asset_not_owned');
-  ws.send({ type: 'market_op', op: 'list', listing: { assetId: 'fake', price: 10 } });
-  assert.equal((await ws.next('market_error')).error, 'asset_not_owned');
-  ws.send({ type: 'market_op', op: 'cancel', id });
-  assert.equal((await ws.next('market_error')).error, 'listing_not_owned');
-  for (const op of ['buy', 'offer']) {
-    ws.send({ type: 'market_op', op, id, buyer: a.body.handle });
-    assert.equal((await ws.next('market_error')).error, 'market_settlement_unavailable');
+  for (const op of ['list', 'cancel', 'buy', 'offer']) {
+    ws.send({ type: 'market_op', op, id, listing: { assetId, price: 10, seller: a.body.handle }, buyer: a.body.handle });
+    assert.equal((await ws.next('market_error')).error, 'market_http_only');
   }
-  assert.deepEqual((await server.request('/api/market')).body, market);
   assert.deepEqual((await server.request('/api/economy', { cookie: a.cookie })).body, before);
-  assert.deepEqual((await server.request('/api/economy', { cookie: b.cookie })).body, buyerBefore);
-  assert.equal((await post(a.cookie, { op: 'cancel', id })).status, 200);
-  assert.equal((await post(a.cookie, { op: 'cancel', id })).status, 404);
-  const own = await openWs(server.port, a.cookie); sockets.push(own.socket); await own.next('welcome');
-  own.send({ type: 'market_op', op: 'list', listing: { assetId, price: 15, seller: b.body.handle } });
-  const result = await own.next('market_result');
-  assert.equal(result.ok, true); assert.equal(result.listing.seller, a.body.handle);
-  own.send({ type: 'market_op', op: 'cancel', id: result.listing.id });
-  assert.equal((await own.next('market_result')).ok, true);
+  // Buyer b only has bound starter gold: it cannot pay another player.
+  const buyBody = { op: 'buy', requestId: crypto.randomUUID(), listingId: id, quantity: 1, unitPrice: 10 };
+  const bound = await post(b.cookie, buyBody);
+  assert.equal(bound.status, 409); assert.equal(bound.body.error, 'gold_not_transferable');
+  require('./helpers/earned_fixture').seedSQLite(file, b.body.accountId);
+  const sold = await post(b.cookie, buyBody);
+  assert.equal(sold.status, 200); assert.equal(sold.body.sale.total, 10); assert.equal(sold.body.listing.status, 'sold');
+  const update = await ws.next('market_update');
+  assert.deepEqual(Object.keys(update).sort(), ['listingId', 'type'], 'broadcast carries no listings, sale or gold');
+  const replay = await post(b.cookie, buyBody);
+  assert.equal(replay.status, 200); assert.equal(replay.body.replayed, true);
+  assert.equal((await post(b.cookie, { ...buyBody, quantity: 2 })).body.error, 'request_id_reused');
+  assert.equal((await post(b.cookie, { ...buyBody, requestId: crypto.randomUUID() })).body.error, 'listing_closed');
+  assert.equal((await post(b.cookie, { ...buyBody, unitPrice: 11 })).body.error, 'request_id_reused');
+  const A = (await server.request('/api/economy', { cookie: a.cookie })).body.economy, B = (await server.request('/api/economy', { cookie: b.cookie })).body.economy;
+  assert.equal(A.gold, 430); assert.equal(B.gold, 410);
+  assert.equal(A.dragons.some(d => d.assetId === assetId), false); assert.equal(B.dragons.some(d => d.assetId === assetId), true);
+  const mine = (await server.request('/api/market', { cookie: a.cookie })).body.mine;
+  assert.equal(mine[0].status, 'sold'); assert.equal(mine[0].sales[0].buyer, b.body.handle);
+  assert.deepEqual((await server.request('/api/market')).body.listings, []);
 });
 
 test('trade HTTP/WS authenticate participants and recover completed transfer after socket disconnect', { timeout: 20000 }, async t => {

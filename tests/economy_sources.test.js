@@ -36,8 +36,8 @@ test('ENG05: bound purchases, NPC resale, inflated listings and hatch conversion
  const buy=run('shop.item',{key:'zirh1'}),item=buy.economy.items[0];assert.equal(item.data.funding,'bound');
  const tr=f.active(a,b);
  assert.throws(()=>f.send(a,'offer',{tradeId:tr.id,revision:tr.revision,offer:{items:[item.assetId]}}),/asset_not_transferable/);
- const market=createMarketService({store:f.store,world:{marketListings:[]}});
- await assert.rejects(market.execute({accountId:a,handle:'@a'},{op:'list',listing:{assetId:item.assetId,price:2000000000}}),/asset_not_transferable/);
+ const market=createMarketService({store:f.store});
+ await assert.rejects(market.execute({accountId:a,handle:'@a'},{op:'list',requestId:crypto.randomUUID(),kind:'item',assetId:item.assetId,quantity:1,unitPrice:2000000000}),/asset_not_transferable/);
  f.send(a,'cancel',{tradeId:tr.id});
  const sale=cmd('item.sell',{args:{assetId:item.assetId},expectedVersion:f.store.readEconomy(a).version});
  const sold=f.store.executeCommand(a,sale);assert.equal(sold.economy.funds.earned,0);

@@ -4,6 +4,7 @@ const { DatabaseSync } = require('node:sqlite');
 const crypto = require('node:crypto');
 const {digest,consume,invitationLimits,RETENTION_MS}=require('./service_security');
 const { validateTrade, transition, guardReservation } = require('./trade_service');
+const market = require('./market_service');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -63,6 +64,12 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
   const readTradeRow = (table, id) => { const row = db.prepare('SELECT json FROM ' + table + ' WHERE id = ?').get(id); return row ? JSON.parse(row.json) : null; };
   const writeTradeRow = (table, id, value) => db.prepare('INSERT INTO ' + table + ' VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET json=excluded.json').run(id, JSON.stringify(value));
   db.exec('CREATE TABLE IF NOT EXISTS service_state (id TEXT PRIMARY KEY, json TEXT NOT NULL)');
+  // ENG-07 Bedesten: ilan, hesap başı rezervasyon (hold) ve makbuz. Hepsi aynı transaction'da yazılır.
+  db.exec(`CREATE TABLE IF NOT EXISTS market_listings (id TEXT PRIMARY KEY, seller_id TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL, json TEXT NOT NULL) STRICT;
+    CREATE INDEX IF NOT EXISTS market_open ON market_listings(status, created_at);
+    CREATE INDEX IF NOT EXISTS market_seller ON market_listings(seller_id, created_at);
+    CREATE TABLE IF NOT EXISTS market_holds (id TEXT PRIMARY KEY, json TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS market_receipts (id TEXT PRIMARY KEY, json TEXT NOT NULL);`);
   function rateInTransaction(key,limit,windowMs) {
     const id='rate:'+digest(key);writeTradeRow('service_state',id,consume(readTradeRow('service_state',id),limit,windowMs,now()));
   }
@@ -107,6 +114,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
       if(command.type==='invite' && readTradeRow('service_state',cooldownKey)?.until>now())fail('invitation_cooldown',429);
       if(command.type==='invite')for(const r of invitationLimits(actor,command.targetId))rateInTransaction(r.key,r.limit,r.windowMs);
       const next = transition(actor, command, trade, games, locks, now());
+      market.guardTradeAgainstHolds(next, games, Object.fromEntries(ids.map(p => [p, readTradeRow('market_holds', p)])));
       if(command.type==='reject' && next.status==='rejected')writeTradeRow('service_state','cooldown:'+next.participants[0]+':'+actor,{until:now()+300000});
       for (const p of ids) {
         if (games[p] && games[p].version !== versions[p]) db.prepare('UPDATE game_states SET version=?, game_json=? WHERE account_id=?').run(games[p].version, JSON.stringify(games[p].game), p);
@@ -241,14 +249,56 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
       // Phase-one developer fixtures are not imported into authoritative games.
       const next = reduceCommand(state ? JSON.parse(state.game_json) : null, command, { accountId, seed, now: now() }); // Sunucu saati; istemci zamanı yok.
       guardReservation(state ? JSON.parse(state.game_json) : null, next.game, readTradeRow('trade_locks', accountId), now());
+      market.guardMarketHold(next.game, readTradeRow('market_holds', accountId));
       db.prepare('INSERT INTO game_states VALUES (?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET version=excluded.version, game_json=excluded.game_json').run(accountId, version + 1, JSON.stringify(next.game));
       db.prepare('INSERT INTO command_receipts VALUES (?, ?, ?, ?, ?)').run(accountId, command.requestId, hash, version + 1, JSON.stringify(next.result));
       return { replayed: false, appliedVersion: version + 1, result: next.result, economy: gameEconomy(accountId, version + 1, next.game) };
     });
   }
 
+  // ENG-07: ilan/iptal/satın alma. Satıcı çevrimdışı olabilir; her şey tek IMMEDIATE transaction'da.
+  function executeMarket(actor, input) {
+    const { command, hash } = market.validateMarket(input);
+    return atomic(() => {
+      const receiptId = actor + ':' + command.requestId;
+      const receipt = readTradeRow('market_receipts', receiptId);
+      if (receipt) { if (receipt.hash !== hash) fail('request_id_reused', 409); return { ...receipt.result, replayed: true }; }
+      const listingId = command.op === 'list' ? market.listingIdFor(actor, command.requestId) : command.listingId;
+      const row = db.prepare('SELECT json FROM market_listings WHERE id = ?').get(listingId);
+      const listing = row ? JSON.parse(row.json) : null;
+      const ids = command.op === 'buy' && listing && listing.sellerId !== actor ? [actor, listing.sellerId] : [actor];
+      const games = {}, versions = {}, handles = {}, tradeLocks = {}, holds = {};
+      for (const p of ids) {
+        const state = db.prepare('SELECT version, game_json FROM game_states WHERE account_id = ?').get(p);
+        games[p] = state ? { version: state.version, game: JSON.parse(state.game_json) } : null;
+        versions[p] = state?.version;
+        handles[p] = db.prepare('SELECT handle FROM accounts WHERE account_id = ?').get(p)?.handle || null;
+        tradeLocks[p] = readTradeRow('trade_locks', p);
+        holds[p] = readTradeRow('market_holds', p);
+      }
+      const out = market.marketTransition(actor, command, { now: now(), listingId, listing, games, handles, tradeLocks, holds });
+      for (const p of ids) {
+        const g = out.games[p];
+        if (g && g.version !== versions[p]) db.prepare('UPDATE game_states SET version=?, game_json=? WHERE account_id=?').run(g.version, JSON.stringify(g.game), p);
+        writeTradeRow('market_holds', p, out.holds[p]);
+      }
+      const l = out.listing;
+      db.prepare('INSERT INTO market_listings VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status, json=excluded.json').run(l.id, l.sellerId, l.status, l.createdAt, JSON.stringify(l));
+      const result = { ...out.result, replayed: false };
+      writeTradeRow('market_receipts', receiptId, { hash, result, createdAt: now() });
+      return result;
+    });
+  }
+  function listMarket(actor) {
+    return atomic(() => {
+      const open = db.prepare("SELECT json FROM market_listings WHERE status = 'open' ORDER BY created_at DESC LIMIT ?").all(market.LIMITS.publicPage);
+      const mine = actor ? db.prepare('SELECT json FROM market_listings WHERE seller_id = ? ORDER BY created_at DESC LIMIT ?').all(actor, market.LIMITS.minePage) : [];
+      return { listings: open.map(r => market.publicListing(JSON.parse(r.json), actor)), mine: mine.map(r => market.publicListing(JSON.parse(r.json), actor)) };
+    }, 'DEFERRED');
+  }
+
   return Object.freeze({
-    backend: 'sqlite', pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
+    backend: 'sqlite', executeMarket, listMarket, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
     revokeSession(token) { if (typeof token === 'string') db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token)); },
     close() { db.close(); },
   });

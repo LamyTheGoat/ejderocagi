@@ -266,3 +266,67 @@ test('ENG06 P-C Firestore: week.end ticket, concurrency, replay, rollback, egg, 
  await assert.rejects(a.executeCommand(u.accountId,command('week.end',{},v)),err=>err.code==='season_end_unsupported');
  assert.equal((await a.readEconomy(u.accountId)).version,v);assert.equal((await load()).week,20);
 });
+
+test('ENG07 Firestore Bedesten: list/cancel, partial and offline sale, concurrency, idempotency, provenance, holds and debt', {timeout:120000}, async t => {
+ const {Firestore}=require('@google-cloud/firestore');const raw=new Firestore(options);
+ const a=openFirestoreStore(options),b=openFirestoreStore(options);
+ t.after(async()=>{await a.close();await b.close();await raw.terminate();});
+ const users=[];for(let i=0;i<4;i++){const u=await a.createGuest();await a.executeCommand(u.accountId,command('game.start',{},0));users.push(u.accountId);}
+ const [seller,buyer,rival,bound]=users;
+ await earnedAccounts(seller,buyer,rival);
+ const patch=async(id,fn)=>{const ref=raw.collection('eo_accounts').doc(id),doc=await ref.get(),g=JSON.parse(doc.data().gameJson);fn(g);await ref.update({gameJson:JSON.stringify(g)});};
+ await patch(seller,g=>{g.eggs.forEach(e=>{e.inK=false;});g.food.balik=5;g.foodSources.balik={bound:0,unknown:0,earned:5};});
+ const op=(name,fields)=>({op:name,requestId:crypto.randomUUID(),...fields});
+ const S=await a.readEconomy(seller);
+ // bound account cannot list; legacy shape and offer stay closed
+ await assert.rejects(b.executeMarket(bound,op('list',{kind:'dragon',assetId:(await a.readEconomy(bound)).dragons[0].assetId,quantity:1,unitPrice:5})),/asset_not_transferable/);
+ await assert.rejects(a.executeMarket(seller,{op:'list',listing:{assetId:'x',price:1}}),/unknown_market_field/);
+ await assert.rejects(a.executeMarket(seller,{op:'offer'}),/market_settlement_unavailable/);
+ // list + cancel
+ const temp=(await a.executeMarket(seller,op('list',{kind:'egg',assetId:S.eggs[0].assetId,quantity:1,unitPrice:30}))).listing;
+ await assert.rejects(b.executeMarket(buyer,op('cancel',{listingId:temp.id})),/listing_not_owned/);
+ assert.equal((await b.executeMarket(seller,op('cancel',{listingId:temp.id}))).listing.status,'cancelled');
+ await assert.rejects(a.executeMarket(buyer,op('buy',{listingId:temp.id,quantity:1,unitPrice:30})),/listing_closed/);
+ // dragon listing: hold blocks NPC sale and trade offer (other instance)
+ const dragon=(await a.executeMarket(seller,op('list',{kind:'dragon',assetId:S.dragons[0].assetId,quantity:1,unitPrice:100}))).listing;
+ await assert.rejects(b.executeCommand(seller,command('dragon.sell',{assetId:S.dragons[0].assetId},S.version)),/market_reserved_asset/);
+ let tr=(await a.executeTrade(seller,{type:'invite',requestId:crypto.randomUUID(),targetId:buyer})).trade;
+ tr=(await b.executeTrade(buyer,{type:'accept',requestId:crypto.randomUUID(),tradeId:tr.id})).trade;
+ await assert.rejects(a.executeTrade(seller,{type:'offer',requestId:crypto.randomUUID(),tradeId:tr.id,revision:tr.revision,offer:{dragons:[S.dragons[0].assetId]}}),/market_reserved_asset/);
+ await b.executeTrade(buyer,{type:'cancel',requestId:crypto.randomUUID(),tradeId:tr.id});
+ // own listing, insufficient gold, then concurrent buyers on two instances: one wins
+ await assert.rejects(a.executeMarket(seller,op('buy',{listingId:dragon.id,quantity:1,unitPrice:100})),/own_listing/);
+ const buyInput=op('buy',{listingId:dragon.id,quantity:1,unitPrice:100});
+ const race=await Promise.allSettled([a.executeMarket(buyer,buyInput),b.executeMarket(rival,op('buy',{listingId:dragon.id,quantity:1,unitPrice:100}))]);
+ assert.equal(race.filter(r=>r.status==='fulfilled').length,1,JSON.stringify(race.map(r=>r.reason?.code)));
+ assert.match(race.find(r=>r.status==='rejected').reason.code,/listing_closed/);
+ const winner=race[0].status==='fulfilled'?buyer:rival;
+ // replay on the other instance: same result, single transfer; changed body rejected
+ if(winner===buyer){const again=await b.executeMarket(buyer,{...buyInput});assert.equal(again.replayed,true);await assert.rejects(b.executeMarket(buyer,{...buyInput,unitPrice:99}),/request_id_reused/);}
+ const W=await b.readEconomy(winner),A1=await a.readEconomy(seller);
+ assert.equal(W.gold,320);assert.equal(W.funds.earned,320);assert.equal(A1.gold,520);assert.equal(A1.funds.earned,520);
+ assert.equal(W.dragons.find(d=>d.assetId===S.dragons[0].assetId).data.funding,'earned');
+ // partial food sale while seller is offline; earned food moves earned→earned
+ const food=(await a.executeMarket(seller,op('list',{kind:'food',foodKey:'balik',quantity:4,unitPrice:10}))).listing;
+ await assert.rejects(a.executeMarket(seller,op('list',{kind:'food',foodKey:'balik',quantity:2,unitPrice:10})),/food_reserved/);
+ const other=winner===buyer?rival:buyer;
+ await assert.rejects(b.executeMarket(other,op('buy',{listingId:food.id,quantity:1,unitPrice:10000})),/listing_price_mismatch/);
+ assert.equal((await b.executeMarket(other,op('buy',{listingId:food.id,quantity:3,unitPrice:10}))).listing.remaining,1);
+ await assert.rejects(a.executeMarket(other,op('buy',{listingId:food.id,quantity:2,unitPrice:10})),/listing_quantity_unavailable/);
+ const O=await a.readEconomy(other),A2=await a.readEconomy(seller);
+ assert.equal(O.gold,390);assert.equal(A2.gold,550);assert.equal(A2.game.foodSources.balik.earned,2);assert.equal(O.game.foodSources.balik.earned,(O.game.food.balik));
+ const view=await b.listMarket(seller);
+ assert.ok(view.listings.some(l=>l.id===food.id&&l.mine&&l.remaining===1));
+ assert.equal(view.mine.find(l=>l.id===dragon.id).status,'sold');
+ const pub=await b.listMarket(other);assert.ok(pub.listings.every(l=>l.assetId===undefined));
+ // debtor buyer cannot buy; debtor seller cannot list
+ await patch(other,g=>{g.gold=0;g.funds={schema:1,bound:0,unknown:0,earned:0};g.debt=40;});
+ const before=[await a.readEconomy(other),await a.readEconomy(seller)];
+ await assert.rejects(a.executeMarket(other,op('buy',{listingId:food.id,quantity:1,unitPrice:10})),/debt_outstanding/);
+ await assert.rejects(a.executeMarket(other,op('list',{kind:'food',foodKey:'balik',quantity:1,unitPrice:10})),/debt_outstanding/);
+ assert.deepEqual([await a.readEconomy(other),await a.readEconomy(seller)],before);
+ // cancel releases the remaining food hold
+ await a.executeMarket(seller,op('cancel',{listingId:food.id}));
+ const hold=JSON.parse((await raw.collection('eo_market_holds').doc(seller).get()).data().json);
+ assert.deepEqual(hold,{schema:1,listings:[],items:[],dragons:[],eggs:[],food:{}});
+});

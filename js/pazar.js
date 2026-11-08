@@ -326,9 +326,10 @@ const PAZAR_ACT = {
     UI.bedTab = UI.bedTab || 'vitrini';
     UI.bedCat = UI.bedCat || 'tumu';
     UI.bedSellCat = UI.bedSellCat || 'dragon';
-    UI.bedMult = UI.bedMult || 120;
+    UI.bedArm = null;
     SFX.play('tab');
-    syncBedestenFromServer();
+    const M = bedMarket();
+    if (M) M.refresh();
     render();
   },
   'bed-tab'(el) {
@@ -336,6 +337,7 @@ const PAZAR_ACT = {
     UI.pg['bed-list'] = 0;
     UI.pg['bed-sell'] = 0;
     UI.pg['bed-mine'] = 0;
+    UI.bedArm = null;
     SFX.play('tab');
     render();
   },
@@ -351,155 +353,157 @@ const PAZAR_ACT = {
     SFX.play('page');
     render();
   },
-  'bed-mult'(el) {
-    UI.bedMult = +el.dataset.m || 120;
-    SFX.play('tick');
-    render();
-  },
   'bed-refresh'() {
     SFX.play('page');
-    syncBedestenFromServer(true);
+    const M = bedMarket();
+    if (M) M.refresh();
   },
+  'bed-retry'() {
+    const M = bedMarket();
+    if (M) M.retry();
+  },
+  // ENG-07: tüm mutasyonlar sunucuda (POST /api/market). Yerel S'e altın/varlık yazılmaz.
   'bed-buy'(el) {
-    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
+    bedSend('buy', el);
   },
   'bed-cancel'(el) {
-    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
+    bedSend('cancel', el);
   },
   'bed-post-dragon'(el) {
-    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
+    bedSend('list', el, 'dragon');
   },
   'bed-post-egg'(el) {
-    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
+    bedSend('list', el, 'egg');
   },
   'bed-post-item'(el) {
-    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
+    bedSend('list', el, 'item');
   },
   'bed-post-food'(el) {
-    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
+    bedSend('list', el, 'food');
   },
   'bed-post-mat'(el) {
-    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
+    toast('Cevher, kalıp, taş ve özlerin sunucuda kaynak kaydı yok; Bedesten\'e konması kapalı.');
   },
   'bed-sim-sale'(el) {
-    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
+    toast('Anında satış simülasyonu kapalı. Gerçek alıcı satın aldığında satış sunucuda kendiliğinden yazılır.');
   },
   'bed-offer'(el) {
-    toast('Bedesten işlemleri, güvenli sunucu aktarımı tamamlanana kadar kapalı.');
+    toast('Pazarlık teklifi kapalı; yalnız ilan fiyatından satın alınabilir.');
   }
 };
 
-const DEFAULT_BEDESTEN_SEED = [
-  { id: 'mk_seed_1', seller: '@kuzey_ruzgari', guild: 'Bozkır Pençesi', cat: 'dragon', title: 'Bora Pençesi (Fırtına · Yetişkin)', desc: 'Safkan Fırtına Soyu · Güç 94 · Hız +18', price: 320, payload: { dragon: { name: 'Bora Pençesi', el: 'firtina', sex: 'M', stage: 'yetiskin', genes: { el: ['firtina', 'firtina'], pat: ['C', 'K'], eye: ['A', 'N'], horn: ['k', 't'], pot: { gu: [4, 4], ce: [5, 4], da: [4, 3], ze: [4, 4] } } } } },
-  { id: 'mk_seed_2', seller: '@leydi_sureyya', guild: 'Kızıl Ocak', cat: 'egg', title: 'Mühürlü Ayaz Kristal Yumurtası', desc: 'Çift Çekinik Kristal Gen · Yüksek Mutasyon Şansı', price: 185, payload: { egg: { el: 'buz', tier: 3 } } },
-  { id: 'mk_seed_3', seller: '@altin_kervan', guild: 'Altın Kervan', cat: 'food', title: 'Sonsuz Gençlik İksiri (Mühürlü)', desc: 'Sadece yavru ejderhalara içirilir; ebediyen yavru tutar ve Zindan/Topçu silahı yapar.', price: 135, payload: { foodKey: 'genclik', qty: 1 } },
-  { id: 'mk_seed_4', seller: '@firtina_beyi', guild: 'Gök Gürültüsü', cat: 'equip', title: 'Ejder Dişi Miğfer', desc: 'Kafa Zırhı · +16 Savunma, +8 Hız', price: 210, payload: { itemId: 'ejder_migfer' } },
-  { id: 'mk_seed_5', seller: '@demir_ocak', guild: 'Demir Örs', cat: 'mat', title: '1× Şahmeran Sırça Kalıbı', desc: 'Sırça Saray Zindanı kadim ekipman şeması parçası · Dökümhane materyali.', price: 460, payload: { matKind: 'shard', matKey: 'sahmeran_kalip', ic: 'img/ui/items/shard_sahmeran.webp', qty: 1 } },
-  { id: 'mk_seed_6', seller: '@kul_avcisi', guild: 'Kızıl Ocak', cat: 'mat', title: '2× Obsidiyen Cevheri', desc: 'Kızıl Vadi Kervan Yolu volkanik cevheri · Silah ve miğfer dökümü.', price: 210, payload: { matKind: 'ore', matKey: 'obsidiyen', ic: 'img/ui/items/ore_obsidiyen.webp', qty: 2 } },
-  { id: 'mk_seed_7', seller: '@demirhan_ocagi', guild: 'Demir Örs', cat: 'mat', title: '1× Anka Mühür Taşı', desc: '+5..+12 dövmede seviye düşmesini ve eşyanın yanıp hurdaya dönmesini %100 önler!', price: 920, payload: { matKind: 'stone', matKey: 'anka_koruma', ic: 'img/ui/items/stone_anka_koruma.webp', qty: 1 } },
-];
+/* --- ENG-07 · Gerçek oyunculu Bedesten (sunucu otoriteli, serbest fiyat) ---
+   İlanlar, rezervasyon ve satın alma sunucudadır (js/market_client.js → /api/market).
+   Sahte/tohum ilan yoktur: sunucuda ilan yoksa boş durum gösterilir. */
+function bedMarket() { return typeof MARKET_CLIENT !== 'undefined' ? MARKET_CLIENT : null; }
+const BED_KIND_CAT = { dragon: 'dragon', egg: 'egg', item: 'equip', food: 'food' };
+const BED_MSG = {
+  gold_not_transferable: 'Yalnız kazanılmış (earned) altınla başka oyuncudan alınabilir.',
+  insufficient_gold: 'Sunucu kesende yeterli altın yok.',
+  asset_not_transferable: 'Bu varlık hesaba bağlı (başlangıç/bilinmeyen kaynak); satışa konamaz.',
+  food_not_transferable: 'Bu yemin kazanılmış miktarı yetmiyor; bağlı yem satışa konamaz.',
+  food_reserved: 'Bu yemin bir kısmı zaten ilanda veya takasta.',
+  insufficient_food: 'Kilerinde bu kadar yem yok.',
+  asset_unavailable: 'Bu varlık şu anda aktarılamaz (görevde, kuluçkada, kilitli veya yadigâr).',
+  asset_equipped: 'Kuşanılmış eşya ya da ekipmanlı ejderha satışa konamaz.',
+  asset_already_listed: 'Bu varlık zaten ilanda.',
+  asset_reserved: 'Bu varlık açık bir takasta rezerve.',
+  asset_not_owned: 'Bu varlık sunucu hesabında yok.',
+  market_listing_limit: 'Açık ilan sınırına ulaştın.',
+  debt_outstanding: 'Borcun varken Bedesten\'de alım ve ilan kapalı.',
+  seller_unavailable: 'Satıcının hesabı şu anda satış yapamıyor.',
+  own_listing: 'Kendi ilanını satın alamazsın.',
+  listing_closed: 'Bu ilan kapandı (satıldı veya geri çekildi).',
+  listing_not_found: 'İlan bulunamadı.',
+  listing_not_owned: 'Bu ilan senin değil.',
+  listing_quantity_unavailable: 'İlanda bu kadar miktar kalmadı.',
+  listing_price_mismatch: 'İlan fiyatı beklenenden farklı; listeyi yenile.',
+  invalid_price: 'Fiyat 1 ile 2.000.000.000 arasında tam sayı olmalı.',
+  invalid_quantity: 'Miktar geçersiz.',
+  invalid_total: 'Toplam tutar sınırı aşıyor.',
+  game_not_started: 'Sunucu hesabın henüz hazır değil.',
+  trade_reserved_gold: 'Altının açık bir takasta rezerve.',
+  trade_reserved_asset: 'Varlık açık bir takasta rezerve.',
+  rate_limited: 'Çok sık istek gönderdin. Biraz sonra yeniden dene.',
+  market_pending_retry: 'Önce bekleyen işlemin sonucunu doğrula.',
+  market_busy: 'Sunucudan yanıt bekleniyor.',
+  market_unverified: 'Sunucuya ulaşılamadı. Sonuç henüz doğrulanmadı; "Sonucu doğrula" ile aynı işlemi yeniden gönder.',
+  market_unavailable: 'Bedesten sunucusuna ulaşılamadı.',
+};
+const bedErr = code => esc(BED_MSG[code] || ('İşlem doğrulanamadı: ' + code));
+function bedDraft(k) { return (UI.bedDraft && UI.bedDraft[k]) || ''; }
+function bedNum(k) { const n = Number(bedDraft(k)); return Number.isSafeInteger(n) && n > 0 ? n : null; }
+if (typeof document !== 'undefined') document.addEventListener('input', e => {
+  const k = e.target && e.target.dataset && e.target.dataset.bed;
+  if (k) { UI.bedDraft = UI.bedDraft || {}; UI.bedDraft[k] = e.target.value; }
+});
+function bedInput(k, label, max) {
+  return `<label class="mute sm" style="display:inline-flex;align-items:center;gap:4px;margin-top:4px">${label} <input type="number" inputmode="numeric" min="1" step="1" ${max ? `max="${max}"` : ''} data-bed="${esc(k)}" value="${esc(bedDraft(k))}" style="width:84px;max-width:40vw"></label>`;
+}
+function bedTitle(L) {
+  if (L.kind === 'food' && typeof FOODS !== 'undefined' && FOODS[L.foodKey]) return FOODS[L.foodKey].ad;
+  if (L.kind === 'item' && L.preview && typeof ITEMS !== 'undefined' && ITEMS[L.preview.itemId]) return ITEMS[L.preview.itemId].ad;
+  if (L.kind === 'egg') return `Mühürlü ${(L.preview && EL_AD[L.preview.el]) || ''} Yumurtası`;
+  return L.title;
+}
+async function bedSend(op, el, kind) {
+  const M = bedMarket();
+  if (!M) { toast('Bedesten sunucusuna bağlanılamadı; işlemler kapalı.'); return; }
+  const id = el && el.dataset ? el.dataset.id : null;
+  try {
+    if (op === 'buy') {
+      const L = M.state.listings.find(x => x.id === id);
+      if (!L) { toast(bedErr('listing_not_found')); return; }
+      const q = L.kind === 'food' ? (bedNum('buyq:' + L.id) || 1) : 1;
+      if (q > L.remaining) { toast(bedErr('listing_quantity_unavailable')); return; }
+      // İki adımlı onay: ilk tık tutarı gösterir, ikinci tık sunucuya gönderir.
+      if (UI.bedArm !== 'b' + L.id + ':' + q) { UI.bedArm = 'b' + L.id + ':' + q; SFX.play('click'); render(); return; }
+      UI.bedArm = null;
+      const r = await M.buy(L, q);
+      SFX.play('coin');
+      toast(`<b>${esc(bedTitle(L))}</b> × ${r.sale.quantity} sunucuda satın alındı: <b>${r.sale.total}</b> altın.`, 'goal');
+    } else if (op === 'cancel') {
+      if (UI.bedArm !== 'c' + id) { UI.bedArm = 'c' + id; SFX.play('click'); render(); return; }
+      UI.bedArm = null;
+      await M.cancel(id);
+      toast('İlan geri çekildi; varlık hesabında serbest.');
+    } else {
+      const unitPrice = bedNum('price:' + kind + ':' + id);
+      const quantity = kind === 'food' ? bedNum('qty:food:' + id) : 1;
+      if (!unitPrice) { toast(bedErr('invalid_price')); return; }
+      if (!quantity) { toast(bedErr('invalid_quantity')); return; }
+      await M.list(kind, id, quantity, unitPrice);
+      if (UI.bedDraft) { delete UI.bedDraft['price:' + kind + ':' + id]; delete UI.bedDraft['qty:food:' + id]; }
+      SFX.play('coin');
+      toast('İlan sunucuya kaydedildi. Sen çevrimdışıyken de satılabilir.');
+    }
+  } catch (e) {
+    SFX.play('error');
+    toast(bedErr(e.message));
+  }
+  render();
+}
 
 function getBedestenListings() {
-  if (typeof MP !== 'undefined' && Array.isArray(MP.marketListings) && MP.marketListings.length > 0) {
-    return MP.marketListings;
-  }
-  if (!S.bedestenListings || !Array.isArray(S.bedestenListings) || !S.bedestenListings.length) {
-    S.bedestenListings = JSON.parse(JSON.stringify(DEFAULT_BEDESTEN_SEED));
-  }
-  if (typeof MP !== 'undefined') MP.marketListings = S.bedestenListings;
-  return S.bedestenListings;
-}
-
-function syncBedestenFromServer(showToast) {
-  fetch('/api/market')
-    .then(r => r.ok ? r.json() : null)
-    .then(d => {
-      if (d && Array.isArray(d.listings)) {
-        if (typeof MP !== 'undefined') {
-          MP.marketListings = d.listings;
-          MP.marketSales = d.sales || [];
-        }
-        if (S) S.bedestenListings = d.listings;
-        if (showToast) toast(`Oyuncu Bedesteni güncellendi: <b>${d.listings.length} aktif ilan</b>.`);
-        if (UI.view === 'pazar' && UI.stall === 'bedesten') render();
-      }
-    })
-    .catch(() => {
-      if (showToast) toast('Yerel Bedesten defteri kullanılıyor.');
-    });
-}
-
-function postBedestenListing(listing) {
-  const list = getBedestenListings();
-  list.unshift(listing);
-  if (S) S.bedestenListings = list;
-  if (typeof mpSendWs === 'function') {
-    mpSendWs({ type: 'market_op', op: 'list', action: 'list', listing });
-  }
-  fetch('/api/market', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ op: 'list', action: 'list', listing })
-  }).catch(() => {});
-}
-
-function removeBedestenListing(id, buyer, price, title, seller) {
-  let list = getBedestenListings().filter(x => x.id !== id);
-  if (typeof MP !== 'undefined') {
-    MP.marketListings = list;
-    if (buyer) {
-      MP.marketSales = MP.marketSales || [];
-      MP.marketSales.unshift({ id: 'ms_' + Date.now(), title, seller, buyer, price, ts: Date.now() });
-    }
-  }
-  if (S) S.bedestenListings = list;
-  const opType = buyer ? 'buy' : 'cancel';
-  if (typeof mpSendWs === 'function') {
-    mpSendWs({ type: 'market_op', op: opType, action: opType, id, buyer: buyer || (S && S.handle) || '@ejder_ocagi' });
-  }
-  fetch('/api/market', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ op: opType, action: opType, id, buyer: buyer || (S && S.handle) || '@ejder_ocagi' })
-  }).catch(() => {});
+  const M = bedMarket();
+  if (!M) return [];
+  if (!M.state.loaded && !UI.bedAsked) { UI.bedAsked = true; M.refresh(); }
+  return M.state.listings.filter(L => L.status === 'open');
 }
 
 function bedestenArtFor(L) {
-  if (L.cat === 'dragon') {
-    const raw = L.dragonData || (L.payload && L.payload.dragon) || {};
-    const elKey = raw.el || L.el || 'golge';
-    const mock = {
-      id: 999,
-      name: raw.name || L.title || 'Ejderha',
-      el: elKey,
-      sex: raw.sex || 'F',
-      stage: raw.stage || 'yetiskin',
-      eye: raw.eye || 'A',
-      horn: raw.horn || 't',
-      pat: raw.pat || 'B',
-      genes: raw.genes || randomGenes({ el: elKey }),
-      equip: {}
-    };
-    return dragonSVG(mock, { still: true });
+  const p = L.preview || {};
+  if (L.kind === 'dragon') {
+    const elKey = p.el || 'golge';
+    const mock = { id: 999, name: p.name || L.title || 'Ejderha', el: elKey, sex: p.sex || 'F', stage: p.stage || 'yetiskin',
+      eye: p.eye || 'A', horn: p.horn || 't', pat: p.pat || 'B', genes: p.genes || { el: [elKey, elKey] }, equip: {} };
+    try { return dragonSVG(mock, { still: true }); } catch (_) { /* eksik görünüm alanı: simgeye düş */ }
   }
-  if (L.cat === 'egg') {
-    const rawEgg = L.eggData || (L.payload && L.payload.egg) || {};
-    const elKey = L.el || rawEgg.el || 'buz';
-    return eggSVG({ id: 998, genes: rawEgg.genes || randomGenes({ el: elKey }) }, 0.6, { glow: true });
+  if (L.kind === 'egg') {
+    try { return eggSVG({ id: 998, genes: p.genes || { el: [p.el || 'buz', p.el || 'buz'] } }, 0.6, { glow: true }); } catch (_) {}
   }
-  if (L.cat === 'equip' || L.cat === 'item') {
-    const rawId = L.itemId || (L.payload && L.payload.itemId);
-    const itemId = (rawId && ITEMS[rawId]) ? rawId : Object.keys(ITEMS)[0];
-    return itemIcon(itemId);
-  }
-  if (L.cat === 'food') {
-    const fk = L.foodKey || (L.payload && L.payload.foodKey) || 'genclik';
-    return foodIcon(fk);
-  }
-  if (L.cat === 'mat') {
-    const ic = (L.payload && L.payload.ic) || 'img/ui/items/stone_kor_t2.webp';
-    return `<img src="${ic}" alt="" style="width:64px;height:64px;object-fit:contain">`;
-  }
+  if (L.kind === 'item' && p.itemId && typeof ITEMS !== 'undefined' && ITEMS[p.itemId]) return itemIcon(p.itemId);
+  if (L.kind === 'food' && typeof FOODS !== 'undefined' && FOODS[L.foodKey]) return foodIcon(L.foodKey);
   return `<img src="${asset('ic-bedesten') || 'img/ui/ic-bedesten.webp'}" alt="" style="width:64px;height:64px;object-fit:contain">`;
 }
 
@@ -522,221 +526,154 @@ function bedestenView() {
   const tab = UI.bedTab || 'vitrini';
   const cat = UI.bedCat || 'tumu';
   const sellCat = UI.bedSellCat || 'dragon';
-  const mult = UI.bedMult || 120;
-  const myHandle = (S && S.handle) || '@ejder_ocagi';
+  const M = bedMarket();
+  const st = M ? M.state : { listings: [], mine: [], economy: null, loaded: false, busy: false, error: '', pending: null, notice: '' };
+  const eco = st.economy;
   const allListings = getBedestenListings();
-  const myListings = allListings.filter(x => x.seller === myHandle);
+  const myOpen = st.mine.filter(L => L.status === 'open');
   const netLive = typeof MP !== 'undefined' && (MP.connected || MP.wsConnected);
-  const isEquipCat = x => x.cat === 'equip' || x.cat === 'item';
+  const locked = st.busy || !!st.pending;
 
   const tabsHtml = `<div class="vtabs">
     <button class="vtab ${tab === 'vitrini' ? 'on' : ''}" data-a="bed-tab" data-k="vitrini">Canlı Oyuncu İlanları (${allListings.length})</button>
     <button class="vtab ${tab === 'ilanver' ? 'on' : ''}" data-a="bed-tab" data-k="ilanver">Pazara İlan Ver (Satışa Çıkar)</button>
-    <button class="vtab ${tab === 'ilanlarim' ? 'on' : ''}" data-a="bed-tab" data-k="ilanlarim">Tezgâhım & Kayıtlar (${myListings.length})</button>
+    <button class="vtab ${tab === 'ilanlarim' ? 'on' : ''}" data-a="bed-tab" data-k="ilanlarim">Tezgâhım & Kayıtlar (${myOpen.length})</button>
     <button class="vtab" data-a="bed-refresh">Ağı Yenile</button>
   </div>`;
 
-  let bodyHtml = '';
+  const status = !M ? 'Bedesten sunucusuna bağlanılamadı; işlemler kapalı.'
+    : st.busy ? 'Sunucudan yanıt bekleniyor…'
+    : st.error ? bedErr(st.error)
+    : st.notice ? esc(st.notice)
+    : !st.loaded ? 'Bedesten defteri sunucudan okunuyor…'
+    : 'Bedesten sunucu hesabını kullanır; yerel oyundaki altın ve varlıklar ayrıdır.';
+  const statusHtml = `<p role="status" aria-live="polite" class="mute sm" style="margin:0 0 6px">${status}${st.pending ? ' <button class="btn ghost sm" data-a="bed-retry">Sonucu doğrula / yeniden dene</button>' : ''}</p>`;
 
+  let bodyHtml = '';
   if (tab === 'vitrini') {
-    const filtered = cat === 'tumu' ? allListings : (cat === 'equip' ? allListings.filter(isEquipCat) : allListings.filter(x => x.cat === cat));
+    const count = c => allListings.filter(x => BED_KIND_CAT[x.kind] === c).length;
+    const filtered = cat === 'tumu' ? allListings : allListings.filter(x => BED_KIND_CAT[x.kind] === cat);
     const catBar = `<div class="plaques" style="margin-bottom:4px;display:flex;gap:6px;flex-wrap:wrap">
       <button class="plaque ${cat === 'tumu' ? 'amber on' : ''}" data-a="bed-cat" data-k="tumu">Tümü (${allListings.length})</button>
-      <button class="plaque ${cat === 'dragon' ? 'amber on' : ''}" data-a="bed-cat" data-k="dragon">Ejderhalar (${allListings.filter(x => x.cat === 'dragon').length})</button>
-      <button class="plaque ${cat === 'egg' ? 'amber on' : ''}" data-a="bed-cat" data-k="egg">Yumurtalar (${allListings.filter(x => x.cat === 'egg').length})</button>
-      <button class="plaque ${cat === 'equip' ? 'amber on' : ''}" data-a="bed-cat" data-k="equip">Zırh & Pusat (${allListings.filter(isEquipCat).length})</button>
-      <button class="plaque ${cat === 'mat' ? 'amber on' : ''}" data-a="bed-cat" data-k="mat">Cevher, Kalıp & Kor Taşı (${allListings.filter(x => x.cat === 'mat').length})</button>
-      <button class="plaque ${cat === 'food' ? 'amber on' : ''}" data-a="bed-cat" data-k="food">İksir & Erzak (${allListings.filter(x => x.cat === 'food').length})</button>
+      <button class="plaque ${cat === 'dragon' ? 'amber on' : ''}" data-a="bed-cat" data-k="dragon">Ejderhalar (${count('dragon')})</button>
+      <button class="plaque ${cat === 'egg' ? 'amber on' : ''}" data-a="bed-cat" data-k="egg">Yumurtalar (${count('egg')})</button>
+      <button class="plaque ${cat === 'equip' ? 'amber on' : ''}" data-a="bed-cat" data-k="equip">Zırh & Pusat (${count('equip')})</button>
+      <button class="plaque ${cat === 'food' ? 'amber on' : ''}" data-a="bed-cat" data-k="food">İksir & Erzak (${count('food')})</button>
     </div>`;
-
     const cards = filtered.length
       ? pager('bed-list', filtered, PER(4, 2), L => {
-          const isMine = L.seller === myHandle;
-          const offerP = Math.max(15, Math.round(L.price * 0.85));
-          const offerHtml = L.lastOffer
-            ? `<div style="margin-top:3px"><span class="mp-pill wev" style="font-size:10px;padding:1px 6px">Son Teklif: ${esc(L.lastOffer.buyer)} (${L.lastOffer.price}A)</span></div>`
-            : (!isMine ? `<div style="margin-top:3px"><button class="btn ghost sm" style="padding:2px 7px;font-size:10.5px" data-a="bed-offer" data-id="${esc(L.id)}">Teklif Ver (%85 · ${offerP}A)</button></div>` : '');
+          const q = L.kind === 'food' ? Math.min(L.remaining, bedNum('buyq:' + L.id) || 1) : 1;
+          const armed = UI.bedArm === 'b' + L.id + ':' + q || UI.bedArm === 'c' + L.id;
+          const qtyHtml = L.kind === 'food' && !L.mine ? bedInput('buyq:' + L.id, 'Adet', L.remaining) : '';
           return gcard({
             cls: 'item t3',
             art: bedestenArtFor(L),
-            title: esc(L.title),
-            sub: `<span class="tag">${bedestenSellerAvatar(L.seller)}${esc(L.seller)}</span> · <small>${esc(L.guild || 'Bağımsız Ocak')}</small>`,
-            body: `<small class="idesc">${esc(L.desc || L.sub || '')}</small>${offerHtml}`,
-            price: L.price,
-            btn: isMine ? 'Geri Çek' : 'Satın Al',
-            btnCls: isMine ? 'ghost' : 'primary',
-            act: isMine ? 'bed-cancel' : 'bed-buy',
-            data: `data-id="${esc(L.id)}"`
+            title: esc(bedTitle(L)) + (L.kind === 'food' ? ` <small>(Kalan: ${L.remaining})</small>` : ''),
+            sub: `<span class="tag">${bedestenSellerAvatar(L.seller)}${esc(L.seller || 'Oyuncu')}</span>${L.mine ? ' · <b>Senin ilanın</b>' : ''}`,
+            body: `<small class="idesc">${L.kind === 'food' ? 'Birim fiyat' : 'Fiyat'}: ${L.unitPrice} altın · Satıcı belirledi</small>${qtyHtml}`,
+            price: L.unitPrice * q,
+            btn: L.mine ? (armed ? 'Geri çekmeyi onayla' : 'Geri Çek') : (armed ? `Onayla: ${L.unitPrice * q} altın` : 'Satın Al'),
+            btnCls: L.mine ? 'ghost' : 'primary',
+            act: L.mine ? 'bed-cancel' : 'bed-buy',
+            data: `data-id="${esc(L.id)}" ${locked ? 'disabled' : ''}`
           });
         })
-      : `<div class="vempty">Bu kategoride aktif oyuncu ilanı yok. "Pazara İlan Ver" sekmesinden kendi malını satışa çıkarabilirsin.</div>`;
-
+      : `<div class="vempty">${st.loaded ? 'Şu anda bu kategoride gerçek oyuncu ilanı yok. "Pazara İlan Ver" sekmesinden kendi kazandığın malı satışa çıkarabilirsin.' : 'İlanlar sunucudan okunuyor…'}</div>`;
     bodyHtml = catBar + cards;
   } else if (tab === 'ilanver') {
-    const sellBar = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-      <div class="plaques" style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="plaque ${sellCat === 'dragon' ? 'amber' : ''}" data-a="bed-sell-cat" data-k="dragon">Ejderhalarım (${S.dragons.length})</button>
-        <button class="plaque ${sellCat === 'egg' ? 'amber' : ''}" data-a="bed-sell-cat" data-k="egg">Yumurtalarım (${S.eggs.length})</button>
-        <button class="plaque ${sellCat === 'equip' ? 'amber' : ''}" data-a="bed-sell-cat" data-k="equip">Sandığım (${S.inv.length})</button>
+    const sellBar = `<div class="plaques" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="plaque ${sellCat === 'dragon' ? 'amber' : ''}" data-a="bed-sell-cat" data-k="dragon">Ejderhalarım</button>
+        <button class="plaque ${sellCat === 'egg' ? 'amber' : ''}" data-a="bed-sell-cat" data-k="egg">Yumurtalarım</button>
+        <button class="plaque ${sellCat === 'equip' ? 'amber' : ''}" data-a="bed-sell-cat" data-k="equip">Sandığım</button>
         <button class="plaque ${sellCat === 'mat' ? 'amber' : ''}" data-a="bed-sell-cat" data-k="mat">Cevher, Kalıp & Taş</button>
         <button class="plaque ${sellCat === 'food' ? 'amber' : ''}" data-a="bed-sell-cat" data-k="food">İksir & Kiler</button>
-      </div>
-      <div class="plaques" style="display:flex;gap:4px;align-items:center">
-        <small class="mute">İlan Fiyat Çarpanı:</small>
-        <button class="plaque ${mult === 90 ? 'emerald' : ''}" data-a="bed-mult" data-m="90">Hızlı (%90)</button>
-        <button class="plaque ${mult === 120 ? 'amber' : ''}" data-a="bed-mult" data-m="120">Piyasa (%120)</button>
-        <button class="plaque ${mult === 160 ? 'royal' : ''}" data-a="bed-mult" data-m="160">Nadir (%160)</button>
-      </div>
-    </div>`;
-
+      </div><p class="mute sm" style="margin:0 0 6px">Fiyatı sen belirlersin. Yalnız kazanılmış (earned) varlıklar satılabilir; ilan süresince varlık hesabında rezerve kalır.</p>`;
     let sellCards = '';
-    if (sellCat === 'dragon') {
-      sellCards = S.dragons.length
-        ? pager('bed-sell', S.dragons, PER(4, 2), d => {
-            const p = Math.max(80, Math.round(value(d) * (mult / 100)));
-            return gcard({
-              cls: 'dr own',
-              art: dragonSVG(d, { still: true }),
-              title: `${esc(d.name)} ${sexIc(d.sex)}`,
-              sub: `${elChip(d.el)} ${STAGE_AD[d.stage]}${d.eternalYouth ? ' · <b>Ebedi Yavru</b>' : ''}`,
-              body: `<small class="idesc">Güç ${sum(STATS.map(k => (d.st && d.st[k]) || 20))} · Değer ${value(d)} altın</small>`,
-              price: p,
-              btn: S.dragons.length <= 1 ? 'Son Ejderha' : 'İlana Koy',
-              btnCls: S.dragons.length <= 1 ? 'ghost' : 'primary',
-              act: 'bed-post-dragon',
-              data: `data-id="${d.id}" ${S.dragons.length <= 1 ? 'disabled' : ''}`
-            });
-          })
-        : `<div class="vempty">Ocağında satılabilecek ejderha yok.</div>`;
-    } else if (sellCat === 'egg') {
-      sellCards = S.eggs.length
-        ? pager('bed-sell', S.eggs.map((e, i) => [e, i]), PER(4, 2), ([e, i]) => {
-            const p = Math.max(70, Math.round(eggPrice(e) * (mult / 100)));
-            const elKey = (e.genes && e.genes.el && e.genes.el[0]) || 'ates';
-            return gcard({
-              cls: 'egg own',
-              art: eggSVG(e, 0.6, { glow: true }),
-              title: `Mühürlü ${EL_AD[elKey]} Yumurtası`,
-              sub: `${e.inK ? 'Kuluçkada' : 'Sepette'} · ${Math.max(1, 2 - (e.w || 0))} hf`,
-              body: `<small class="idesc">Diğer oyunculara satılmak üzere Bedesten vitrinine konur.</small>`,
-              price: p,
-              btn: 'İlana Koy',
-              act: 'bed-post-egg',
-              data: `data-i="${i}"`
-            });
-          })
-        : `<div class="vempty">Sepetinde veya kuluçkada satılık yumurta yok.</div>`;
-    } else if (sellCat === 'equip') {
-      sellCards = S.inv.length
-        ? pager('bed-sell', S.inv, PER(4, 2), invIt => {
-            const it = ITEMS[invIt.id];
-            if (!it) return '';
-            const p = Math.max(45, Math.round(smithPrice(invIt.id) * (mult / 100)));
-            const w = equippedBy(invIt.uid);
-            return gcard({
-              cls: 'item own t' + (it.tier || 1),
-              art: itemIcon(invIt.id),
-              title: esc(it.ad),
-              sub: w ? `${esc(w.name)} kuşanıyor` : SLOT_AD[it.slot],
-              body: `<small class="idesc">${itemDesc(it)}</small>`,
-              price: p,
-              btn: 'İlana Koy',
-              act: 'bed-post-item',
-              data: `data-uid="${invIt.uid}"`
-            });
-          })
-        : `<div class="vempty">Sandığında satılık ekipman yok.</div>`;
+    if (!eco || !eco.game) {
+      sellCards = `<div class="vempty">${st.loaded ? 'Sunucu hesabın henüz hazır değil. <button class="btn ghost sm" data-open-trade>⇄ Takas ekranından hazırla</button>' : 'Sunucu envanterin okunuyor…'}</div>`;
     } else if (sellCat === 'mat') {
-      const C = typeof ensureChibi === 'function' ? ensureChibi() : null;
-      const matEntries = [];
-      if (C) {
-        if (window.CHIBI_SHARDS && C.shards) {
-          for (const [k, meta] of Object.entries(window.CHIBI_SHARDS)) {
-            if ((C.shards[k] || 0) > 0) matEntries.push({ kind: 'shard', k, qty: C.shards[k], meta });
-          }
-        }
-        if (window.CHIBI_ORES && C.ores) {
-          for (const [k, meta] of Object.entries(window.CHIBI_ORES)) {
-            if ((C.ores[k] || 0) > 0) matEntries.push({ kind: 'ore', k, qty: C.ores[k], meta });
-          }
-        }
-        if (window.CHIBI_STONES && C.stones) {
-          for (const [k, meta] of Object.entries(window.CHIBI_STONES)) {
-            if ((C.stones[k] || 0) > 0) matEntries.push({ kind: 'stone', k, qty: C.stones[k], meta });
-          }
-        }
-        if (window.CHIBI_ESSENCES && C.essences) {
-          for (const [k, meta] of Object.entries(window.CHIBI_ESSENCES)) {
-            if ((C.essences[k] || 0) > 0) matEntries.push({ kind: 'essence', k, qty: C.essences[k], meta });
-          }
-        }
-      }
-      sellCards = matEntries.length
-        ? pager('bed-sell', matEntries, PER(4, 2), m => {
-            const p = Math.max(25, Math.round((m.meta.basePrice || 100) * (mult / 100)));
-            return gcard({
-              cls: 'item own t3',
-              art: `<img src="${m.meta.ic}" alt="" style="width:64px;height:64px;object-fit:contain">`,
-              title: `${esc(m.meta.ad)} (Stok: ${m.qty})`,
-              sub: 'Dökümhane & Kor Örsü Materyali',
-              body: `<small class="idesc">${esc(m.meta.d || '')}</small>`,
-              price: p,
-              btn: '1 Adet İlana Koy',
-              act: 'bed-post-mat',
-              data: `data-kind="${m.kind}" data-k="${m.k}"`
-            });
-          })
-        : `<div class="vempty">Çantanda satılabilecek Kalıp Parçası, Kervan Cevheri veya Kor Taşı yok.</div>`;
-    } else {
-      const foodKeys = Object.keys(FOODS).filter(fk => (S.food[fk] || 0) > 0);
-      sellCards = foodKeys.length
-        ? pager('bed-sell', foodKeys, PER(4, 2), fk => {
-            const F = FOODS[fk];
-            const p = Math.max(20, Math.round(F.fiyat * (mult / 100)));
+      sellCards = `<div class="vempty">Cevher, kalıp, Kor taşı ve özlerin sunucuda kaynak (earned/bağlı) kaydı yok; bu yüzden Bedesten'e konamaz.</div>`;
+    } else if (sellCat === 'food') {
+      const held = {};
+      for (const L of myOpen) if (L.kind === 'food') held[L.foodKey] = (held[L.foodKey] || 0) + L.remaining;
+      const keys = Object.keys(eco.game.foodSources || {}).filter(k => (eco.game.foodSources[k].earned || 0) > 0);
+      sellCards = keys.length
+        ? pager('bed-sell', keys, PER(4, 2), fk => {
+            const F = (typeof FOODS !== 'undefined' && FOODS[fk]) || { ad: fk };
+            const free = Math.max(0, (eco.game.foodSources[fk].earned || 0) - (held[fk] || 0));
             return gcard({
               cls: 'food own',
-              art: foodIcon(fk),
-              title: `${esc(F.ad)} (Stok: ${S.food[fk]})`,
-              sub: 'Kiler Erzağı & İksir',
-              body: `<small class="idesc">${esc(F.acik || (F.onlyBaby ? 'Sadece Yavrular İçebilir · Topçu Silahı' : `Açlık -${F.ac || 25}${F.bag ? ` · Bağ +${F.bag}` : ''}`))}</small>`,
-              price: p,
+              art: typeof FOODS !== 'undefined' && FOODS[fk] ? foodIcon(fk) : '',
+              title: `${esc(F.ad)} (Satılabilir: ${free})`,
+              sub: held[fk] ? `İlanda: ${held[fk]}` : 'Kiler Erzağı & İksir',
+              body: bedInput('qty:food:' + fk, 'Adet', free) + bedInput('price:food:' + fk, 'Birim fiyat'),
               btn: 'İlana Koy',
               act: 'bed-post-food',
-              data: `data-f="${fk}"`
+              data: `data-id="${esc(fk)}" ${locked || !free ? 'disabled' : ''}`
             });
           })
-        : `<div class="vempty">Kilerinde satılabilecek yem veya iksir yok.</div>`;
+        : `<div class="vempty">Kilerinde satılabilecek kazanılmış yem veya iksir yok.</div>`;
+    } else {
+      const kind = sellCat === 'equip' ? 'item' : sellCat;
+      const key = { dragon: 'dragons', egg: 'eggs', item: 'items' }[kind];
+      const listed = new Set(myOpen.map(L => L.assetId));
+      const rows = eco[key] || [];
+      const why = a => {
+        const d = a.data;
+        if (listed.has(a.assetId)) return 'İlanda';
+        if (d.funding !== 'earned') return 'Hesaba bağlı';
+        if (d.tradeLocked || d.heirloomId || d.dead || d.old || d.busy || d.task || d.inK || d.hatching) return 'Şu anda aktarılamaz';
+        if (kind === 'dragon' && Object.values(d.equip || {}).some(v => v != null)) return 'Ekipmanlı';
+        if (kind === 'item' && eco.dragons.some(dr => Object.values(dr.data.equip || {}).some(v => v != null && String(v) === String(d.uid)))) return 'Kuşanılmış';
+        return '';
+      };
+      sellCards = rows.length
+        ? pager('bed-sell', rows, PER(4, 2), a => {
+            const d = a.data, blocked = why(a);
+            let art = '', title = esc(d.name || d.id || kind), sub = '';
+            try {
+              if (kind === 'dragon') { art = dragonSVG(d, { still: true }); title = `${esc(d.name)} ${sexIc(d.sex)}`; sub = `${elChip(d.el)} ${STAGE_AD[d.stage] || ''}`; }
+              else if (kind === 'egg') { const elKey = (d.genes && d.genes.el && d.genes.el[0]) || 'ates'; art = eggSVG(d, 0.6, { glow: true }); title = `Mühürlü ${EL_AD[elKey] || ''} Yumurtası`; sub = d.inK ? 'Kuluçkada' : 'Sepette'; }
+              else { const it = ITEMS[d.id]; art = it ? itemIcon(d.id) : ''; title = esc(it ? it.ad : d.id); sub = it ? SLOT_AD[it.slot] : ''; }
+            } catch (_) { /* görünüm alanı eksik: metinle göster */ }
+            return gcard({
+              cls: (kind === 'dragon' ? 'dr' : kind === 'egg' ? 'egg' : 'item') + ' own',
+              art, title, sub: sub + (blocked ? ` · <b>${esc(blocked)}</b>` : ''),
+              body: blocked ? '' : bedInput('price:' + kind + ':' + a.assetId, 'Fiyat'),
+              btn: blocked || 'İlana Koy',
+              btnCls: blocked ? 'ghost' : 'primary',
+              act: 'bed-post-' + kind,
+              data: `data-id="${esc(a.assetId)}" ${locked || blocked ? 'disabled' : ''}`
+            });
+          })
+        : `<div class="vempty">Sunucu hesabında bu türden varlık yok.</div>`;
     }
-
     bodyHtml = sellBar + sellCards;
   } else {
-    const sales = (typeof MP !== 'undefined' && Array.isArray(MP.marketSales)) ? MP.marketSales.slice(0, 3) : [];
-    const salesSummary = sales.length
-      ? `<div class="plaques" style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap">${sales.map(s => `<span class="mp-pill on">${esc(s.buyer)} → ${esc(s.title)} (${s.price} Altın)</span>`).join('')}</div>`
-      : `<div class="plaques" style="margin-bottom:8px"><span class="mp-pill wev">Canlı Bedesten: İlanların bağlı tüm oyuncuların ekranında anında görünür.</span></div>`;
-
-    const mineCards = myListings.length
-      ? pager('bed-mine', myListings, PER(4, 2), L => gcard({
-          cls: 'item own t3',
-          art: bedestenArtFor(L),
-          title: esc(L.title),
-          sub: L.lastOffer ? `Canlı Teklif: <b>${esc(L.lastOffer.buyer)}</b> (${L.lastOffer.price} Altın)` : `Senin İlanın · Fiyat: ${L.price} Altın`,
-          body: `<small class="idesc">${esc(L.desc || '')}</small><div style="margin-top:4px"><button class="btn ghost sm" data-a="bed-cancel" data-id="${esc(L.id)}">İlanı Geri Çek</button></div>`,
-          price: L.lastOffer ? L.lastOffer.price : L.price,
-          btn: L.lastOffer ? 'Teklifi Kabul' : 'Anında Sat',
-          btnCls: 'primary',
-          act: 'bed-sim-sale',
-          data: `data-id="${esc(L.id)}"`
-        }))
-      : `<div class="vempty">Henüz aktif bir ilanın yok. "Pazara İlan Ver" sekmesinden ejderha, yumurta, zırh veya iksir satışa çıkarabilirsin.</div>`;
-
-    bodyHtml = salesSummary + mineCards;
+    const label = { open: 'Açık', sold: 'Satıldı', cancelled: 'Geri çekildi' };
+    const mineCards = st.mine.length
+      ? pager('bed-mine', st.mine, PER(4, 2), L => {
+          const sales = (L.sales || []).slice(0, 3).map(s => `${esc(s.buyer || 'Oyuncu')} · ${s.quantity} adet · ${s.total} altın`).join('<br>');
+          const armed = UI.bedArm === 'c' + L.id;
+          return gcard({
+            cls: 'item own t3',
+            art: bedestenArtFor(L),
+            title: esc(bedTitle(L)),
+            sub: `${label[L.status] || esc(L.status)} · ${L.kind === 'food' ? 'Birim ' : ''}${L.unitPrice} altın · Satılan: ${L.sold}/${L.quantity}`,
+            body: sales ? `<small class="idesc">${sales}</small>` : '<small class="idesc">Henüz satış yok. Sen çevrimdışıyken de satılabilir.</small>',
+            btn: L.status === 'open' ? (armed ? 'Geri çekmeyi onayla' : 'İlanı Geri Çek') : 'Kapandı',
+            btnCls: 'ghost',
+            act: 'bed-cancel',
+            data: `data-id="${esc(L.id)}" ${locked || L.status !== 'open' ? 'disabled' : ''}`
+          });
+        })
+      : `<div class="vempty">Henüz bir ilanın yok. "Pazara İlan Ver" sekmesinden kazandığın ejderha, yumurta, zırh veya yemi satışa çıkarabilirsin.</div>`;
+    bodyHtml = mineCards;
   }
 
   const npcBed = asset('npc-bedesten') || 'img/npc-bedesten.webp';
   const bannerBed = asset('bedesten-banner') || 'img/ui/bedesten-banner.webp';
   return `<div class="vendor v-bedesten">
-    <p role="status">Bedesten alım, satım ve ilan işlemleri güvenli sunucu aktarımı tamamlanana kadar kapalı.</p>
     <button class="backbtn" data-a="stall-back">${ui('left')} Çarşıya dön</button>
     <div class="vportrait nod${(UI.vnod || 0) % 2}">
       <img src="${npcBed}" alt="Başmünadi Rüstem Ağa">
@@ -748,15 +685,15 @@ function bedestenView() {
     <div class="vright">
       <div class="vspeech" style="display:flex;align-items:center;gap:10px">
         <img src="${bannerBed}" alt="Bedesten Arması" style="width:42px;height:42px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))">
-        <p id="vsay" style="margin:0">${esc(UI.vsay || 'Kervansaray Bedesteni\'nde tüm ocaklar kendi yetiştirdiği ejderhaları, mühürlü yumurtaları, dövdüğü zırhları ve gençlik iksirlerini doğrudan diğer oyunculara satar veya canlı pazarlık teklifi gönderir!')}</p>
+        <p id="vsay" style="margin:0">${esc(UI.vsay || 'Kervansaray Bedesteni\'nde ocaklar kendi kazandıkları ejderhaları, yumurtaları, zırhları ve yemleri diledikleri fiyattan doğrudan diğer oyunculara satar. Defteri ben tutarım; satıcı çarşıda olmasa da alışveriş yazılır.')}</p>
       </div>
       <div class="vcounter">
+        ${statusHtml}
         ${tabsHtml}
         <div class="vgoods">${bodyHtml}</div>
         <div class="vfoot">
-          <span>${ui('gold')} Kesende <b>${S.gold}</b> altın</span>
-          <span>Aktif İlan: <b>${allListings.length}</b> · Senin İlanın: <b>${myListings.length}</b></span>
-          <span>İnlerde Boş Yer: <b>${freeSlots()}</b></span>
+          <span>${ui('gold')} Sunucu kesesi <b>${eco ? eco.gold : '—'}</b> altın${eco && eco.funds ? ` (alışverişe açık: <b>${eco.funds.earned}</b>)` : ''}</span>
+          <span>Aktif İlan: <b>${allListings.length}</b> · Senin İlanın: <b>${myOpen.length}</b></span>
         </div>
       </div>
     </div>

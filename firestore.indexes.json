@@ -13,9 +13,40 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "eo_market_listings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "eo_market_listings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sellerId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
+    {
+      "collectionGroup": "eo_market_listings",
+      "fieldPath": "json",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "eo_market_holds",
+      "fieldPath": "json",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "eo_market_receipts",
+      "fieldPath": "resultJson",
+      "indexes": []
+    },
     {
       "collectionGroup": "eo_accounts",
       "fieldPath": "gameJson",

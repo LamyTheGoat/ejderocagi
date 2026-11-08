@@ -2,6 +2,7 @@
 const crypto = require('node:crypto');
 const {digest,consume,invitationLimits,RETENTION_MS}=require('./service_security');
 const { validateTrade, transition, guardReservation } = require('./trade_service');
+const market = require('./market_service');
 const { validateCommand, reduceCommand, gameEconomy, fail } = require('./economy_commands');
 const SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
@@ -37,6 +38,9 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
   const inbox = db.collection('eo_trade_inbox');
   const trades = db.collection('eo_trades'), locks = db.collection('eo_trade_locks'), receipts = db.collection('eo_trade_receipts');
   const security=db.collection('eo_service_state');
+  // ENG-07 Bedesten.
+  const listings = db.collection('eo_market_listings'), holds = db.collection('eo_market_holds'), marketReceipts = db.collection('eo_market_receipts');
+  const parseHold = doc => (doc.exists ? JSON.parse(doc.data().json) : null);
   async function consumeRate(key,limit,windowMs) {
     const ref=security.doc('rate:'+digest(key));
     return db.runTransaction(async tx=>{const doc=await tx.get(ref);const next=consume(doc.exists?doc.data():null,limit,windowMs,now());tx.set(ref,{...next,kind:'rate',expiresAt:next.until});});
@@ -77,7 +81,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
       const trade = tradeDoc.exists ? JSON.parse(tradeDoc.data().json) : null;
       if (command.type !== 'invite' && (!trade || !trade.participants.includes(actor))) fail('trade_not_found', 404);
       const ids = command.type === 'invite' ? [actor, command.targetId] : trade.participants;
-      const docs = await tx.getAll(...ids.map(p => accounts.doc(p)), ...ids.map(p => locks.doc(p)));
+      const docs = await tx.getAll(...ids.map(p => accounts.doc(p)), ...ids.map(p => locks.doc(p)), ...ids.map(p => holds.doc(p)));
       const games = {}, reservations = {}, versions = {};
       ids.forEach((p, i) => {
         const record = docs[i].exists ? docs[i].data() : null;
@@ -91,6 +95,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
       const rateDocs=rates.length?await tx.getAll(...rates.map(r=>security.doc('rate:'+digest(r.key)))):[];
       const nextRates=rates.map((r,i)=>consume(rateDocs[i].exists?rateDocs[i].data():null,r.limit,r.windowMs,now()));
       const next = transition(actor, command, trade, games, reservations, now());
+      market.guardTradeAgainstHolds(next, games, Object.fromEntries(ids.map((p, i) => [p, parseHold(docs[i + 2 * ids.length])])));
       if(command.type==='reject'&&next.status==='rejected')tx.set(security.doc('cooldown:'+next.participants[0]+':'+actor),{kind:'cooldown',expiresAt:now()+300000});
       rates.forEach((r,i)=>tx.set(rateDocs[i].ref,{...nextRates[i],kind:'rate',expiresAt:nextRates[i].until}));
       ids.forEach(p => {
@@ -124,12 +129,52 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
     }
     return page.size===limit?page.docs.at(-1).id:null;
   }
+  // ENG-07: ilan/iptal/satın alma; ilan, iki hesap, iki rezervasyon ve makbuz tek runTransaction'da.
+  async function executeMarket(actor, input) {
+    const { command, hash } = market.validateMarket(input);
+    const listingId = command.op === 'list' ? market.listingIdFor(actor, command.requestId) : command.listingId;
+    const receiptRef = marketReceipts.doc(actor + ':' + command.requestId), listingRef = listings.doc(listingId);
+    return db.runTransaction(async tx => {
+      const [saved, listingDoc] = await tx.getAll(receiptRef, listingRef);
+      if (saved.exists) { const receipt = saved.data(); if (receipt.hash !== hash) fail('request_id_reused', 409); return { ...JSON.parse(receipt.resultJson), replayed: true }; }
+      const listing = listingDoc.exists ? JSON.parse(listingDoc.data().json) : null;
+      const ids = command.op === 'buy' && listing && listing.sellerId !== actor ? [actor, listing.sellerId] : [actor];
+      const docs = await tx.getAll(...ids.map(p => accounts.doc(p)), ...ids.map(p => locks.doc(p)), ...ids.map(p => holds.doc(p)));
+      const games = {}, versions = {}, handles = {}, tradeLocks = {}, current = {};
+      ids.forEach((p, i) => {
+        const record = docs[i].exists ? docs[i].data() : null;
+        games[p] = record?.gameJson ? { version: record.version, game: JSON.parse(record.gameJson) } : null;
+        versions[p] = record?.version; handles[p] = record?.handle || null;
+        tradeLocks[p] = docs[i + ids.length].exists ? JSON.parse(docs[i + ids.length].data().json) : null;
+        current[p] = parseHold(docs[i + 2 * ids.length]);
+      });
+      const out = market.marketTransition(actor, command, { now: now(), listingId, listing, games, handles, tradeLocks, holds: current });
+      ids.forEach(p => {
+        const g = out.games[p];
+        if (g && g.version !== versions[p]) tx.update(accounts.doc(p), { version: g.version, gameJson: JSON.stringify(g.game) });
+        tx.set(holds.doc(p), { json: JSON.stringify(out.holds[p]) });
+      });
+      const l = out.listing;
+      tx.set(listingRef, { json: JSON.stringify(l), status: l.status, sellerId: l.sellerId, createdAt: l.createdAt });
+      const result = { ...out.result, replayed: false };
+      tx.create(receiptRef, { hash, resultJson: JSON.stringify(result), createdAt: now() });
+      return result;
+    }, { maxAttempts: 5 });
+  }
+  async function listMarket(actor) {
+    const [open, mine] = await Promise.all([
+      listings.where('status', '==', 'open').orderBy('createdAt', 'desc').limit(market.LIMITS.publicPage).get(),
+      actor ? listings.where('sellerId', '==', actor).orderBy('createdAt', 'desc').limit(market.LIMITS.minePage).get() : null,
+    ]);
+    const view = snap => (snap ? snap.docs.map(d => market.publicListing(JSON.parse(d.data().json), actor)) : []);
+    return { listings: view(open), mine: view(mine) };
+  }
   async function executeCommand(accountId, input) {
     const { command, hash } = validateCommand(input);
     const seed = crypto.randomBytes(32); // Stable across SDK transaction retries.
     const accountRef = accounts.doc(accountId), receiptRef = accountRef.collection('commands').doc(command.requestId);
     return db.runTransaction(async tx => {
-      const [account, receipt, reservation] = await tx.getAll(accountRef, receiptRef, locks.doc(accountId));
+      const [account, receipt, reservation, hold] = await tx.getAll(accountRef, receiptRef, locks.doc(accountId), holds.doc(accountId));
       if (!account.exists) fail('account_missing', 404);
       const record = account.data();
       if (receipt.exists) {
@@ -140,6 +185,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
       if (record.version !== command.expectedVersion) fail('version_conflict', 409);
       const next = reduceCommand(record.gameJson ? JSON.parse(record.gameJson) : null, command, { accountId, seed, now: now() }); // Sunucu saati; istemci zamanı yok.
       guardReservation(record.gameJson ? JSON.parse(record.gameJson) : null, next.game, reservation.exists ? JSON.parse(reservation.data().json) : null, now());
+      market.guardMarketHold(next.game, parseHold(hold));
       const version = record.version + 1;
       tx.update(accountRef, { version, gameJson: JSON.stringify(next.game) });
       tx.create(receiptRef, { hash, version, type: command.type, createdAt: now(), resultJson: JSON.stringify(next.result) });
@@ -147,7 +193,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
     }, { maxAttempts: 5 });
   }
   return {
-    backend: 'firestore', pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
+    backend: 'firestore', executeMarket, listMarket, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
     async revokeSession(token) { if (typeof token === 'string') await sessions.doc(hashToken(token)).delete(); },
     async close() { await db.terminate(); },
   };
