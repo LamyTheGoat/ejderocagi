@@ -961,7 +961,7 @@ async function handleHttp(req, res) {
   if (pathname === '/api/economy') {
     if (!req.identity) return sendJson(res, 401, { ok: false, error: 'guest_session_required' });
     if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'economy_read_only' });
-    // ENG-10: istemci sunucu kesesine bağlı (economyReady). `week` salt okunur bilet/borç görünümüdür.
+    // ENG-10: istemci sunucu kesesine bağlı (economyReady). `week` salt okunur hafta/borç görünümüdür (ENG-12: bilet yok).
     const economy = await ECONOMY.readEconomy(req.identity.accountId);
     return sendJson(res, 200, { ok: true, economyReady: true, commandApiReady: true, commands: COMMAND_TYPES, economy, week: weekStatus(economy && economy.game, Date.now()) });
   }

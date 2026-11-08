@@ -6,7 +6,6 @@ const crypto = require('node:crypto');
 const sources = require('./economy_sources');
 const debt = require('./economy_debt');
 const week = require('./week_runtime');
-const { TICKETS } = require('./week_config');
 
 // Execute only repository-owned rules. No command name, argument or client text
 // is interpolated as JavaScript. Each transaction attempt gets its own context.
@@ -112,7 +111,7 @@ function tagAssets(game, accountId) {
     for (const row of rows) row.assetId ||= `${accountId}:${kind}:${row[key]}`;
   }
 }
-function reduceCommand(previous, command, { accountId, seed, now, tickets = TICKETS }) {
+function reduceCommand(previous, command, { accountId, seed }) {
   if (!previous && command.type !== 'game.start') fail('game_not_started', 409);
   const api = makeRuntime(previous ? sources.ensure(clone(previous)) : null, seed, { weekRuntime: command.type === 'week.end' });
   if (!previous) {
@@ -122,6 +121,7 @@ function reduceCommand(previous, command, { accountId, seed, now, tickets = TICK
     return { game, result: { started: true } };
   }
   const S = api.state(), C = S.chibi, a = command.args;
+  week.dropLegacyTickets(S); // ENG-12: eski bilet alanı sessizce temizlenir (hiçbir şeyi kısıtlamaz)
   if (command.type === 'game.start') return { game: clone(S), result: { started: false } };
   if (S.over) fail('game_finished', 409);
   if (DEBT_BLOCKED.has(command.type)) debt.assertNoDebt(S);
@@ -235,12 +235,11 @@ function reduceCommand(previous, command, { accountId, seed, now, tickets = TICK
     }
     case 'goals.claim': break;
     case 'week.end': {
-      // Bilet önce: biletsiz istek endWeek'i hiç çalıştırmaz. Hata olursa tüm komut geri alınır.
+      // ENG-12: bilet yok, week.end sınırsız. Hata olursa tüm komut geri alınır.
       // ENG-10 (O-2): 20. haftada çıkmaz sokak yok; hafta sonu + nesil devri tek komutta (runWeek).
-      const ticket = week.takeTicket(S, now, tickets);
       const { out, summary } = week.runWeek(api, S);
       sources.ensure(S); tagAssets(S, accountId);
-      result = week.weekResult(out, summary, ticket); break;
+      result = week.weekResult(out, summary); break;
     }
     case 'ocak.rebuild': result = debt.rebuild(S); break;
     default: fail('unsupported_command');

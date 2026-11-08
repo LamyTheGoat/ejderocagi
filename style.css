@@ -14017,8 +14017,6 @@ body { margin: 0; }
 .endweek .eco-week { display: block; font-size: 12px; font-weight: 800; opacity: .95; letter-spacing: .01em; }
 .endweek .eco-week[hidden] { display: none !important; }
 /* Bilet yok: düğme sönük ama tıklanabilir (tıklayınca net mesaj); oyunun geri kalanı açık. */
-.endweek.eco-wait { filter: saturate(.45) brightness(.9); }
-.endweek.eco-wait .eco-week { color: #ffe3a8; }
 @media (max-width: 760px) {
   /* Mobilde tek satırlık yer var: bağlıyken kısa bilet/borç satırı görünür; "yine de bitir" uyarısı önceliklidir. */
   .endweek .eco-week { font-size: 8px !important; display: block !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }

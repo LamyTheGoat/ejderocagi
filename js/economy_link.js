@@ -1,16 +1,16 @@
 'use strict';
-// ENG-10 · İstemci ↔ sunucu kesesi bağlantısı (hafta bileti, borç, ödüllü düello sonucu, ocağı yeniden kur).
+// ENG-10 · İstemci ↔ sunucu kesesi bağlantısı (hafta, borç, ödüllü düello sonucu, ocağı yeniden kur).
+// ENG-12: hafta bileti KALDIRILDI. Yerel hafta hiçbir zaman bekletilmez; bağlıyken her hafta sonu sunucuya
+// `week.end` olarak kuyruğa girer (aynı requestId ile yeniden deneme, kuyruk kalıcı). Göstergede yalnız borç kalır.
 // İLKE (kullanıcı talimatı): oyunu YAVAŞLATMA, yerel oynanışı BOZMA.
 //  - Bakım, üretme, Topçu ve tüm yerel akışlar eskisi gibi yerel `S` üzerinde çalışır. Sunucu yalnız
 //    takas edilen ve kazanılan şeye (sunucu kesesi) bakar; bu dosya yerel `S`'e altın/varlık YAZMAZ.
 //  - Bağlı değilken (çevrimdışı, statik sunucu, oturum yok, sunucu hatası, sunucu ocağı kurulmamış) eski akış.
-//  - Bağlıyken "Haftayı Bitir" yerel haftayı HEMEN bitirir, sunucu `week.end` arka planda gider. Yalnız bilet
-//    kesin olarak yoksa yeni hafta bekletilir; oyunun geri kalanı açık kalır ve mesaj sonraki bileti söyler.
+//  - Bağlıyken "Haftayı Bitir" yerel haftayı HEMEN bitirir, sunucu `week.end` arka planda gider.
 //  - Belirsiz yanıt (ağ/5xx): aynı gövde (aynı requestId) saklanır ve sonra aynen yeniden gönderilir.
 // Üst kısım saf mantıktır (DOM'suz; tests/eng10_economy_link.test.js), alt kısım yalnız tarayıcıda çalışır.
 (function (root) {
   const WEEK_ERRORS = {
-    week_ticket_unavailable: 'Hafta bileti yok. Yeni hafta, bilet dolunca açılır; bu arada ocağında her şeyi yapabilirsin.',
     debt_outstanding: 'Sunucu kesende borç var: takas, Bedesten alımı ve harcama kapalı. Kazançların önce borca gider.',
     version_conflict: 'Sunucu kesen başka bir sekmede değişti; yeniden denendi.',
     request_id_reused: 'Hafta isteği çakıştı; durum yenilendi.',
@@ -32,50 +32,26 @@
     match_void: 'Maç geçersiz sayıldı; ödül yok.',
     same_account: 'Aynı hesaba karşı ödüllü düello ödül vermez.',
   };
-  const REBUILD_HINT = '<b>Ocak iflasın eşiğinde.</b> Hesabın silinmez: Menü (Çanta) → "Bilet & Borç" ekranından ocağı yeniden kurabilirsin; varlıkların olduğu gibi kalır.';
+  const REBUILD_HINT = '<b>Ocak iflasın eşiğinde.</b> Hesabın silinmez: Menü (Çanta) → "Sunucu Kesesi" ekranından ocağı yeniden kurabilirsin; varlıkların olduğu gibi kalır.';
   const OUTCOME = { win: 'Zafer', draw: 'Beraberlik', loss: 'Yenilgi', forfeit: 'Çekilme', void: 'Geçersiz maç', none: 'Ödülsüz' };
 
-  function estimateServerNow(week, localNow) {
-    if (!week || !Number.isFinite(week.serverNow)) return localNow;
-    return week.serverNow + (localNow - (week.receivedAt || localNow));
+  // Yerel "Haftayı Bitir"in ne yapacağını söyler (ENG-12: bekletme yok).
+  //  local  → bağlı değil ya da sunucu görünümü yok: eski akış (yerel hafta, sunucu çağrısı yok)
+  //  server → yerel hafta hemen biter, sunucu week.end arka planda (kuyruk)
+  function weekGate({ linked, week }) {
+    if (!linked || !week) return { mode: 'local' };
+    return { mode: 'server' };
   }
-  // Yerel "Haftayı Bitir"in ne yapacağını söyler. Kısıtı gereksiz artırmamak için yalnız bilet KESİN yoksa bekletir.
-  //  local  → bağlı değil ya da bilet görünümü yok: eski akış (yerel hafta, sunucu çağrısı yok)
-  //  server → yerel hafta hemen biter, sunucu week.end arka planda
-  //  wait   → bilet yok; yeni hafta bekletilir (waitMs: sonraki bilete kalan süre, bilinmiyorsa null)
-  function weekGate({ linked, week, pendingWeek = false, queued = 0 }, localNow) {
-    if (!linked || !week || !week.ticket) return { mode: 'local' };
-    const t = week.ticket, nowS = estimateServerNow(week, localNow);
-    const refilled = t.nextAt != null && nowS >= t.nextAt ? 1 : 0;
-    const have = t.count + refilled - (pendingWeek ? 1 : 0) - (queued > 0 ? queued : 0);
-    if (have > 0) return { mode: 'server', count: have, cap: t.cap };
-    return { mode: 'wait', waitMs: t.nextAt == null ? null : Math.max(0, t.nextAt - nowS), cap: t.cap };
-  }
-  function formatWait(ms) {
-    if (ms == null) return 'yakında';
-    const m = Math.max(1, Math.ceil(ms / 60000));
-    if (m < 60) return `${m} dk`;
-    const h = Math.floor(m / 60), r = m % 60;
-    return r ? `${h} sa ${r} dk` : `${h} sa`;
-  }
-  // Hafta düğmesinin altındaki kısa satır (mobilde de sığacak kadar kısa).
-  function badgeText({ linked, week, pendingWeek = false, queued = 0 }, localNow) {
+  // Hafta düğmesinin altındaki kısa satır: yalnız borç varsa kısa borç rozeti (bilet göstergesi yok).
+  function badgeText({ linked, week }) {
     if (!linked || !week) return '';
-    const g = weekGate({ linked, week, pendingWeek, queued }, localNow);
-    const debt = week.debt > 0 ? ` · Borç ${week.debt}` : '';
-    if (g.mode === 'wait') return `🎟 0 · ${formatWait(g.waitMs)}${debt}`;
-    if (g.mode === 'server') return `🎟 ${Math.min(g.count, g.cap)}/${g.cap}${debt}`;
-    return debt ? debt.slice(3) : '';
-  }
-  function waitMessage(gate) {
-    return `<b>Yeni hafta bekleniyor.</b> Hafta biletin bitti; sonraki bilet ${formatWait(gate.waitMs)} içinde dolar. Bu arada bakım, eğitim, Topçu ve diğer her şey açık.`;
+    return week.debt > 0 ? `Borç ${week.debt}` : '';
   }
   function weekSummary(result) {
     if (!result) return '';
     const parts = [];
     if (result.season) parts.push(`Sunucu ocağında ${result.season.to}. sezon başladı`);
     else if (result.week) parts.push(`Sunucu kesesi: hafta ${result.week.to}`);
-    if (result.ticket) parts.push(`🎟 ${result.ticket.count}/${result.ticket.cap}`);
     if (result.upkeep && result.upkeep.charged) parts.push(`bakım −${result.upkeep.charged}`);
     if (result.income && result.income.paidDebt) parts.push(`borca ${result.income.paidDebt}`);
     if (result.debt && result.debt.after > 0) parts.push(`borç ${result.debt.after}`);
@@ -106,7 +82,7 @@
   }
 
   // createEconomyLink: tarayıcı dışı testte `client` sahte verilir.
-  function createEconomyLink({ getClient, isOnline = () => true, now = () => Date.now(), notify = () => {}, onChange = () => {}, storage = null, queueKey = () => null } = {}) {
+  function createEconomyLink({ getClient, isOnline = () => true, notify = () => {}, onChange = () => {}, storage = null, queueKey = () => null } = {}) {
     let status = 'off', lastError = '', lastWeek = null, inflight = null, conflictRetried = false, owed = 0, loadedKey = null;
     // O-3: henüz gönderilmemiş haftalar da hesap anahtarıyla saklanır (yenilemede kaybolmaz). Hata → yalnız bellek.
     const saveOwed = () => {
@@ -125,7 +101,7 @@
     };
     const week = () => (client() ? client().week : null);
     const pendingWeek = () => !!(client() && client().pendingType === 'week.end');
-    const gate = () => weekGate({ linked: linked(), week: week(), pendingWeek: pendingWeek(), queued: owed }, now());
+    const gate = () => weekGate({ linked: linked(), week: week() });
     const changed = () => { try { onChange(); } catch (_) {} };
 
     async function sync() {
@@ -187,10 +163,9 @@
       inflight = job.finally(() => { if (inflight === job) inflight = null; });
       return inflight;
     }
-    // runLocal: mevcut yerel hafta sonu (ACT.endweek gövdesi). Dönen: 'local' | 'server' | 'wait'.
+    // runLocal: mevcut yerel hafta sonu (ACT.endweek gövdesi). Dönen: 'local' | 'server'.
     function endWeek(runLocal) {
       const g = gate();
-      if (g.mode === 'wait') { notify(waitMessage(g), 'warn'); changed(); return 'wait'; }
       runLocal();
       if (g.mode === 'server') { owed++; saveOwed(); schedule(); }
       return g.mode;
@@ -225,7 +200,7 @@
     }
     return {
       sync, endWeek, rebuild, retryPending, gate, autoStart,
-      badge: () => badgeText({ linked: linked(), week: week(), pendingWeek: pendingWeek(), queued: owed }, now()),
+      badge: () => badgeText({ linked: linked(), week: week() }),
       duelDragon: () => (linked() ? pickDuelDragon(client().state) : null),
       get linked() { return linked(); },
       get idle() { return !inflight; },
@@ -241,7 +216,7 @@
     return Promise.race([Promise.resolve(promise).catch(() => fallback()), late]).finally(() => clearTimeout(timer));
   }
 
-  const api = { createEconomyLink, bounded, weekGate, formatWait, badgeText, waitMessage, weekSummary, errorText, settlementText, pickDuelDragon, rebuildAvailable, estimateServerNow, SETTLEMENT_REASONS };
+  const api = { createEconomyLink, bounded, weekGate, badgeText, weekSummary, errorText, settlementText, pickDuelDragon, rebuildAvailable, SETTLEMENT_REASONS };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   Object.assign(root, { ECO_LINK_LIB: api });
 
@@ -255,21 +230,14 @@
     notify: (html, kind) => { if (typeof toast === 'function') toast(html, kind); },
     onChange: () => {
       if (typeof MP !== 'undefined') MP.economyReady = link.linked;
-      // Tam yeniden çizim yok (yazı/animasyon kesilmesin): yalnız hafta düğmesindeki kısa satır güncellenir.
+      // Tam yeniden çizim yok (yazı/animasyon kesilmesin): yalnız hafta düğmesindeki kısa borç satırı güncellenir.
       const ew = root.document && root.document.querySelector('.endweek .eco-week');
       if (ew) { ew.textContent = link.badge(); ew.hidden = !ew.textContent; }
-      const btn = root.document && root.document.querySelector('.endweek');
-      if (btn) btn.classList.toggle('eco-wait', link.gate().mode === 'wait');
-      scheduleRefill();
+      if (typeof root.ECO_SYNC !== 'undefined' && root.ECO_SYNC.onLinkChange) root.ECO_SYNC.onLinkChange();
     },
   });
-  let refillTimer = null, lastSync = 0;
+  let lastSync = 0;
   const BOOT_MS = 5000;
-  function scheduleRefill() {
-    if (refillTimer) { clearTimeout(refillTimer); refillTimer = null; }
-    const g = link.gate();
-    if (g.mode === 'wait' && g.waitMs != null) refillTimer = setTimeout(() => link.sync(), Math.min(g.waitMs + 1500, 2 ** 31 - 1));
-  }
   root.ECO_LINK = Object.assign(link, {
     // Bağlantı kurulduktan sonra (net.js) ve odak dönüşünde çağrılır; en sık 30 sn'de bir okur.
     // O-1: boot en geç BOOT_MS (5 sn) içinde döner; ağ yavaşsa iş arka planda sürer, oyun beklemez.
@@ -281,19 +249,18 @@
     },
     statusModal() {
       if (typeof showModal !== 'function') return;
-      const st = link.state, w = st.week, g = link.gate();
+      const st = link.state, w = st.week;
       const lines = [];
       if (!st.linked) lines.push('<p>Sunucu kesesine bağlı değilsin; oyun yerel olarak eskisi gibi oynanır. Takas, Bedesten ve Ocak Sandığı açıldığında sunucu ocağın kurulur.</p>');
       else {
         lines.push(`<p><b>Sunucu haftası:</b> ${w.seasonNo > 1 ? `${w.seasonNo}. sezon · ` : ''}${w.week}/${w.season}</p>`);
-        lines.push(`<p><b>Hafta bileti:</b> ${w.ticket ? `${Math.min(Math.max(g.count || 0, 0), w.ticket.cap)}/${w.ticket.cap}` : '—'}${g.mode === 'wait' ? ` · sonraki ${formatWait(g.waitMs)} içinde` : ''}</p>`);
         lines.push(`<p><b>Borç:</b> ${w.debt > 0 ? `${w.debt} altın · ${w.debtWeeks} haftadır borçlu. Takas, Bedesten alımı ve harcama kapalı; kazançlar önce borca gider.` : 'yok'}</p>`);
         if (w.rebuild && w.rebuild.available) lines.push(`<div class="eco-rebuild"><p><b>Ocak iflasın eşiğinde.</b> Hesabın silinmez. "Ocağı yeniden kur" borcu siler; ejderha, yumurta, eşya ve yemin olduğu gibi kalır.</p><button class="btn primary" data-a="eco-rebuild">Ocağı yeniden kur</button></div>`);
         else if (w.debt > 0 && w.rebuild && w.rebuild.waitWeeks > 0) lines.push(`<p class="mute sm">Ocağı son yeniden kuruşundan beri yeterli hafta geçmedi; ${w.rebuild.waitWeeks} hafta sonra yeniden açılır.</p>`);
         else if (w.debt > 0 && w.rebuild) lines.push(`<p class="mute sm">Borç ${w.rebuild.threshold} hafta üst üste sürerse "Ocağı yeniden kur" açılır.</p>`);
       }
       if (st.lastError) lines.push(`<p class="mute sm">${escHtml(errorText(st.lastError))}</p>`);
-      showModal(`<div class="parch eco-modal"><p class="kicker">Sunucu kesesi</p><h2>Hafta bileti ve borç</h2>${lines.join('')}<div class="mbtns"><button class="btn ghost" data-a="mclose">Kapat</button></div></div>`, 'paper');
+      showModal(`<div class="parch eco-modal"><p class="kicker">Sunucu kesesi</p><h2>Sunucu haftası ve borç</h2>${lines.join('')}<div class="mbtns"><button class="btn ghost" data-a="mclose">Kapat</button></div></div>`, 'paper');
     },
   });
   if (typeof ACT !== 'undefined') Object.assign(ACT, {

@@ -216,9 +216,8 @@ test('ENG06 Firestore: a borrowed earned gen2/marked dragon yields only restrict
  assert.equal(claim.economy.funds.earned,0);
 });
 
-test('ENG06 P-C Firestore: week.end ticket, concurrency, replay, rollback, egg, debt and season', {timeout:90000},async t=>{
+test('ENG06 P-C Firestore: week.end (ENG-12: unlimited, no ticket), concurrency, replay, rollback, egg, debt and season', {timeout:90000},async t=>{
  const {Firestore}=require('@google-cloud/firestore'),db=new Firestore(options);
- const { TICKETS } = require('../server/week_config');
  let clock=1_800_000_000_000;
  const a=openFirestoreStore({...options,client:db,now:()=>clock}),b=openFirestoreStore({...options,now:()=>clock});
  t.after(async()=>{await a.close();await b.close();});
@@ -228,26 +227,27 @@ test('ENG06 P-C Firestore: week.end ticket, concurrency, replay, rollback, egg, 
  const save=async g=>ref.update({gameJson:JSON.stringify(g)});
  const tile=(await load()).grid.findIndex(x=>x.open&&!x.b);
  await a.executeCommand(u.accountId,command('building.buy',{kind:'kulucka',tile},1));
- // Two instances, same version: exactly one week closes and one ticket is spent.
+ // Two instances, same version: exactly one week closes.
  const attempts=await Promise.allSettled([a.executeCommand(u.accountId,command('week.end',{},2)),b.executeCommand(u.accountId,command('week.end',{},2))]);
  assert.equal(attempts.filter(x=>x.status==='fulfilled').length,1);
  assert.equal(attempts.find(x=>x.status==='rejected').reason.code,'version_conflict');
  let g=await load();
- assert.equal(g.week,2);assert.equal(g.weekTickets.count,TICKETS.initial-1);assert.equal(g.eggs[0].w,1);
- // Lost response retried on the other instance: same receipt, no extra ticket.
+ assert.equal(g.week,2);assert.equal(g.weekTickets,undefined);assert.equal(g.eggs[0].w,1);
+ // Lost response retried on the other instance: same receipt, the week is not applied twice.
  const req=command('week.end',{},3),first=await a.executeCommand(u.accountId,req),again=await b.executeCommand(u.accountId,req);
  assert.equal(again.replayed,true);assert.deepEqual(again.result,JSON.parse(JSON.stringify(first.result)));
  await assert.rejects(b.executeCommand(u.accountId,{...req,expectedVersion:4}),/request_id_reused/);
- g=await load();assert.equal(g.week,3);assert.equal(g.weekTickets.count,TICKETS.initial-2);
+ g=await load();assert.equal(g.week,3);
  assert.deepEqual(first.result.hatchReady,[g.eggs[0].assetId]);
  const hatched=await a.executeCommand(u.accountId,command('egg.hatch',{assetId:g.eggs[0].assetId},4));
  assert.equal(hatched.economy.dragons[1].data.name,'Gece');
  let v=5;
- for(let i=2;i<TICKETS.initial;i++)await a.executeCommand(u.accountId,command('week.end',{},v++));
- await assert.rejects(a.executeCommand(u.accountId,command('week.end',{},v)),/week_ticket_unavailable/);
- clock-=7*86400000; // Server clock rollback grants nothing.
- await assert.rejects(b.executeCommand(u.accountId,command('week.end',{},v)),/week_ticket_unavailable/);
- clock+=7*86400000+TICKETS.refillMs;
+ // ENG-12: no ticket limit; a legacy exhausted ticket field is ignored and removed; clock rollback does not matter.
+ g=await load();g.weekTickets={schema:1,count:0,at:clock+86400000};await save(g);
+ for(let i=0;i<9;i++)await (i%2?a:b).executeCommand(u.accountId,command('week.end',{},v++));
+ clock-=7*86400000;
+ await b.executeCommand(u.accountId,command('week.end',{},v++));
+ g=await load();assert.equal(g.week,13);assert.equal(Object.hasOwn(g,'weekTickets'),false);
  // Debt: upkeep larger than balance stops gold at 0; spending and trade are closed; no bankruptcy.
  g=await load();g.gold=5;g.funds={schema:1,bound:5,unknown:0,earned:0};await save(g);
  const owed=await a.executeCommand(u.accountId,command('week.end',{},v++));
@@ -262,7 +262,7 @@ test('ENG06 P-C Firestore: week.end ticket, concurrency, replay, rollback, egg, 
  await assert.rejects(a.executeTrade(u.accountId,c('offer',{tradeId:tr.id,revision:tr.revision,offer:{}})),/debt_outstanding/);
  await a.executeTrade(u.accountId,c('cancel',{tradeId:tr.id}));
  // ENG-10 (O-2): week 20 ends the season and starts the next generation (no dead end); assets stay.
- g=await load();g.week=20;const ids=g.dragons.map(d=>d.assetId).sort();await save(g);clock+=TICKETS.refillMs;
+ g=await load();g.week=20;const ids=g.dragons.map(d=>d.assetId).sort();await save(g);
  const rolled=await a.executeCommand(u.accountId,command('week.end',{},v));
  assert.equal(rolled.result.season.to,2);g=await load();assert.equal(g.week,1);assert.equal(g.seasonNo,2);assert.equal(g.over,false);
  assert.deepEqual(g.dragons.map(d=>d.assetId).sort(),ids);

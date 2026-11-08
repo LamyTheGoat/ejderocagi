@@ -196,8 +196,8 @@ test('Bedesten HTTP: real server settlement, forged ownership rejected, no fake 
     ws.send({ type: 'market_op', op, id, listing: { assetId, price: 10, seller: a.body.handle }, buyer: a.body.handle });
     assert.equal((await ws.next('market_error')).error, 'market_http_only');
   }
-  // ENG-10: `week.serverNow` (ve çapasız biletin nextAt'i) her okumada değişir; ekonomi ve bilet sayısı değişmemeli.
-  const stable = body => ({ ...body, week: body.week && { ...body.week, serverNow: 0, ticket: body.week.ticket && { ...body.week.ticket, nextAt: 0 } } }); // bilet çapası yokken nextAt okuma anına göre
+  // ENG-10: `week.serverNow` her okumada değişir; ekonomi değişmemeli (ENG-12: bilet yok).
+  const stable = body => ({ ...body, week: body.week && { ...body.week, serverNow: 0 } });
   assert.deepEqual(stable((await server.request('/api/economy', { cookie: a.cookie })).body), stable(before));
   // Buyer b only has bound starter gold: it cannot pay another player.
   const buyBody = { op: 'buy', requestId: crypto.randomUUID(), listingId: id, quantity: 1, unitPrice: 10 };

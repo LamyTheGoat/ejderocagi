@@ -18,7 +18,7 @@
       try { const saved = JSON.parse(storage.getItem(storageKey) || 'null'); if (validPending(saved)) pending = saved; } catch (_) {}
     }
     const accept = data => {
-      // ENG-10: GET /api/economy salt okunur hafta/bilet/borç görünümünü ve economyReady bayrağını taşır.
+      // ENG-10: GET /api/economy salt okunur hafta/borç görünümünü ve economyReady bayrağını taşır.
       if (Object.hasOwn(data, 'week')) week = data.week ? { ...data.week, receivedAt: Date.now() } : null;
       if (Object.hasOwn(data, 'economyReady')) ready = data.economyReady === true;
       if (data.economy && (!snapshot || data.economy.version >= snapshot.version)) { snapshot = data.economy; onState(snapshot); }

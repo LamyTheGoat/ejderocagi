@@ -87,7 +87,7 @@ function mpEnsureGuestSession(baseHttp) {
       MP.authHandle = session.handle;
       MP.authenticated = true;
       if (S) { S.handle = session.handle; S.xVerified = !!XAUTH.handle; }
-      // ENG-10: sunucu kesesi (bilet/borç) arka planda okunur; oyunu bekletmez, hata yerel akışı kilitlemez.
+      // ENG-10: sunucu kesesi (hafta/borç) arka planda okunur; oyunu bekletmez, hata yerel akışı kilitlemez.
       if (typeof ECO_LINK !== 'undefined') Promise.resolve().then(() => ECO_LINK.boot(true)).catch(() => {});
       return true;
     });

@@ -1,12 +1,11 @@
 'use strict';
-// ENG06 P-C ilk dilim: week.end, hafta bileti (D2) ve borç (D4). SQLite + saf indirgeyici.
+// ENG06 P-C ilk dilim: week.end ve borç (D4). ENG-12: hafta bileti kaldırıldı (week.end sınırsız). SQLite + saf indirgeyici.
 const test = require('node:test'), assert = require('node:assert/strict'), crypto = require('node:crypto');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const { reduceCommand, validateCommand } = require('../server/economy_commands');
 const { openEconomyStore } = require('../server/economy_store');
-const { syncTickets, takeTicket } = require('../server/week_runtime');
-const { readTicketConfig, PLACEHOLDER_DEFAULTS, TICKETS } = require('../server/week_config');
+const { dropLegacyTickets, weekStatus } = require('../server/week_runtime');
 const debt = require('../server/economy_debt');
 const { normalizeOffer } = require('../js/trade_engine');
 const { earnedFixture } = require('./helpers/earned_fixture');
@@ -14,12 +13,11 @@ const { earnedFixture } = require('./helpers/earned_fixture');
 const uuid = () => crypto.randomUUID();
 const plain = v => JSON.parse(JSON.stringify(v));
 const HOUR = 3600000, T0 = 1_800_000_000_000;
-const CFG = Object.freeze({ refillMs: HOUR, cap: 2, initial: 2 });
-const env = (now, tickets = CFG) => ({ accountId: 'acct', seed: uuid(), now, tickets });
+const env = now => ({ accountId: 'acct', seed: uuid(), now });
 const start = () => reduceCommand(null, { type: 'game.start', args: {} }, env(T0)).game;
 const cmd = type => ({ type, args: {} });
-const step = (game, type, args = {}, now = T0, tickets = CFG) =>
-  reduceCommand(game, validateCommand({ type, args, requestId: uuid(), expectedVersion: 0 }).command, env(now, tickets));
+const step = (game, type, args = {}, now = T0) =>
+  reduceCommand(game, validateCommand({ type, args, requestId: uuid(), expectedVersion: 0 }).command, env(now));
 const fundsTotal = g => g.funds.bound + g.funds.unknown + g.funds.earned;
 function invariants(g) {
   assert.equal(fundsTotal(g), g.gold, 'funds toplamı = gold');
@@ -29,51 +27,27 @@ function invariants(g) {
 }
 const indebted = (amount = 3) => { const g = start(); g.gold = amount; g.funds = { schema: 1, bound: amount, unknown: 0, earned: 0 }; return g; };
 
-test('P-C config: placeholder defaults, env overrides and fail-closed validation', () => {
-  assert.deepEqual({ ...PLACEHOLDER_DEFAULTS }, { refillMs: 3 * HOUR, cap: 8, initial: 6 });
-  assert.deepEqual({ ...readTicketConfig({}) }, { refillMs: 3 * HOUR, cap: 8, initial: 6 });
-  assert.deepEqual({ ...readTicketConfig({ EO_WEEK_TICKET_REFILL_MS: '60000', EO_WEEK_TICKET_CAP: '3', EO_WEEK_TICKET_INITIAL: '1' }) }, { refillMs: 60000, cap: 3, initial: 1 });
-  for (const bad of [{ EO_WEEK_TICKET_CAP: '0' }, { EO_WEEK_TICKET_CAP: '-1' }, { EO_WEEK_TICKET_REFILL_MS: '1.5' }, { EO_WEEK_TICKET_REFILL_MS: '999' },
-    { EO_WEEK_TICKET_INITIAL: '9' }, { EO_WEEK_TICKET_CAP: 'abc' }]) assert.throws(() => readTicketConfig(bad), /invalid_/);
-  assert.ok(TICKETS.cap >= 1);
-});
-
-test('P-C ticket: initial, lazy refill, cap, time advance and clock rollback', () => {
-  const g = {};
-  assert.throws(() => syncTickets(g, undefined, CFG), /server_time_unavailable/);
-  assert.deepEqual(plain(syncTickets(g, T0, CFG)), { schema: 1, count: 2, at: T0 });
-  assert.equal(takeTicket(g, T0, CFG).count, 1);
-  assert.equal(takeTicket(g, T0, CFG).count, 0);
-  assert.throws(() => takeTicket(g, T0 + HOUR - 1, CFG), /week_ticket_unavailable/);
-  assert.equal(g.weekTickets.count, 0);
-  assert.equal(syncTickets(g, T0 + HOUR, CFG).count, 1); // Tembel dolum: tam bir süre.
-  assert.equal(g.weekTickets.at, T0 + HOUR);
-  // Saat geri alma: dolum yok, çapa geri gitmez.
-  assert.equal(syncTickets(g, T0 - 10 * HOUR, CFG).count, 1);
-  assert.equal(g.weekTickets.at, T0 + HOUR);
-  assert.equal(syncTickets(g, T0 + HOUR + HOUR / 2, CFG).count, 1); // Kısmi süre biriktirilir.
-  assert.equal(syncTickets(g, T0 + 100 * HOUR, CFG).count, 2); // Tavan.
-  assert.equal(g.weekTickets.at, T0 + 100 * HOUR);
-  // Tavanda geçen zaman sonradan bilet üretmez.
-  assert.equal(takeTicket(g, T0 + 200 * HOUR, CFG).count, 1);
-  assert.equal(syncTickets(g, T0 + 200 * HOUR + HOUR - 1, CFG).count, 1);
-  for (const bad of [null, { schema: 2, count: 1, at: 0 }, { schema: 1, count: -1, at: 0 }, { schema: 1, count: 1.5, at: 0 }])
-    assert.throws(() => syncTickets({ weekTickets: bad }, T0, CFG), /week_ticket_state_invalid/);
-  // Tavan düşürülürse fazla bilet tutulmaz.
-  assert.equal(syncTickets({ weekTickets: { schema: 1, count: 9, at: T0 } }, T0, CFG).count, 2);
-});
-
-test('P-C week.end: client cannot pass week/time/tickets; ticket-less request never runs endWeek', () => {
+test('ENG-12: ticket config module and env are gone; week.end is unlimited at the same server time', () => {
+  assert.throws(() => require('../server/week_config'), /Cannot find module/);
   for (const args of [{ week: 5 }, { now: T0 }, { tickets: 9 }, { w: 2 }])
     assert.throws(() => validateCommand({ requestId: uuid(), expectedVersion: 1, type: 'week.end', args }), /invalid_arguments/);
   for (const extra of [{ now: T0 }, { tickets: 4 }]) assert.throws(() => validateCommand({ requestId: uuid(), expectedVersion: 1, ...cmd('week.end'), ...extra }), /unknown_command_field/);
   let g = start();
-  g = step(g, 'week.end').game; g = step(g, 'week.end').game;
-  assert.equal(g.week, 3); assert.equal(g.weekTickets.count, 0);
-  const before = plain(g);
-  assert.throws(() => step(g, 'week.end', {}, T0 + HOUR - 1), /week_ticket_unavailable/);
-  assert.deepEqual(plain(g), before);
-  assert.equal(step(g, 'week.end', {}, T0 + HOUR).game.week, 4);
+  for (let i = 0; i < 12; i++) { const r = step(g, 'week.end'); g = r.game; assert.equal('ticket' in r.result, false); }
+  assert.equal(g.week, 13); assert.equal(g.weekTickets, undefined);
+});
+
+test('ENG-12: legacy weekTickets field (even exhausted or corrupt) never blocks and is silently removed', () => {
+  for (const legacy of [{ schema: 1, count: 0, at: T0 + 100 * HOUR }, { schema: 9 }, null, 'bozuk']) {
+    const g = start(); g.weekTickets = legacy;
+    const view = weekStatus(g, T0);
+    assert.equal('ticket' in view, false);
+    const r = step(g, 'week.end');
+    assert.equal(r.game.week, 2); assert.equal(Object.hasOwn(r.game, 'weekTickets'), false);
+    const h = start(); h.weekTickets = legacy;
+    assert.equal(Object.hasOwn(step(h, 'goals.claim').game, 'weekTickets'), false, 'başka komut da temizler');
+  }
+  assert.deepEqual(dropLegacyTickets({ week: 3, weekTickets: { count: 0 } }), { week: 3 });
 });
 
 test('P-C week: age, stage, upkeep from server funds, incubation and starter egg hatch', () => {
@@ -90,7 +64,7 @@ test('P-C week: age, stage, upkeep from server funds, incubation and starter egg
   r = step(g, 'week.end'); g = r.game;
   assert.equal(g.eggs[0].w, 1); assert.deepEqual(plain(r.result.hatchReady), []);
   assert.throws(() => step(g, 'egg.hatch', { assetId: egg }), /egg_not_ready/);
-  r = step(g, 'week.end', {}, T0 + HOUR); g = r.game;
+  r = step(g, 'week.end'); g = r.game;
   assert.equal(g.eggs[0].w, 2); assert.deepEqual(plain(r.result.hatchReady), [egg]);
   assert.equal(g.week, 3); invariants(g);
   const hatched = step(g, 'egg.hatch', { assetId: egg }, T0 + HOUR); g = hatched.game;
@@ -105,12 +79,12 @@ test('P-C week: age, stage, upkeep from server funds, incubation and starter egg
 });
 
 // ENG-10 (O-2): 20. hafta artık çıkmaz sokak değil; hafta sonu + nesil devri (js/season.js veri kısmı) tek komutta.
-test('P-C season (ENG-10 O-2): week 20 ends the season and starts the next generation; no asset removed, one ticket', () => {
+test('P-C season (ENG-10 O-2): week 20 ends the season and starts the next generation; no asset removed', () => {
   let g = start(); g.week = 19;
   const last = step(g, 'week.end').game;
   assert.equal(last.week, 20); assert.equal(last.over, false); assert.equal(last.ending, null);
   last.un = 41;
-  const before = plain(last), oldStar = last.star, ticketsBefore = last.weekTickets.count;
+  const before = plain(last), oldStar = last.star;
   const r = step(last, 'week.end', {}, T0 + 10 * HOUR);
   g = r.game;
   assert.equal(g.seasonNo, 2); assert.equal(g.week, 1); assert.equal(g.over, false); assert.equal(g.ending, null);
@@ -125,7 +99,6 @@ test('P-C season (ENG-10 O-2): week 20 ends the season and starts the next gener
   assert.equal(r.result.season.retired, retired.assetId);
   // Başka aday yok → yıldızsız sezon (season.js ile aynı: aday yoksa null).
   assert.equal(g.star, null); assert.equal(r.result.season.star, null);
-  assert.equal(r.result.ticket.count <= ticketsBefore + 10, true);
   invariants(g);
   // Yeni sezonda hafta normal ilerler; çıkmaz sokak yok.
   const next = step(g, 'week.end', {}, T0 + 20 * HOUR).game;
@@ -190,10 +163,9 @@ test('P-D4 offset never upgrades a source class (fail-closed)', () => {
   assert.equal(c.debt, 6); assert.equal(c.gold, 0);
 });
 
-test('P-C tickets are not funds, food, inventory or trade/market shapes', () => {
+test('P-C week state is not funds, food, inventory or trade/market shapes', () => {
   const g = step(start(), 'week.end').game;
-  assert.ok(g.weekTickets && !('weekTickets' in g.funds) && !('weekTickets' in g.foodSources) && !('weekTickets' in g.food));
-  for (const rows of [g.inv, g.dragons, g.eggs]) assert.ok(rows.every(r => !JSON.stringify(r).includes('weekTickets')));
+  assert.ok(!('weekTickets' in g) && !('weekTickets' in g.funds) && !('weekTickets' in g.foodSources) && !('weekTickets' in g.food));
   assert.throws(() => normalizeOffer({ weekTickets: 1 }), /unknown_offer_field/);
   assert.throws(() => normalizeOffer({ tickets: 1 }), /unknown_offer_field/);
   assert.throws(() => normalizeOffer({ debt: 1 }), /unknown_offer_field/);
@@ -216,36 +188,30 @@ test('P-C SQLite: idempotent receipt, stale/concurrent second request cannot dou
   const f = storeFixture(t), a = f.fresh();
   const req = f.input(a, 'week.end');
   const first = f.store.executeCommand(a, req);
-  assert.equal(first.result.ticket.count, TICKETS.initial - 1);
   const replay = f.store.executeCommand(a, req);
   assert.equal(replay.replayed, true); assert.deepEqual(plain(replay.result), plain(first.result));
-  assert.equal(f.load(a).week, 2); assert.equal(f.load(a).weekTickets.count, TICKETS.initial - 1);
-  // Aynı requestId, farklı expectedVersion: hash farklı (ENG06_05 bulgusu) → yeniden kullanım reddi, bilet harcanmaz.
+  assert.equal(f.load(a).week, 2, 'tekrar ikinci haftayı bitirmez');
+  // Aynı requestId, farklı expectedVersion: hash farklı (ENG06_05 bulgusu) → yeniden kullanım reddi, hafta ilerlemez.
   assert.throws(() => f.store.executeCommand(a, { ...req, expectedVersion: req.expectedVersion + 1 }), /request_id_reused/);
-  // İki sekme aynı sürümle: biri geçer, diğeri version_conflict; tek bilet harcanır.
+  // İki sekme aynı sürümle: biri geçer, diğeri version_conflict; tek hafta ilerler.
   const v = f.store.readEconomy(a).version;
   const x = { requestId: uuid(), expectedVersion: v, ...cmd('week.end') }, y = { requestId: uuid(), expectedVersion: v, ...cmd('week.end') };
   f.store.executeCommand(a, x);
   assert.throws(() => f.store.executeCommand(a, y), /version_conflict/);
-  assert.equal(f.load(a).week, 3); assert.equal(f.load(a).weekTickets.count, TICKETS.initial - 2);
+  assert.equal(f.load(a).week, 3);
 });
 
-test('P-C SQLite: tickets run out, server clock rollback grants nothing, refill after time', t => {
+test('ENG-12 SQLite: many weeks at the same server time, clock rollback does not matter; legacy exhausted tickets ignored', t => {
   const f = storeFixture(t), a = f.fresh();
-  for (let i = 0; i < TICKETS.initial; i++) f.run(a, 'week.end');
-  assert.throws(() => f.run(a, 'week.end'), /week_ticket_unavailable/);
-  const before = f.store.readEconomy(a);
+  const g = f.load(a); g.weekTickets = { schema: 1, count: 0, at: T0 + 1000 * HOUR }; f.save(a, g);
+  for (let i = 0; i < 10; i++) f.run(a, 'week.end');
   f.tick(-30 * 24 * HOUR);
-  assert.throws(() => f.run(a, 'week.end'), /week_ticket_unavailable/);
-  f.set(T0 + TICKETS.refillMs - 1);
-  assert.throws(() => f.run(a, 'week.end'), /week_ticket_unavailable/);
-  assert.deepEqual(f.store.readEconomy(a), before);
-  f.set(T0 + TICKETS.refillMs);
   const r = f.run(a, 'week.end');
-  assert.equal(r.economy.game.week, TICKETS.initial + 2); assert.equal(r.result.ticket.count, 0);
+  assert.equal(r.economy.game.week, 12); assert.equal('ticket' in r.result, false);
+  assert.equal(Object.hasOwn(f.load(a), 'weekTickets'), false);
 });
 
-test('P-D4 SQLite: indebted account cannot offer or complete a trade; tickets untouched by trades', t => {
+test('P-D4 SQLite: indebted account cannot offer or complete a trade; trades do not touch the week', t => {
   const f = storeFixture(t), a = f.fresh(), b = f.fresh();
   for (const id of [a, b]) f.save(id, earnedFixture(f.load(id)));
   const g = f.load(a); g.gold = 0; g.funds = { schema: 1, bound: 0, unknown: 0, earned: 0 }; g.debt = 25; g.debtWeeks = 1; f.save(a, g);
@@ -255,21 +221,30 @@ test('P-D4 SQLite: indebted account cannot offer or complete a trade; tickets un
   assert.throws(() => tr(b, 'offer', { tradeId: trade.id, revision: trade.revision, offer: { gold: 10 } }), /debt_outstanding/);
   tr(a, 'cancel', { tradeId: trade.id });
   assert.throws(() => f.run(a, 'shop.food', { key: 'balik' }), /debt_outstanding/);
-  // Borçsuz iki hesap arasında takas biletlere dokunmaz.
+  // Borçsuz iki hesap arasında takas haftaya dokunmaz.
   const c = f.fresh(); f.save(c, earnedFixture(f.load(c)));
   f.run(b, 'week.end'); f.run(c, 'week.end');
-  const tb = f.load(b).weekTickets, tc = f.load(c).weekTickets;
+  const tb = f.load(b).week, tc = f.load(c).week;
   trade = tr(b, 'invite', { targetId: c }); trade = tr(c, 'accept', { tradeId: trade.id });
   trade = tr(b, 'offer', { tradeId: trade.id, revision: trade.revision, offer: { gold: 10 } });
   tr(b, 'confirm', { tradeId: trade.id, revision: trade.revision });
   assert.equal(tr(c, 'confirm', { tradeId: trade.id, revision: trade.revision }).status, 'completed');
-  assert.deepEqual(f.load(b).weekTickets, tb); assert.deepEqual(f.load(c).weekTickets, tc);
+  assert.equal(f.load(b).week, tb); assert.equal(f.load(c).week, tc);
 });
 
-test('P-C SQLite: legacy state without ticket/debt fields gets safe defaults', t => {
+test('P-C SQLite: legacy state without debt fields gets safe defaults', t => {
   const f = storeFixture(t), a = f.fresh();
   const g = f.load(a); assert.equal(g.weekTickets, undefined); assert.equal(g.debt, undefined);
   assert.equal(f.store.readEconomy(a).debt, 0);
   const r = f.run(a, 'week.end');
-  assert.equal(r.economy.game.weekTickets.count, TICKETS.initial - 1); assert.equal(r.economy.debt, 0); assert.equal(r.economy.game.debtWeeks, 0);
+  assert.equal(r.economy.game.weekTickets, undefined); assert.equal(r.economy.debt, 0); assert.equal(r.economy.game.debtWeeks, 0);
+});
+
+test('ENG-12: 25 consecutive week.end at one server time cross the season (20th week roll) without any limit; assets kept', () => {
+  let g = start();
+  const ids = ['dragons', 'eggs', 'inv'].map(k => g[k].map(x => x.assetId).sort());
+  for (let i = 0; i < 25; i++) g = step(g, 'week.end').game;
+  assert.equal(g.seasonNo, 2); assert.equal(g.week, 6);
+  assert.deepEqual(['dragons', 'eggs', 'inv'].map(k => g[k].map(x => x.assetId).sort()), ids);
+  invariants(g);
 });

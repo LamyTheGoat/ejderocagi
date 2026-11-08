@@ -1,12 +1,13 @@
-// ENG-10 · İstemci sunucu kesesine bağlı: hafta sonu (week.end), bilet bekleme, çevrimdışı geri düşüş,
-// ödüllü düello sonucu ve mobil genişliklerde yerleşim. Tek sunucu, SQLite, geçici dizin, 2 başlangıç bileti.
+// ENG-10 · İstemci sunucu kesesine bağlı: hafta sonu (week.end), çevrimdışı geri düşüş,
+// ödüllü düello sonucu ve mobil genişliklerde yerleşim. Tek sunucu, SQLite, geçici dizin.
+// ENG-12: hafta bileti kaldırıldı; bekleme yok, bilet göstergesi yok (yalnız borç rozeti).
 const { test, expect } = require('@playwright/test');
 const { fork } = require('node:child_process'); const fs = require('node:fs'); const os = require('node:os'); const path = require('node:path'); const { once } = require('node:events');
 let child, dir, url;
 test.beforeAll(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'eo-eng10-'));
   child = fork('-e', [`const http=require('node:http');const probe=http.createServer();probe.listen(0,'127.0.0.1',()=>{const port=probe.address().port;probe.close(()=>{process.env.PUBLIC_URL='http://127.0.0.1:'+port;const {server}=require(${JSON.stringify(require.resolve('../server'))});process.on('message',m=>{if(m==='stop')process.emit('SIGTERM');});server.listen(port,'127.0.0.1',()=>process.send({port}));});});`], {
-    env: { ...process.env, NODE_ENV: 'test', ECONOMY_BACKEND: 'sqlite', DATA_DIR: path.join(dir, 'world'), LOCAL_ECONOMY_DIR: path.join(dir, 'economy'), EO_WEEK_TICKET_INITIAL: '2' }, silent: true });
+    env: { ...process.env, NODE_ENV: 'test', ECONOMY_BACKEND: 'sqlite', DATA_DIR: path.join(dir, 'world'), LOCAL_ECONOMY_DIR: path.join(dir, 'economy') }, silent: true });
   child.stdout.resume(); child.stderr.on('data', d => process.stderr.write(d));
   const [info] = await once(child, 'message'); url = 'http://127.0.0.1:' + info.port;
 });
@@ -38,11 +39,11 @@ const closeModals = page => page.evaluate(() => { for (let i = 0; i < 20 && moda
 const endWeek = async page => { await closeModals(page); await page.evaluate(() => { UI.arm = 'endweek'; ACT.endweek(); }); };
 const serverWeek = page => page.evaluate(async () => (await (await fetch('/api/economy', { credentials: 'same-origin' })).json()).week);
 
-test('ENG-10 hafta sonu: bağlı değilken eski akış; bağlıyken yerel hafta hemen biter, sunucu haftası ilerler; bilet bitince yeni hafta bekletilir', async ({ browser }) => {
+test('ENG-12 hafta sonu: bağlı değilken eski akış; bağlıyken yerel hafta hemen biter, sunucu haftası ilerler; bilet yok, bekleme yok', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
   const page = await ctx.newPage(); const errors = []; page.on('pageerror', e => errors.push(String(e)));
   await enter(page);
-  // Sunucu ocağı yok → eski akış: yerel hafta ilerler, bilet satırı yok, sunucu çağrısı yok.
+  // Sunucu ocağı yok → eski akış: yerel hafta ilerler, gösterge yok, sunucu çağrısı yok.
   expect(await page.evaluate(() => ECO_LINK.linked)).toBe(false);
   await endWeek(page);
   expect(await page.evaluate(() => S.week)).toBe(2);
@@ -51,34 +52,27 @@ test('ENG-10 hafta sonu: bağlı değilken eski akış; bağlıyken yerel hafta 
 
   await startServerOcak(page);
   await closeModals(page); await page.evaluate(() => render());
-  await expect(page.locator('.endweek .eco-week')).toHaveText('🎟 2/8');
-  const goldBefore = await page.evaluate(() => S.gold);
+  // Bilet göstergesi yok (borç yokken satır gizli).
+  expect(await page.locator('.endweek .eco-week').isHidden()).toBe(true);
+  await expect(page.locator('.endweek')).not.toContainText('🎟');
   await endWeek(page);
   expect(await page.evaluate(() => S.week)).toBe(3); // yerel hafta sunucuyu beklemeden bitti
   await page.evaluate(() => ECO_LINK.whenIdle());
   let w = await serverWeek(page);
-  expect(w.week).toBe(2); expect(w.ticket.count).toBe(1);
-  await expect(page.locator('.endweek .eco-week')).toHaveText('🎟 1/8');
-  // Yerel altın yalnız yerel kurallarla değişir (sunucu kesesi ayrı); istemci sunucu sonucunu S'e yazmaz.
-  expect(typeof goldBefore).toBe('number');
-
-  await endWeek(page);
+  expect(w.week).toBe(2); expect('ticket' in w).toBe(false);
+  // Eski 8 bilet sınırının çok ötesi: art arda 10 hafta, hiçbiri bekletilmez.
+  for (let i = 0; i < 10; i++) await endWeek(page);
   await page.evaluate(() => ECO_LINK.whenIdle());
-  w = await serverWeek(page); expect(w.week).toBe(3); expect(w.ticket.count).toBe(0);
-  expect(await page.evaluate(() => S.week)).toBe(4);
-  // Bilet yok: yerel hafta bekletilir, net mesaj; oyunun geri kalanı açık (Ahır'a gidilebilir).
+  w = await serverWeek(page); expect(w.week).toBe(12);
+  expect(await page.evaluate(() => S.week)).toBe(13);
   await closeModals(page);
-  await expect(page.locator('.endweek')).toHaveClass(/eco-wait/);
-  await expect(page.locator('.endweek .eco-week')).toContainText('🎟 0 ·');
-  await page.locator('.endweek').click();
-  await expect(page.locator('#toasts')).toContainText('Yeni hafta bekleniyor');
-  expect(await page.evaluate(() => S.week)).toBe(4);
-  expect((await serverWeek(page)).week).toBe(3);
+  await expect(page.locator('.endweek')).not.toHaveClass(/eco-wait/);
+  await expect(page.locator('#toasts')).not.toContainText('Yeni hafta bekleniyor');
   await page.evaluate(() => { UI.view = 'ahir'; render(); });
   await expect(page.locator('#stage')).not.toBeEmpty();
-  // Bilet & Borç ekranı: Menü kartından açılır, dokunma hedefleri ≥ 44 px.
+  // Sunucu Kesesi ekranı: bilet satırı yok, borç satırı var, dokunma hedefleri ≥ 44 px.
   await page.evaluate(() => ACT['eco-status']());
-  await expect(page.locator('.eco-modal')).toContainText('Hafta bileti:');
+  await expect(page.locator('.eco-modal')).not.toContainText('bilet');
   await expect(page.locator('.eco-modal')).toContainText('Borç:');
   const h = await page.locator('.eco-modal .btn').evaluateAll(els => els.map(e => e.getBoundingClientRect().height));
   expect(Math.min(...h)).toBeGreaterThanOrEqual(44);
@@ -89,7 +83,7 @@ test('ENG-10 hafta sonu: bağlı değilken eski akış; bağlıyken yerel hafta 
   await page.evaluate(() => ECO_LINK.boot(true));
   expect(await page.evaluate(() => ECO_LINK.linked)).toBe(false);
   await endWeek(page);
-  expect(await page.evaluate(() => S.week)).toBe(5);
+  expect(await page.evaluate(() => S.week)).toBe(14);
   expect(errors).toEqual([]);
   await ctx.close();
 });
@@ -138,12 +132,15 @@ test('ENG-10 ödüllü düello: davet sunucu ejderhasıyla gider, sonuç sunucud
 });
 
 
-test('ENG-10 yerleşim: 375/768/900/1000 px taşma yok, üst şerit çakışmıyor, bilet satırı görünür', async ({ browser }) => {
+test('ENG-10 yerleşim: 375/768/900/1000 px taşma yok, üst şerit çakışmıyor, bilet göstergesi yok, borç rozeti sığar', async ({ browser }) => {
   for (const w of [375, 768, 900, 1000]) {
     const mobile = w < 761;
     const ctx = await browser.newContext({ viewport: { width: w, height: mobile ? 812 : 768 }, isMobile: mobile, hasTouch: mobile });
     const page = await ctx.newPage(); const errors = []; page.on('pageerror', e => errors.push(String(e)));
-    await enter(page); await startServerOcak(page);
+    await enter(page);
+    // Borç rozetinin en uzun hâlini sığdırma ölçümü için okuma yanıtında borç taklit edilir.
+    await page.route('**/api/economy', async route => { const res = await route.fetch(); const body = await res.json(); if (body.week) body.week = { ...body.week, debt: 1234 }; await route.fulfill({ response: res, json: body }); });
+    await startServerOcak(page);
     await closeModals(page); await page.evaluate(() => render());
     const m = await page.evaluate(() => {
       const vis = el => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden'; };
@@ -159,7 +156,7 @@ test('ENG-10 yerleşim: 375/768/900/1000 px taşma yok, üst şerit çakışmıy
     });
     expect(m.scroll, String(w)).toBe(m.vw);
     expect(m.ov, String(w)).toEqual([]);
-    expect(m.eco, String(w)).toBe('🎟 2/8');
+    expect(m.eco, String(w)).toBe('Borç 1234');
     expect(m.ecoInside, String(w)).toBe(true);
     expect(m.ewH, String(w)).toBeGreaterThanOrEqual(44); // mobil dahil "Haftayı Bitir" ≥ 44 px
     expect(m.ewIn, String(w)).toBe(true); // ekranın altından taşmaz

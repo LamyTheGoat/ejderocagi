@@ -1,42 +1,21 @@
 'use strict';
-// ENG06 P-C · Sunucu hafta komutu (`week.end`), hafta bileti (D2) ve haftalık borç (D4).
+// ENG06 P-C · Sunucu hafta komutu (`week.end`) ve haftalık borç (D4).
+// ENG-12: hafta bileti (D2) KALDIRILDI. `week.end` sınırsızdır; idempotency (`requestId`) ve sürüm kontrolü
+// depo katmanında aynen geçerlidir. Eski kayıttaki `weekTickets` alanı sessizce silinir (dropLegacyTickets).
 // Mevcut `endWeek` (js/week.js) sunucu VM'inde AYNEN çalışır; burada yalnız sunucu sınırı vardır:
-//   1. Hafta bileti tembel hesaplanır: zaman yalnız sunucu saatinden (`now`), cron/arka plan yok.
-//   2. `endWeek` içindeki her altın değişimi sırasıyla kaydedilir; VM içinde bakiye 0'ın altına
+//   1. `endWeek` içindeki her altın değişimi sırasıyla kaydedilir; VM içinde bakiye 0'ın altına
 //      inmez (istemcideki `S.neg`/iflas yolu tetiklenmez). Değişimler sonra ENG-05 kovalarına
 //      `economy_debt` üzerinden uygulanır: gider → charge (kalan borç), gelir → receive (önce borç).
-//   3. Kaynağı doğrulanmamış haftalık çıktılar (rol geliri, yem, ün, yeni varlık) 'unknown' olur.
+//   2. Kaynağı doğrulanmamış haftalık çıktılar (rol geliri, yem, ün, yeni varlık) 'unknown' olur.
 const sources = require('./economy_sources');
 const debt = require('./economy_debt');
-const { TICKETS } = require('./week_config');
 function fail(code, status = 409) { throw Object.assign(new Error(code), { code, status }); }
 const count = n => Number.isSafeInteger(n) && n >= 0;
 
-// Bilet durumu: game.weekTickets = { schema: 1, count, at }. `at`, bir sonraki dolumun sayıldığı çapa.
-function syncTickets(game, now, cfg = TICKETS) {
-  if (!Number.isSafeInteger(now) || now <= 0) fail('server_time_unavailable', 503);
-  // Eski kayıt (alan yok): yeni hesapla aynı başlangıç, çapa şimdiki sunucu zamanı.
-  if (game.weekTickets === undefined) game.weekTickets = { schema: 1, count: cfg.initial, at: now };
-  const t = game.weekTickets;
-  if (!t || typeof t !== 'object' || t.schema !== 1 || !count(t.count) || !count(t.at)) fail('week_ticket_state_invalid');
-  if (t.count > cfg.cap) t.count = cfg.cap; // Tavan düşürüldüyse fazlası tutulmaz.
-  if (t.count >= cfg.cap) { if (now > t.at) t.at = now; return t; } // Tavanda zaman biriktirilmez.
-  if (now <= t.at) return t; // Saat geri alındı/aynı an: dolum yok, çapa geri gitmez.
-  const gained = Math.floor((now - t.at) / cfg.refillMs);
-  if (gained > 0) {
-    t.count = Math.min(cfg.cap, t.count + gained);
-    t.at = t.count >= cfg.cap ? now : t.at + gained * cfg.refillMs;
-  }
-  return t;
-}
-function ticketView(t, cfg = TICKETS) {
-  return { count: t.count, cap: cfg.cap, nextAt: t.count >= cfg.cap ? null : t.at + cfg.refillMs };
-}
-function takeTicket(game, now, cfg = TICKETS) {
-  const t = syncTickets(game, now, cfg);
-  if (t.count < 1) fail('week_ticket_unavailable');
-  t.count -= 1;
-  return ticketView(t, cfg);
+// ENG-12: bilet artık yok. Eski kayıtlarda kalan alan hiçbir şeyi kısıtlamaz; görüldüğü komutta silinir.
+function dropLegacyTickets(game) {
+  if (game && typeof game === 'object' && Object.hasOwn(game, 'weekTickets')) delete game.weekTickets;
+  return game;
 }
 
 // `api` VM çalışma zamanıdır (makeRuntime({week:true})). `S` onun durum nesnesidir.
@@ -106,36 +85,31 @@ function closeDebtWeek(S, result) {
 }
 
 // VM nesneleri (rapor, kuyruk) makbuza düz veri olarak yazılır.
-function weekResult(out, summary, ticket) {
+function weekResult(out, summary) {
   const hatchReady = [], events = [];
   for (const q of out.queue) {
     if (q.type === 'hatch') hatchReady.push(q.egg.assetId);
     else if (q.type === 'event') events.push(q.ev.id); // Olay seçimleri istemci etkileşimi; sunucuda uygulanmaz.
   }
   return {
-    ...summary, ticket, hatchReady, events,
+    ...summary, hatchReady, events,
     report: out.report.map(r => ({ dragonAssetId: r.d.assetId || null, lines: [...r.lines] })),
     gen: [...out.gen],
     skipped: summary.season ? ['rivalWeek', 'ordersWeek', 'careerCheck', 'eventChoices', 'seasonStarPick', 'careerSetup'] : ['rivalWeek', 'ordersWeek', 'careerCheck', 'eventChoices'],
   };
 }
 
-// ENG-10 · Salt okunur hafta durumu (GET /api/economy). Kaydı DEĞİŞTİRMEZ: dolum bir kopya üzerinde
-// hesaplanır; gerçek dolum yine yalnız `week.end` komutunda yazılır. Bozuk bilet durumu → ticket:null.
+// ENG-10 · Salt okunur hafta durumu (GET /api/economy). Kaydı DEĞİŞTİRMEZ.
+// ENG-12: bilet görünümü kaldırıldı; eski kayıttaki `weekTickets` yok sayılır.
 const SEASON_WEEKS = 20; // js/week.js SEASON ile aynı (testle doğrulanır).
-function weekStatus(game, now, cfg = TICKETS) {
+function weekStatus(game, now) {
   if (!game || typeof game !== 'object') return null;
-  let ticket = null;
-  try {
-    const probe = { weekTickets: game.weekTickets === undefined ? undefined : JSON.parse(JSON.stringify(game.weekTickets)) };
-    ticket = ticketView(syncTickets(probe, now, cfg), cfg);
-  } catch (_) { ticket = null; }
   const debtNow = Number.isSafeInteger(game.debt) && game.debt > 0 ? game.debt : 0;
   const weeks = count(game.debtWeeks) ? game.debtWeeks : 0;
   let rebuild = null;
   try { const r = debt.rebuildStatus(game); rebuild = { available: r.available, threshold: r.threshold, cooldown: r.cooldown, waitWeeks: r.waitWeeks }; } catch (_) { rebuild = null; }
   return { week: Number.isSafeInteger(game.week) ? game.week : 1, seasonNo: Number.isSafeInteger(game.seasonNo) ? game.seasonNo : 1,
-    season: SEASON_WEEKS, ticket, debt: debtNow, debtWeeks: weeks, rebuild, serverNow: now };
+    season: SEASON_WEEKS, debt: debtNow, debtWeeks: weeks, rebuild, serverNow: now };
 }
 
-module.exports = { syncTickets, takeTicket, ticketView, runWeek, weekResult, closeDebtWeek, weekStatus, SEASON_WEEKS };
+module.exports = { dropLegacyTickets, runWeek, weekResult, closeDebtWeek, weekStatus, SEASON_WEEKS };

@@ -195,7 +195,7 @@ function bagModal() {
     <div class="mhead">
       <div><span class="kicker">Ocak Envanteri</span><h2>🎒 Çanta</h2></div>
       <button class="btn sm primary bag-sandik-link" data-open-sandik aria-label="Ocak Sandığı'nı aç: sunucu envanteri">🧰 Ocak Sandığı'nı aç</button>
-      <button class="btn sm ghost bag-eco-link" data-a="eco-status" aria-label="Sunucu kesesi: hafta bileti ve borç">🎟 Bilet & Borç</button>
+      <button class="btn sm ghost bag-eco-link" data-a="eco-status" aria-label="Sunucu kesesi: hafta ve borç">⚖ Sunucu Kesesi</button>
       <button class="mclose" data-a="mclose" aria-label="Kapat">${typeof ui === 'function' ? ui('x') : '×'}</button>
     </div>
     <div class="bag-grid">

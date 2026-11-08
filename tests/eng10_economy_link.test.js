@@ -1,6 +1,7 @@
 'use strict';
-// ENG-10 · İstemci ↔ sunucu kesesi bağlantısı: hafta bileti kapısı, çevrimdışı geri düşüş, belirsiz yanıtta
-// aynı gövdeyle yeniden deneme, borç/bilet metni, ödüllü düello sonucu metni. DOM'suz.
+// ENG-10 · İstemci ↔ sunucu kesesi bağlantısı: hafta kapısı, çevrimdışı geri düşüş, belirsiz yanıtta
+// aynı gövdeyle yeniden deneme, borç metni, ödüllü düello sonucu metni. DOM'suz.
+// ENG-12: hafta bileti kaldırıldı; yerel hafta hiç bekletilmez, göstergede yalnız borç rozeti kalır.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createEconomyClient } = require('../js/economy_client');
@@ -8,26 +9,25 @@ const L = require('../js/economy_link');
 
 const HOUR = 3600_000;
 const T0 = 1_800_000_000_000;
-const weekView = (count, extra = {}) => ({ week: 3, seasonNo: 1, season: 20, ticket: { count, cap: 8, nextAt: count >= 8 ? null : T0 + 2 * HOUR }, debt: 0, debtWeeks: 0, serverNow: T0, receivedAt: T0, ...extra });
+const weekView = (extra = {}) => ({ week: 3, seasonNo: 1, season: 20, debt: 0, debtWeeks: 0, serverNow: T0, receivedAt: T0, ...extra });
 
 // Sahte sunucu: GET /api/economy ve POST /api/economy/command; davranış senaryoya göre değiştirilir.
-function fakeServer({ count = 2, started = true, ready = true } = {}) {
-  const srv = { count, version: 5, posts: [], gets: 0, mode: 'ok', debt: 0 };
+function fakeServer({ started = true, ready = true } = {}) {
+  const srv = { weeks: 0, version: 5, posts: [], gets: 0, mode: 'ok', debt: 0 };
   srv.fetch = async (url, options = {}) => {
     if (!options.method || options.method === 'GET') {
       srv.gets++;
       if (srv.mode === 'down') throw new TypeError('network');
       return { ok: true, status: 200, json: async () => ({ ok: true, economyReady: ready, economy: { version: srv.version, gold: 10, game: started ? { star: 1 } : undefined, dragons: [] },
-        week: started ? { week: 3, seasonNo: 1, season: 20, ticket: { count: srv.count, cap: 8, nextAt: Date.now() + HOUR }, debt: srv.debt, debtWeeks: 0, serverNow: Date.now() } : null }) };
+        week: started ? { week: 3 + srv.weeks, seasonNo: 1, season: 20, debt: srv.debt, debtWeeks: 0, serverNow: Date.now() } : null }) };
     }
     const body = JSON.parse(options.body); srv.posts.push(body);
-    if (srv.mode === 'lost') { srv.mode = 'ok'; srv.count--; srv.version++; srv.applied = body.requestId; throw new TypeError('response_lost'); }
+    if (srv.mode === 'lost') { srv.mode = 'ok'; srv.weeks++; srv.version++; srv.applied = body.requestId; throw new TypeError('response_lost'); }
     if (srv.mode === 'conflict') { srv.mode = 'ok'; return { ok: false, status: 409, json: async () => ({ error: 'version_conflict' }) }; }
     if (srv.applied === body.requestId) return { ok: true, status: 200, json: async () => ({ ok: true, replayed: true, result: { week: { from: 3, to: 4 } }, economy: { version: srv.version, gold: 10, game: { star: 1 }, dragons: [] } }) };
     if (body.expectedVersion !== srv.version) return { ok: false, status: 409, json: async () => ({ error: 'version_conflict' }) };
-    if (srv.count < 1) return { ok: false, status: 409, json: async () => ({ error: 'week_ticket_unavailable' }) };
-    srv.count--; srv.version++;
-    return { ok: true, status: 200, json: async () => ({ ok: true, replayed: false, result: { week: { from: 3, to: 4 }, ticket: { count: srv.count, cap: 8, nextAt: Date.now() + HOUR }, upkeep: { charged: 10 }, debt: { after: 0 } },
+    srv.weeks++; srv.version++;
+    return { ok: true, status: 200, json: async () => ({ ok: true, replayed: false, result: { week: { from: 3, to: 4 }, upkeep: { charged: 10 }, debt: { after: 0 } },
       economy: { version: srv.version, gold: 0, game: { star: 1 }, dragons: [] } }) };
   };
   return srv;
@@ -40,20 +40,19 @@ function harness(srv, { online = true } = {}) {
   return { client, link, notes };
 }
 
-test('ENG-10 weekGate: bağlı değilken eski akış; bilet varsa sunucu; bilet kesin yoksa bekletir', () => {
-  assert.deepEqual(L.weekGate({ linked: false, week: weekView(0) }, T0), { mode: 'local' });
-  assert.deepEqual(L.weekGate({ linked: true, week: null }, T0), { mode: 'local' });
-  assert.equal(L.weekGate({ linked: true, week: weekView(3) }, T0).mode, 'server');
-  const wait = L.weekGate({ linked: true, week: weekView(0) }, T0 + 60_000);
-  assert.equal(wait.mode, 'wait'); assert.equal(wait.waitMs, 2 * HOUR - 60_000);
-  // Bilet bekleme sırasında doldu (sunucu saatiyle tahmin) → yeniden açılır, kısıt gereksiz uzamaz.
-  assert.equal(L.weekGate({ linked: true, week: weekView(0) }, T0 + 2 * HOUR).mode, 'server');
-  // Belirsiz kalan hafta isteği bir bilet sayılır (aynı istek yeniden gönderilecek).
-  assert.equal(L.weekGate({ linked: true, week: weekView(1), pendingWeek: true }, T0).mode, 'wait');
-  assert.equal(L.formatWait(2 * HOUR + 14 * 60_000), '2 sa 14 dk'); assert.equal(L.formatWait(30_000), '1 dk');
-  assert.equal(L.badgeText({ linked: true, week: weekView(4, { debt: 120 }) }, T0), '🎟 4/8 · Borç 120');
-  assert.match(L.badgeText({ linked: true, week: weekView(0) }, T0), /^🎟 0 · 2 sa/);
-  assert.equal(L.badgeText({ linked: false, week: weekView(4) }, T0), '');
+test('ENG-12 weekGate: bağlı değilken eski akış; bağlıyken her zaman sunucu (bekletme yok); rozet yalnız borç', () => {
+  assert.deepEqual(L.weekGate({ linked: false, week: weekView() }), { mode: 'local' });
+  assert.deepEqual(L.weekGate({ linked: true, week: null }), { mode: 'local' });
+  assert.deepEqual(L.weekGate({ linked: true, week: weekView() }), { mode: 'server' });
+  assert.equal(L.badgeText({ linked: true, week: weekView({ debt: 120 }) }), 'Borç 120');
+  assert.equal(L.badgeText({ linked: true, week: weekView() }), '', 'borç yoksa gösterge yok');
+  assert.equal(L.badgeText({ linked: false, week: weekView({ debt: 5 }) }), '');
+  // Eski sunucu yanıtında bilet alanı kalsa bile hiçbir şeyi kısıtlamaz ve gösterilmez.
+  const legacy = weekView({ ticket: { count: 0, cap: 8, nextAt: T0 + HOUR } });
+  assert.equal(L.weekGate({ linked: true, week: legacy }).mode, 'server');
+  assert.equal(L.badgeText({ linked: true, week: legacy }), '');
+  assert.equal(L.weekSummary({ week: { from: 3, to: 4 }, ticket: { count: 0, cap: 8 }, upkeep: { charged: 10 } }), 'Sunucu kesesi: hafta 4 · bakım −10');
+  assert.equal(typeof L.waitMessage, 'undefined'); assert.equal(typeof L.formatWait, 'undefined');
 });
 
 test('ENG-10 çevrimdışı / statik sunucu / sunucu hatası / ocak kurulmamış: yerel hafta eskisi gibi, sunucu çağrısı yok', async () => {
@@ -72,8 +71,8 @@ test('ENG-10 çevrimdışı / statik sunucu / sunucu hatası / ocak kurulmamış
   }
 });
 
-test('ENG-10 bağlıyken yerel hafta HEMEN biter, week.end arka planda gider; bilet bitince yeni hafta bekletilir', async () => {
-  const srv = fakeServer({ count: 1 });
+test('ENG-12 bağlıyken yerel hafta HEMEN biter, week.end arka planda gider; art arda haftalar hiç bekletilmez', async () => {
+  const srv = fakeServer();
   const { link, notes } = harness(srv);
   assert.equal(await link.sync(), 'ready'); assert.equal(link.linked, true);
   let local = 0;
@@ -81,48 +80,49 @@ test('ENG-10 bağlıyken yerel hafta HEMEN biter, week.end arka planda gider; bi
   assert.equal(mode, 'server'); assert.equal(local, 1, 'yerel hafta sunucu yanıtını beklemeden bitti');
   await link.whenIdle();
   assert.equal(srv.posts.length, 1); assert.equal(srv.posts[0].type, 'week.end'); assert.deepEqual(srv.posts[0].args, {});
-  assert.match(notes.at(-1)[0], /hafta 4 · 🎟 0\/8 · bakım −10/);
-  // Bilet yok: yerel hafta bitmez, net mesaj, istek gönderilmez.
-  assert.equal(link.endWeek(() => local++), 'wait');
-  assert.equal(local, 1); assert.equal(srv.posts.length, 1);
-  assert.match(notes.at(-1)[0], /Yeni hafta bekleniyor/);
+  assert.match(notes.at(-1)[0], /hafta 4 · bakım −10/); assert.doesNotMatch(notes.at(-1)[0], /🎟/);
+  for (let i = 0; i < 9; i++) assert.equal(link.endWeek(() => local++), 'server');
+  assert.equal(local, 10, 'on hafta art arda, bekleme yok');
+  await link.whenIdle();
+  assert.equal(srv.posts.filter(p => p.type === 'week.end').length, 10); assert.equal(link.state.queued, 0);
+  assert.ok(notes.every(([t]) => !/bekleniyor|bilet/i.test(t)));
 });
 
-test('ENG-10 belirsiz yanıt: aynı requestId ve gövde aynen yeniden gönderilir; ikinci bilet harcanmaz', async () => {
-  const srv = fakeServer({ count: 3 });
+test('ENG-10 belirsiz yanıt: aynı requestId ve gövde aynen yeniden gönderilir; hafta iki kez işlenmez', async () => {
+  const srv = fakeServer();
   const { link, client, notes } = harness(srv);
   await link.sync();
   srv.mode = 'lost';
   link.endWeek(() => {});
   await link.whenIdle();
   assert.equal(client.pendingType, 'week.end'); assert.match(notes.at(-1)[0], /doğrulanamadı/);
-  assert.equal(srv.count, 2, 'sunucu ilk isteği uyguladı');
+  assert.equal(srv.weeks, 1, 'sunucu ilk isteği uyguladı');
   link.endWeek(() => {}); // sonraki hafta: önce bekleyen aynen, sonra yeni istek
   await link.whenIdle();
   assert.deepEqual(srv.posts[1], srv.posts[0], 'aynı gövde yeniden gönderildi');
   assert.notEqual(srv.posts[2].requestId, srv.posts[0].requestId);
-  assert.equal(srv.count, 1, 'yalnız iki bilet harcandı');
+  assert.equal(srv.weeks, 2, 'yalnız iki hafta işlendi (tekrar ikinci kez uygulanmadı)');
   assert.equal(client.hasPending, false);
 });
 
 test('ENG-10 sürüm çakışması (başka sekme): durum yenilenir ve hafta bir kez yeniden istenir', async () => {
-  const srv = fakeServer({ count: 2 });
+  const srv = fakeServer();
   const { link } = harness(srv);
   await link.sync();
   srv.mode = 'conflict';
   link.endWeek(() => {});
   await link.whenIdle();
-  assert.equal(srv.posts.length, 2); assert.equal(srv.count, 1);
+  assert.equal(srv.posts.length, 2); assert.equal(srv.weeks, 1);
 });
 
 test('ENG-10 ekonomi istemcisi: week görünümü ve economyReady saklanır; komut yanıtı onları silmez', async () => {
-  const srv = fakeServer({ count: 2 });
+  const srv = fakeServer();
   const { client } = harness(srv);
   await client.refresh();
-  assert.equal(client.economyReady, true); assert.equal(client.week.ticket.count, 2); assert.ok(client.week.receivedAt);
+  assert.equal(client.economyReady, true); assert.equal(client.week.week, 3); assert.ok(client.week.receivedAt);
   await client.command('week.end', {});
-  assert.equal(client.week.ticket.count, 2, 'komut yanıtında week alanı yok; görünüm değişmez');
-  await client.refresh(); assert.equal(client.week.ticket.count, 1);
+  assert.equal(client.week.week, 3, 'komut yanıtında week alanı yok; görünüm değişmez');
+  await client.refresh(); assert.equal(client.week.week, 4);
 });
 
 test('ENG-10 ödüllü düello sonucu metinleri ve sunucu ejderhası seçimi', () => {
@@ -142,20 +142,18 @@ test('ENG-10 ödüllü düello sonucu metinleri ve sunucu ejderhası seçimi', (
   assert.equal(L.pickDuelDragon({ dragons: [] }), null);
 });
 
-test('ENG-10 sunucu weekStatus: salt okunur (kaydı değiştirmez), dolumu gösterir, bozuk bilette null; sezon js/week.js ile aynı', () => {
+test('ENG-12 sunucu weekStatus: salt okunur, bilet alanı yok, eski kayıttaki weekTickets yok sayılır; sezon js/week.js ile aynı', () => {
   const { weekStatus, SEASON_WEEKS } = require('../server/week_runtime');
   const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../js/week.js'), 'utf8');
   assert.equal(SEASON_WEEKS, Number(/const SEASON = (\d+);/.exec(src)[1]));
-  const cfg = { refillMs: HOUR, cap: 8, initial: 6 };
   const game = { week: 4, weekTickets: { schema: 1, count: 0, at: T0 }, debt: 30, debtWeeks: 2, gold: 0 };
   const frozen = JSON.stringify(game);
-  const view = weekStatus(game, T0 + 2.5 * HOUR, cfg);
-  assert.deepEqual(view.ticket, { count: 2, cap: 8, nextAt: T0 + 3 * HOUR });
+  const view = weekStatus(game, T0 + 2.5 * HOUR);
+  assert.equal('ticket' in view, false);
   assert.equal(view.debt, 30); assert.equal(view.debtWeeks, 2); assert.equal(view.week, 4); assert.equal(view.serverNow, T0 + 2.5 * HOUR);
   assert.equal(JSON.stringify(game), frozen, 'okuma kaydı değiştirmedi');
-  assert.equal(weekStatus({ week: 1, weekTickets: { schema: 9 } }, T0, cfg).ticket, null);
-  assert.equal(weekStatus({ week: 1 }, T0, cfg).ticket.count, 6, 'eski kayıt: başlangıç bileti');
-  assert.equal(weekStatus(null, T0, cfg), null);
+  assert.equal('ticket' in weekStatus({ week: 1, weekTickets: { schema: 9 } }, T0), false);
+  assert.equal(weekStatus(null, T0), null);
 });
 
 test('ENG-10 O-1: zaman aşımı belirsiz sayılır (askıdaki komut aynı requestId ile korunur), istek iptal edilir, bağlantı eski akışa düşer', async () => {
@@ -165,7 +163,7 @@ test('ENG-10 O-1: zaman aşımı belirsiz sayılır (askıdaki komut aynı reque
     if (options.method === 'POST') sent.push(options.body);
     if (hang) return new Promise(() => {});
     if (options.method === 'POST') return Promise.resolve({ ok: true, status: 200, json: async () => ({ ok: true, replayed: true, economy: { version: 2, game: {} } }) });
-    return Promise.resolve({ ok: true, status: 200, json: async () => ({ economyReady: true, economy: { version: 1, game: {} }, week: weekView(3) }) });
+    return Promise.resolve({ ok: true, status: 200, json: async () => ({ economyReady: true, economy: { version: 1, game: {} }, week: weekView() }) });
   };
   const client = createEconomyClient({ fetch, timeoutMs: 30, uuid: () => '00000000-0000-4000-8000-000000000009' });
   await assert.rejects(client.refresh(), /economy_timeout/);
@@ -185,8 +183,8 @@ test('ENG-10 O-1: zaman aşımı belirsiz sayılır (askıdaki komut aynı reque
   assert.equal(await L.bounded(Promise.resolve('fast'), 200, () => 'fallback'), 'fast');
 });
 
-test('ENG-10 O-2: askıda başka komut varken hafta kaybolmaz; önce askıdaki aynen, sonra week.end; kuyruk bilet sayısından düşülür', async () => {
-  const srv = fakeServer({ count: 3 });
+test('ENG-10 O-2: askıda başka komut varken hafta kaybolmaz; önce askıdaki aynen, sonra week.end; kuyruk boşalır', async () => {
+  const srv = fakeServer();
   const { link, client } = harness(srv);
   await link.sync();
   srv.mode = 'lost';
@@ -203,14 +201,12 @@ test('ENG-10 O-2: askıda başka komut varken hafta kaybolmaz; önce askıdaki a
   assert.deepEqual(types.slice(-2), ['ocak.rebuild', 'week.end']);
   assert.equal(srv.posts.at(-2).requestId, srv.posts[0].requestId, 'askıdaki aynı requestId ile');
   assert.equal(link.state.queued, 0); assert.equal(client.hasPending, false);
-  // Kuyruk biletten düşülür: 1 bilet + 1 kuyruktaki hafta → bekle.
-  assert.equal(L.weekGate({ linked: true, week: weekView(1), queued: 1 }, T0).mode, 'wait');
 });
 
 test('ENG-10 O-3: askıdaki week.end gövdesi (requestId dahil) ve kuyruk depoda saklanır; yeni sayfa aynısını gönderir; depo hatası bellekle sürer', async () => {
   const mem = new Map();
   const storage = { getItem: k => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: k => mem.delete(k) };
-  const srv = fakeServer({ count: 4 });
+  const srv = fakeServer();
   let n = 0;
   const make = () => createEconomyClient({ fetch: srv.fetch, storage, storageKey: 'eo-economy-pending:acc', uuid: () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}` });
   const c1 = make();
@@ -246,7 +242,7 @@ test('ENG-10 (6): autoStart yalnız kayıtlıda ve sunucu ocağı yokken bir kez
   let started = false, posts = 0, fail = false;
   const fetch = async (url, options = {}) => {
     if (options.method === 'POST') { posts++; if (fail) return { ok: false, status: 503, json: async () => ({ error: 'economy_unavailable' }) }; started = true; return { ok: true, status: 200, json: async () => ({ ok: true, economy: { version: 1, game: {} } }) }; }
-    return { ok: true, status: 200, json: async () => ({ economyReady: true, economy: started ? { version: 1, game: {} } : { version: 0 }, week: started ? weekView(6) : null }) };
+    return { ok: true, status: 200, json: async () => ({ economyReady: true, economy: started ? { version: 1, game: {} } : { version: 0 }, week: started ? weekView() : null }) };
   };
   const client = createEconomyClient({ fetch, uuid: () => '00000000-0000-4000-8000-000000000001' });
   const link = L.createEconomyLink({ getClient: () => client });
