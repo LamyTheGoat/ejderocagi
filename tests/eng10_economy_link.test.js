@@ -157,3 +157,30 @@ test('ENG-10 sunucu weekStatus: salt okunur (kaydı değiştirmez), dolumu göst
   assert.equal(weekStatus({ week: 1 }, T0, cfg).ticket.count, 6, 'eski kayıt: başlangıç bileti');
   assert.equal(weekStatus(null, T0, cfg), null);
 });
+
+test('ENG-10 O-1: zaman aşımı belirsiz sayılır (askıdaki komut aynı requestId ile korunur), istek iptal edilir, bağlantı eski akışa düşer', async () => {
+  let hang = true, aborted = 0; const sent = [];
+  const fetch = (url, options = {}) => {
+    if (options.signal) options.signal.addEventListener('abort', () => aborted++);
+    if (options.method === 'POST') sent.push(options.body);
+    if (hang) return new Promise(() => {});
+    if (options.method === 'POST') return Promise.resolve({ ok: true, status: 200, json: async () => ({ ok: true, replayed: true, economy: { version: 2, game: {} } }) });
+    return Promise.resolve({ ok: true, status: 200, json: async () => ({ economyReady: true, economy: { version: 1, game: {} }, week: weekView(3) }) });
+  };
+  const client = createEconomyClient({ fetch, timeoutMs: 30, uuid: () => '00000000-0000-4000-8000-000000000009' });
+  await assert.rejects(client.refresh(), /economy_timeout/);
+  const link = L.createEconomyLink({ getClient: () => client });
+  assert.equal(await link.sync(), 'error'); assert.equal(link.gate().mode, 'local', 'zaman aşımı oyunu kilitlemez');
+  hang = false; await client.refresh(); hang = true;
+  const t0 = Date.now();
+  await assert.rejects(client.command('week.end', {}), err => err.message === 'economy_timeout' && err.status === undefined);
+  assert.ok(Date.now() - t0 < 1000); assert.ok(aborted >= 2, 'istek AbortController ile iptal edildi');
+  assert.equal(client.pendingType, 'week.end', 'belirsiz: askıda kaldı');
+  hang = false;
+  assert.equal((await client.retry()).replayed, true);
+  assert.equal(sent[0], sent[1], 'aynı gövde (aynı requestId) yeniden gönderildi');
+  // boot sınırı: söz süresi dolunca yedek değerle döner.
+  const slow = new Promise(r => setTimeout(() => r('late'), 200));
+  assert.equal(await L.bounded(slow, 20, () => 'fallback'), 'fallback');
+  assert.equal(await L.bounded(Promise.resolve('fast'), 200, () => 'fallback'), 'fast');
+});

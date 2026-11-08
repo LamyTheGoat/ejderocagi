@@ -191,7 +191,14 @@
     };
   }
 
-  const api = { createEconomyLink, weekGate, formatWait, badgeText, waitMessage, weekSummary, errorText, settlementText, pickDuelDragon, rebuildAvailable, estimateServerNow, SETTLEMENT_REASONS };
+  // Söz en geç `ms` içinde çözülür (iş iptal edilmez, arka planda tamamlanır).
+  function bounded(promise, ms, fallback) {
+    let timer = null;
+    const late = new Promise(resolve => { timer = setTimeout(() => resolve(fallback()), ms); });
+    return Promise.race([Promise.resolve(promise).catch(() => fallback()), late]).finally(() => clearTimeout(timer));
+  }
+
+  const api = { createEconomyLink, bounded, weekGate, formatWait, badgeText, waitMessage, weekSummary, errorText, settlementText, pickDuelDragon, rebuildAvailable, estimateServerNow, SETTLEMENT_REASONS };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   Object.assign(root, { ECO_LINK_LIB: api });
 
@@ -212,6 +219,7 @@
     },
   });
   let refillTimer = null, lastSync = 0;
+  const BOOT_MS = 5000;
   function scheduleRefill() {
     if (refillTimer) { clearTimeout(refillTimer); refillTimer = null; }
     const g = link.gate();
@@ -219,11 +227,12 @@
   }
   root.ECO_LINK = Object.assign(link, {
     // Bağlantı kurulduktan sonra (net.js) ve odak dönüşünde çağrılır; en sık 30 sn'de bir okur.
+    // O-1: boot en geç BOOT_MS (5 sn) içinde döner; ağ yavaşsa iş arka planda sürer, oyun beklemez.
     boot(force) {
       const t = Date.now();
       if (!force && t - lastSync < 30000) return Promise.resolve(link.state.status);
       lastSync = t;
-      return link.retryPending().then(() => link.sync());
+      return bounded(link.retryPending().then(() => link.sync()), BOOT_MS, () => link.state.status);
     },
     statusModal() {
       if (typeof showModal !== 'function') return;
