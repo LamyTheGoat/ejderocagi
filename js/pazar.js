@@ -278,7 +278,7 @@ function vendorView(k) {
 function coinsFrom(el) { const r = el?.getBoundingClientRect?.(); if (r) FX.coins(r.x + r.width / 2, r.y + r.height / 2); }
 const PAZAR_ACT = {
   stall(el) { const k = el.dataset.k; if (!stallOpen(k)) return; UI.stall = k; UI.stallTab = k === 'demir' ? 'ors' : 'al'; UI.vsay = null; UI.sellArm = null; SFX.play('tab'); render(); },
-  'stall-back'() { UI.stall = null; UI.vsay = null; UI.sellArm = null; SFX.play('tab'); render(); },
+  'stall-back'() { UI.stall = null; UI.vsay = null; UI.sellArm = null; UI.bedPick = null; SFX.play('tab'); render(); },
   stab(el) { UI.stallTab = el.dataset.k; UI.sellArm = null; SFX.play('page'); render(); },
   buyD(el) {
     const i = +el.dataset.i, d = S.market.dragons[i]; if (!d) return;
@@ -338,6 +338,7 @@ const PAZAR_ACT = {
     UI.pg['bed-sell'] = 0;
     UI.pg['bed-mine'] = 0;
     UI.bedArm = null;
+    UI.bedPick = null;
     SFX.play('tab');
     render();
   },
@@ -350,6 +351,7 @@ const PAZAR_ACT = {
   'bed-sell-cat'(el) {
     UI.bedSellCat = el.dataset.k || 'dragon';
     UI.pg['bed-sell'] = 0;
+    UI.bedPick = null;
     SFX.play('page');
     render();
   },
@@ -432,6 +434,13 @@ const BED_MSG = {
 };
 const bedErr = code => esc(BED_MSG[code] || ('İşlem doğrulanamadı: ' + code));
 function bedDraft(k) { return (UI.bedDraft && UI.bedDraft[k]) || ''; }
+// ENG-08: Ocak Sandığı "Bedestende Sat" ön seçimi. UI.bedPick = {kind, id, jump}; jump bir kez sayfayı kaleme götürür.
+function bedPicked(kind, id) { return !!(UI.bedPick && UI.bedPick.kind === kind && UI.bedPick.id === id); }
+function bedPickJump(ids, kind) {
+  if (!UI.bedPick || !UI.bedPick.jump || UI.bedPick.kind !== kind) return;
+  const i = ids.indexOf(UI.bedPick.id); UI.bedPick.jump = false;
+  if (i >= 0) UI.pg['bed-sell'] = Math.floor(i / PER(4, 2));
+}
 function bedNum(k) { const n = Number(bedDraft(k)); return Number.isSafeInteger(n) && n > 0 ? n : null; }
 if (typeof document !== 'undefined') document.addEventListener('input', e => {
   const k = e.target && e.target.dataset && e.target.dataset.bed;
@@ -474,6 +483,7 @@ async function bedSend(op, el, kind) {
       if (!quantity) { toast(bedErr('invalid_quantity')); return; }
       await M.list(kind, id, quantity, unitPrice);
       if (UI.bedDraft) { delete UI.bedDraft['price:' + kind + ':' + id]; delete UI.bedDraft['qty:food:' + id]; }
+      if (bedPicked(kind, id)) UI.bedPick = null;
       SFX.play('coin');
       toast('İlan sunucuya kaydedildi. Sen çevrimdışıyken de satılabilir.');
     }
@@ -597,12 +607,13 @@ function bedestenView() {
       const held = {};
       for (const L of myOpen) if (L.kind === 'food') held[L.foodKey] = (held[L.foodKey] || 0) + L.remaining;
       const keys = Object.keys(eco.game.foodSources || {}).filter(k => (eco.game.foodSources[k].earned || 0) > 0);
+      bedPickJump(keys, 'food');
       sellCards = keys.length
         ? pager('bed-sell', keys, PER(4, 2), fk => {
             const F = (typeof FOODS !== 'undefined' && FOODS[fk]) || { ad: fk };
             const free = Math.max(0, (eco.game.foodSources[fk].earned || 0) - (held[fk] || 0));
             return gcard({
-              cls: 'food own',
+              cls: 'food own' + (bedPicked('food', fk) ? ' bed-pick' : ''),
               art: typeof FOODS !== 'undefined' && FOODS[fk] ? foodIcon(fk) : '',
               title: `${esc(F.ad)} (Satılabilir: ${free})`,
               sub: held[fk] ? `İlanda: ${held[fk]}` : 'Kiler Erzağı & İksir',
@@ -627,6 +638,7 @@ function bedestenView() {
         if (kind === 'item' && eco.dragons.some(dr => Object.values(dr.data.equip || {}).some(v => v != null && String(v) === String(d.uid)))) return 'Kuşanılmış';
         return '';
       };
+      bedPickJump(rows.map(a => a.assetId), kind);
       sellCards = rows.length
         ? pager('bed-sell', rows, PER(4, 2), a => {
             const d = a.data, blocked = why(a);
@@ -637,7 +649,7 @@ function bedestenView() {
               else { const it = ITEMS[d.id]; art = it ? itemIcon(d.id) : ''; title = esc(it ? it.ad : d.id); sub = it ? SLOT_AD[it.slot] : ''; }
             } catch (_) { /* görünüm alanı eksik: metinle göster */ }
             return gcard({
-              cls: (kind === 'dragon' ? 'dr' : kind === 'egg' ? 'egg' : 'item') + ' own',
+              cls: (kind === 'dragon' ? 'dr' : kind === 'egg' ? 'egg' : 'item') + ' own' + (bedPicked(kind, a.assetId) ? ' bed-pick' : ''),
               art, title, sub: sub + (blocked ? ` · <b>${esc(blocked)}</b>` : ''),
               body: blocked ? '' : bedInput('price:' + kind + ':' + a.assetId, 'Fiyat'),
               btn: blocked || 'İlana Koy',

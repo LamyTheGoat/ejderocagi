@@ -2203,6 +2203,10 @@ function mobHubModal() {
     </div>
     <div class="mob-cmd-sec">Hızlı Komutlar & Karakter Sistemleri</div>
     <div class="mob-cmd-grid2">
+      <button class="mob-cmd-card" data-open-sandik aria-label="Ocak Sandığı'nı aç: sunucu envanteri">
+        <span class="mc-ic" aria-hidden="true">🧰</span>
+        <div><b>Ocak Sandığı</b><small>Sunucu envanterin · Bedesten'de sat</small></div>
+      </button>
       <button class="mob-cmd-card hi" data-a="mob-hub-act" data-act="chibi-open">
         <span class="mc-ic">${ui('anvil')}</span>
         <div><b>Terbiyeci & Kor Örsü</b><small>Kuşanma, +Basma · Kudret ${chFc}</small></div>

@@ -13810,3 +13810,93 @@ button.kir-die{cursor:pointer}
 @media(max-width:540px){.trade-panel{padding:12px;max-height:calc(100dvh - 24px);}.trade-columns{grid-template-columns:1fr;}.trade-peer{flex-wrap:wrap;}.trade-entry{top:72px;right:6px;font-size:12px;padding:6px 10px;}}
 .trade-panel header {position:sticky;top:-12px;z-index:1;background:#211c1b;padding:8px 0;}
 .trade-panel {padding-top:max(12px,env(safe-area-inset-top));padding-bottom:max(12px,env(safe-area-inset-bottom));}
+
+/* ===== ENG-08 · Ocak Sandığı (sunucu envanteri) — js/ocak_sandigi.js ===== */
+.sandik{box-sizing:border-box;width:min(980px,calc(100vw - 32px));height:min(760px,calc(100dvh - 32px));max-width:none;max-height:none;margin:auto;padding:0;border:1px solid var(--brass2);border-radius:16px;background:radial-gradient(ellipse at 50% 0%,rgba(239,127,62,.12),transparent 60%),#16110f;color:var(--ink);font-family:var(--f-ui);box-shadow:0 18px 80px #000c;overflow:hidden}
+.sandik[open]{display:flex;flex-direction:column}
+.sandik::backdrop{background:rgba(8,6,8,.82)}
+.sandik :focus-visible{outline:3px solid var(--gold-hi);outline-offset:2px}
+.sandik .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.sandik-head{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:12px 14px 8px;padding-top:max(12px,env(safe-area-inset-top));border-bottom:1px solid var(--line);background:linear-gradient(180deg,#221a15,#18120f)}
+.sandik-titles{flex:1;min-width:0}
+.sandik-titles small{display:block;color:var(--mute);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.sandik-titles h2{margin:0;font-family:var(--f-disp);font-weight:600;font-size:28px;line-height:1.1;color:var(--parch);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sandik-icb{flex:0 0 auto;width:44px;height:44px;border-radius:10px;border:1px solid var(--brass2);background:#2a1f18;color:var(--parch);font-size:20px;cursor:pointer}
+.sandik-icb:disabled{opacity:.5;cursor:wait}
+.sandik-live{flex:0 0 auto;margin:0;padding:6px 14px 0;font-size:13px;color:var(--ink2);min-height:1.4em}
+.sandik-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);overflow:hidden}
+.sandik-body.has-detail{grid-template-columns:minmax(0,1fr) 340px}
+.sandik-list{min-width:0;overflow:auto;padding:8px 14px 16px;padding-bottom:max(16px,env(safe-area-inset-bottom))}
+.sandik-tabs-wrap{position:relative;margin:0 -14px 8px}
+.sandik-tabs{display:flex;gap:6px;overflow-x:auto;padding:4px 14px 8px;scrollbar-width:thin;scrollbar-color:var(--brass2) transparent;scroll-snap-type:x proximity;scroll-padding-inline:14px}
+.sandik-tabs::-webkit-scrollbar{height:4px}.sandik-tabs::-webkit-scrollbar-thumb{background:var(--brass2);border-radius:2px}
+.sandik-tabs-wrap::before,.sandik-tabs-wrap::after{position:absolute;top:0;bottom:8px;width:28px;pointer-events:none;opacity:0;transition:opacity .15s;display:flex;align-items:center;font-size:20px;color:var(--gold-hi)}
+.sandik-tabs-wrap::before{left:0;content:"\2039";justify-content:flex-start;padding-left:3px;background:linear-gradient(90deg,#16110f 40%,transparent)}
+.sandik-tabs-wrap::after{right:0;content:"\203A";justify-content:flex-end;padding-right:3px;background:linear-gradient(270deg,#16110f 40%,transparent)}
+.sandik-tabs-wrap.more-l::before,.sandik-tabs-wrap.more-r::after{opacity:1}
+.sandik-tab{flex:0 0 auto;scroll-snap-align:start;min-height:44px;padding:8px 14px;border-radius:22px;border:1px solid var(--line);background:rgba(0,0,0,.3);color:var(--ink2);font:600 15px var(--f-ui);cursor:pointer;white-space:nowrap}
+.sandik-tab small{margin-left:4px;color:var(--mute);font-weight:400}
+.sandik-tab.on{background:linear-gradient(180deg,#5a3a20,#3a2414);border-color:var(--brass);color:var(--gold-hi);box-shadow:inset 0 -3px 0 var(--ember)}
+.sandik-tools{display:flex;gap:8px;margin-bottom:10px}
+.sandik-search{flex:1;min-width:0}
+.sandik-search input,.sandik-sort select{width:100%;min-height:44px;padding:8px 12px;border-radius:10px;border:1px solid var(--brass2);background:#0f0b0a;color:var(--ink);font:15px var(--f-ui)}
+.sandik-sort{flex:0 0 auto;width:132px}
+.sandik-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.sandik-card{position:relative;width:100%;height:100%;min-height:172px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 8px;border-radius:12px;border:1px solid var(--line);background:radial-gradient(ellipse at 50% 30%,rgba(255,190,120,.12),transparent 70%),rgba(12,6,8,.6);color:var(--ink);cursor:pointer;text-align:center}
+.sandik-card:hover{border-color:var(--brass)}
+.sandik-card[aria-current="true"]{border:2px solid var(--gold-hi);box-shadow:0 0 18px rgba(239,127,62,.35)}
+.sandik-art{width:100%;height:96px;display:flex;align-items:center;justify-content:center;overflow:hidden;pointer-events:none}
+.sandik-art>svg,.sandik-art>img{max-width:100%;max-height:100%;width:auto;height:100%;object-fit:contain}
+.sandik-glyph{font-size:44px;line-height:1}
+.sandik-name{font:600 16px var(--f-tale);line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.sandik-meta{margin-top:auto;display:flex;flex-wrap:wrap;gap:4px;justify-content:center;align-items:center;font-size:13px}
+.sandik-meta b{color:var(--gold-hi)}
+.sandik-flag{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;background:#2a1f18;border:1px solid var(--brass2)}
+.sandik-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:13px;line-height:1.2;border:1px solid}
+.sandik-badge i{font-style:normal;font-weight:700}
+.sandik-badge.sm{font-size:12px;padding:2px 7px}
+.sandik-badge.src-earned{color:#ffe7a8;border-color:var(--brass);background:rgba(217,176,98,.16)}
+.sandik-badge.src-mixed{color:#ffe7a8;border-color:var(--brass);border-style:dashed;background:rgba(217,176,98,.08)}
+.sandik-badge.src-bound{color:#d8d2c8;border-color:#8a8378;background:rgba(120,115,105,.18)}
+.sandik-badge.src-unknown{color:#e8d8c8;border-color:#a08070;border-style:dotted;background:rgba(90,60,50,.25)}
+.sandik-note{margin:14px 0 0;font-size:13px;color:var(--mute)}
+.sandik-empty{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding:36px 16px;color:var(--ink2)}
+.sandik-empty>span{font-size:48px}
+.sandik-empty p{margin:0;max-width:44ch}
+.sandik-empty.sm{padding:20px 8px}
+.sandik-btn{min-height:48px;padding:10px 20px;border-radius:10px;border:1px solid var(--brass);background:#3a2a1c;color:var(--parch);font:700 16px var(--f-ui);cursor:pointer}
+.sandik-btn.primary{width:100%;background:linear-gradient(180deg,#ff9a52,#c95a26);border-color:#ffb067;color:#2a1206;box-shadow:0 2px 0 #5a2008,0 0 18px rgba(239,127,62,.3)}
+.sandik-link{min-height:44px;padding:8px 12px;border:0;background:none;color:var(--ember2);font:600 15px var(--f-ui);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.sandik-detail{min-width:0;overflow:auto;padding:12px 16px 20px;padding-bottom:max(20px,env(safe-area-inset-bottom));border-left:1px solid var(--line);background:rgba(0,0,0,.25);display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px}
+.sandik-back{align-self:flex-start;min-height:44px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.3);color:var(--ink2);font:600 15px var(--f-ui);cursor:pointer;display:none;align-items:center}
+.sandik-dart{width:100%;max-width:260px;height:200px;flex:0 0 auto;display:flex;align-items:center;justify-content:center}
+.sandik-dart>svg,.sandik-dart>img{max-width:100%;max-height:100%;width:auto;height:100%;object-fit:contain}
+.sandik-dart .sandik-glyph{font-size:96px}
+.sandik-detail h3{margin:0;font-family:var(--f-disp);font-weight:600;font-size:30px;line-height:1.1;color:var(--parch);overflow-wrap:anywhere}
+.sandik-dsub,.sandik-split{margin:0;color:var(--ink2);font-size:15px}
+.sandik-split b{color:var(--gold-hi)}
+.sandik-dbadge{display:flex;flex-direction:column;align-items:center;gap:6px}
+.sandik-dbadge p{margin:0;font-size:14px;color:var(--ink2);max-width:36ch}
+.sandik-status{margin:4px 0 0;padding:10px 12px;border-radius:10px;font-size:15px;border:1px solid var(--line);background:rgba(0,0,0,.3);width:100%}
+.sandik-status i{font-style:normal;font-weight:700;margin-right:4px}
+.sandik-status.tone-ok{border-color:var(--brass);color:#ffe7a8}
+.sandik-status.tone-reserved,.sandik-status.tone-busy{border-color:#b08a40;border-style:dashed}
+.sandik-status.tone-locked{color:#d8d2c8}
+.sandik-actions{width:100%;display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:4px}
+.bag-sandik-link{margin-left:auto;margin-right:8px;min-height:44px}
+.gcard.bed-pick{outline:3px solid var(--gold-hi);outline-offset:2px;box-shadow:0 0 0 6px rgba(253,230,138,.18),0 0 26px rgba(239,127,62,.45)}
+.gcard.bed-pick::before{content:"Ocak Sand\0131\011F\0131'ndan se\00E7ildi";position:absolute;top:6px;left:50%;transform:translateX(-50%);padding:2px 8px;border-radius:8px;background:var(--gold-hi);color:#2a1206;font:700 11px var(--f-ui);white-space:nowrap;z-index:1}
+@media (max-width:760px){
+ .sandik{width:100vw;height:100dvh;max-height:100dvh;border-radius:0;border:0}
+ .sandik-titles h2{font-size:24px}
+ .sandik-body.has-detail{grid-template-columns:minmax(0,1fr)}
+ .sandik-body.has-detail .sandik-list{display:none}
+ .sandik-detail{border-left:0;background:none}
+ .sandik-back{display:inline-flex}
+ .sandik-grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+ .sandik-card{min-height:156px;padding:8px 6px}
+ .sandik-art{height:80px}
+ .sandik-name{font-size:15px}
+ .sandik-sort{width:118px}
+}
+@media (prefers-reduced-motion:reduce){.sandik-tabs-wrap::before,.sandik-tabs-wrap::after{transition:none}}
