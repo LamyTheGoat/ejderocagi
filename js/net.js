@@ -174,6 +174,8 @@ function mpOpenWs(baseWs) {
           MP.authHandle = msg.authenticated ? (msg.handle || null) : null;
           MP.accountId = msg.accountId || MP.accountId;
           MP.xVerified = !!msg.xVerified; // ENG-10 Y-1: ödüllü düello yalnız kayıtlı (X oturumlu) hesaba açık
+          // ENG-10 (6): kayıtlı oturumda sunucu ocağı yoksa arka planda kurulur (hata → sessizce eski akış).
+          if (MP.xVerified && typeof ECO_LINK !== 'undefined') Promise.resolve().then(() => ECO_LINK.boot(true)).then(() => ECO_LINK.autoStart(true)).catch(() => {});
           if (MP.authHandle && S) { S.handle = MP.authHandle; S.xVerified = !!msg.xVerified; if (typeof saveGame === 'function') saveGame(); }
           MP.onlineCount = msg.onlineCount || 1;
           if (msg.worldBoss) MP.worldBoss = msg.worldBoss;

@@ -195,6 +195,18 @@
       if (g.mode === 'server') { owed++; saveOwed(); schedule(); }
       return g.mode;
     }
+    // ENG-10 (6): kayıtlı (X oturumlu) hesapta sunucu ocağı ilk girişte sessizce kurulur (`game.start`). Yerel `S`
+    // hiç değişmez ve sunucuya taşınmaz (istemci verisine güvenilmez); sunucu ocağı başlangıç varlıklarıyla açılır.
+    // Hata olursa sessizce eski akış sürer. Oyunu beklemez.
+    let autoTried = false;
+    async function autoStart(registered) {
+      const c = client();
+      if (!c || !registered || autoTried || !isOnline() || status !== 'nogame' || c.hasPending) return false;
+      autoTried = true;
+      try { await c.command('game.start', {}); } catch (_) { return false; }
+      await sync();
+      return linked();
+    }
     async function rebuild() {
       const c = client();
       if (!c || !linked()) return null;
@@ -212,7 +224,7 @@
       await schedule();
     }
     return {
-      sync, endWeek, rebuild, retryPending, gate,
+      sync, endWeek, rebuild, retryPending, gate, autoStart,
       badge: () => badgeText({ linked: linked(), week: week(), pendingWeek: pendingWeek(), queued: owed }, now()),
       duelDragon: () => (linked() ? pickDuelDragon(client().state) : null),
       get linked() { return linked(); },
@@ -265,7 +277,7 @@
       const t = Date.now();
       if (!force && t - lastSync < 30000) return Promise.resolve(link.state.status);
       lastSync = t;
-      return bounded(link.retryPending().then(() => link.sync()), BOOT_MS, () => link.state.status);
+      return bounded(link.retryPending().then(() => link.sync()).then(st => (st === 'nogame' && typeof MP !== 'undefined' && MP.xVerified ? link.autoStart(true).then(() => link.state.status) : st)), BOOT_MS, () => link.state.status);
     },
     statusModal() {
       if (typeof showModal !== 'function') return;

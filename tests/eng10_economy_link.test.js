@@ -241,3 +241,23 @@ test('ENG-10 O-3: askıdaki week.end gövdesi (requestId dahil) ve kuyruk depoda
   await link4.sync(); link4.endWeek(() => {}); await link4.whenIdle();
   assert.equal(srv.posts.at(-1).type, 'week.end');
 });
+
+test('ENG-10 (6): autoStart yalnız kayıtlıda ve sunucu ocağı yokken bir kez game.start gönderir; hata sessiz', async () => {
+  let started = false, posts = 0, fail = false;
+  const fetch = async (url, options = {}) => {
+    if (options.method === 'POST') { posts++; if (fail) return { ok: false, status: 503, json: async () => ({ error: 'economy_unavailable' }) }; started = true; return { ok: true, status: 200, json: async () => ({ ok: true, economy: { version: 1, game: {} } }) }; }
+    return { ok: true, status: 200, json: async () => ({ economyReady: true, economy: started ? { version: 1, game: {} } : { version: 0 }, week: started ? weekView(6) : null }) };
+  };
+  const client = createEconomyClient({ fetch, uuid: () => '00000000-0000-4000-8000-000000000001' });
+  const link = L.createEconomyLink({ getClient: () => client });
+  assert.equal(await link.sync(), 'nogame');
+  assert.equal(await link.autoStart(false), false); assert.equal(posts, 0, 'misafirde kurulmaz');
+  assert.equal(await link.autoStart(true), true); assert.equal(posts, 1); assert.equal(link.linked, true);
+  assert.equal(await link.autoStart(true), false); assert.equal(posts, 1, 'bir kez');
+  // Hata: sessiz, eski akış.
+  started = false; fail = true;
+  const c2 = createEconomyClient({ fetch, uuid: () => '00000000-0000-4000-8000-000000000002' });
+  const l2 = L.createEconomyLink({ getClient: () => c2 });
+  await l2.sync();
+  assert.equal(await l2.autoStart(true), false); assert.equal(l2.gate().mode, 'local');
+});

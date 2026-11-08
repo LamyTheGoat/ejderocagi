@@ -144,7 +144,8 @@ function mpStartServerDragonDuel(msg) {
   F.e = { ...baseE, ...F.e, side: 'e', ref: opp };
   FT = {
     F, d: mine, opp, peer,
-    mpOpts: { serverRoom: true, rewardGold: 85, ranked, matchId: msg.matchId || null },
+    // Ödüllü odada tutar yalnız sunucudadır; rewardGold yalnız vitrin (yerel) odası içindir.
+    mpOpts: ranked ? { serverRoom: true, ranked: true, matchId: msg.matchId || null } : { serverRoom: true, rewardGold: 85 },
     mpRoomId: msg.roomId,
     mpRole: role,
     waitingForOpponent: !!(msg.submitted || []).includes(me),

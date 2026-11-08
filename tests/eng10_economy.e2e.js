@@ -29,7 +29,7 @@ async function startServerOcak(page) {
     const eco = await (await fetch('/api/economy', { credentials: 'same-origin' })).json();
     const r = await fetch('/api/economy/command', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ requestId: crypto.randomUUID(), expectedVersion: eco.economy.version, type: 'game.start', args: {} }) });
-    if (!r.ok) throw new Error('start ' + r.status);
+    if (!r.ok && r.status !== 409) throw new Error('start ' + r.status); // 409: otomatik kurulumla yarıştı
     await ECO_LINK.boot(true);
   });
   await expect.poll(() => page.evaluate(() => ECO_LINK.linked)).toBe(true);
@@ -154,12 +154,15 @@ test('ENG-10 yerleşim: 375/768/900/1000 px taşma yok, üst şerit çakışmıy
       for (let i = 0; i < els.length; i++) for (let j = i + 1; j < els.length; j++) if (inter(els[i].getBoundingClientRect(), els[j].getBoundingClientRect())) ov.push(name(els[i]) + ' x ' + name(els[j]));
       const eco = document.querySelector('.endweek .eco-week');
       const er = eco.getBoundingClientRect();
-      return { vw: innerWidth, scroll: document.documentElement.scrollWidth, ov, eco: vis(eco) ? eco.textContent : null, ecoInside: er.right <= innerWidth + 0.5 && er.left >= -0.5 };
+      return { vw: innerWidth, scroll: document.documentElement.scrollWidth, ov, eco: vis(eco) ? eco.textContent : null, ecoInside: er.right <= innerWidth + 0.5 && er.left >= -0.5,
+        ewH: document.querySelector('.endweek').getBoundingClientRect().height, ewIn: document.querySelector('.endweek').getBoundingClientRect().bottom <= innerHeight + 0.5 };
     });
     expect(m.scroll, String(w)).toBe(m.vw);
     expect(m.ov, String(w)).toEqual([]);
     expect(m.eco, String(w)).toBe('🎟 2/8');
     expect(m.ecoInside, String(w)).toBe(true);
+    expect(m.ewH, String(w)).toBeGreaterThanOrEqual(44); // mobil dahil "Haftayı Bitir" ≥ 44 px
+    expect(m.ewIn, String(w)).toBe(true); // ekranın altından taşmaz
     await page.screenshot({ path: path.join(__dirname, '../test-results/eng10', `w${w}.png`) });
     expect(errors).toEqual([]);
     await ctx.close();
@@ -191,4 +194,23 @@ test('ENG-10 K5 arayüzü: iflas eşiğinde "Ocağı yeniden kur" görünür, ko
   await expect(page.locator('#toasts')).toContainText('gerekli değil');
   expect(errors).toEqual([]);
   await ctx.close();
+});
+
+test('ENG-10 (6): kayıtlı oturumda sunucu ocağı ilk girişte kendiliğinden kurulur; yerel durum değişmez; misafirde kurulmaz', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
+  const page = await ctx.newPage(); const errors = []; page.on('pageerror', e => errors.push(String(e)));
+  await enter(page, { register: true });
+  const local = await page.evaluate(() => JSON.stringify([S.week, S.gold, S.dragons.length, S.eggs.length]));
+  await expect.poll(() => page.evaluate(() => ECO_LINK.linked), { timeout: 15000 }).toBe(true);
+  expect((await serverWeek(page)).week).toBe(1);
+  expect(await page.evaluate(() => JSON.stringify([S.week, S.gold, S.dragons.length, S.eggs.length]))).toBe(local);
+  const starts = await page.evaluate(async () => (await (await fetch('/api/economy', { credentials: 'same-origin' })).json()).economy.version);
+  expect(starts).toBe(1); // tek game.start
+  expect(errors).toEqual([]);
+  await ctx.close();
+  const gctx = await browser.newContext(); const g = await gctx.newPage(); await enter(g);
+  await expect.poll(() => g.evaluate(() => !!(MP.ws && MP.ws.readyState === 1))).toBe(true);
+  await g.evaluate(() => ECO_LINK.boot(true));
+  expect(await serverWeek(g)).toBe(null);
+  await gctx.close();
 });

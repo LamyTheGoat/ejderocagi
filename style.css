@@ -13958,3 +13958,7 @@ body { margin: 0; }
 @media (min-width: 761px) and (max-width: 819px) {
   #hud .save-badge, #hud .hud-c .wk .ssn { display: none; }
 }
+/* ENG-10 (6): mobil "Haftayı Bitir" dokunma hedefi en az 44 px (ENG-09 O-5 kalıntısı). */
+@media (max-width: 760px) {
+  .endweek { height: 44px !important; min-height: 44px !important; }
+}
