@@ -31,6 +31,7 @@
     match_void: 'Maç geçersiz sayıldı; ödül yok.',
     same_account: 'Aynı hesaba karşı ödüllü düello ödül vermez.',
   };
+  const REBUILD_HINT = '<b>Ocak iflasın eşiğinde.</b> Hesabın silinmez: Menü (Çanta) → "Bilet & Borç" ekranından ocağı yeniden kurabilirsin; varlıkların olduğu gibi kalır.';
   const OUTCOME = { win: 'Zafer', draw: 'Beraberlik', loss: 'Yenilgi', forfeit: 'Çekilme', void: 'Geçersiz maç', none: 'Ödülsüz' };
 
   function estimateServerNow(week, localNow) {
@@ -147,6 +148,8 @@
         return null;
       } finally {
         try { await c.refresh(); } catch (_) {}
+        // K5: eşik aşıldıysa yol göster (sunucu bayrağı; eşik sayısı istemcide tutulmaz).
+        if (lastWeek && rebuildAvailable(c.week)) notify(REBUILD_HINT, 'warn');
         changed();
       }
     }

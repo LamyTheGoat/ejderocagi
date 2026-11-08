@@ -150,3 +150,30 @@ test('ENG-10 yerleşim: 375/768/900/1000 px taşma yok, üst şerit çakışmıy
     await ctx.close();
   }
 });
+
+test('ENG-10 K5 arayüzü: iflas eşiğinde "Ocağı yeniden kur" görünür, komut sunucuya gider; sunucu kararı geçerlidir', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
+  const page = await ctx.newPage(); const errors = []; page.on('pageerror', e => errors.push(String(e)));
+  await enter(page); await startServerOcak(page);
+  // Eşik durumunu yalnız okuma yanıtında taklit et; komut gerçek sunucuya gider (borç yok → reddedilir).
+  await page.route('**/api/economy', async route => {
+    const res = await route.fetch(); const body = await res.json();
+    body.week = { ...body.week, debt: 90, debtWeeks: 3, rebuild: { available: true, threshold: 3 } };
+    await route.fulfill({ response: res, json: body });
+  });
+  await page.evaluate(() => ECO_LINK.boot(true));
+  await closeModals(page);
+  await page.evaluate(() => render());
+  await expect(page.locator('.endweek .eco-week')).toContainText('Borç 90');
+  await page.evaluate(() => ACT['eco-status']());
+  const btn = page.locator('.eco-modal [data-a="eco-rebuild"]');
+  await expect(btn).toBeVisible();
+  await expect(page.locator('.eco-modal')).toContainText('Hesabın silinmez');
+  expect((await btn.boundingBox()).height).toBeGreaterThanOrEqual(44);
+  const posted = page.waitForRequest(r => r.url().endsWith('/api/economy/command') && r.method() === 'POST');
+  await btn.click();
+  expect(JSON.parse((await posted).postData()).type).toBe('ocak.rebuild');
+  await expect(page.locator('#toasts')).toContainText('gerekli değil');
+  expect(errors).toEqual([]);
+  await ctx.close();
+});

@@ -425,3 +425,29 @@ test('ENG06 P-D Firestore duel: ledger fighter, lock, replay, exactly-once settl
  assert.equal((await a.finalizeMatch(m7.id,{log:[],forfeit:{accountId:z.accountId,reason:'disconnect'}})).status,'void');
  assert.equal((await settle(b,x,m7)).result.reason,'match_expired');
 });
+
+test('ENG-10 Firestore: listing preview refresh in the seller command (O-7) and ocak.rebuild (K5) across instances', {timeout:60000}, async t => {
+ const a=openFirestoreStore(options),b=openFirestoreStore(options);t.after(async()=>{await a.close();await b.close();});
+ const {Firestore}=require('@google-cloud/firestore');const db=new Firestore(options);t.after(()=>db.terminate());
+ const seller=await a.createGuest(),buyer=await a.createGuest();
+ for(const u of [seller,buyer])await a.executeCommand(u.accountId,command('game.start',{},0));
+ await earnedAccounts(seller.accountId,buyer.accountId);
+ const ref=db.collection('eo_accounts').doc(seller.accountId);
+ const load=async()=>JSON.parse((await ref.get()).data().gameJson),save=g=>ref.update({gameJson:JSON.stringify(g)});
+ const dragon=(await a.readEconomy(seller.accountId)).dragons[0];
+ const listed=(await a.executeMarket(seller.accountId,{op:'list',requestId:crypto.randomUUID(),kind:'dragon',assetId:dragon.assetId,quantity:1,unitPrice:40})).listing;
+ let g=await load();g.dragons[0].name='Tazelendi';await save(g);
+ const v=(await a.readEconomy(seller.accountId)).version;
+ const applied=await b.executeCommand(seller.accountId,command('goals.claim',{},v));
+ assert.equal(applied.listingsRefreshed,1);
+ const doc=JSON.parse((await db.collection('eo_market_listings').doc(listed.id).get()).data().json);
+ assert.equal(doc.preview.name,'Tazelendi');assert.equal(doc.stateVersion,2);
+ await assert.rejects(a.executeMarket(buyer.accountId,{op:'buy',requestId:crypto.randomUUID(),listingId:listed.id,quantity:1,unitPrice:40,stateVersion:1}),/listing_changed/);
+ await a.executeMarket(seller.accountId,{op:'cancel',requestId:crypto.randomUUID(),listingId:listed.id});
+ // K5: borç eşiği → yeniden kur; varlıklar kalır, tekrar aynı sonuç.
+ g=await load();Object.assign(g,{gold:0,funds:{schema:1,bound:0,unknown:0,earned:0},debt:55,debtWeeks:3});await save(g);
+ const v2=(await a.readEconomy(seller.accountId)).version,body=command('ocak.rebuild',{},v2);
+ const done=await a.executeCommand(seller.accountId,body);assert.equal(done.result.writtenOff,55);assert.equal(done.economy.debt,0);
+ const again=await b.executeCommand(seller.accountId,body);assert.equal(again.replayed,true);
+ assert.deepEqual((await b.readEconomy(seller.accountId)).dragons.map(d=>d.assetId),[dragon.assetId]);
+});

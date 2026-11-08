@@ -70,6 +70,7 @@ const SHAPES = Object.freeze({
   'stone.synthesize': ['key'], 'ore.convert': ['from', 'to'],
   'chibi.transfer': ['from', 'to'],
   'week.end': [],
+  'ocak.rebuild': [], // ENG-10 K5: iflas eşiğinde "ocağı yeniden kur" (borç silinir, varlık kaybı yok)
 });
 // Borç varken reddedilen harcama komutları (D4). Ayrıca her `spend` aynı kapıdan geçer.
 const DEBT_BLOCKED = new Set(['building.buy', 'land.clear', 'shop.food', 'shop.item', 'shop.dragon', 'shop.egg',
@@ -241,6 +242,7 @@ function reduceCommand(previous, command, { accountId, seed, now, tickets = TICK
       sources.ensure(S); tagAssets(S, accountId);
       result = week.weekResult(out, summary, ticket); break;
     }
+    case 'ocak.rebuild': result = debt.rebuild(S); break;
     default: fail('unsupported_command');
   }
   result.payment = {...payment};

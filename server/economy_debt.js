@@ -40,4 +40,22 @@ function charge(game, amount) {
   return { paid, unpaid, debit };
 }
 
-module.exports = { debtOf, assertNoDebt, receive, charge, MAX_DEBT };
+// ENG-10 · K5 iflas: hesap SİLİNMEZ, oyun BİTMEZ. Borç art arda REBUILD_DEBT_WEEKS hafta sürerse (istemcideki
+// "3 hafta eksi" eşiğiyle aynı sayı; yeni eşik icat edilmedi) oyuncu "ocağı yeniden kur" der: borç silinir,
+// borçlu hafta sayacı sıfırlanır. Varlık kaybı YOK: ejderha, yumurta, eşya, yem, kaynak kovaları ve bina olduğu
+// gibi kalır (takas edilebilir varlıklar dahil). Yeni altın üretmez (bakiye 0 kalır). Yukarıdaki D4 kuralları
+// (bakiye 0'da durur, kalan borç, mahsup, harcama/takas kapısı) değişmedi; bu yalnız eşik sonrası çıkış yoludur.
+const REBUILD_DEBT_WEEKS = 3;
+function rebuildStatus(game) {
+  const owed = debtOf(game), weeks = count(game.debtWeeks) ? game.debtWeeks : 0;
+  return { available: owed > 0 && weeks >= REBUILD_DEBT_WEEKS, threshold: REBUILD_DEBT_WEEKS, debt: owed, debtWeeks: weeks };
+}
+function rebuild(game) {
+  const st = rebuildStatus(game);
+  if (!st.available) fail('rebuild_unavailable');
+  game.debt = 0; game.debtWeeks = 0;
+  game.rebuilds = (count(game.rebuilds) ? game.rebuilds : 0) + 1;
+  return { rebuilt: true, writtenOff: st.debt, debtWeeks: st.debtWeeks, rebuilds: game.rebuilds };
+}
+
+module.exports = { debtOf, assertNoDebt, receive, charge, MAX_DEBT, REBUILD_DEBT_WEEKS, rebuildStatus, rebuild };

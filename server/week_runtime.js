@@ -132,8 +132,10 @@ function weekStatus(game, now, cfg = TICKETS) {
   } catch (_) { ticket = null; }
   const debtNow = Number.isSafeInteger(game.debt) && game.debt > 0 ? game.debt : 0;
   const weeks = count(game.debtWeeks) ? game.debtWeeks : 0;
+  let rebuild = null;
+  try { const r = debt.rebuildStatus(game); rebuild = { available: r.available, threshold: r.threshold }; } catch (_) { rebuild = null; }
   return { week: Number.isSafeInteger(game.week) ? game.week : 1, seasonNo: Number.isSafeInteger(game.seasonNo) ? game.seasonNo : 1,
-    season: SEASON_WEEKS, ticket, debt: debtNow, debtWeeks: weeks, serverNow: now };
+    season: SEASON_WEEKS, ticket, debt: debtNow, debtWeeks: weeks, rebuild, serverNow: now };
 }
 
 module.exports = { syncTickets, takeTicket, ticketView, runWeek, weekResult, closeDebtWeek, weekStatus, SEASON_WEEKS };
