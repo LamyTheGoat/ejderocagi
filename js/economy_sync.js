@@ -218,7 +218,9 @@
   const importText = (amount, credited, cap, start = 420) => `<b>Tek kese.</b> Altının artık sunucuda, tek kesede: Topçu, olaylar, müzayede, sipariş, tezgâhlar, Bedesten ve takas aynı keseyi kullanır.`
     + (amount > 0 ? ` Kayıt öncesi yerel altının ${start} başlangıç payı sunucuda zaten vardı; kalan ${amount} altının <b>${credited}</b>'i hesabına aktarıldı (hesaba bağlı, takas edilemez)${amount > credited ? `; ${cap} tavanını aşan ${amount - credited} altın aktarılmadı` : ''}.` : '');
 
-  const api = { reconcile, noteLocalHatch, linkHatched, newRows, pickNewRow, serverBuildTile, rejectText, dragonKey, eggKey, reasonFromStack, pushLedger, orderSpec, importText, FILE_REASON };
+  // K-1: üstel geri çekilme (2 sn, 4 sn, … en çok 60 sn).
+  const nextBackoff = prev => Math.min(60000, prev ? prev * 2 : 2000);
+  const api = { nextBackoff, reconcile, noteLocalHatch, linkHatched, newRows, pickNewRow, serverBuildTile, rejectText, dragonKey, eggKey, reasonFromStack, pushLedger, orderSpec, importText, FILE_REASON };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   // ---------- Tarayıcı ----------
@@ -232,7 +234,7 @@
   const one = () => !!(typeof S !== 'undefined' && S && S.srvSync && S.srvSync.one === true);
   const say = (html, kind) => { if (typeof toast === 'function') toast(html, kind); };
   const AMBIGUOUS = 'Sunucu yanıtı gecikti; işlem aynı istekle otomatik yeniden denenecek.';
-  let applying = false, inflight = 0;
+  let applying = false, inflight = 0, coolUntil = 0;
   const LOCAL_START_GOLD = 420;
   const purse = () => { const e = eco(); return e ? Math.max(0, e.gold || 0) : 0; };
   function refreshView() {
@@ -283,9 +285,8 @@
     syncing = true; try { S.gold = e.gold; } finally { syncing = false; }
     return true;
   }
-  let clipWarned = '';
   function flushLedger() {
-    if (!active() || !one()) return;
+    if (!active() || !one() || Date.now() < coolUntil) return;
     const L = ledger();
     if (!L.length) return;
     const items = L.splice(0, L.length); // devredildi: kuyruğa giren komut ECO istemcisinde kalıcıdır (requestId)
@@ -293,9 +294,11 @@
     for (const it of items) {
       if (!it.a) continue;
       send('gold.local', { reason: it.r, amount: it.a }, { soft: true,
-        ok: data => { const r = data.result || {}; const day = new Date().toISOString().slice(0, 10);
-          if (r.clipped > 0 && clipWarned !== day) { clipWarned = day; say(`Günlük kese tavanı: bu yerel kazancın ${r.clipped} altını sunucuya yazılmadı (tavan sunucu yapılandırmasıdır).`, 'warn'); } },
-        fail: code => { if (code === 'insufficient_gold' || code === 'debt_outstanding') say(rejectText(code), 'warn'); } });
+        fail: (code, definite) => {
+          // Oran sınırı ya da belirsiz yanıt: kayıt kaybolmaz, geri konur ve beklenir (anında yeniden deneme yok).
+          if (!definite || code === 'rate_limited') { pushLedger(ledger(), it.r, it.a); coolUntil = Date.now() + (code === 'rate_limited' ? 5000 : 3000); clearTimeout(flushTimer); flushTimer = setTimeout(() => { flushLedger(); }, coolUntil - Date.now()); return; }
+          if (code === 'insufficient_gold' || code === 'debt_outstanding') say(rejectText(code), 'warn');
+        } });
     }
   }
 
@@ -477,23 +480,43 @@
     if (typeof saveGame === 'function') saveGame();
     if (active()) flushDies();
   }
+  // K-1 (QA): kesin retten sonra ANINDA yeniden deneme yok. Her ejderha için üstel geri çekilme (2 sn → 60 sn), kayıtta
+  // saklanır (yenilemede döngü yeniden başlamaz). Sunucu durumu değişirse (sürüm) bir kez erken denenir. `rate_limited`
+  // tüm arka plan gönderimlerini bekletir (cool).
   const dieBusy = new Set();
+  let dieTimer = null;
+  function scheduleDies(ms) { clearTimeout(dieTimer); dieTimer = setTimeout(() => { dieTimer = null; if (active()) flushDies(); }, Math.max(50, ms)); }
   function flushDies() {
     const M = S.srvSync; if (!M || !Array.isArray(M.die) || !active()) return;
+    M.dieWait = M.dieWait && typeof M.dieWait === 'object' ? M.dieWait : {};
+    const now = Date.now(), ver = (eco() || {}).version;
+    if (now < coolUntil) return scheduleDies(coolUntil - now);
+    let soonest = Infinity;
     for (const assetId of M.die) {
       if (dieBusy.has(assetId)) continue;
+      const W = M.dieWait[assetId];
+      if (W && now < W.next && W.ver === ver) { soonest = Math.min(soonest, W.next - now); continue; }
       dieBusy.add(assetId);
-      const done = () => { dieBusy.delete(assetId); M.die = M.die.filter(x => x !== assetId); if (typeof saveGame === 'function') saveGame(); };
+      const done = () => { dieBusy.delete(assetId); M.die = M.die.filter(x => x !== assetId); delete M.dieWait[assetId]; if (typeof saveGame === 'function') saveGame(); };
+      const wait = code => {
+        const prev = M.dieWait[assetId], delay = nextBackoff(prev && prev.delay);
+        M.dieWait[assetId] = { next: Date.now() + delay, delay, ver: (eco() || {}).version, code };
+        if (code === 'rate_limited') coolUntil = Date.now() + delay;
+        if (typeof saveGame === 'function') saveGame();
+        dieBusy.delete(assetId); scheduleDies(delay);
+      };
       send('dragon.die', { assetId }, { soft: true, ok: done, fail: (code, definite) => {
-        if (!definite) { dieBusy.delete(assetId); return; }
-        if (code === 'asset_not_owned') return done();
-        if (code === 'market_reserved_asset') return withdraw(assetId).finally(() => { dieBusy.delete(assetId); flushDies(); });
-        dieBusy.delete(assetId); // takas/kilit: bir sonraki eşitlemede yeniden denenir
-        if (/^trade_reserved/.test(code)) say('Ölen ejderha açık bir takasta; takas bitince sunucu kaydı kalkacak.', 'warn');
+        if (definite && code === 'asset_not_owned') return done();
+        if (definite && code === 'market_reserved_asset') { wait(code); return withdraw(assetId).finally(() => { const W2 = M.dieWait[assetId]; if (W2) W2.ver = -1; scheduleDies(200); }); }
+        if (definite && /^trade_reserved/.test(code) && !(prevCode(assetId))) say('Ölen ejderha açık bir takasta; takas bitince sunucu kaydı kalkacak.', 'warn');
+        wait(code); // takas, kilit, oran sınırı ya da belirsiz yanıt: geri çekil
       } });
     }
+    if (soonest < Infinity) scheduleDies(soonest);
   }
-  async function withdraw(assetId) {
+  const prevCode = assetId => { const W = S.srvSync && S.srvSync.dieWait && S.srvSync.dieWait[assetId]; return W && W.code; };
+  // Sandık: yerelde ölmüş ama sunucuda henüz kalkmamış (takas/ilan/kilit) ejderha için sade durum.
+  const pendingDeath = assetId => !!(typeof S !== 'undefined' && S && S.srvSync && Array.isArray(S.srvSync.die) && S.srvSync.die.includes(assetId));  async function withdraw(assetId) {
     const MC = typeof MARKET_CLIENT !== 'undefined' ? MARKET_CLIENT : null;
     if (!MC) return;
     try {
@@ -651,7 +674,6 @@
           H.stats.guaranteedDropsText = [R.gold ? `+${R.gold} Altın` : '', ...(labels || [])].filter(Boolean).join(' · ') || H.stats.guaranteedDropsText;
           if (H.screen === 'victory' && typeof renderSahmeranApp === 'function') renderSahmeranApp();
         }
-        if (R.capped > 0) say(`Günlük Topçu altın tavanı doldu: bu geçişin ${R.capped} altını yazılmadı.`, 'warn');
         if (typeof saveGame === 'function') saveGame();
       },
       fail: (code, definite) => { if (definite) say(rejectText(code), 'warn'); } });
@@ -689,7 +711,6 @@
           H.wheelSpinning = false;
           if (R.gold > 0 || /gold/.test(R.id || '')) expectAny.topcu++;
           within('routed', () => keepSpin.call(this, R.idx));
-          if (R.capped > 0) say(`Günlük Topçu altın tavanı doldu: bu çarkın ${R.capped} altını yazılmadı.`, 'warn');
         },
         fail: (code, definite) => { H.wheelSpinning = false; say(definite ? rejectText(code) : 'Çark sunucuda doğrulanamadı; biraz sonra yeniden çevir.', 'warn'); if (typeof renderSahmeranApp === 'function') renderSahmeranApp(); } });
     };
@@ -711,6 +732,7 @@
       }
     },
     // Test/teşhis: bekleyen defter ve ölüm kuyruğu.
+    pendingDeath,
     get pending() { return { inflight, ledger: one() ? ledger().slice() : [], die: (S && S.srvSync && S.srvSync.die) || [], expect: { ...expectAny } }; },
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

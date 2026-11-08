@@ -123,6 +123,10 @@
       if (!e.canSell) return { tone: 'reserved', icon: '⏳', text: (parts.join(', ') || 'Kazanılmış kısmın tamamı rezerve') + '. Serbest kazanılmış yem kalmadı.', sell: false, trade: false };
       return { tone: 'ok', icon: '✦', text: `${e.sellQty} adet satışa ya da takasa hazır${parts.length ? ' (' + parts.join(', ') + ')' : ''}.`, sell: true, trade: true };
     }
+    // ENG-13 K-1: yerelde ölmüş, sunucu kaydı takas/ilan/kilit yüzünden henüz kalkmamış ejderha.
+    if (e.kind === 'dragon' && typeof ECO_SYNC !== 'undefined' && ECO_SYNC.pendingDeath && ECO_SYNC.pendingDeath(e.assetId)) {
+      return { tone: 'reserved', icon: '🕯', text: e.reserved === 'trade' ? 'Ocakta öldü. Takas bitince sunucudan kaldırılacak.' : 'Ocakta öldü. Sunucudan kaldırılıyor.', sell: false, trade: false };
+    }
     if (e.reserved === 'market') return { tone: 'reserved', icon: '⏳', text: 'Bedesten\'de ilanda. İlan açıkken rezervedir; Bedesten > Tezgâhım bölümünden geri çekebilirsin.', sell: false, trade: false };
     if (e.reserved === 'trade') return { tone: 'reserved', icon: '⏳', text: 'Açık bir takas teklifinde rezerve. Takas bitince serbest kalır.', sell: false, trade: false };
     if (!e.tradable) return { tone: 'locked', icon: sourceBadge(e.source).icon, text: e.source === 'bound' ? 'Hesaba bağlı: oyunda kullan, satış ve takas kapalı.' : 'Kaynağı doğrulanmadı: satış ve takas kapalı.', sell: false, trade: false };

@@ -113,16 +113,16 @@ test('ENG-13 kayıtlı hesap: tek kese, kayıt öncesi altın aktarımı, yerel 
   await page.evaluate(() => ECO_LINK.boot(true)); await settled(page);
   expect((await serverEco(page)).gold).toBe(2420);
 
-  // Yerel gelir ve gider (atfedilemeyen → 'other', tavan 300): sunucuya yazılır, eşitlemede kaybolmaz.
+  // Yerel gelir ve gider: sunucuya yazılır, eşitlemede kaybolmaz; kullanıcı kararıyla tavan yok, gelir earned.
   await page.evaluate(() => { S.gold += 200; });
   await settled(page);
-  eco = await serverEco(page); expect(eco.gold).toBe(2620); expect(eco.funds.unknown).toBe(200);
+  eco = await serverEco(page); expect(eco.gold).toBe(2620); expect(eco.funds.earned).toBe(200);
   await page.evaluate(() => { S.gold -= 120; });
   await settled(page);
   expect((await serverEco(page)).gold).toBe(2500);
-  // Tavan: tek bildirim 300'ü aşan kısım yazılmaz.
-  await page.evaluate(() => { S.gold += 5000; }); await settled(page);
-  expect((await serverEco(page)).gold).toBe(2800);
+  // O-1: art arda beş kazanç birleşse de kaybolmaz (tavan yok).
+  await page.evaluate(() => { for (let i = 0; i < 5; i++) S.gold += 200; }); await settled(page);
+  expect((await serverEco(page)).gold).toBe(3500);
 
   // NPC tezgâhı aynı keseden öder (ayrı "Ocak Kesesi" yok).
   await closeModals(page);
@@ -131,7 +131,7 @@ test('ENG-13 kayıtlı hesap: tek kese, kayıt öncesi altın aktarımı, yerel 
   await expect(page.locator('.vfoot')).not.toContainText('Ocak Kesesi');
   await page.locator('[data-a="buyFood"][data-f="balik"]').click();
   await settled(page);
-  expect((await serverEco(page)).gold).toBeLessThan(2800);
+  expect((await serverEco(page)).gold).toBeLessThan(3500);
   await page.evaluate(() => { UI.view = 'ocak'; UI.stall = null; render(); });
 
   // Topçu: aşama geçişi +150 ve çark sunucuda; final zafer +250 ve taş düşüşü sunucu chibi kesesinde.
@@ -292,4 +292,48 @@ test('ENG-13 kayıtlı hesap: ölen, ilandayken ölen, müzayedede satılan, sip
   await page.screenshot({ path: path.join(shots, 'yenileme-sonrasi.png') });
   expect(errors).toEqual([]);
   await ctx.close();
+});
+
+test('ENG-13 K-1: takastaki bağlı ejderha yerelde ölünce istek döngüsü yok; Sandık durumu; takas bitince sunucudan kalkar', async ({ browser }) => {
+  const ctxA = await browser.newContext({ viewport: { width: 1000, height: 768 } }), ctxB = await browser.newContext();
+  const A = await ctxA.newPage(), B = await ctxB.newPage(); const errors = []; A.on('pageerror', e => errors.push(String(e)));
+  for (const p of [A, B]) { await p.goto(url + '/api/auth/x/login'); await newGame(p); await linked(p); await settled(p); }
+  const bId = await B.evaluate(() => MP.accountId);
+  seedEarnedGold(await A.evaluate(() => MP.accountId), 20000);
+  await A.evaluate(() => ECO_LINK.boot(true)); await settled(A);
+  await closeModals(A);
+  await A.evaluate(() => { UI.view = 'pazar'; UI.stall = 'ejder'; UI.stallTab = 'al'; UI.vsay = null; render(); });
+  const nm = await A.evaluate(() => S.market.dragons[0].name);
+  await A.locator('[data-a="buyD"][data-i="0"]').click(); await settled(A);
+  const d = await A.evaluate(n => { const x = S.dragons.find(y => y.name === n && y.assetId); return { id: x.id, assetId: x.assetId, name: x.name }; }, nm);
+  const post = (page, b) => page.evaluate(async b => (await fetch('/api/trade', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ requestId: crypto.randomUUID(), ...b }) })).json(), b);
+  const inv = await post(A, { type: 'invite', targetId: bId });
+  const acc = await post(B, { type: 'accept', tradeId: inv.trade.id });
+  const off = await post(A, { type: 'offer', tradeId: inv.trade.id, revision: acc.trade.revision, offer: { gold: 0, items: [], dragons: [d.assetId], eggs: [], food: {} } });
+  expect(off.ok).toBe(true);
+  let n = 0; const codes = {};
+  A.on('response', r => { if (r.url().includes('/api/economy/command')) { n++; codes[r.status()] = (codes[r.status()] || 0) + 1; } });
+  await A.evaluate(id => killDragon(byId(id), 'turnuvada öldü'), d.id);
+  await A.waitForTimeout(15000);
+  expect(n).toBeLessThanOrEqual(6); // önceki hata: 15 sn'de ~9800 istek
+  expect(codes[429] || 0).toBe(0);
+  expect((await serverEco(A)).dragons.some(r => r.assetId === d.assetId)).toBe(true); // takasta: sunucuda bekler
+  // Sandık: sade durum.
+  await closeModals(A);
+  await A.evaluate(() => SANDIK_UI.open());
+  await A.locator('dialog.sandik .sandik-card', { hasText: d.name }).click();
+  await expect(A.locator('dialog.sandik')).toContainText('Takas bitince sunucudan kaldırılacak');
+  await A.screenshot({ path: path.join(shots, 'sandik-takasta-olu.png') });
+  await A.evaluate(() => SANDIK_UI.close());
+  // Yenileme döngüyü yeniden başlatmaz (bekleme kayıtta saklı).
+  n = 0;
+  await A.reload(); await A.locator('[data-a="continue"]').click(); await linked(A);
+  await A.waitForTimeout(5000);
+  expect(n).toBeLessThanOrEqual(3);
+  // Takas iptal → bir sonraki denemede ölüm uygulanır (en geç geri çekilme süresi).
+  await post(A, { type: 'cancel', tradeId: inv.trade.id });
+  await expect.poll(async () => (await serverEco(A)).dragons.some(r => r.assetId === d.assetId), { timeout: 70000, intervals: [1000] }).toBe(false);
+  expect(await A.evaluate(() => S.srvSync.die.length)).toBe(0);
+  expect(errors).toEqual([]);
+  await ctxA.close(); await ctxB.close();
 });
