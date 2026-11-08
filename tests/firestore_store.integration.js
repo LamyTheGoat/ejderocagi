@@ -451,3 +451,31 @@ test('ENG-10 Firestore: listing preview refresh in the seller command (O-7) and 
  const again=await b.executeCommand(seller.accountId,body);assert.equal(again.replayed,true);
  assert.deepEqual((await b.readEconomy(seller.accountId)).dragons.map(d=>d.assetId),[dragon.assetId]);
 });
+
+test('ENG13 Firestore: ilandaki ejderha ölemez (net ret), ilan çekilince ölür; Topçu ve defter iki örnekte tek kez', {timeout:60000}, async t => {
+  const a = openFirestoreStore(options), b = openFirestoreStore(options);
+  t.after(async () => { await a.close(); await b.close(); });
+  const op = (name, fields) => ({ op: name, requestId: crypto.randomUUID(), ...fields });
+  const g = await a.createGuest(), id = g.accountId;
+  await a.executeCommand(id, command('game.start', {}, 0));
+  await earnedAccounts(id);
+  let eco = await b.readEconomy(id);
+  const dragon = eco.dragons[0].assetId;
+  const listing = (await a.executeMarket(id, op('list', { kind: 'dragon', assetId: dragon, quantity: 1, unitPrice: 100 }))).listing;
+  await assert.rejects(b.executeCommand(id, command('dragon.die', { assetId: dragon }, eco.version)), /market_reserved_asset/);
+  assert.equal((await a.readEconomy(id)).dragons.some(r => r.assetId === dragon), true);
+  await b.executeMarket(id, op('cancel', { listingId: listing.id }));
+  eco = await a.readEconomy(id);
+  // Topçu geçişi: aynı istek iki örnekte → bir kez öder.
+  const clear = command('topcu.clear', { mode: 'stage' }, eco.version);
+  const both = await Promise.allSettled([a.executeCommand(id, clear), b.executeCommand(id, clear)]);
+  assert.ok(both.some(r => r.status === 'fulfilled'));
+  eco = await b.readEconomy(id);
+  assert.equal(eco.gold, 420 + 150); assert.equal(eco.funds.unknown, 150);
+  const die = await a.executeCommand(id, command('dragon.die', { assetId: dragon }, eco.version));
+  assert.equal(die.result.died, dragon);
+  eco = await b.readEconomy(id);
+  assert.equal(eco.dragons.some(r => r.assetId === dragon), false);
+  const local = await b.executeCommand(id, command('gold.local', { reason: 'race', amount: 9999 }, eco.version));
+  assert.equal(local.result.credited, 300); assert.equal((await a.readEconomy(id)).gold, 570 + 300);
+});

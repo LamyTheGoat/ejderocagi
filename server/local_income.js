@@ -49,12 +49,17 @@ const LOCAL_REASONS = Object.freeze({
   hub: 1500,       // hub.js: sefer, kervan, dünya patronu (≤ 320 × olay çarpanı), kervan yükü
   raid: 1000,      // net.js: dostluk baskını (85 × çarpanlar + bahis × 2)
   event: 300,      // content.js, fightev.js, arenastory.js, comic.js, star.js, social.js olayları (≤ 150)
+  order: 1500,     // orders.js: sunucuya bağlı OLMAYAN (kayıt öncesi) ejderhanın sipariş teslimi (orderGen üst sınırı ≈ 1450)
+  sale: 2500,      // auction.js / fightev.js / pazar.js: bağlı olmayan ejderhanın müzayede, teklif ya da Rüstem satışı
   other: 300,      // atfedilemeyen yerel gelir (ör. bina yıkım iadesi)
 });
 // Topçu geçiş ödülleri (js/minigame/shm_ui.js: openStageClearBlessingModal, completeSahmeranDungeonVictory).
 const TOPCU_CLEAR = Object.freeze({ stage: 150, caravan: 180, raid_normal: 250, raid_hard: 500, raid_extreme: 950, pvp: 0 });
 const TOPCU_SPIN_FEE = 120; // shm_ui.js spinSahmeranLootWheel: ücretli ek büyük çark
 const TOPCU_TOKEN_MAX = 3;
+// Çarkın sabit taş dilimleri (shm_ui.js finalizeSpin); cevher/kalıp parçası dilimleri yerel ganimet listesine bağlıdır (yerel kalır).
+const SPIN_DROPS = Object.freeze({ minor_kort1_2: { kor_t1: 2 }, minor_kort1_3: { kor_t1: 3 }, minor_kort2_1: { kor_t2: 1 },
+  major_kort2_2: { kor_t2: 2 }, major_kort2_3: { kor_t2: 3 }, major_kort3_1: { kor_t3: 1 }, major_jackpot: { anka_koruma: 1, kiyamet_ozu: 1 } });
 // Çark dilimleri (js/minigame/shm_data.js getMinorWheelSlices / getMajorWheelSlices ile aynı ağırlıklar).
 function wheel(name) {
   if (/^minor[123]$/.test(name)) {
@@ -120,6 +125,25 @@ function parseOrder(spec, elements) {
 // Sunucu VM'inde (tohumlu Math.random) çalışan yardımcılar. Yalnız depoya ait kural dosyalarındaki adları kullanır.
 const vmExpose = new vm.Script(`({
   GOALS, EL_AD,
+  rand() { return Math.random(); }, // tohumlu (economy_commands makeRuntime)
+  award(drops) { return awardChibiStones(drops); },
+  // js/minigame/shm_ui.js completeSahmeranDungeonVictory garantili düşüşleri (aynı formül; kervan ortaklığı/üçlü sancak
+  // istemci durumudur, sunucuda bilinmez ve uygulanmaz).
+  topcuDrops(kind, sub) {
+    const sofra = !!(S.sofraBuff && S.sofraBuff.week === S.week), r = () => Math.random();
+    if (kind === 'caravan') {
+      const ore = { kizil_vadi: 'obsidiyen', buzul_gecidi: 'kehribar', mercan_kiyisi: 'mercan', firtina_bogazi: 'yildirim' }[sub] || 'obsidiyen';
+      const oreAmt = 1 + (r() < 0.45 ? 1 : 0); let t2 = 1 + (r() < 0.45 ? 1 : 0); if (sofra && r() < 0.20) t2 += 1;
+      const t3 = r() < 0.25 ? 1 : 0, shardWin = r() < 0.35, shardKey = r() < 0.5 ? 'sahmeran_kalip' : 'kalgarot_kalip';
+      const rw = { [ore]: oreAmt, kor_t2: t2 }; if (t3) rw.kor_t3 = t3; if (shardWin) rw[shardKey] = 1; return rw;
+    }
+    const shard = sub === 'abra' ? 'abra_kalip' : sub === 'komutan' ? 'kalgarot_kalip' : 'sahmeran_kalip';
+    if (kind === 'raid_normal') return { [shard]: 1, kor_t2: 2 + (sofra && r() < 0.20 ? 1 : 0) };
+    if (kind === 'raid_extreme') { const rw = { [shard]: 3 + (r() < 0.5 ? 1 : 0), kor_t3: 2 + (r() < 0.5 ? 1 : 0) + (sofra && r() < 0.20 ? 1 : 0), kiyamet_ozu: 1 }; if (r() < 0.25) rw.anka_koruma = 1; return rw; }
+    if (kind === 'raid_hard') { const rw = { [shard]: 2, kor_t2: 2 + (sofra && r() < 0.20 ? 1 : 0) }; if (r() < 0.50) rw.kor_t3 = 1; return rw; }
+    if (kind === 'pvp') return { kor_t1: 2, kor_t2: 1 };
+    return {};
+  },
   // js/auction.js aucOpen + aucNpcTurn (oyuncunun kendi ejderhasını satışa çıkarması): aynı formül, zamanlayıcısız.
   aucSimServer(d) {
     const v = value(d), rare = rareScore(d);
@@ -230,16 +254,20 @@ function reduce(type, S, a, ctx) {
       return { gold, credit };
     }
     case 'topcu.clear': {
-      if (!Object.hasOwn(TOPCU_CLEAR, a.mode)) fail('unknown_topcu_mode', 400);
+      // mode = tür[:alt] (alt: zindan kimliği ya da kervan yolu; yalnız düşüş tablosunu seçer).
+      const [kind, sub = ''] = String(a.mode).split(':');
+      if (!Object.hasOwn(TOPCU_CLEAR, kind) || !/^[a-z_]{0,24}$/.test(sub)) fail('unknown_topcu_mode', 400);
       // Bilinen ejderha: sunucu ocağında canlı bir ejderha olmadan sefer ödülü yok.
       if (!S.dragons.some(d => !d.dead && !d.old)) fail('topcu_no_dragon', 409);
       const D = daily(S, now);
       const T = S.topcu = S.topcu && typeof S.topcu === 'object' ? S.topcu : { minor: 0, major: 0, open: false };
-      const fam = a.mode === 'stage' ? 'minor' : 'major';
+      const fam = kind === 'stage' ? 'minor' : 'major';
       T[fam] = Math.min(TOPCU_TOKEN_MAX, (count(T[fam]) ? T[fam] : 0) + 1); T.open = false;
-      const gold = Math.min(TOPCU_CLEAR[a.mode], Math.max(0, caps.topcuDaily - D.topcu));
+      const gold = Math.min(TOPCU_CLEAR[kind], Math.max(0, caps.topcuDaily - D.topcu));
       D.topcu += gold;
-      return { mode: a.mode, gold, capped: TOPCU_CLEAR[a.mode] - gold, credit: income(S, gold, 'unknown') };
+      const drops = JSON.parse(JSON.stringify(api.topcuDrops(kind, sub)));
+      if (Object.keys(drops).length) api.award(drops);
+      return { mode: kind, gold, capped: TOPCU_CLEAR[kind] - gold, drops, credit: income(S, gold, 'unknown') };
     }
     case 'topcu.spin': {
       const slices = wheel(a.wheel);
@@ -251,12 +279,14 @@ function reduce(type, S, a, ctx) {
       else if (fam === 'major' && T.open) { spend(TOPCU_SPIN_FEE); paid = true; }
       else fail('topcu_spin_unavailable', 409);
       const total = slices.reduce((t, s) => t + s[1], 0);
-      let r = Math.random() * total, idx = 0;
+      let r = api.rand() * total, idx = 0;
       for (let i = 0; i < slices.length; i++) { r -= slices[i][1]; if (r <= 0) { idx = i; break; } }
       const [id, , want] = slices[idx];
       const D = daily(S, now), gold = Math.min(want, Math.max(0, caps.topcuDaily - D.topcu));
       D.topcu += gold;
-      return { wheel: a.wheel, idx, id, gold, capped: want - gold, paid, fee: paid ? TOPCU_SPIN_FEE : 0, credit: income(S, gold, 'unknown') };
+      const drops = SPIN_DROPS[id] ? { ...SPIN_DROPS[id] } : {};
+      if (Object.keys(drops).length) api.award(drops);
+      return { drops, wheel: a.wheel, idx, id, gold, capped: want - gold, paid, fee: paid ? TOPCU_SPIN_FEE : 0, credit: income(S, gold, 'unknown') };
     }
     case 'goal.reach': {
       const g = api.GOALS.find(x => x.id === a.id);

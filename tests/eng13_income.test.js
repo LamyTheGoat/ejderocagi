@@ -205,3 +205,34 @@ test('ENG13 depo: takastaki ejderha ölemez (trade_reserved_asset)', t => {
   send(a, 'offer', { tradeId: trade.id, revision: trade.revision, offer: { gold: 0, items: [], dragons: [id], eggs: [], food: {} } });
   assert.throws(() => f.exec(a, 'dragon.die', { assetId: id }), /trade_reserved_asset/);
 });
+
+test('ENG13 topcu: garantili düşüşler sunucu chibi kesesine yazılır; çark tohumlu (aynı tohum aynı dilim)', () => {
+  let g = start();
+  const t2 = g.chibi.stones.kor_t2;
+  const r = run(g, 'topcu.clear', { mode: 'raid_normal:komutan' });
+  assert.equal(r.result.drops.kalgarot_kalip, 1); assert.ok(r.result.drops.kor_t2 >= 2);
+  assert.equal(r.game.chibi.stones.kor_t2, t2 + r.result.drops.kor_t2);
+  assert.throws(() => run(g, 'topcu.clear', { mode: 'raid_normal:<x>' }), /unknown_topcu_mode/);
+  g = r.game;
+  const a = run(g, 'topcu.spin', { wheel: 'major_normal' }, env('same')), b = run(g, 'topcu.spin', { wheel: 'major_normal' }, env('same'));
+  assert.equal(a.result.idx, b.result.idx);
+  const ids = new Set(); for (let i = 0; i < 40; i++) ids.add(run(g, 'topcu.spin', { wheel: 'major_normal' }, env('w' + i)).result.id);
+  assert.ok(ids.size >= 3); // gerçekten zarlanıyor
+});
+test('ENG13 istemci saf yardımcılar: yığından gelir türü, defter birleştirme, sipariş tanımı sunucu ayrıştırıcısıyla uyumlu', () => {
+  const Y = require('../js/economy_sync');
+  const st = f => `Error\n    at note (http://x/js/economy_sync.js:1:1)\n    at fn (http://x/js/${f}:10:2)`;
+  assert.equal(Y.reasonFromStack(st('race.js')), 'race');
+  assert.equal(Y.reasonFromStack(st('minigame/shm_ui.js')), 'topcu');
+  assert.equal(Y.reasonFromStack(st('kiraathane.js')), 'kiraathane');
+  assert.equal(Y.reasonFromStack(st('bilinmeyen.js')), 'other');
+  assert.equal(Y.reasonFromStack(''), 'other');
+  for (const r of new Set(Object.values(Y.FILE_REASON))) if (r !== 'topcu') assert.ok(Object.hasOwn(income.LOCAL_REASONS, r), r);
+  const L = []; Y.pushLedger(L, 'arena', 50); Y.pushLedger(L, 'arena', 30); Y.pushLedger(L, 'arena', -10); Y.pushLedger(L, 'race', 5);
+  assert.deepEqual(L, [{ r: 'arena', a: 80 }, { r: 'arena', a: -10 }, { r: 'race', a: 5 }]);
+  const o = { lv: 2, by: 14, reqs: [['el', 'buz'], ['stage', 'yetiskin'], ['pot', ['ze', 4]], ['sex', 'F'], ['pig', 'a']] };
+  const spec = Y.orderSpec(o), parsed = income.parseOrder(spec, ['ates', 'buz']);
+  assert.equal(spec, 'lv=2;wk=7;el=buz;stage=yetiskin;pot=ze4;sex=F;pig=a');
+  assert.equal(parsed.lv, 2); assert.equal(parsed.wk, 7); assert.deepEqual(parsed.reqs.find(r => r[0] === 'pot')[1], ['ze', 4]);
+  assert.match(Y.importText(9579, 2000, 2000), /420 başlangıç.*2000.*7579 altın aktarılmadı/);
+});
