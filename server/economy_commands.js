@@ -6,11 +6,13 @@ const crypto = require('node:crypto');
 const sources = require('./economy_sources');
 const debt = require('./economy_debt');
 const week = require('./week_runtime');
+const localIncome = require('./local_income'); // ENG-13: tek kese (yerel akışların sunucu komutları)
 
 // Execute only repository-owned rules. No command name, argument or client text
 // is interpolated as JavaScript. Each transaction attempt gets its own context.
 const load = name => new vm.Script(fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8'), { filename: name + '.js' });
-const rules = ['data', 'core', 'week', 'social', 'chibi'].map(load);
+// ENG-13: 'auction' yalnız BIDDERS tablosu ve kural fonksiyonları için yüklenir (üst düzeyde DOM yok).
+const rules = ['data', 'core', 'week', 'social', 'chibi', 'auction'].map(load);
 // ENG06 P-C: `endWeek` bağımlılıkları yalnız week.end çalışma zamanına yüklenir (diğer komutların
 // davranışı değişmez). Sıra index.html ile aynıdır. rival/orders/career/season/ui YÜKLENMEZ.
 const weekRules = ['data', 'core', 'week', 'content', 'bond', 'star', 'social', 'chibi'].map(load);
@@ -70,6 +72,10 @@ const SHAPES = Object.freeze({
   'chibi.transfer': ['from', 'to'],
   'week.end': [],
   'ocak.rebuild': [], // ENG-10 K5: iflas eşiğinde "ocağı yeniden kur" (borç silinir, varlık kaybı yok)
+  // ENG-13 · Tek kese: istemci yalnız kimlik/olay bildirir; sonucu sunucu hesaplar (server/local_income.js).
+  'dragon.die': ['assetId'], 'auction.sell': ['assetId'], 'offer.sell': ['assetId'], 'order.deliver': ['assetId', 'spec'],
+  'topcu.clear': ['mode'], 'topcu.spin': ['wheel'], 'goal.reach': ['id'],
+  'gold.local': ['amount', 'reason'], 'gold.import': ['amount'],
 });
 // Borç varken reddedilen harcama komutları (D4). Ayrıca her `spend` aynı kapıdan geçer.
 const DEBT_BLOCKED = new Set(['building.buy', 'land.clear', 'shop.food', 'shop.item', 'shop.dragon', 'shop.egg',
@@ -87,6 +93,7 @@ function validateCommand(input) {
     if (key === 'enabled') { if (typeof value !== 'boolean') fail('invalid_arguments'); }
     else if (key === 'tile') { if (!Number.isSafeInteger(value) || value < 0) fail('invalid_arguments'); }
     else if (key === 'id') { if (!(typeof value === 'string' || Number.isSafeInteger(value))) fail('invalid_arguments'); }
+    else if (key === 'amount') { if (!Number.isSafeInteger(value) || Math.abs(value) > 1_000_000 || (value === 0 && input.type !== 'gold.import')) fail('invalid_arguments'); }
     else if (typeof value !== 'string' || !value || value.length > 100) fail('invalid_arguments');
   }
   const command = { requestId: input.requestId, expectedVersion: input.expectedVersion, type: input.type, args: Object.fromEntries(Object.entries(args).sort(([a], [b]) => a.localeCompare(b))) };
@@ -103,6 +110,7 @@ function makeRuntime(game, seed, { weekRuntime = false } = {}) {
   if (weekRuntime) weekShim.runInContext(context, { timeout: 1000 });
   const api = expose.runInContext(context, { timeout: 1000 });
   if (weekRuntime) Object.assign(api, weekExpose.runInContext(context, { timeout: 1000 }));
+  else Object.assign(api, localIncome.vmExpose.runInContext(context, { timeout: 1000 }));
   if (game) api.load(clone(game));
   return api;
 }
@@ -242,7 +250,9 @@ function reduceCommand(previous, command, { accountId, seed, now }) {
       result = week.weekResult(out, summary); break;
     }
     case 'ocak.rebuild': result = debt.rebuild(S, undefined, now); break; // ENG-12: 8 hafta + 24 sa (sunucu saati)
-    default: fail('unsupported_command');
+    default:
+      if (!localIncome.TYPES.has(command.type)) fail('unsupported_command');
+      result = localIncome.reduce(command.type, S, a, { api, now, owned, spend });
   }
   result.payment = {...payment};
   api.syncChibiSlotPlus(C);
