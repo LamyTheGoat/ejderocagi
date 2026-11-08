@@ -600,12 +600,12 @@ function bedestenView() {
         <button class="plaque ${sellCat === 'equip' ? 'amber' : ''}" data-a="bed-sell-cat" data-k="equip">Sandığım</button>
         <button class="plaque ${sellCat === 'mat' ? 'amber' : ''}" data-a="bed-sell-cat" data-k="mat">Cevher, Kalıp & Taş</button>
         <button class="plaque ${sellCat === 'food' ? 'amber' : ''}" data-a="bed-sell-cat" data-k="food">İksir & Kiler</button>
-      </div><p class="mute sm" style="margin:0 0 6px">Fiyatı sen belirlersin. Yalnız kazanılmış (earned) varlıklar satılabilir; ilan süresince varlık hesabında rezerve kalır.</p>`;
+      </div><p class="mute sm" style="margin:0 0 6px">Fiyatı sen belirlersin. Yalnız oyunda kazandığın varlıklar satılabilir; ilan süresince varlık hesabında rezerve kalır.</p>`;
     let sellCards = '';
     if (!eco || !eco.game) {
       sellCards = `<div class="vempty">${st.loaded ? 'Sunucu hesabın henüz hazır değil. <button class="btn ghost sm" data-open-trade>⇄ Takas ekranından hazırla</button>' : 'Sunucu envanterin okunuyor…'}</div>`;
     } else if (sellCat === 'mat') {
-      sellCards = `<div class="vempty">Cevher, kalıp, Kor taşı ve özlerin sunucuda kaynak (earned/bağlı) kaydı yok; bu yüzden Bedesten'e konamaz.</div>`;
+      sellCards = `<div class="vempty">Cevher, kalıp, Kor taşı ve özlerin sunucuda kaynak kaydı yok; bu yüzden Bedesten'e konamaz.</div>`;
     } else if (sellCat === 'food') {
       const held = {};
       for (const L of myOpen) if (L.kind === 'food') held[L.foodKey] = (held[L.foodKey] || 0) + L.remaining;
@@ -613,7 +613,7 @@ function bedestenView() {
       bedPickJump(keys, 'food');
       sellCards = keys.length
         ? pager('bed-sell', keys, PER(4, 2), fk => {
-            const F = (typeof FOODS !== 'undefined' && FOODS[fk]) || { ad: fk };
+            const F = (typeof FOODS !== 'undefined' && FOODS[fk]) || { ad: 'Yiyecek' }; // ENG-11: ham anahtar gösterilmez
             const free = Math.max(0, (eco.game.foodSources[fk].earned || 0) - (held[fk] || 0));
             return gcard({
               cls: 'food own' + (bedPicked('food', fk) ? ' bed-pick' : ''),
@@ -645,11 +645,11 @@ function bedestenView() {
       sellCards = rows.length
         ? pager('bed-sell', rows, PER(4, 2), a => {
             const d = a.data, blocked = why(a);
-            let art = '', title = esc(d.name || d.id || kind), sub = '';
+            let art = '', title = esc(d.name || { dragon: 'Ejderha', egg: 'Yumurta', item: 'Eşya' }[kind]), sub = '';
             try {
               if (kind === 'dragon') { art = dragonSVG(d, { still: true }); title = `${esc(d.name)} ${sexIc(d.sex)}`; sub = `${elChip(d.el)} ${STAGE_AD[d.stage] || ''}`; }
               else if (kind === 'egg') { const elKey = (d.genes && d.genes.el && d.genes.el[0]) || 'ates'; art = eggSVG(d, 0.6, { glow: true }); title = `Mühürlü ${EL_AD[elKey] || ''} Yumurtası`; sub = d.inK ? 'Kuluçkada' : 'Sepette'; }
-              else { const it = ITEMS[d.id]; art = it ? itemIcon(d.id) : ''; title = esc(it ? it.ad : d.id); sub = it ? SLOT_AD[it.slot] : ''; }
+              else { const it = ITEMS[d.id]; art = it ? itemIcon(d.id) : ''; title = esc(it ? it.ad : 'Eşya'); sub = it ? SLOT_AD[it.slot] : ''; }
             } catch (_) { /* görünüm alanı eksik: metinle göster */ }
             return gcard({
               cls: (kind === 'dragon' ? 'dr' : kind === 'egg' ? 'egg' : 'item') + ' own' + (bedPicked(kind, a.assetId) ? ' bed-pick' : ''),
