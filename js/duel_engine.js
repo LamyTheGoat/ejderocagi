@@ -2,6 +2,8 @@
 
 // Server-authoritative, simultaneous-action version of Ejder Ocağı's classic dragon combat.
 // This module intentionally has no browser dependencies and uses the server RNG only.
+// ENG06 P-D: resolveRound optionally takes a seeded RNG (same draws, same probabilities) so a
+// stored match (fighters + seed + action log) can be replayed exactly. Default stays Math.random.
 const ELEMENT_ADVANTAGE = { ates: 'buz', buz: 'toprak', toprak: 'firtina', firtina: 'ates' };
 const ELEMENTS = new Set(['ates', 'buz', 'firtina', 'toprak', 'golge']);
 const MOOD_DAMAGE = [0.86, 0.93, 1, 1.06, 1.12];
@@ -12,8 +14,9 @@ const CARDS = new Set([
 ]);
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Number.isFinite(Number(v)) ? Number(v) : lo));
-const chance = pct => Math.random() * 100 < pct;
-const rnd = (lo, hi) => lo + Math.random() * (hi - lo);
+let RNG = Math.random;
+const chance = pct => RNG() * 100 < pct;
+const rnd = (lo, hi) => lo + RNG() * (hi - lo);
 const elMult = (a, d) => {
   if (a === 'golge' && d !== 'golge') return 1.2;
   if (d === 'golge' && a !== 'golge') return 1.15;
@@ -171,8 +174,14 @@ function isLegalAction(f, action) {
 }
 
 // Both players submit one action. The server resolves the round once, in a single canonical state.
-function resolveRound(F, pAct, eAct) {
+function resolveRound(F, pAct, eAct, rng) {
   if (!F || F.over) return [];
+  if (typeof rng !== 'function') return resolveRoundWith(F, pAct, eAct);
+  const previous = RNG;
+  RNG = rng;
+  try { return resolveRoundWith(F, pAct, eAct); } finally { RNG = previous; }
+}
+function resolveRoundWith(F, pAct, eAct) {
   const evs = [];
   if (pAct === 'teslim' || eAct === 'teslim') {
     F.round++;
