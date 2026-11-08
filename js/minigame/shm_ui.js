@@ -1500,6 +1500,8 @@ function renderStudioScreen(star) {
 }
 
 /* ============================================================================
+   AŞAMA SONU: YENİLGİ / GEÇİŞ / ZİNDAN ZAFERİ (ENG-13: banner yorumu kapatıldı; 6df80ec'ten beri açıktı)
+   ============================================================================ */
 
 function openStageDefeatRetryModal() {
   if (typeof document === "undefined") return;
