@@ -188,23 +188,11 @@ const SHM = {
   entryContext: "pve_dungeon", // 'mode_select' | 'pve_dungeon' | 'pvp_arena'
   pvpMap: "steppe_canyon",
   pvpTeamMode: "1v1",          // '1v1' | '2v2'
-  pvpQueueState: null,         // { mode: '1v1'|'2v2', map: 'any', elapsedSec: 12 }
-  pvpRoomFilterMode: "all",    // 'all' | '1v1' | '2v2'
-  pvpRoomFilterMap: "all",     // 'all' | mapId
-  pvpCreateRoomOpen: false,
-  pvpNewRoomMode: "1v1",
-  pvpNewRoomMap: "steppe_canyon",
-  pvpNewRoomName: "",
-  pvpActiveRoom: null,         // Kurulan / katılınan bekleme odası
+  // ENG-14: sahte oda listesi kaldırıldı; odalar ve kuyruk sunucudan gelir (js/minigame/shm_pvp_rooms.js · PVPR).
+  pvpLive: null,               // canlı 1v1 maç durumu (sunucunun başlangıç mesajından)
+  pvpPractice: null,           // bot provası (ödülsüz)
+  pvpResult: null,             // maç sonu ekranı verisi
   raidPartySlots: [null, null], // PvE Sefer Odası 2. ve 3. yuva (başlangıçta BOŞ)
-  pvpRooms: [
-    { id: "rm_104", name: "Oda #104 · Bozkır Ustaları", mapId: "steppe_canyon", terrainTag: "Kara / Tünel", mode: "1v1", curPlayers: 1, maxPlayers: 2, host: "@kuzey_ruzgari" },
-    { id: "rm_208", name: "Oda #208 · 2v2 Uçan Adalar", mapId: "sky_archipelago", terrainTag: "Uçan Adalar", mode: "2v2", curPlayers: 3, maxPlayers: 4, host: "@bozkir_avcisi" },
-    { id: "rm_315", name: "Oda #315 · Sadece 1v1 Keskin Nişan", mapId: "sandstorm", terrainTag: "Kara / Kanyon", mode: "1v1", curPlayers: 1, maxPlayers: 2, host: "@kumul_bekcisi" },
-    { id: "rm_412", name: "Oda #412 · Selçuklu Surları Takım", mapId: "seljuk_ruins", terrainTag: "Kara / Harabe", mode: "2v2", curPlayers: 2, maxPlayers: 4, host: "@sirca_muhafizi" },
-    { id: "rm_509", name: "Oda #509 · Ejder Kalderası 2v2", mapId: "dragon_caldera", terrainTag: "Uçan Adalar", mode: "2v2", curPlayers: 3, maxPlayers: 4, host: "@kara_golge" },
-    { id: "rm_601", name: "Oda #601 · Ayaz Kristal Düello", mapId: "glacier", terrainTag: "Kara / Buzul", mode: "1v1", curPlayers: 2, maxPlayers: 2, host: "@ayaz_beyi" }
-  ],
   pvpAlly: null,
   pvpRivals: [],
   pvpTurnOrder: [],
@@ -1036,12 +1024,12 @@ function firePlayerVolley(powerPct) {
     setTimeout(() => spawnWave(w), w * (SHM.fastSim ? 110 : 180));
   }
 
-  if (SHM.gameMode === "pvp" && typeof mpSendWs === "function") {
+  if (SHM.gameMode === "pvp" && typeof pvpIsLive === "function" && pvpIsLive()) {
+    SHM.pvpLive.stats.shots += 1;
     mpSendWs({
       type: "pvp_sync",
-      roomCode: "pvp_global",
       action: "fire",
-      from: (typeof S !== "undefined" && S && S.handle) || "@ejder_ocagi",
+      turnNo: SHM.pvpLive.turnNo,
       x: Math.round(p.x),
       y: Math.round(p.y),
       angle: Math.round(p.angle),
@@ -1527,10 +1515,12 @@ function detonateProjectile(pr) {
           SHM.stats.maxCombo = Math.max(SHM.stats.maxCombo || 0, SHM.stats.curCombo);
           if (p) p.rage = Math.min(100, p.rage + 18);
           addFloatText(rv.x, rv.y - 98, isHeadshot ? `TAM İSABET KRİTİK! -${dmg}` : `-${dmg}`, isHeadshot ? "#ffe0a0" : "#f8fafc", isHeadshot ? 22 : 20, isHeadshot);
-          if (typeof mpSendWs === "function") {
-            mpSendWs({ type: "pvp_sync", roomCode: "pvp_global", action: "hit", dmg, rivalHp: rv.hp });
-          }
-          if (rv.hp <= 0) {
+          if (typeof pvpIsLive === "function" && pvpIsLive()) {
+            // ENG-14: hasarı ALICI kendi canına yazar; buradaki rv.hp yalnız tahmin, rakibin hp_sync'i ile düzelir.
+            SHM.pvpLive.stats.hits += 1;
+            SHM.pvpLive.stats.dmgDealt += dmg;
+            mpSendWs({ type: "pvp_sync", action: "hit", dmg, turnNo: SHM.pvpLive.turnNo });
+          } else if (rv.hp <= 0) {
             rv.dead = true;
             addFloatText(rv.x, rv.y - 125, `${rv.name} MAĞLUP EDİLDİ!`, "#9ad07a", 22, true);
             if (typeof SFX !== "undefined" && SFX.play) SFX.play("win");
@@ -1581,7 +1571,8 @@ function detonateProjectile(pr) {
         }
       }
     }
-  } else if (pr.owner === "enemy" && p) {
+  } else if (pr.owner === "enemy" && p && !pr.remote) {
+    // ENG-14: canlı rakibin mermisi (remote) bu ekranda yalnız görseldir; hasar rakibin `hit` mesajıyla gelir.
     const dist = Math.hypot(pr.x - p.x, pr.y - (p.y - 46));
     if (dist <= (pr.blastRadius || 48) + 48) {
       let dmg = pr.dmg;
@@ -1676,7 +1667,10 @@ function settleUnitsOnTerrain() {
       if (!rv || rv.dead) continue;
       const rx = Math.max(45, Math.min(W - 45, Math.round(rv.x)));
       const gy = findLocalGroundY(rx, rv.y);
-      if (gy >= lakeTop - 12) {
+      if (gy >= lakeTop - 12 && typeof pvpIsLive === "function" && pvpIsLive()) {
+        // Canlı rakibin konumu bu ekranda tahmindir; düşme/ölüm kararını rakibin kendi ekranı verir.
+        continue;
+      } else if (gy >= lakeTop - 12) {
         rv.dead = true;
         rv.hp = 0;
         addFloatText(rv.x, lakeTop - 38, `${rv.name} UÇURUMA DÜŞTÜ! ZAFER!`, "#ffe0a0", 22, true);
@@ -1905,11 +1899,22 @@ function advanceTurnAfterVolley() {
   if (!SHM.open || SHM.screen !== "battle") return;
   const camp = curCampaign();
 
+  if (SHM.gameMode === "pvp" && typeof pvpIsLive === "function" && pvpIsLive()) {
+    // ENG-14 canlı 1v1: sıra rakibe geçer (sonucu yalnız sunucunun pvp_match_end mesajı verir).
+    pvpHandOffTurn();
+    SHM.turn = "enemy";
+    SHM.cam.manualPan = false;
+    SHM.cam.mode = "follow";
+    updateBattleHudDom();
+    setTimeout(() => { if (pvpIsLive() && SHM.turn === "enemy") executePvpRivalTurn(); }, SHM.fastSim ? 120 : 300);
+    return;
+  }
   if (SHM.gameMode === "pvp") {
     const rivals = Array.isArray(SHM.pvpRivals) && SHM.pvpRivals.length ? SHM.pvpRivals : (SHM.pvpRival ? [SHM.pvpRival] : []);
     const activeRival = rivals.find(r => r && !r.dead) || null;
     if (!activeRival) {
-      completeSahmeranDungeonVictory();
+      // ENG-14: PvP (bot provası dahil) ödülsüz; zindan zafer/ganimet akışına girmez.
+      if (typeof pvpFinishLocal === "function") pvpFinishLocal(true); else completeSahmeranDungeonVictory();
       return;
     }
     SHM.pvpRival = activeRival;
@@ -1925,7 +1930,7 @@ function advanceTurnAfterVolley() {
         activeRival.dead = true;
         const nextRv = rivals.find(r => r && !r.dead);
         if (!nextRv) {
-          completeSahmeranDungeonVictory();
+          if (typeof pvpFinishLocal === "function") pvpFinishLocal(true); else completeSahmeranDungeonVictory();
           return;
         }
         SHM.pvpRival = nextRv;
@@ -2464,6 +2469,8 @@ function startNewPlayerTurn() {
   const p = SHM.player;
   const isKom = SHM.raidId === "komutan";
   const isAbra = SHM.raidId === "abra";
+  const pvpLiveNow = SHM.gameMode === "pvp" && typeof pvpIsLive === "function" && pvpIsLive();
+  if (SHM.gameMode === "pvp" && SHM.pvpLive && SHM.pvpLive.ended) return; // maç bitti, sıra yok
   if (p.hp <= 0) {
     if ((p.revivesLeft ?? 1) > 0 || typeof window === "undefined") {
       p.revivesLeft = Math.max(0, (p.revivesLeft ?? 1) - 1);
@@ -2473,6 +2480,13 @@ function startNewPlayerTurn() {
       SHM.shockwaves.push({ x: p.x, y: p.y - 40, r: 10, maxR: 130, color: "#d9b062", alpha: 1 });
       spawnExplosionParticles(p.x, p.y - 40, "#d9b062", 32);
       addFloatText(p.x, p.y - 105, `ANKA KÜLÜ DİRİLİŞİ! (%65 CAN · Kalan Hak: ${p.revivesLeft})`, "#ffe0a0", 20, true);
+      if (pvpLiveNow) pvpSendHpSync(); // dirilen can rakip ekranına da yazılır
+    } else if (pvpLiveNow) {
+      pvpReportDefeat(); // canı biten taraf bildirir; sonuç sunucudan iki tarafa tek gelir
+      return;
+    } else if (SHM.gameMode === "pvp" && typeof pvpFinishLocal === "function") {
+      pvpFinishLocal(false);
+      return;
     } else {
       openStageDefeatRetryModal();
       return;
@@ -2533,7 +2547,8 @@ function startNewPlayerTurn() {
 
   SHM.turn = "player";
   SHM.turnTimer = 25;
-  SHM.wind = +(Math.random() * 4.6 - 2.3).toFixed(1);
+  SHM.wind = pvpLiveNow ? pvpWindFor(SHM.pvpLive.turnNo) : +(Math.random() * 4.6 - 2.3).toFixed(1);
+  if (pvpLiveNow) SHM.pvpLive.stats.turns += 1;
   p.stamina = p.maxStamina;
   SHM.cam.mode = "follow";
   SHM.cam.manualPan = false;
@@ -2541,7 +2556,7 @@ function startNewPlayerTurn() {
   SHM.cam.focusX = p.x;
   SHM.cam.focusY = p.y - 80;
   SHM.cam.activeActor = { x: p.x, y: p.y - 80, zoom: 1.28, label: "SEN" };
-  triggerTurnBanner(`AŞAMA ${SHM.selectedStage}/${curCampaign().maxStage} · SENİN TURUN`, SHM.dangerZones.length ? "Tehlike Bölgesinden Çık (A/D) ve Ateşle!" : "Nişan Al (W/S) ve Ateşle (Boşluk)", "player");
+  triggerTurnBanner(SHM.gameMode === "pvp" ? "SENİN SIRAN" : `AŞAMA ${SHM.selectedStage}/${curCampaign().maxStage} · SENİN TURUN`, SHM.dangerZones.length ? "Tehlike Bölgesinden Çık (A/D) ve Ateşle!" : "Nişan Al (W/S) ve Ateşle (Boşluk)", "player");
   updateBattleHudDom();
 }
 

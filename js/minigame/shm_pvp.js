@@ -27,36 +27,75 @@ function registerPvpArenaMap(mapId, mapDef) {
 if (typeof window !== "undefined") window.registerPvpArenaMap = registerPvpArenaMap;
 if (typeof global !== "undefined") global.registerPvpArenaMap = registerPvpArenaMap;
 
-const PVP_QUEUE_TIMEOUT_SEC = 90;
+/* ---------------- ENG-14 · CANLI 1v1 MAÇ EŞİTLEMESİ ----------------
+   Tek yetkili model: atan taraf `fire` + `hit {dmg}` bildirir; ALICI hasarı kendi canına yazar ve
+   `hp_sync {hp,maxHp}` ile gerçek canını geri bildirir (atan taraf rakip canını buna eşitler).
+   Tur sırası sunucunun seçtiği ilk tur sahibiyle başlar ve `turn_handoff {turnNo}` ile ilerler.
+   Rüzgâr sunucu tohumundan tur numarasıyla iki tarafta aynı üretilir (her taraf kendini solda gördüğü için
+   mavi yuva dışındaki taraf işareti ters çevirir). Canı biten taraf `pvp_match_result {lose}` gönderir;
+   sunucu iki tarafa tek `pvp_match_end {winner}` yollar. Canlı rakip varken yerel bot ATIŞ YAPMAZ.
+   Ödül/altın/ün yazılmaz (kullanıcı kararı). */
 
-function pvpQueueSend(action, payload, to) {
-  if (typeof mpSendWs !== "function") return;
-  try {
-    mpSendWs({
-      type: "pvp_sync",
-      action,
-      from: (typeof S !== "undefined" && S && S.handle) || "@ejder_ocagi",
-      to: to || null,
-      roomId: "pvp_queue",
-      mapId: (SHM.pvpQueueState && SHM.pvpQueueState.pickedMap) || SHM.pvpMap || "steppe_canyon",
-      text: JSON.stringify(payload || {})
-    });
-  } catch (e) { /* ağ hatası: kuyruk 90 sn sonra botlu maça düşer */ }
+function pvpSelfHandle() {
+  return (SHM.pvpLive && SHM.pvpLive.me) || (typeof S !== "undefined" && S && S.handle) || "@ejder_ocagi";
 }
 
-function cancelPvpQueue(silent) {
-  const q = SHM.pvpQueueState;
-  if (SHM._pvpQueueTimer) { clearInterval(SHM._pvpQueueTimer); SHM._pvpQueueTimer = null; }
-  if (q) pvpQueueSend("queue_leave", { mode: q.mode });
-  SHM.pvpQueueState = null;
-  if (!silent && typeof renderSahmeranApp === "function") renderSahmeranApp();
+function pvpIsLive() {
+  return !!(SHM.pvpLive && SHM.pvpLive.matchId && !SHM.pvpLive.ended && SHM.gameMode === "pvp");
+}
+
+function pvpMulberry(seed) {
+  let t = seed >>> 0;
+  return function () {
+    t = (t + 0x6D2B79F5) >>> 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Tur numarasına göre iki tarafta aynı rüzgâr (mavi yuvanın bakışında); kırmızı yuva işareti çevirir.
+function pvpWindFor(turnNo, live = SHM.pvpLive, mapId = SHM.pvpMap) {
+  if (!live) return 0;
+  const rnd = pvpMulberry(((live.seed | 0) ^ Math.imul((turnNo | 0) + 1, 0x9E3779B1)) >>> 0);
+  rnd(); // ilk değer tohuma çok yakın, atla
+  const span = mapId === "glacier" ? 3.2 : 2.1;
+  const w = +((rnd() * 2 - 1) * span).toFixed(1);
+  return (live.sign || 1) * w;
+}
+
+function pvpSyncSend(action, fields = {}) {
+  if (!pvpIsLive() || typeof mpSendWs !== "function") return;
+  mpSendWs(Object.assign({ type: "pvp_sync", action, turnNo: SHM.pvpLive.turnNo }, fields));
+}
+
+function pvpSendHpSync() {
+  if (!SHM.player) return;
+  pvpSyncSend("hp_sync", { hp: Math.round(SHM.player.hp), maxHp: Math.round(SHM.player.maxHp) });
+}
+
+// Sunucunun TEK başlangıç mesajından canlı maç durumu.
+function pvpLiveFromStart(msg) {
+  const slots = Array.isArray(msg.slots) ? msg.slots : [];
+  const me = msg.you;
+  const rivalSlot = slots.find(s => s && s.kind !== "empty" && s.handle !== me) || {};
+  return {
+    matchId: msg.matchId, roomId: msg.roomId, me, rival: msg.rival || rivalSlot.handle || null,
+    rivalChibi: rivalSlot.chibi || null, rivalEl: rivalSlot.el || null,
+    seed: msg.seed | 0, firstTurn: msg.firstTurn, turnNo: 0,
+    sign: slots[0] && slots[0].handle === me ? 1 : -1,
+    quick: !!msg.quick, mapId: msg.mapId, peerConnected: true, peerLeftAt: 0, graceMs: 30000,
+    ended: false, reportedDefeat: false, inited: null,
+    stats: { shots: 0, hits: 0, dmgDealt: 0, dmgTaken: 0, turns: 0 }
+  };
 }
 
 function pvpLaunchMatch(mapId, mode, opts = {}) {
-  if (SHM._pvpQueueTimer) { clearInterval(SHM._pvpQueueTimer); SHM._pvpQueueTimer = null; }
-  SHM.pvpQueueState = null;
-  SHM.pvpTeamMode = mode;
+  SHM.pvpTeamMode = "1v1";
   SHM.pvpMap = mapId;
+  SHM.pvpLive = opts.live || null;
+  SHM.pvpPractice = opts.practice || null;
+  SHM.pvpResult = null;
   const isAutomatedTest = typeof window !== "undefined" && (window.__fastFx || window.__noCuts);
   SHM.vsSplashActive = !isAutomatedTest;
   if (SHM._vsSplashTimer) clearTimeout(SHM._vsSplashTimer);
@@ -67,518 +106,122 @@ function pvpLaunchMatch(mapId, mode, opts = {}) {
       if (el) el.remove();
     }, 2500);
   }
-  // Eşleşen gerçek oyuncuları canlı rakip/müttefik sırasının başına al
-  if (opts.matched && opts.matched.length && typeof MP !== "undefined") {
-    const old = MP.pvpPeers || {};
-    const ordered = {};
-    opts.matched.forEach(h => { ordered[h] = old[h] || { from: h }; });
-    Object.keys(old).forEach(h => { if (!ordered[h]) ordered[h] = old[h]; });
-    MP.pvpPeers = ordered;
-  }
   if (typeof SFX !== "undefined" && SFX.play) SFX.play("powerup_arm");
   SHM.gameMode = "pvp";
   SHM.entryContext = "pvp_arena";
   SHM.screen = "battle";
-  initTopcuPvpStage(mapId, mode);
+  initTopcuPvpStage(mapId, "1v1");
   renderSahmeranApp();
 }
 
-function pvpQueueTick() {
-  const q = SHM.pvpQueueState;
-  if (!q || !SHM.open) { cancelPvpQueue(true); return; }
-  q.elapsedSec = Math.floor((Date.now() - q.startedAt) / 1000);
-  const now = Date.now();
-  Object.keys(q.peers).forEach(h => { if (now - q.peers[h] > 14000) delete q.peers[h]; });
-  if (q.elapsedSec > 0 && q.elapsedSec % 5 === 0 && q.lastPing !== q.elapsedSec) {
-    q.lastPing = q.elapsedSec;
-    pvpQueueSend("queue_join", { mode: q.mode });
-  }
-  if (q.elapsedSec >= PVP_QUEUE_TIMEOUT_SEC) {
-    const { pickedMap, mode } = q;
-    cancelPvpQueue(true);
-    if (typeof toast === "function") toast(`⏱️ ${PVP_QUEUE_TIMEOUT_SEC} saniyede rakip bulunamadı. Botlu maça geçiliyor.`, "bad");
-    pvpLaunchMatch(pickedMap, mode);
-    return;
-  }
-  pvpQueueTryHost();
-  const el = typeof document !== "undefined" ? document.getElementById("shmPvpQueueTimer") : null;
-  if (el) el.textContent = pvpFmtQueueTime(q.elapsedSec);
-}
-
-function pvpFmtQueueTime(sec) {
-  const s = Math.max(0, sec | 0);
-  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-}
-
-// Eşleşme kurucusu: katılımcılar arasında alfabetik olarak en küçük handle maçı başlatır.
-function pvpQueueTryHost() {
-  const q = SHM.pvpQueueState;
-  if (!q) return;
-  const need = q.mode === "2v2" ? 4 : 2;
-  const me = (typeof S !== "undefined" && S && S.handle) || "@ejder_ocagi";
-  const peers = Object.keys(q.peers);
-  if (peers.length < need - 1) return;
-  const group = [me].concat(peers.sort()).slice(0, need);
-  if (group.slice().sort()[0] !== me) return; // kurucu başkası, queue_start bekle
-  const blue = q.mode === "2v2" ? group.slice(0, 2) : [group[0]];
-  const red = q.mode === "2v2" ? group.slice(2, 4) : [group[1]];
-  pvpQueueSend("queue_start", { mode: q.mode, map: q.pickedMap, members: group, blue, red });
-  if (typeof toast === "function") toast("⚔️ <b>Rakip bulundu!</b> Maç başlıyor.", "goal");
-  pvpLaunchMatch(q.pickedMap, q.mode, { matched: group.filter(h => h !== me) });
-}
-
-function onPvpQueueMessage(msg) {
-  const q = SHM.pvpQueueState;
-  const me = (typeof S !== "undefined" && S && S.handle) || "@ejder_ocagi";
-  if (msg.to && msg.to !== me) return;
-  let p = {};
-  try { p = msg.text ? JSON.parse(msg.text) : {}; } catch (e) { p = {}; }
-  if (msg.action === "queue_leave") {
-    if (q) delete q.peers[msg.from];
-    return;
-  }
-  if (!q) return;
-  if (msg.action === "queue_join" || msg.action === "queue_offer") {
-    if (p.mode !== q.mode) return;
-    q.peers[msg.from] = Date.now();
-    if (msg.action === "queue_join") pvpQueueSend("queue_offer", { mode: q.mode }, msg.from);
-    pvpQueueTryHost();
-  } else if (msg.action === "queue_start") {
-    if (!Array.isArray(p.members) || !p.members.includes(me) || p.mode !== q.mode) return;
-    pvpLaunchMatch(p.map || q.pickedMap, p.mode, { matched: p.members.filter(h => h !== me) });
-  }
-}
-
-function queueQuickMatch(opts = {}) {
-  cancelPvpQueue(true);
-  const mode = opts.mode === "2v2" ? "2v2" : "1v1";
-  const pool = PVP_PRIMARY_MAP_IDS;
-  const pickedMap = (opts.map && opts.map !== "any" && PVP_ARENA_MAPS[opts.map])
-    ? opts.map
-    : pool[Math.floor(Math.random() * pool.length)];
-  SHM.pvpTeamMode = mode;
-  SHM.pvpMap = pickedMap;
-  SHM.gameMode = "pvp";
-  SHM.entryContext = "pvp_arena";
-  SHM.pvpActiveRoom = null;
-  SHM.pvpQueueState = {
-    mode,
-    map: opts.map || "any",
-    pickedMap,
-    startedAt: Date.now(),
-    elapsedSec: 0,
-    peers: {}
-  };
-  pvpQueueSend("queue_join", { mode });
-  SHM._pvpQueueTimer = setInterval(pvpQueueTick, 1000);
-  if (typeof SFX !== "undefined" && SFX.play) SFX.play("powerup_arm");
-  renderSahmeranApp();
-}
-if (typeof window !== "undefined") window.queueQuickMatch = queueQuickMatch;
-
-/* ---------------- GERÇEK ODA / BEKLEME LOBİSİ YARDIMCILARI ---------------- */
-const PVP_BOT_POOL = [
-  { handle: "@bozkir_avcisi", name: "Bozkır Avcısı", el: "toprak", sub: "Toprak Yavrusu" },
-  { handle: "@kuzey_ruzgari", name: "Kuzey Rüzgârı", el: "firtina", sub: "Fırtına Yavrusu" },
-  { handle: "@kara_golge", name: "Kara Gölge", el: "golge", sub: "Gölge Yavrusu" }
-];
-
-function pvpSelfHandle() {
-  return (typeof S !== "undefined" && S && S.handle) || "@ejder_ocagi";
-}
-
-// 1v1: [mavi, kırmızı] · 2v2: [mavi1, mavi2, kırmızı1, kırmızı2]
-function pvpBuildSlots(mode, hostHandle, prevSlots) {
-  const layout = mode === "2v2" ? ["blue", "blue", "red", "red"] : ["blue", "red"];
-  const slots = layout.map((team, idx) => ({ idx, team, kind: "empty", handle: null, name: null, ready: false }));
-  if (!Array.isArray(prevSlots)) {
-    Object.assign(slots[0], { kind: "host", handle: hostHandle, name: hostHandle, ready: true });
-    return slots;
-  }
-  ["blue", "red"].forEach(team => {
-    const old = prevSlots.filter(s => s.team === team && s.kind !== "empty");
-    const tgt = slots.filter(s => s.team === team);
-    old.slice(0, tgt.length).forEach((o, i) => {
-      const keep = Object.assign({}, o);
-      delete keep.idx; delete keep.team;
-      Object.assign(tgt[i], keep);
-    });
-  });
-  return slots;
-}
-
-function pvpSyncRoomCounts(room) {
-  if (!room) return;
-  const cur = room.slots.filter(s => s.kind !== "empty").length;
-  room.curPlayers = cur;
-  room.maxPlayers = room.mode === "2v2" ? 4 : 2;
-  const listed = (SHM.pvpRooms || []).find(r => r.id === room.id);
-  if (listed) {
-    listed.curPlayers = cur;
-    listed.maxPlayers = room.maxPlayers;
-    listed.mode = room.mode;
-    listed.mapId = room.mapId;
-  }
-}
-
-function pvpSetRoomMode(mode) {
-  const room = SHM.pvpActiveRoom;
-  SHM.pvpTeamMode = mode;
-  if (!room || !room.isHost || room.mode === mode) return;
-  room.mode = mode;
-  room.slots = pvpBuildSlots(mode, room.host, room.slots);
-  pvpSyncRoomCounts(room);
-}
-
-function pvpSetRoomMap(mapId) {
-  SHM.pvpMap = mapId;
-  const room = SHM.pvpActiveRoom;
-  if (room && room.isHost && PVP_ARENA_MAPS[mapId]) {
-    room.mapId = mapId;
-    pvpSyncRoomCounts(room);
-  }
-}
-
-function pvpFormationHtml(teamMode, mapObj, curMap, myDoll, eternalBaby, stInfo) {
-  const room = SHM.pvpActiveRoom || null;
-  const mode = room ? room.mode : teamMode;
-  const isHost = !!(room && room.isHost);
-  const selfHandle = pvpSelfHandle();
-  const slots = room ? room.slots : pvpBuildSlots(mode, selfHandle);
-
-  const slotHtml = (slot) => {
-    const tIdx = slot.team === "blue"
-      ? (slot.idx === 0 ? 1 : 2)
-      : (mode === "2v2" && slot.idx === 3 ? 2 : 1);
-    const lbl = `${slot.team === "blue" ? "MAVİ" : "KIRMIZI"} ${tIdx}`;
-    const btnCss = "font-size:10px;padding:2px 7px;min-height:0;";
-    if (slot.kind === "empty") {
-      return `
-        <div class="shm-pvp-fslot ${slot.team} empty">
-          <span class="shm-fslot-badge ${slot.team}">${lbl} · BOŞ</span>
-          <div class="shm-fslot-avatar"><div class="shm-fslot-lock">?</div></div>
-          <b class="shm-fslot-name">BOŞ — OYUNCU BEKLENİYOR</b>
-          ${isHost ? `
-            <div class="shm-btn-row" style="gap:4px;justify-content:center;flex-wrap:wrap">
-              <button class="btn ghost sm" style="${btnCss}" data-shm-slot-invite="${slot.idx}">➕ Arkadaş Çağır</button>
-              <button class="btn good sm" style="${btnCss}" data-soc-lobby="pvp:${slot.idx}">📩 Arkadaşını Lobiye Çağır</button>
-              <button class="btn primary sm" style="${btnCss}" data-shm-slot-bot="${slot.idx}">🤖 Bot Ekle</button>
-            </div>` : `<small class="shm-fslot-sub">${room ? "Kurucu bekleniyor" : "Oda kur veya katıl"}</small>`}
-        </div>`;
-    }
-    if (slot.kind === "host" || slot.kind === "self") {
-      return `
-        <div class="shm-pvp-fslot ${slot.team} ready">
-          <span class="shm-fslot-badge ${slot.team}">${lbl} · SEN${slot.kind === "host" && room ? " (KURUCU)" : ""}</span>
-          <div class="shm-fslot-avatar"><div class="shm-fslot-doll">${myDoll}</div></div>
-          <b class="shm-fslot-name">${slot.handle || selfHandle}</b>
-          <small class="shm-fslot-sub">${eternalBaby.name} · ${stInfo.totalFc} · HAZIR</small>
-        </div>`;
-    }
-    const chibi = typeof peerChibiConfig === "function" ? peerChibiConfig({ handle: slot.handle, name: slot.name, chibi: slot.chibi || null }, slot.idx) : null;
-    const doll = typeof renderChibiDoll === "function"
-      ? renderChibiDoll(chibi, { battle: true, hideAura: true, flip: slot.team === "red", el: slot.el || "ates" })
-      : "";
-    return `
-      <div class="shm-pvp-fslot ${slot.team} ready" style="position:relative">
-        <span class="shm-fslot-badge ${slot.team}">${lbl} · ${slot.kind === "bot" ? "BOT" : "OYUNCU"}</span>
-        ${isHost ? `<button class="btn bad sm" style="position:absolute;top:4px;right:4px;${btnCss}z-index:3" data-shm-slot-kick="${slot.idx}">✕ Çıkar</button>` : ""}
-        <div class="shm-fslot-avatar"><div class="shm-fslot-doll">${doll}</div></div>
-        <b class="shm-fslot-name">${slot.name || slot.handle}</b>
-        <small class="shm-fslot-sub">${slot.sub || "Topçu"} · ${slot.ready ? "HAZIR" : "BEKLİYOR"}</small>
-      </div>`;
-  };
-
-  const lockedHtml = (team) => `
-    <div class="shm-pvp-fslot ${team} locked">
-      <span class="shm-fslot-badge ${team}">1v1 KAPALI</span>
-      <div class="shm-fslot-avatar"><div class="shm-fslot-lock">1v1</div></div>
-      <b class="shm-fslot-name">Tekli Düello</b>
-      <small class="shm-fslot-sub">2v2 Seçildiğinde Açılır</small>
-    </div>`;
-
-  const cells = mode === "2v2"
-    ? [slotHtml(slots[0]), slotHtml(slots[1]), slotHtml(slots[2]), slotHtml(slots[3])]
-    : [slotHtml(slots[0]), lockedHtml("blue"), slotHtml(slots[1]), lockedHtml("red")];
-
-  const canSwitch = !room || isHost;
-  const mapPills = isHost ? PVP_PRIMARY_MAP_IDS.map(mid => `
-    <button class="shm-mini-pill ${curMap === mid ? "active" : ""}" data-shm-pvp-map="${mid}">${PVP_ARENA_MAPS[mid].shortName || PVP_ARENA_MAPS[mid].name}</button>`).join("") : "";
-
-  const barHtml = room ? `
-    <div class="shm-pvp-queue-bar" style="flex-wrap:wrap;gap:8px">
-      <div>
-        <b>🏰 ${room.name} · ${room.curPlayers}/${room.maxPlayers} ${room.curPlayers >= room.maxPlayers ? "(Dolu)" : "(Bekliyor)"}</b>
-        <small>Harita: ${mapObj.name}${isHost ? " — oda kurucusu olarak haritayı ve 1v1/2v2 modunu şimdi değiştirebilirsin." : " — maçı oda kurucusu başlatır."}</small>
-        ${isHost ? `<div class="shm-btn-row" style="flex-wrap:wrap;gap:4px;margin-top:4px">${mapPills}</div>` : ""}
-      </div>
-      <div class="shm-btn-row">
-        <button class="shm-top-btn" data-shm-act="pvp-leave-room">🚪 Odayı Kapat / Ayrıl</button>
-        ${isHost ? `<button class="shm-top-btn" data-shm-act="pvp-send-invite">📨 Lobiye Davet Yayınla</button>
-        <button class="btn primary" data-shm-act="pvp-start-match">⚔️ MAÇI BAŞLAT</button>` : ""}
-      </div>
-    </div>` : `
-    <div class="shm-pvp-queue-bar">
-      <div>
-        <b>🔍 Seçili Harita: ${mapObj.name} (${mapObj.terrainType === "islands" ? "Uçan Adalar" : "Kara / Toprak Kesiti"})</b>
-        <small>Henüz bir odada değilsin. Sağdan <b>+ Özel Oyun Odası Kur</b> de veya listeden bir odaya katıl; yuvalar sen istemedikçe bot ile dolmaz.</small>
-      </div>
-    </div>`;
-
-  const qs = SHM.pvpQueueState;
-  const queueHtml = qs ? `
-    <div class="shm-pvp-queue-bar" style="margin-bottom:8px;border:1px solid rgba(245,194,73,.5)">
-      <div>
-        <b>⏳ Rakip aranıyor… (${qs.mode.toUpperCase()})  <span id="shmPvpQueueTimer">${pvpFmtQueueTime(qs.elapsedSec)}</span> / ${pvpFmtQueueTime(PVP_QUEUE_TIMEOUT_SEC)}</b>
-        <small>${PVP_QUEUE_TIMEOUT_SEC} saniyede gerçek oyuncu bulunamazsa botlu maça geçilir.</small>
-      </div>
-      <button class="shm-top-btn" data-shm-act="pvp-cancel-queue">✖ Kuyruğu İptal Et</button>
-    </div>` : "";
-
-  const inv = SHM.pendingInvite;
-  const inviteHtml = (inv && !room) ? `
-    <div class="shm-pvp-queue-bar" style="margin-bottom:8px;border:1px solid rgba(74,222,128,.5)">
-      <div><b>📨 ${inv.from} seni <u>${inv.name}</u> odasına davet etti (${String(inv.mode).toUpperCase()})</b></div>
-      <div class="shm-btn-row">
-        <button class="btn primary sm" data-shm-act="pvp-accept-invite">✅ Katıl</button>
-        <button class="shm-top-btn" data-shm-act="pvp-decline-invite">Reddet</button>
-      </div>
-    </div>` : "";
-
-  return `
-    ${inviteHtml}
-    ${queueHtml}
-    <div class="shm-pvp-formation-box">
-      <div class="shm-pvp-form-head">
-        <span>${room ? "BEKLEME ODASI" : "TAKIM FORMASYONU"} (${mode.toUpperCase()} MODU)</span>
-        ${canSwitch ? `
-        <div class="shm-pvp-mode-switch-pills">
-          <button class="shm-mini-pill ${mode === "1v1" ? "active" : ""}" data-shm-act="pvp-select-1v1">1v1 Formasyon</button>
-          <button class="shm-mini-pill ${mode === "2v2" ? "active" : ""}" data-shm-act="pvp-select-2v2">2v2 Formasyon (4 Slot)</button>
-        </div>` : ""}
-      </div>
-      <div class="shm-pvp-formation-slots">
-        ${cells[0]}
-        ${cells[1]}
-        <div class="shm-pvp-vs-divider">
-          <img src="${SHM_ASSETS_PATHS.asset_ui_12_vs_match_clash_emblem}" class="shm-pvp-vs-emblem-img" alt="VS">
-          <b>VS</b>
-        </div>
-        ${cells[2]}
-        ${cells[3]}
-      </div>
-      ${barHtml}
-    </div>`;
-}
-
-function renderPvpLobbyScreen(star) {
+// Alıcı taraf: rakibin bildirdiği hasarı KENDİ canına yazar (savunma: kalkan/zırh, mevcut kurallar).
+function pvpApplyIncomingHit(rawDmg) {
+  const p = SHM.player;
+  if (!p || !pvpIsLive()) return;
+  let dmg = Math.max(0, Math.round(Number(rawDmg) || 0));
   const C = typeof ensureChibi === "function" ? ensureChibi() : null;
-  const stInfo = typeof calcChibiStats === "function" ? calcChibiStats(C) : { totalFc: 1450 };
-  const eternalBaby = (typeof getEternalBabyDragon === "function" && getEternalBabyDragon()) || star || { name: "Kor-Yavru", el: "ates" };
-  const curMap = (SHM.pvpMap && PVP_ARENA_MAPS[SHM.pvpMap]) ? SHM.pvpMap : "steppe_canyon";
-  const mapObj = PVP_ARENA_MAPS[curMap] || PVP_ARENA_MAPS.steppe_canyon;
-  const teamMode = SHM.pvpTeamMode === "2v2" ? "2v2" : "1v1";
+  if (C && C.eq && (C.eq.armor === "armor_11" || C.eq.armor === "abra_armor")) dmg = Math.round(dmg * 0.50);
+  else if (C && C.eq && (C.eq.armor === "armor_9" || C.eq.armor === "armor_10")) dmg = Math.round(dmg * 0.65);
+  if (p.shield > 0) { dmg = Math.round(dmg * 0.40); p.shield--; }
+  if (p.ghostHp == null) p.ghostHp = p.hp;
+  p.ghostHoldTimer = 18; p.hitFlash = 8;
+  p.hp = Math.max(0, p.hp - dmg);
+  p.rage = Math.min(100, p.rage + 18);
+  p.animState = "hit"; p.animTimer = 28;
+  SHM.pvpLive.stats.dmgTaken += dmg;
+  addFloatText(p.x, p.y - 92, `-${dmg} HASAR!`, "#ff7a6a", 21, true);
+  if (typeof SFX !== "undefined" && SFX.play) SFX.play("hit");
+  pvpSendHpSync();
+  updateBattleHudDom();
+  if (p.hp <= 0 && (p.revivesLeft ?? 1) <= 0) pvpReportDefeat();
+}
 
-  const livePeerHandles = (typeof MP !== "undefined" && MP.pvpPeers) ? Object.keys(MP.pvpPeers) : [];
-  const activeRivalHandle = livePeerHandles[0] || "@kuzey_ruzgari";
-  const allyHandle = livePeerHandles[1] || "@bozkir_avcisi";
-  const rival2Handle = livePeerHandles[2] || "@kara_golge";
+function pvpReportDefeat() {
+  const L = SHM.pvpLive;
+  if (!L || L.ended || L.reportedDefeat) return;
+  L.reportedDefeat = true;
+  SHM.turn = "over";
+  if (typeof mpSendWs === "function") mpSendWs({ type: "pvp_match_result", matchId: L.matchId, result: "lose" });
+  if (typeof triggerTurnBanner === "function") triggerTurnBanner("CANIN BİTTİ", "Sonuç bekleniyor…", "enemy");
+}
 
-  const myDoll = typeof renderChibiDoll === "function"
-    ? renderChibiDoll(C, { battle: true, hideAura: true, el: eternalBaby.el || "ates" })
-    : "";
-  const allyChibi = typeof peerChibiConfig === "function" ? peerChibiConfig({ handle: allyHandle, name: "Bozkır Avcısı" }, 1) : null;
-  const allyDoll = typeof renderChibiDoll === "function"
-    ? renderChibiDoll(allyChibi, { battle: true, hideAura: true, el: "toprak" })
-    : "";
-  const rival1Chibi = (typeof MP !== "undefined" && MP.pvpPeers && MP.pvpPeers[activeRivalHandle] && MP.pvpPeers[activeRivalHandle].chibi)
-    || (typeof peerChibiConfig === "function" ? peerChibiConfig({ handle: activeRivalHandle, name: "Kuzey Rüzgârı" }, 2) : null);
-  const rival1Doll = typeof renderChibiDoll === "function"
-    ? renderChibiDoll(rival1Chibi, { battle: true, flip: true, hideAura: true, el: "firtina" })
-    : "";
-  const rival2Chibi = typeof peerChibiConfig === "function" ? peerChibiConfig({ handle: rival2Handle, name: "Kara Gölge" }, 3) : null;
-  const rival2Doll = typeof renderChibiDoll === "function"
-    ? renderChibiDoll(rival2Chibi, { battle: true, flip: true, hideAura: true, el: "golge" })
-    : "";
+// Sıra rakibe geçti (atış bitti, pas ya da süre doldu).
+function pvpHandOffTurn() {
+  const L = SHM.pvpLive;
+  pvpSendHpSync();
+  L.turnNo += 1;
+  mpSendWs({ type: "pvp_sync", action: "turn_handoff", turnNo: L.turnNo, wind: pvpWindFor(L.turnNo) });
+  SHM.wind = pvpWindFor(L.turnNo);
+  pvpTickCalderaMagma();
+}
 
-  const modeFilter = SHM.pvpRoomFilterMode || "all";
-  const mapFilter = SHM.pvpRoomFilterMap || "all";
+function pvpTickCalderaMagma() {
+  if (SHM.pvpMap === "forge" || SHM.pvpMap === "dragon_caldera") {
+    SHM.waterRaise = Math.min(72, (SHM.waterRaise || 0) + 10);
+    if (SHM.player) addFloatText(SHM.player.x, SHM.player.y - 115, "KALDERA MAGMASI YÜKSELİYOR!", "#ef7f3e", 18, true);
+  }
+}
 
-  const filteredRooms = (SHM.pvpRooms || []).filter(r => {
-    if (modeFilter !== "all" && r.mode !== modeFilter) return false;
-    if (mapFilter !== "all" && r.mapId !== mapFilter) return false;
-    return true;
-  });
+function pvpClearLiveTimers() {
+  if (SHM._liveRivalTimeout) { clearTimeout(SHM._liveRivalTimeout); SHM._liveRivalTimeout = null; }
+  if (SHM._pvpHandoffWait) { clearInterval(SHM._pvpHandoffWait); SHM._pvpHandoffWait = null; }
+}
 
-  const roomRowsHtml = filteredRooms.map(r => {
-    const mDef = PVP_ARENA_MAPS[r.mapId] || PVP_ARENA_MAPS.steppe_canyon;
-    const isFull = r.curPlayers >= r.maxPlayers;
-    return `
-      <div class="shm-pvp-room-row ${isFull ? "full" : ""}">
-        <div class="shm-pvp-room-main">
-          <b>${r.name}</b>
-          <small>Kurucu: ${r.host} · ${mDef.hazardText}</small>
-        </div>
-        <div class="shm-pvp-room-map">
-          <img src="${mDef.propIcon}" alt="">
-          <div>
-            <span>${mDef.shortName || mDef.name}</span>
-            <small class="shm-terrain-tag ${mDef.terrainType}">${mDef.terrainType === "islands" ? "☁️ Uçan Adalar" : "⛰️ Kara / Toprak"}</small>
-          </div>
-        </div>
-        <div class="shm-pvp-room-mode">
-          <span class="shm-pvp-mode-badge ${r.mode === "2v2" ? "team" : "solo"}">${r.mode.toUpperCase()}</span>
-        </div>
-        <div class="shm-pvp-room-count">
-          <b>${r.curPlayers}/${r.maxPlayers}</b>
-          <small>${isFull ? "Dolu" : "Bekliyor"}</small>
-        </div>
-        <div class="shm-pvp-room-act">
-          <button class="btn ${isFull ? "ghost" : "primary"} sm" data-shm-join-room="${r.id}">
-            ${isFull ? "İzle / Katıl" : "ODAYA KATIL"}
-          </button>
-        </div>
-      </div>
-    `;
-  }).join("");
+// Sunucunun tek sonucu: iki tarafta aynı kazanan (biri Zafer biri Yenilgi).
+function pvpOnMatchEnd(msg) {
+  const L = SHM.pvpLive;
+  if (!L || msg.matchId !== L.matchId || L.ended) return;
+  L.ended = true;
+  pvpClearLiveTimers();
+  SHM.charging = false;
+  SHM.turn = "over";
+  SHM.pvpResult = {
+    live: true, win: msg.winner === L.me, winner: msg.winner, loser: msg.loser, reason: msg.reason,
+    rival: L.rival, mapId: L.mapId || SHM.pvpMap, quick: L.quick, stats: Object.assign({}, L.stats),
+    roomId: L.roomId, rematchSent: false, rematchFrom: null, peerGone: msg.reason !== "ko" && msg.winner === L.me
+  };
+  if (typeof SFX !== "undefined" && SFX.play) SFX.play(SHM.pvpResult.win ? "win" : "ko");
+  if (!SHM.open) return;
+  SHM.screen = "pvp_result";
+  renderSahmeranApp();
+}
 
-  const mapFilterPillsHtml = [
-    { id: "all", lbl: "Tüm Haritalar" },
-    ...PVP_PRIMARY_MAP_IDS.map(id => ({
-      id,
-      lbl: PVP_ARENA_MAPS[id].shortName || PVP_ARENA_MAPS[id].name
-    }))
-  ].map(mp => `
-    <button class="shm-pvp-map-pill ${mapFilter === mp.id ? "active" : ""}" data-shm-room-map="${mp.id}">
-      ${mp.lbl}
-    </button>
-  `).join("");
+// Bot provası ya da yerel (çevrimdışı) maç: ödülsüz sonuç ekranı.
+function pvpFinishLocal(win) {
+  pvpClearLiveTimers();
+  SHM.turn = "over";
+  SHM.pvpResult = {
+    live: false, practice: true, win: !!win, rival: (SHM.pvpRival && SHM.pvpRival.handle) || null, mapId: SHM.pvpMap,
+    stats: { shots: 0, hits: 0, dmgDealt: Math.round((SHM.stats && SHM.stats.totalDmg) || 0), dmgTaken: 0, turns: 0 }
+  };
+  SHM.screen = "pvp_result";
+  renderSahmeranApp();
+}
 
-  return `
-    <div class="shm-screen-body shm-no-scroll" style="background-image:url('${mapObj.bgUrl}')">
-      <div class="shm-screen-backdrop"></div>
-      <div class="shm-pvp-lobby-v2">
-        <!-- LEFT PANEL: 1v1 & 2v2 QUICK MATCHMAKING + 4-SLOT TEAM FORMATION -->
-        <div class="shm-panel-box shm-pvp-left-col">
-          <div class="shm-pvp-col-head">
-            <img src="${SHM_ASSETS_PATHS.ic_pvp_topcu}" class="shm-crest-md" alt="">
-            <div>
-              <div class="shm-story-act">HARİTA FARK ETMEKSİZİN OTOMATİK SIRAYA GİR</div>
-              <div class="shm-panel-title">⚡ HIZLI EŞLEŞME (1v1 & 2v2)</div>
-            </div>
-          </div>
+function pvpOnPeerLeft(msg) {
+  const L = SHM.pvpLive;
+  if (!L || L.ended || msg.matchId !== L.matchId) return;
+  L.peerConnected = false;
+  L.peerLeftAt = Date.now();
+  L.graceMs = msg.graceMs || 30000;
+  if (typeof pvprShowPeerOverlay === "function") pvprShowPeerOverlay();
+}
 
-          <div class="shm-pvp-quick-cards">
-            <!-- 1v1 QUICK DUEL CARD -->
-            <div class="shm-pvp-qcard solo ${teamMode === "1v1" ? "active" : ""}" data-shm-act="pvp-select-1v1">
-              <img src="${SHM_ASSETS_PATHS.asset_ui_09_emblem_1v1_topcu}" class="shm-pvp-qcard-emblem" alt="1v1 Topçu">
-              <div class="shm-pvp-qcard-info">
-                <span class="shm-pvp-qtag">TEKLİ SIRA · RASTGELE KARA & UÇAN ADA HAVUZU</span>
-                <b>⚡ 1v1 HIZLI DÜELLO</b>
-                <small>Harita fark etmeksizin anında 1'e 1 keskin nişancı topçu düellosuna gir!</small>
-              </div>
-              <button class="btn primary shm-pvp-qbtn shm-btn-emerald-plate" data-shm-act="pvp-quick-1v1">
-                1v1 SAVAŞA GİR
-              </button>
-            </div>
-
-            <!-- 2v2 TEAM BATTLE CARD -->
-            <div class="shm-pvp-qcard team ${teamMode === "2v2" ? "active" : ""}" data-shm-act="pvp-select-2v2">
-              <img src="${SHM_ASSETS_PATHS.asset_ui_10_emblem_2v2_takim}" class="shm-pvp-qcard-emblem" alt="2v2 Takım">
-              <div class="shm-pvp-qcard-info">
-                <span class="shm-pvp-qtag">TAKIM SIRASI · 4 TOPÇU SIRALI ATIŞ KUYRUĞU</span>
-                <b>⚡⚡ 2v2 TAKIM SAVAŞI</b>
-                <small>Mavi Takım (2) vs Kırmızı Takım (2) · Kara kanyonlarında ve uçan adalarda takım savaşı!</small>
-              </div>
-              <button class="btn primary shm-pvp-qbtn team shm-btn-emerald-plate" data-shm-act="pvp-quick-2v2">
-                2v2 SAVAŞA GİR
-              </button>
-            </div>
-          </div>
-
-          \r
-        </div>
-
-        <!-- RIGHT PANEL: CUSTOM GAME ROOMS (+ ÖZEL OYUN ODASI KUR, FILTERS, LIVE ROOM LIST) -->
-        <div class="shm-panel-box shm-pvp-right-col">
-          <div class="shm-pvp-col-head between">
-            <div>
-              <div class="shm-story-act">KARA HARİTALARI & GÖKYÜZÜ UÇAN ADALAR HAVUZU</div>
-              <div class="shm-panel-title">🏰 ÖZEL OYUN ODALARI (1v1 & 2v2)</div>
-            </div>
-            <button class="btn good shm-create-room-btn" data-shm-act="pvp-toggle-create-room">
-              + ÖZEL OYUN ODASI KUR
-            </button>
-          </div>
-
-          ${SHM.pvpCreateRoomOpen ? `
-            <div class="shm-pvp-create-drawer">
-              <div class="shm-pvp-create-row">
-                <div>
-                  <small>TAKIM MODU SEÇ:</small>
-                  <div class="shm-btn-row">
-                    <button class="shm-mini-pill ${SHM.pvpNewRoomMode === "1v1" ? "active" : ""}" data-shm-newroom-mode="1v1">1v1 Düello (2 Kişi)</button>
-                    <button class="shm-mini-pill ${SHM.pvpNewRoomMode === "2v2" ? "active" : ""}" data-shm-newroom-mode="2v2">2v2 Takım (4 Kişi)</button>
-                  </div>
-                </div>
-                <div>
-                  <small>HARİTA TİPİ SEÇ (KARA VEYA UÇAN ADA):</small>
-                  <div class="shm-btn-row">
-                    ${PVP_PRIMARY_MAP_IDS.map(mid => `
-                      <button class="shm-mini-pill ${SHM.pvpNewRoomMap === mid ? "active" : ""}" data-shm-newroom-map="${mid}">
-                        ${PVP_ARENA_MAPS[mid].shortName}
-                      </button>
-                    `).join("")}
-                  </div>
-                </div>
-                <button class="btn primary sm" data-shm-act="pvp-confirm-create-room">
-                  🏰 Odayı Kur (Bekleme Odasını Aç)
-                </button>
-              </div>
-            </div>
-          ` : ""}
-
-          <!-- MODE FILTER TABS & MAP QUICK SELECTOR -->
-          <div class="shm-pvp-filter-bar">
-            <div class="shm-pvp-mode-tabs">
-              <button class="shm-pvp-tab ${modeFilter === "all" ? "active" : ""}" data-shm-room-mode="all">Tümü (${(SHM.pvpRooms || []).length})</button>
-              <button class="shm-pvp-tab ${modeFilter === "1v1" ? "active" : ""}" data-shm-room-mode="1v1">1v1 Odalar</button>
-              <button class="shm-pvp-tab ${modeFilter === "2v2" ? "active" : ""}" data-shm-room-mode="2v2">2v2 Odalar</button>
-            </div>
-            <div class="shm-pvp-map-pills">
-              ${mapFilterPillsHtml}
-            </div>
-          </div>
-
-          <!-- LIVE CUSTOM ROOMS TABLE -->
-          <div class="shm-pvp-rooms-list">
-            ${roomRowsHtml}
-          </div>
-
-          <!-- MAP TOPOLOGY SELECTOR STRIP (GROUND STRATA VS FLOATING ISLANDS) -->
-          <div class="shm-pvp-map-strip">
-            ${PVP_PRIMARY_MAP_IDS.map(mid => {
-              const m = PVP_ARENA_MAPS[mid];
-              return `
-                <div class="shm-pvp-map-mini ${curMap === mid ? "active" : ""}" data-shm-pvp-map="${mid}">
-                  <img src="${m.propIcon}" alt="${m.name}">
-                  <div>
-                    <b>${m.shortName}</b>
-                    <small>${m.terrainType === "islands" ? "☁️ Uçan Adalar" : "⛰️ Kara / Toprak"}</small>
-                  </div>
-                </div>
-              `;
-            }).join("")}
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+function pvpOnPeerBack(msg) {
+  const L = SHM.pvpLive;
+  if (!L || L.ended || msg.roomId !== L.roomId) return;
+  L.peerConnected = true;
+  if (typeof pvprShowPeerOverlay === "function") pvprShowPeerOverlay();
+  if (typeof toast === "function") toast(`<b>${msg.handle}</b> geri bağlandı. Maç sürüyor.`, "goal");
 }
 
 const FOOT_SINK_Y = 14; // Layer 3: 3/4 Perspective Foot Sink Offset so Chibi feet stand inside the grass/stone strip
 
 function initTopcuPvpStage(mapId = "steppe_canyon", teamMode = null) {
+  // ENG-14: harita görseli geç yüklenince arazi yeniden kurulur; canlı maçta can/tur/rüzgâr durumu korunur.
+  const liveKeep = (SHM.pvpLive && SHM.pvpLive.inited && SHM.pvpLive.inited === SHM.pvpLive.matchId && SHM.player && SHM.pvpRival)
+    ? { player: SHM.player, rival: SHM.pvpRival, turn: SHM.turn, wind: SHM.wind, turnTimer: SHM.turnTimer, waterRaise: SHM.waterRaise }
+    : null;
   SHM.gameMode = "pvp";
   SHM.entryContext = "pvp_arena";
   if (teamMode === "1v1" || teamMode === "2v2") {
@@ -1078,9 +721,11 @@ function initTopcuPvpStage(mapId = "steppe_canyon", teamMode = null) {
     revivesLeft: 1
   };
 
-  const livePeerHandles = (typeof MP !== "undefined" && MP.pvpPeers) ? Object.keys(MP.pvpPeers) : [];
-  const liveHandle = livePeerHandles[0] || null;
-  const livePeerData = (liveHandle && typeof MP !== "undefined" && MP.pvpPeers) ? MP.pvpPeers[liveHandle] : null;
+  // ENG-14: rakip yalnız sunucunun başlangıç mesajından gelir (canlı maç) ya da bot provasıdır; MP.pvpPeers tahmini yok.
+  const L = SHM.pvpLive && SHM.pvpLive.matchId ? SHM.pvpLive : null;
+  const practiceRival = SHM.pvpPractice && SHM.pvpPractice.rival ? SHM.pvpPractice.rival : null;
+  const liveHandle = L ? L.rival : null;
+  const livePeerData = L ? { chibi: L.rivalChibi, el: L.rivalEl } : (practiceRival ? { chibi: null, el: practiceRival.el } : null);
   const hubPeerMatch = (typeof S !== "undefined" && S && S.hub && Array.isArray(S.hub.peers))
     ? S.hub.peers.find(hp => hp.handle === (liveHandle || "@kuzey_ruzgari"))
     : null;
@@ -1094,8 +739,8 @@ function initTopcuPvpStage(mapId = "steppe_canyon", teamMode = null) {
   const rv1Y = isGroundMap ? findLocalGroundY(rv1X, rv1HintY) : (SHM.heightMap[rv1X] || 760);
   SHM.pvpRival = {
     id: "pvp_rival_kuzey",
-    name: liveHandle ? `Canlı Rakip (${liveHandle})` : "Kuzey Rüzgârı",
-    handle: liveHandle || "@kuzey_ruzgari",
+    name: liveHandle ? `Canlı Rakip (${liveHandle})` : (practiceRival ? `${practiceRival.name || practiceRival.handle} (Bot)` : "Kuzey Rüzgârı"),
+    handle: liveHandle || (practiceRival && practiceRival.handle) || "@kuzey_ruzgari",
     team: "red",
     isLivePlayer: !!liveHandle,
     x: rv1X,
@@ -1178,16 +823,6 @@ function initTopcuPvpStage(mapId = "steppe_canyon", teamMode = null) {
   // Clean V2 PvP Battlefield: no cluttering barrels/crates/portals unless explicitly spawned
   SHM.props = [];
 
-  if (typeof mpSendWs === "function") {
-    mpSendWs({
-      type: "pvp_sync",
-      action: "join_map",
-      from: (typeof S !== "undefined" && S && S.handle) || "@ejder_ocagi",
-      mapId: SHM.pvpMap,
-      teamMode: SHM.pvpTeamMode
-    });
-  }
-
   SHM.boss = null;
   SHM.enemies = [];
   SHM.projectiles = [];
@@ -1200,6 +835,11 @@ function initTopcuPvpStage(mapId = "steppe_canyon", teamMode = null) {
   SHM.turn = "player";
   SHM.turnTimer = 20;
   SHM.wind = +(Math.random() * (SHM.pvpMap === "glacier" ? 6.4 : 4.2) - (SHM.pvpMap === "glacier" ? 3.2 : 2.1)).toFixed(1);
+  if (L) {
+    // Sunucu: ilk tur sahibi ve rüzgâr tohumu iki tarafta aynı.
+    SHM.wind = pvpWindFor(L.turnNo, L, SHM.pvpMap);
+    SHM.turn = L.firstTurn === L.me ? "player" : "enemy";
+  }
   SHM.activeMods = { plus1: false, plus2: false, trident: false, heavy: false, crater: false, teleport: false, powUlt: false };
   SHM.cooldowns = { teleport: 0, shield: 0, heal: 0 };
 
@@ -1216,11 +856,13 @@ function initTopcuPvpStage(mapId = "steppe_canyon", teamMode = null) {
     });
   }
 
-  triggerTurnBanner(
-    `TOPÇU ER MEYDANI (${SHM.pvpTeamMode.toUpperCase()}) · ${mapDef.name.toUpperCase()}`,
-    isGroundMap ? "Toprak Katmanlarını Parçala veya Kemer Tünelinden Nişan Al!" : "Uçan Adaları Parçala ve Rakipleri Boşluğa Düşür!",
-    "player"
-  );
+  if (!liveKeep) {
+    triggerTurnBanner(
+      L ? (SHM.turn === "player" ? "İLK ATIŞ SENDE" : "İLK ATIŞ RAKİPTE") : `TOPÇU ER MEYDANI (${SHM.pvpTeamMode.toUpperCase()}) · ${mapDef.name.toUpperCase()}`,
+      L ? `${mapDef.name} · Rakip: ${L.rival}` : (isGroundMap ? "Toprak Katmanlarını Parçala veya Kemer Tünelinden Nişan Al!" : "Uçan Adaları Parçala ve Rakipleri Boşluğa Düşür!"),
+      SHM.turn === "enemy" ? "enemy" : "player"
+    );
+  }
 
   if (!isGroundMap) {
     SHM.cam.mode = "manual";
@@ -1253,9 +895,42 @@ function initTopcuPvpStage(mapId = "steppe_canyon", teamMode = null) {
     SHM.cam.tx = SHM.cam.x;
     SHM.cam.ty = SHM.cam.y;
   }
+
+  if (liveKeep) {
+    // Yalnız arazi yenilendi: canlı maçın can, konum, tur ve rüzgâr durumu aynen kalır.
+    SHM.player = liveKeep.player;
+    SHM.pvpRival = liveKeep.rival;
+    SHM.pvpRivals = [liveKeep.rival];
+    SHM.turn = liveKeep.turn;
+    SHM.wind = liveKeep.wind;
+    SHM.turnTimer = liveKeep.turnTimer;
+    SHM.waterRaise = liveKeep.waterRaise;
+    return;
+  }
+  if (L) {
+    L.inited = L.matchId;
+    if (SHM.turn === "player") L.stats.turns += 1;
+    // Rakibe gerçek canımızı ve konumumuzu bildir (rakip ekranındaki can çubuğu ve yeri eşitlenir).
+    pvpSendHpSync();
+    pvpSyncSend("move_aim", { mapId: SHM.pvpMap, x: Math.round(SHM.player.x), y: Math.round(SHM.player.y), facing: SHM.player.facing, angle: Math.round(SHM.player.angle) });
+    if (SHM.turn === "enemy") {
+      setTimeout(() => { if (pvpIsLive() && SHM.turn === "enemy") executePvpRivalTurn(); }, SHM.fastSim ? 60 : 300);
+    }
+  }
 }
 
 function executePvpRivalTurn() {
+  if (pvpIsLive()) {
+    // Canlı rakip: yerel bot ATIŞ YAPMAZ. Rakibin `fire`/`turn_handoff` mesajı beklenir; kopmada sunucu karar verir.
+    const rv = SHM.pvpRival;
+    if (!rv) return;
+    SHM.turn = "enemy";
+    rv.isLivePlayer = true;
+    SHM.cam.activeActor = { x: rv.x, y: rv.y - 75, zoom: 1.22, label: rv.name };
+    triggerTurnBanner("RAKİBİN SIRASI", `${SHM.pvpLive.rival} nişan alıyor…`, "enemy");
+    updateBattleHudDom();
+    return;
+  }
   if (!SHM.open || SHM.screen !== "battle" || !SHM.pvpRival || SHM.pvpRival.dead || !SHM.player) {
     startNewPlayerTurn();
     return;
@@ -1370,139 +1045,102 @@ function drawPvpRivalUnit(ctx, rv, now) {
   ctx.restore();
 }
 
+// ENG-14: sunucu `pvp_sync`i yalnız odadaki rakibe yollar; istemci yine de maç/oda/gönderen filtresi uygular.
 function onRemoteTopcuPvpSync(msg) {
   if (!msg) return;
-  if (typeof msg.action === "string" && msg.action.indexOf("queue_") === 0) { onPvpQueueMessage(msg); return; }
-  const meH = (typeof S !== "undefined" && S && S.handle) || "@ejder_ocagi";
-  if (msg.action === "accept_invite") {
-    const room = SHM.pvpActiveRoom;
-    if (!room || !room.isHost || room.id !== msg.roomId || (msg.to && msg.to !== meH)) return;
-    if (room.slots.some(s => s.handle === msg.from)) return;
-    let slot = room.slots[msg.slot];
-    if (!slot || slot.kind !== "empty") slot = room.slots.find(s => s.kind === "empty");
-    if (!slot) return;
-    Object.assign(slot, { kind: "peer", handle: msg.from, name: msg.from, sub: "Davetli Oyuncu", ready: true });
-    pvpSyncRoomCounts(room);
-    if (typeof toast === "function") toast("✅ <b>" + msg.from + "</b> odaya katıldı!", "goal");
-    if (SHM.open && SHM.screen === "pvp_lobby") renderSahmeranApp();
-    return;
-  }
-  if (msg.action === "invite" && msg.roomId && String(msg.roomId).indexOf("room_custom_") === 0) {
-    let info = {};
-    try { info = msg.text ? JSON.parse(msg.text) : {}; } catch (e) { info = {}; }
-    SHM.pendingInvite = { from: msg.from, roomId: msg.roomId, mapId: msg.mapId, slot: msg.slot, name: info.name || "Özel Oda", mode: info.mode || "1v1", host: info.host || msg.from };
-    if (typeof toast === "function") toast("<b>📨 Oda Daveti</b><br><b>" + msg.from + "</b> seni <b>" + SHM.pendingInvite.name + "</b> odasına çağırıyor. Topçu Er Meydanı lobisinden katıl.", "goal");
-    if (SHM.open && SHM.screen === "pvp_lobby") renderSahmeranApp();
-    return;
-  }
   if (msg.action === "invite" && msg.raidId) {
+    const me = (typeof S !== "undefined" && S && S.handle) || "@ejder_ocagi";
+    if (msg.to && msg.to !== me) return;
     if (typeof toast === "function") toast("<b>🏰 Sefer Daveti</b><br><b>" + msg.from + "</b> seni zindan seferine çağırıyor.", "goal");
     return;
   }
-  if (msg.action === "invite") {
-    const mapCfg = PVP_ARENA_MAPS[msg.mapId || "skybridge"] || PVP_ARENA_MAPS.skybridge;
-    if (typeof toast === "function") {
-      toast(`<b>⚔️ Canlı Ejder Topçusu PvP Düello Daveti!</b><br><b>${msg.from || "@gezgin_topcu"}</b> seni <b>${mapCfg.name}</b> arenasında canlı düelloya çağırıyor!`, "goal");
-    }
-    return;
-  }
-  if (!SHM.open) return;
-  if (msg.action === "join_map") {
-    if (SHM.screen === "pvp_lobby") renderSahmeranApp();
-    return;
-  }
-  if (SHM.gameMode !== "pvp") return;
-  if (msg.action === "move_aim" && SHM.pvpRival && !SHM.pvpRival.dead && SHM.player) {
-    const rv = SHM.pvpRival;
-    rv.isLivePlayer = true;
-    rv.handle = msg.from || rv.handle;
-    rv.name = `Canlı Rakip (${msg.from || "@gezgin_topcu"})`;
-    if (msg.chibi) rv.chibi = msg.chibi;
-    if (msg.el) rv.el = msg.el;
+  const L = SHM.pvpLive;
+  if (!L || L.ended || !msg.matchId || msg.matchId !== L.matchId || msg.from !== L.rival) return;
+  if (!SHM.open || SHM.gameMode !== "pvp" || SHM.screen !== "battle" || !SHM.player || !SHM.pvpRival) return;
+  const rv = SHM.pvpRival;
+  rv.isLivePlayer = true;
+  if (msg.chibi) rv.chibi = msg.chibi;
+  if (msg.el) rv.el = msg.el;
+  if (msg.action === "move_aim") {
     if (typeof msg.x === "number") {
       const mirroredX = Math.max(2160, Math.min(3020, 3400 - msg.x));
       if (SHM.heightMap && SHM.heightMap[Math.round(mirroredX)] < 1420) {
         rv.x = mirroredX;
-        rv.y = SHM.heightMap[Math.round(mirroredX)];
+        rv.y = typeof findLocalGroundY === "function" ? findLocalGroundY(Math.round(mirroredX), rv.y) : SHM.heightMap[Math.round(mirroredX)];
       }
     }
+    if (typeof msg.facing === "number") rv.facing = -msg.facing;
     if (typeof msg.angle === "number") rv.aimAngle = msg.angle;
     return;
   }
-  if (msg.action === "turn_handoff" && SHM.pvpRival) {
-    SHM.pvpRival.isLivePlayer = true;
-    if (msg.chibi) SHM.pvpRival.chibi = msg.chibi;
-    if (typeof msg.wind === "number") {
-      SHM.wind = -msg.wind;
-      updateBattleHudDom();
+  if (msg.action === "hp_sync") {
+    // Rakibin kendi yazdığı gerçek can: atan taraftaki tahmin buna eşitlenir.
+    if (typeof msg.maxHp === "number" && msg.maxHp > 0) rv.maxHp = msg.maxHp;
+    if (typeof msg.hp === "number") {
+      if (rv.ghostHp == null || msg.hp > rv.hp) rv.ghostHp = msg.hp;
+      rv.hp = Math.max(0, Math.min(rv.maxHp, msg.hp));
     }
+    updateBattleHudDom();
     return;
   }
-  if (msg.action === "hit" && SHM.pvpRival && msg.rivalHp != null) {
-    SHM.pvpRival.hp = Math.max(0, msg.rivalHp);
+  if (msg.action === "hit") {
+    pvpApplyIncomingHit(msg.dmg);
+    return;
+  }
+  if (msg.action === "turn_handoff") {
+    const next = Number(msg.turnNo);
+    if (!Number.isInteger(next) || next <= L.turnNo) return; // yinelenen/eski devir
+    L.turnNo = next;
+    SHM.wind = pvpWindFor(L.turnNo);
+    pvpTickCalderaMagma();
     updateBattleHudDom();
-  } else if (msg.action === "fire" && SHM.pvpRival && !SHM.pvpRival.dead && SHM.player) {
-    if (SHM._liveRivalTimeout) {
-      clearTimeout(SHM._liveRivalTimeout);
-      SHM._liveRivalTimeout = null;
-    }
-    const rv = SHM.pvpRival;
-    rv.isLivePlayer = true;
-    rv.handle = msg.from || rv.handle;
-    rv.name = `Canlı Rakip (${msg.from || "@gezgin_topcu"})`;
-    if (msg.chibi) rv.chibi = msg.chibi;
-    if (msg.el) rv.el = msg.el;
+    if (SHM._pvpHandoffWait) clearInterval(SHM._pvpHandoffWait);
+    const t0 = Date.now();
+    // Rakibin mermisi bu ekranda hâlâ uçuyorsa düşmesini bekle (en çok 3,5 sn), sonra sıra bizde.
+    SHM._pvpHandoffWait = setInterval(() => {
+      if (!pvpIsLive() || !SHM.open || SHM.screen !== "battle") { clearInterval(SHM._pvpHandoffWait); SHM._pvpHandoffWait = null; return; }
+      if ((SHM.projectiles.length === 0 && (SHM.cam.impactHoldTimer || 0) <= 0) || Date.now() - t0 > 3500) {
+        clearInterval(SHM._pvpHandoffWait); SHM._pvpHandoffWait = null;
+        SHM.projectiles = SHM.projectiles.filter(pr => !pr.remote);
+        if (SHM.cam && SHM.cam.lockedUnit === rv) SHM.cam.lockedUnit = null;
+        startNewPlayerTurn();
+      }
+    }, 70);
+    return;
+  }
+  if (msg.action === "fire") {
     rv.state = "fire";
     rv.animTimer = 32;
     const rad = ((msg.angle || 42) * Math.PI) / 180;
     const spd = 5.2 + ((msg.power || 68) / 100) * 21.5;
     const dir = rv.x > SHM.player.x ? -1 : 1;
+    // Görsel mermi: hasar bu ekranda HESAPLANMAZ (atan taraf `hit` ile bildirir).
     SHM.projectiles.push({
-      owner: "enemy",
-      x: rv.x + dir * 32,
-      y: rv.y - 54,
-      vx: Math.cos(rad) * spd * dir,
-      vy: -Math.sin(rad) * spd,
-      r: 13,
-      dmg: msg.dmg || 260,
-      blastRadius: 68,
-      craterRadius: 56,
-      el: msg.el || rv.el || "firtina",
-      trail: []
+      owner: "enemy", remote: true,
+      x: rv.x + dir * 32, y: rv.y - 54,
+      vx: Math.cos(rad) * spd * dir, vy: -Math.sin(rad) * spd,
+      r: 13, dmg: 0, blastRadius: 68, craterRadius: 56,
+      el: msg.el || rv.el || "firtina", trail: []
     });
-    addFloatText(rv.x, rv.y - 116, `${msg.from || "@rakip"} CANLI ATIŞ YAPTI!`, "#38bdf8", 19, true);
-    if (SHM.turn === "enemy") {
-      setTimeout(() => {
-        if (SHM.cam && SHM.cam.lockedUnit === rv) SHM.cam.lockedUnit = null;
-        const waitCheck = setInterval(() => {
-          if (!SHM.open || SHM.screen !== "battle") {
-            clearInterval(waitCheck);
-            return;
-          }
-          if (SHM.projectiles.length === 0 && (SHM.cam.impactHoldTimer || 0) <= 0) {
-            clearInterval(waitCheck);
-            startNewPlayerTurn();
-          }
-        }, 70);
-      }, 150);
-    }
-  } else if (msg.action === "taunt" && SHM.pvpRival) {
-    addFloatText(SHM.pvpRival.x, SHM.pvpRival.y - 120, `“${msg.text || "Nişanın şaştı terbiyeci!"}”`, "#fbbf24", 19, true);
+    if (typeof SFX !== "undefined" && SFX.play) SFX.play("cannon_launch");
+    addFloatText(rv.x, rv.y - 116, `${msg.from} ATEŞ ETTİ!`, "#38bdf8", 19, true);
+    return;
+  }
+  if (msg.action === "taunt") {
+    addFloatText(rv.x, rv.y - 120, `“${String(msg.text || "Nişanın şaştı!").slice(0, 60)}”`, "#fbbf24", 19, true);
   }
 }
 
 if (typeof window !== "undefined") {
   window.PVP_ARENA_MAPS = PVP_ARENA_MAPS;
   window.PVP_PRIMARY_MAP_IDS = PVP_PRIMARY_MAP_IDS;
-  window.queueQuickMatch = queueQuickMatch;
   window.initTopcuPvpStage = initTopcuPvpStage;
   window.onRemoteTopcuPvpSync = onRemoteTopcuPvpSync;
+  window.pvpWindFor = pvpWindFor;
 }
 if (typeof global !== "undefined") {
   global.PVP_ARENA_MAPS = PVP_ARENA_MAPS;
   global.PVP_PRIMARY_MAP_IDS = PVP_PRIMARY_MAP_IDS;
-  global.queueQuickMatch = queueQuickMatch;
   global.initTopcuPvpStage = initTopcuPvpStage;
   global.onRemoteTopcuPvpSync = onRemoteTopcuPvpSync;
 }
-
