@@ -152,9 +152,58 @@ test('kopma: rakibe pvp_peer_left, süre dolunca kalan hükmen kazanır; geri d�
   assert.ok(t2.last(m2.A, 'pvp_peer_back'));
   await wait(130);
   assert.equal(t2.all(m2.A, 'pvp_match_end').length, 0, 'geri dönen oyuncu hükmen kaybetmez');
+  t2.sendMsg(B2, { type: 'pvp_resume_ack', lastSeq: 0 });
   t2.sendMsg(m2.A, { type: 'pvp_sync', action: 'turn_handoff', turnNo: 1 });
   assert.equal(t2.last(B2, 'pvp_sync').turnNo, 1, 'yeni sokete yönlenir');
   t.rooms.stop(); t2.rooms.stop();
+});
+
+test('Y-1 geri dönüş: kaçırılan mesajlar sırayla yeniden oynatılır, sunucu tur/sıra/can özetini iletir', () => {
+  const t = setup({ disconnectGraceMs: 10000 });
+  const { A, B } = startedMatch(t);
+  const st = t.last(A, 'pvp_match_start');
+  const [first, second] = st.firstTurn === '@ayse' ? [A, B] : [B, A];
+  t.sendMsg(second, { type: 'pvp_sync', action: 'hp_sync', hp: 1700, maxHp: 1700 });
+  t.sendMsg(first, { type: 'pvp_sync', action: 'hp_sync', hp: 1650, maxHp: 1650 });
+  const seenBySecond = t.last(second, 'pvp_sync').seq;
+  const accS = second.playerInfo.accountId, hS = second.playerInfo.handle;
+  t.drop(second);
+  // Kopukken gelenler: kayda geçer, canlı gönderilmez.
+  t.sendMsg(first, { type: 'pvp_sync', action: 'fire', angle: 40, power: 60, turnNo: 0 });
+  t.sendMsg(first, { type: 'pvp_sync', action: 'hit', dmg: 300, kb: 1, turnNo: 0 });
+  t.sendMsg(first, { type: 'pvp_sync', action: 'turn_handoff', turnNo: 1 });
+  const S2 = t.connect(hS, accS);
+  const resume = t.last(S2, 'pvp_match_resume');
+  assert.equal(resume.state, 'playing');
+  assert.equal(resume.snapshot.turnNo, 1); assert.equal(resume.snapshot.turnOwner, hS);
+  assert.equal(t.all(S2, 'pvp_sync').length, 0, 'ack gelmeden canlı mesaj yok');
+  t.sendMsg(first, { type: 'pvp_sync', action: 'taunt', text: 'hey' }); // arada gelen canlı mesaj da sıraya girer
+  t.sendMsg(S2, { type: 'pvp_resume_ack', matchId: st.matchId, lastSeq: seenBySecond });
+  const replay = t.all(S2, 'pvp_sync').map(m => m.action);
+  assert.deepEqual(replay, ['fire', 'hit', 'turn_handoff', 'taunt']);
+  const rs = t.last(S2, 'pvp_resync');
+  assert.equal(rs.snapshot.turnNo, 1); assert.equal(rs.snapshot.turnOwner, hS);
+  assert.equal(rs.snapshot.hp[first.playerInfo.handle].hp, 1650);
+  t.rooms.stop();
+});
+
+test('Y-2 ve D-1: "Beklemeden çık" sonrası geri dönen oyuncu sonucu alır; kopuk kurucunun boş odası listede kalmaz', () => {
+  const t = setup({ disconnectGraceMs: 10000 });
+  const { A, B, C } = startedMatch(t);
+  t.sendMsg(C, { type: 'pvp_lobby_sub' });
+  const accB = B.playerInfo.accountId;
+  t.drop(B);
+  t.sendMsg(A, { type: 'pvp_room_leave' });
+  assert.equal(t.last(A, 'pvp_match_end').winner, '@ayse');
+  assert.equal(t.rooms._debug.rooms.size, 0, 'kalanı kopuk oda hemen kapanır');
+  assert.equal(t.last(C, 'pvp_lobby').rooms.length, 0);
+  const B2 = t.connect('@bora', accB);
+  const end = t.last(B2, 'pvp_match_end');
+  assert.ok(end, 'geri dönen kopuk oyuncu sonucu alır');
+  assert.equal(end.winner, '@ayse'); assert.equal(end.reason, 'disconnect');
+  const B3 = t.connect('@bora', accB);
+  assert.equal(t.all(B3, 'pvp_match_end').length, 0, 'sonuç bir kez gönderilir');
+  t.rooms.stop();
 });
 
 test('ayrılma: maçta ayrılan hükmen kaybeder; rakip kopukken "Beklemeden çık" diyen kazanır', () => {
