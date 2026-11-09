@@ -14,7 +14,8 @@
     "test:eng10": "playwright test --config tests/playwright.config.js eng10_economy",
     "test:eng11": "playwright test --config tests/playwright.config.js eng11_trade",
     "test:eng12": "playwright test --config tests/playwright.config.js eng12_sync",
-    "test:eng13": "playwright test --config tests/playwright.config.js eng13_sync"
+    "test:eng13": "playwright test --config tests/playwright.config.js eng13_sync",
+    "test:eng14": "playwright test --config tests/playwright.config.js eng14_pvp"
   },
   "engines": {
     "node": "^22.13.0 || >=23.4.0"
