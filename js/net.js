@@ -273,6 +273,7 @@ function mpOpenWs(baseWs) {
     ws.onclose = () => {
       MP.connected = false;
       if (MP._pingTimer) { clearInterval(MP._pingTimer); MP._pingTimer = null; }
+      if (typeof pvpOnSelfOffline === 'function') pvpOnSelfOffline(); // ENG-14 Y-1: canlı Topçu maçında atış/devir durur
       if (MP.staticServer) return;
       if (MP._reconTimer) clearTimeout(MP._reconTimer);
       MP._reconTimer = setTimeout(() => {

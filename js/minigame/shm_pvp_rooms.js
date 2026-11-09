@@ -83,7 +83,6 @@ function onPvpNetMessage(msg) {
       const prev = PVPR.room;
       PVPR.room = msg.room || null;
       PVPR.you = msg.you || PVPR.you;
-      if (msg.created && typeof toast === "function") toast(`Oda kuruldu: <b>${pvprEsc(msg.room.code)}</b>. Kodu arkadaşına ver ya da davet et.`, "goal");
       if (msg.notice && msg.notice.handle !== pvprMe() && typeof toast === "function") {
         toast(msg.notice.kind === "joined" ? `<b>${pvprEsc(msg.notice.handle)}</b> odaya katıldı.` : `<b>${pvprEsc(msg.notice.handle)}</b> odadan ayrıldı.`, msg.notice.kind === "joined" ? "goal" : "bad");
       }
@@ -154,13 +153,19 @@ function onPvpNetMessage(msg) {
     case "pvp_match_resume": {
       PVPR.room = msg.room || PVPR.room;
       const L = SHM.pvpLive;
-      if (msg.state === "playing" && !(L && L.matchId === msg.matchId && !L.ended && SHM.screen === "battle")) {
+      if (L && !L.ended) {
+        // Canlı maç bu ekranda sürüyor: aynı maçsa kaçırılanlar istenir, değilse (bitti/başka) maç kapanır (Y-1, Y-2).
+        if (typeof pvpOnResume === "function") pvpOnResume(msg);
+      } else if (msg.state === "playing") {
         // Sayfa yenilendi, maç durumu kayboldu: dürüst çıkış (hükmen), rakip beklemesin.
         pvprSend("pvp_room_leave");
         if (typeof toast === "function") toast("Bağlantı koptuğu için maç devam ettirilemedi; maçtan çıkıldı.", "bad");
       }
       break;
     }
+    case "pvp_resync":
+      if (typeof pvpOnResync === "function") pvpOnResync(msg);
+      break;
     case "pvp_rematch_pending":
       if (SHM.pvpResult && SHM.pvpResult.live) {
         if (msg.self) SHM.pvpResult.rematchSent = true;
@@ -187,6 +192,15 @@ function pvprOnMatchStart(msg) {
 }
 
 function pvprOnReconnect() {
+  // Y-2: yeniden bağlandık ama sunucu maçı sürdürmüyorsa (ne resume ne sonuç geldi) savaş ekranında takılma.
+  const L0 = typeof SHM !== "undefined" ? SHM.pvpLive : null;
+  if (L0 && !L0.ended && L0.selfOffline) {
+    const mid = L0.matchId;
+    setTimeout(() => {
+      const L = SHM.pvpLive;
+      if (L && L.matchId === mid && !L.ended && L.selfOffline && typeof pvpOnResume === "function") pvpOnResume({ state: "gone", matchId: null });
+    }, 4000);
+  }
   // WS yeniden bağlandı: lobi aboneliği yenilenir.
   if (typeof SHM !== "undefined" && SHM.open && (SHM.screen === "pvp_lobby" || SHM.screen === "pvp_result")) pvprSubscribe(true);
   else PVPR.subscribed = false;
@@ -391,15 +405,34 @@ function pvprRenderInviteCard() {
 function pvprShowPeerOverlay() {
   if (typeof document === "undefined" || typeof SHM === "undefined") return;
   const L = SHM.pvpLive;
-  const want = !!(L && !L.ended && !L.peerConnected && SHM.open && SHM.screen === "battle");
+  const want = !!(L && !L.ended && (!L.peerConnected || L.selfOffline) && SHM.open && SHM.screen === "battle");
   let el = document.getElementById("pvprPeerOverlay");
+  const mode = L && L.selfOffline ? "self" : "peer";
+  if (el && el.getAttribute("data-mode") !== mode) { el.remove(); el = null; }
   if (!want) { if (el) el.remove(); return; }
   const left = Math.max(0, Math.ceil((L.peerLeftAt + L.graceMs - Date.now()) / 1000));
+  if (!el && mode === "self") {
+    // Kendi bağlantımız koptu: atış durur, yeniden bağlanınca sunucu özetiyle sürer.
+    const root = document.querySelector(".shm-root") || document.body;
+    el = document.createElement("div");
+    el.id = "pvprPeerOverlay";
+    el.className = "pvpr-overlay";
+    el.setAttribute("data-mode", "self");
+    el.innerHTML = `
+      <div class="pvpr-card pvpr-peer-card">
+        <div class="pvpr-kicker">Bağlantın koptu</div>
+        <div class="pvpr-spinner" aria-hidden="true"></div>
+        <p>Yeniden bağlanılıyor… Maç kaldığı yerden sürecek.</p>
+      </div>`;
+    root.appendChild(el);
+    return;
+  }
   if (!el) {
     const root = document.querySelector(".shm-root") || document.body;
     el = document.createElement("div");
     el.id = "pvprPeerOverlay";
     el.className = "pvpr-overlay";
+    el.setAttribute("data-mode", "peer");
     el.innerHTML = `
       <div class="pvpr-card pvpr-peer-card">
         <div class="pvpr-kicker">Bağlantı koptu</div>
@@ -415,7 +448,7 @@ function pvprShowPeerOverlay() {
   }
 }
 function pvprHidePeerOverlay() { const el = typeof document !== "undefined" && document.getElementById("pvprPeerOverlay"); if (el) el.remove(); }
-if (typeof window !== "undefined") window.pvprShowPeerOverlay = pvprShowPeerOverlay;
+if (typeof window !== "undefined") { window.pvprShowPeerOverlay = pvprShowPeerOverlay; window.pvprHidePeerOverlay = pvprHidePeerOverlay; }
 
 /* ---------------- çizim yardımcıları ---------------- */
 function pvprDoll(slot, flip) {
@@ -438,8 +471,7 @@ function renderPvpLobbyScreen() {
   const mapObj = (typeof PVP_ARENA_MAPS !== "undefined" && (PVP_ARENA_MAPS[curMap] || PVP_ARENA_MAPS.steppe_canyon)) || {};
   const body = PVPR.room && PVPR.room.state !== "playing" ? pvpFormationHtml() : pvprLobbyHtml();
   return `
-    <div class="shm-screen-body pvpr-screen" style="background-image:url('${mapObj.bgUrl || ""}')">
-      <div class="shm-screen-backdrop"></div>
+    <div class="shm-screen-body pvpr-screen" style="background-image:radial-gradient(circle at 50% 25%, rgba(12, 28, 22, 0.78) 0%, rgba(5, 10, 8, 0.94) 100%), url('${mapObj.bgUrl || ""}')">
       ${body}
     </div>`;
 }
@@ -642,8 +674,7 @@ function renderPvpResultScreen() {
       <button class="pvpr-btn ghost wide" data-pvpr-act="leave">Lobiye dön</button>`;
   }
   return `
-    <div class="shm-screen-body pvpr-screen" style="background-image:url('${mapObj.bgUrl || ""}')">
-      <div class="shm-screen-backdrop"></div>
+    <div class="shm-screen-body pvpr-screen" style="background-image:radial-gradient(circle at 50% 25%, rgba(12, 28, 22, 0.78) 0%, rgba(5, 10, 8, 0.94) 100%), url('${mapObj.bgUrl || ""}')">
       <div class="pvpr-result ${R.win ? "win" : "lose"}" data-pvpr-result="${R.win ? "win" : "lose"}">
         <section class="pvpr-card">
           <div class="pvpr-kicker">${R.practice ? "Prova sonucu" : "Maç sonu"}</div>

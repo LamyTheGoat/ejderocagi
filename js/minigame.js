@@ -1508,7 +1508,12 @@ function detonateProjectile(pr) {
           rv.state = "hit";
           rv.animTimer = 28;
           const kbMult = SHM.pvpMap === "glacier" ? 2.15 : 1.25;
-          rv.x = Math.max(90, Math.min(SHM.WORLD_W - 90, rv.x + Math.sign(rv.x - pr.x || pr.vx || 1) * Math.round(28 * kbMult)));
+          const kbDir = Math.sign(rv.x - pr.x || pr.vx || 1);
+          // ENG-14 Y-3: canlı maçta geri itmeyi isabet alan taraf kendi ekranında uygular ve konumunu bildirir;
+          // burada rakip itilmez (hayalet konum olmasın). Yön `hit.kb` ile gider.
+          if (!(typeof pvpIsLive === "function" && pvpIsLive())) {
+            rv.x = Math.max(90, Math.min(SHM.WORLD_W - 90, rv.x + kbDir * Math.round(28 * kbMult)));
+          }
           SHM.stats.totalDmg += dmg;
           if (isHeadshot) SHM.stats.crownHits = (SHM.stats.crownHits || 0) + 1;
           SHM.stats.curCombo = (SHM.stats.curCombo || 0) + 1;
@@ -1519,7 +1524,7 @@ function detonateProjectile(pr) {
             // ENG-14: hasarı ALICI kendi canına yazar; buradaki rv.hp yalnız tahmin, rakibin hp_sync'i ile düzelir.
             SHM.pvpLive.stats.hits += 1;
             SHM.pvpLive.stats.dmgDealt += dmg;
-            mpSendWs({ type: "pvp_sync", action: "hit", dmg, turnNo: SHM.pvpLive.turnNo });
+            mpSendWs({ type: "pvp_sync", action: "hit", dmg, kb: kbDir, turnNo: SHM.pvpLive.turnNo });
           } else if (rv.hp <= 0) {
             rv.dead = true;
             addFloatText(rv.x, rv.y - 125, `${rv.name} MAĞLUP EDİLDİ!`, "#9ad07a", 22, true);
@@ -1901,6 +1906,13 @@ function advanceTurnAfterVolley() {
 
   if (SHM.gameMode === "pvp" && typeof pvpIsLive === "function" && pvpIsLive()) {
     // ENG-14 canlı 1v1: sıra rakibe geçer (sonucu yalnız sunucunun pvp_match_end mesajı verir).
+    if (!SHM.pvpLive.peerConnected || SHM.pvpLive.selfOffline) {
+      // Y-1: rakip (ya da biz) kopukken sıra devredilmez; dönüşte devredilir.
+      SHM.pvpLive.pendingHandoff = true;
+      SHM.turn = "paused";
+      updateBattleHudDom();
+      return;
+    }
     pvpHandOffTurn();
     SHM.turn = "enemy";
     SHM.cam.manualPan = false;

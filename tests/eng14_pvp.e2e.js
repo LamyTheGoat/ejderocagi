@@ -12,7 +12,7 @@ let child, dir, url;
 test.beforeAll(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'eo-eng14-')); fs.mkdirSync(shots, { recursive: true });
   child = fork('-e', [`const http=require('node:http');const probe=http.createServer();probe.listen(0,'127.0.0.1',()=>{const port=probe.address().port;probe.close(()=>{process.env.PUBLIC_URL='http://127.0.0.1:'+port;const {server}=require(${JSON.stringify(require.resolve('../server'))});process.on('message',m=>{if(m==='stop')process.emit('SIGTERM');});server.listen(port,'127.0.0.1',()=>process.send({port}));});});`], {
-    env: { ...process.env, NODE_ENV: 'test', ECONOMY_BACKEND: 'sqlite', DATA_DIR: path.join(dir, 'world'), LOCAL_ECONOMY_DIR: path.join(dir, 'economy'), PVP_DISCONNECT_GRACE_MS: '4000' }, silent: true });
+    env: { ...process.env, NODE_ENV: 'test', ECONOMY_BACKEND: 'sqlite', DATA_DIR: path.join(dir, 'world'), LOCAL_ECONOMY_DIR: path.join(dir, 'economy'), PVP_DISCONNECT_GRACE_MS: '12000' }, silent: true });
   child.stdout.resume(); child.stderr.on('data', d => process.stderr.write(d));
   const [info] = await once(child, 'message'); url = 'http://127.0.0.1:' + info.port;
 });
@@ -61,6 +61,19 @@ async function noOverflow(page) {
     return { doc: document.documentElement.scrollWidth - window.innerWidth, sc: sc ? sc.scrollWidth - sc.clientWidth : 0, small };
   });
   expect(r.doc).toBeLessThanOrEqual(0); expect(r.sc).toBeLessThanOrEqual(0); expect(r.small).toEqual([]);
+}
+
+// O-1: üst şerit karartılmaz; başlık/alt yazı dikeyde kesilmez, şeritten taşmaz; alt yazıda 2v2 yok.
+async function topbarOk(page) {
+  const r = await page.evaluate(() => {
+    const bar = document.querySelector('.shm-topbar'); const t = bar.querySelector('.shm-title'); const st = bar.querySelector('.shm-subtitle');
+    const b = bar.getBoundingClientRect(), tr = t.getBoundingClientRect();
+    const hit = document.elementFromPoint(Math.min(tr.left + 20, b.right - 5), tr.top + tr.height / 2);
+    return { covered: !(hit && bar.contains(hit)), clipTop: tr.top < b.top - 1, clipBottom: tr.bottom > b.bottom + 1,
+      vert: t.scrollHeight > t.clientHeight + 2, sub: st ? st.textContent : '', overflowX: bar.scrollWidth > bar.clientWidth + 1 };
+  });
+  expect(r.covered).toBe(false); expect(r.clipTop).toBe(false); expect(r.clipBottom).toBe(false); expect(r.vert).toBe(false); expect(r.overflowX).toBe(false);
+  expect(r.sub).not.toContain('2v2');
 }
 
 test('ENG-14 oda: kur → listede gör → katıl → hazır → başlat; can/tur/rüzgâr eşit; Zafer/Yenilgi; rövanş; kopma → hükmen; üçüncü bağlam sessiz', async ({ browser }) => {
@@ -152,11 +165,11 @@ test('ENG-14 oda: kur → listede gör → katıl → hazır → başlat; can/tu
   await expect.poll(async () => { const x = await live(A), y = await live(B); return !!(x && y && x.screen === 'battle' && y.screen === 'battle' && x.matchId === y.matchId && x.matchId !== a.matchId); }).toBe(true);
   expect((await live(A)).firstTurn).toBe(loserH);
 
-  // Kopma: B'nin bağlantısı kesilir → A'da bekleme katmanı; 4 sn (test ayarı) sonra A hükmen kazanır.
+  // Kopma: B'nin bağlantısı kesilir → A'da bekleme katmanı; 12 sn (test ayarı) sonra A hükmen kazanır.
   await ctxB.close();
   await expect(A.locator('#pvprPeerOverlay')).toBeVisible();
   await A.screenshot({ path: path.join(shots, 'kopma-A-1000.png') });
-  await expect.poll(() => A.evaluate(() => SHM.screen), { timeout: 15000 }).toBe('pvp_result');
+  await expect.poll(() => A.evaluate(() => SHM.screen), { timeout: 25000 }).toBe('pvp_result');
   await expect(A.locator('[data-pvpr-result="win"] .pvpr-result-title')).toHaveText('Zafer');
   expect(await A.evaluate(() => SHM.pvpResult.reason)).toBe('disconnect');
   await A.getByRole('button', { name: 'Lobiye dön' }).click();
@@ -193,6 +206,86 @@ test('ENG-14 davet: kurucu çevrimiçi arkadaşı davet eder, kart üstte; kabul
   await expect(A.locator('#pvprPeerOverlay')).toBeVisible();
   await A.getByRole('button', { name: /Beklemeden çık/ }).click();
   await expect.poll(() => A.evaluate(() => SHM.pvpResult && SHM.pvpResult.win)).toBe(true);
+  // Y-2: kopan B geri gelince savaş ekranında takılmaz; aynı sonucu (Yenilgi, bağlantı) görür.
+  await expect(B.locator('#pvprPeerOverlay[data-mode="self"]')).toBeVisible();
+  await B.evaluate(() => { MP.staticServer = false; mpConnect(); });
+  await expect.poll(() => B.evaluate(() => SHM.screen), { timeout: 15000 }).toBe('pvp_result');
+  await expect(B.locator('[data-pvpr-result="lose"] .pvpr-result-title')).toHaveText('Yenilgi');
+  expect(await B.evaluate(() => [SHM.pvpResult.winner, SHM.pvpResult.reason])).toEqual([hA, 'disconnect']);
+  await B.screenshot({ path: path.join(shots, 'geri-donus-sonuc-375.png') });
+  expect(errors).toEqual([]);
+  await ctxA.close(); await ctxB.close();
+});
+
+// İki oyuncuyu aynı odada maça sokar (A kurucu). mapId verilirse kurucu haritayı seçer.
+async function roomMatch(browser, mapId) {
+  const ctxA = await browser.newContext({ viewport: { width: 1000, height: 768 } }), ctxB = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  const A = await ctxA.newPage(), B = await ctxB.newPage(); const errors = []; for (const p of [A, B]) p.on('pageerror', e => errors.push(String(e)));
+  await newGame(A, false); await newGame(B, false);
+  await openLobby(A); await openLobby(B);
+  if (mapId) await A.locator(`[data-pvpr-act="new-map"][data-map="${mapId}"]`).click();
+  await A.locator('[data-pvpr-act="create"]').click();
+  const code = await A.locator('#pvprRoomCode').textContent();
+  await B.locator('.pvpr-room', { hasText: code }).getByRole('button', { name: 'Katıl' }).click();
+  await B.getByRole('button', { name: 'Hazırım' }).click();
+  await A.locator('[data-pvpr-act="start"]').click();
+  await expect.poll(async () => { const a = await live(A), b = await live(B); return !!(a && b && a.screen === 'battle' && b.screen === 'battle'); }).toBe(true);
+  return { ctxA, ctxB, A, B, errors };
+}
+// Sırası olan tarafı ve karşısını döndürür.
+async function turnPair(A, B) {
+  await expect.poll(async () => { const a = await live(A), b = await live(B); return [a.turn, b.turn].sort().join(); }).toBe('enemy,player');
+  return (await live(A)).turn === 'player' ? [A, B] : [B, A];
+}
+
+test('ENG-14 Y-1: B kopar, A sırasında ateş eder (devir bekler), B 8 sn sonra döner → tur/can/sıra iki tarafta aynı', async ({ browser }) => {
+  const { ctxA, ctxB, A, B, errors } = await roomMatch(browser);
+  // A'nın sırası gelene kadar ilerle.
+  let [S] = await turnPair(A, B);
+  if (S === B) { await shoot(B, 120); await expect.poll(async () => (await live(A)).turn).toBe('player'); }
+  const before = await live(B);
+  await B.evaluate(() => MP.ws.close()); // net.js 8 sn sonra kendiliğinden yeniden bağlanır
+  await expect(A.locator('#pvprPeerOverlay[data-mode="peer"]')).toBeVisible();
+  await expect(B.locator('#pvprPeerOverlay[data-mode="self"]')).toBeVisible();
+  expect((await live(A)).turn).toBe('paused');
+  // Kopma katmanı açıkken sıra sahibi ateş edemez (oyun girişi engelli).
+  expect(await A.evaluate(() => { firePlayerVolley(70); return SHM.projectiles.length; })).toBe(0);
+  // Kopukluk başlamadan uçan mermi: isabet gönderilir, devir rakip dönene kadar bekler.
+  await shoot(A, 200);
+  expect((await live(A)).turn).toBe('paused');
+  expect(await A.evaluate(() => SHM.pvpLive.pendingHandoff)).toBe(true);
+  await A.screenshot({ path: path.join(shots, 'y1-kopma-bekleme-A.png') });
+  // B döner (≈8 sn), kaçırılanlar yeniden oynatılır.
+  await expect.poll(async () => { const a = await live(A), b = await live(B); return !!(b && !b.ended && b.turn === 'player' && a.turn === 'enemy'); }, { timeout: 20000 }).toBe(true);
+  await expect.poll(async () => { const a = await live(A), b = await live(B); return a.turnNo === b.turnNo && a.rivalHp === b.hp && b.rivalHp === a.hp && a.wind === -b.wind; }).toBe(true);
+  expect((await live(B)).hp).toBeLessThan(before.hp);
+  await expect(A.locator('#pvprPeerOverlay')).toHaveCount(0);
+  await expect(B.locator('#pvprPeerOverlay')).toHaveCount(0);
+  // Maç sürer: B atar, sıra A'ya geçer.
+  await shoot(B, 100);
+  await expect.poll(async () => (await live(A)).turn).toBe('player');
+  expect(errors).toEqual([]);
+  await ctxA.close(); await ctxB.close();
+});
+
+test('ENG-14 Y-3: geri itme isabet alanda uygulanır; 12 tur boyunca iki ekranda rakip konumu eşit (buzul çarpanı)', async ({ browser }) => {
+  const { ctxA, ctxB, A, B, errors } = await roomMatch(browser, 'glacier');
+  expect((await live(A)).map).toBe('glacier');
+  const pos = p => p.evaluate(() => ({ me: Math.round(SHM.player.x), rival: Math.round(SHM.pvpRival.x) }));
+  const startB = await pos(B);
+  for (let i = 0; i < 12; i++) {
+    const [S, R] = await turnPair(A, B);
+    const rBefore = (await pos(R)).me;
+    await shoot(S, 15);
+    await expect.poll(async () => (await live(R)).turn).toBe('player');
+    // İsabet alan itildi ve iki ekranda konum aynı (ayna: rakip.x = 3400 - kendi.x, ±3 px).
+    expect((await pos(R)).me).not.toBe(rBefore);
+    await expect.poll(async () => { const s = await pos(S), r = await pos(R); return Math.abs(s.rival - Math.max(90, Math.min(3310, 3400 - r.me))); }).toBeLessThanOrEqual(3);
+  }
+  const a = await pos(A), b = await pos(B);
+  expect(Math.abs(a.rival - (3400 - b.me))).toBeLessThanOrEqual(3);
+  expect(Math.abs(b.rival - (3400 - a.me))).toBeLessThanOrEqual(3);
+  expect(b.me).not.toBe(startB.me);
   expect(errors).toEqual([]);
   await ctxA.close(); await ctxB.close();
 });
@@ -232,6 +325,7 @@ test('ENG-14 yerleşim: lobi 375/768/1000 px taşmasız; bot provası ödülsüz
     await page.setViewportSize({ width: w, height: h });
     await page.waitForTimeout(150);
     await noOverflow(page);
+    await topbarOk(page);
     await page.screenshot({ path: path.join(shots, `lobi-${w}.png`) });
   }
   const cols = await page.evaluate(() => getComputedStyle(document.querySelector('.pvpr-lobby')).gridTemplateColumns.split(' ').length);
@@ -241,6 +335,14 @@ test('ENG-14 yerleşim: lobi 375/768/1000 px taşmasız; bot provası ödülsüz
   await page.locator('[data-pvpr-act="create"]').click();
   await page.locator('[data-pvpr-act="bot-add"]').first().click();
   await expect(page.locator('.pvpr-slot.red')).toContainText('Bot');
+  // O-1: başlıktaki harita odanın haritası; şerit 375/768/1000'de kesilmez/örtülmez.
+  await page.locator('[data-pvpr-act="room-map"][data-map="glacier"]').click();
+  await expect(page.locator('.shm-topbar .shm-title')).toContainText(await page.evaluate(() => PVP_ARENA_MAPS.glacier.name.toUpperCase()));
+  for (const [w, h] of [[375, 812], [768, 1024], [1000, 768]]) {
+    await page.setViewportSize({ width: w, height: h }); await page.waitForTimeout(150);
+    await noOverflow(page); await topbarOk(page);
+    await page.screenshot({ path: path.join(shots, `bekleme-odasi-serit-${w}.png`) });
+  }
   await page.locator('[data-pvpr-act="start"]').click();
   await expect.poll(() => page.evaluate(() => SHM.screen)).toBe('battle');
   expect(await page.evaluate(() => !!SHM.pvpPractice && !SHM.pvpLive)).toBe(true);

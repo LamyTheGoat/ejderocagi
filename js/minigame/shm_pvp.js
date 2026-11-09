@@ -115,9 +115,17 @@ function pvpLaunchMatch(mapId, mode, opts = {}) {
 }
 
 // Alıcı taraf: rakibin bildirdiği hasarı KENDİ canına yazar (savunma: kalkan/zırh, mevcut kurallar).
-function pvpApplyIncomingHit(rawDmg) {
+function pvpApplyIncomingHit(rawDmg, kb) {
   const p = SHM.player;
   if (!p || !pvpIsLive()) return;
+  // ENG-14 Y-3: geri itme isabet alan tarafta uygulanır (atanın ekranındaki itme yönü bu ekranda aynadır).
+  if (kb === 1 || kb === -1) {
+    const kbMult = SHM.pvpMap === "glacier" ? 2.15 : 1.25;
+    p.x = Math.max(90, Math.min(SHM.WORLD_W - 90, p.x - kb * Math.round(28 * kbMult)));
+    if (typeof findLocalGroundY === "function") p.y = findLocalGroundY(Math.round(p.x), p.y);
+    if (typeof settleUnitsOnTerrain === "function") settleUnitsOnTerrain();
+    pvpSyncSend("move_aim", { mapId: SHM.pvpMap, x: Math.round(p.x), y: Math.round(p.y), facing: p.facing, angle: Math.round(p.angle) });
+  }
   let dmg = Math.max(0, Math.round(Number(rawDmg) || 0));
   const C = typeof ensureChibi === "function" ? ensureChibi() : null;
   if (C && C.eq && (C.eq.armor === "armor_11" || C.eq.armor === "abra_armor")) dmg = Math.round(dmg * 0.50);
@@ -198,12 +206,36 @@ function pvpFinishLocal(win) {
   renderSahmeranApp();
 }
 
+function pvpEsc(v) {
+  return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// ENG-14 Y-1: kopukluk sürerken sıra sahibi atış/sıra devri yapamaz (tur "paused"); dönüşte kaldığı yerden sürer.
+function pvpPauseTurn() {
+  if (SHM.turn === "player") { SHM.turn = "paused"; SHM.charging = false; SHM.pvpLive.pausedTurn = true; }
+  if (typeof updateBattleHudDom === "function") updateBattleHudDom();
+}
+function pvpResumeTurnIfReady() {
+  const L = SHM.pvpLive;
+  if (!L || L.ended || !L.peerConnected || L.selfOffline) return;
+  if (L.pendingHandoff) {
+    L.pendingHandoff = false;
+    SHM.turn = "resolving";
+    advanceTurnAfterVolley();
+    return;
+  }
+  if (L.pausedTurn && SHM.turn === "paused") SHM.turn = "player";
+  L.pausedTurn = false;
+  if (typeof updateBattleHudDom === "function") updateBattleHudDom();
+}
+
 function pvpOnPeerLeft(msg) {
   const L = SHM.pvpLive;
   if (!L || L.ended || msg.matchId !== L.matchId) return;
   L.peerConnected = false;
   L.peerLeftAt = Date.now();
   L.graceMs = msg.graceMs || 30000;
+  pvpPauseTurn();
   if (typeof pvprShowPeerOverlay === "function") pvprShowPeerOverlay();
 }
 
@@ -212,7 +244,73 @@ function pvpOnPeerBack(msg) {
   if (!L || L.ended || msg.roomId !== L.roomId) return;
   L.peerConnected = true;
   if (typeof pvprShowPeerOverlay === "function") pvprShowPeerOverlay();
-  if (typeof toast === "function") toast(`<b>${msg.handle}</b> geri bağlandı. Maç sürüyor.`, "goal");
+  if (typeof toast === "function") toast(`<b>${pvpEsc(msg.handle)}</b> geri bağlandı. Maç sürüyor.`, "goal");
+  pvpResumeTurnIfReady();
+}
+
+// Kendi soketimiz koptu (net.js onclose): atış/devir durur, yeniden bağlanınca sunucu özeti ile eşitlenir.
+function pvpOnSelfOffline() {
+  const L = SHM.pvpLive;
+  if (!L || L.ended) return;
+  L.selfOffline = true;
+  pvpPauseTurn();
+  if (typeof pvprShowPeerOverlay === "function") pvprShowPeerOverlay();
+}
+
+// Sunucu: geri dönüş. Aynı maç sürüyorsa kaçırılan mesajları ister; maç bittiyse/başkaysa canlı maçı kapatır.
+function pvpOnResume(msg) {
+  const L = SHM.pvpLive;
+  if (!L || L.ended) return;
+  const sameLive = msg.state === "playing" && msg.matchId === L.matchId && SHM.open && SHM.screen === "battle";
+  if (sameLive) {
+    mpSendWs({ type: "pvp_resume_ack", matchId: L.matchId, lastSeq: L.lastSeq || 0 });
+    return;
+  }
+  // Y-2: maç artık yok (sonuç geldiyse zaten gösterildi). Sonuçsuz kaldıysak savaş ekranından çık.
+  L.ended = true;
+  pvpClearLiveTimers();
+  SHM.turn = "over";
+  if (typeof pvprHidePeerOverlay === "function") pvprHidePeerOverlay();
+  if (typeof toast === "function") toast("Maç sona erdi.", "bad");
+  if (SHM.open) { SHM.pvpLive = null; SHM.screen = "pvp_lobby"; renderSahmeranApp(); }
+}
+
+// Yeniden oynatmadan sonra sunucu özeti: tur, sıra sahibi, rakip canı ve konumu iki tarafta eşit olur.
+function pvpOnResync(msg) {
+  const L = SHM.pvpLive;
+  if (!L || L.ended || msg.matchId !== L.matchId || !SHM.player || !SHM.pvpRival) return;
+  const s = msg.snapshot || {};
+  L.selfOffline = false;
+  L.peerConnected = msg.peerConnected !== false;
+  const rv = SHM.pvpRival;
+  const rh = s.hp && s.hp[L.rival];
+  if (rh && typeof rh.hp === "number") { if (rh.maxHp > 0) rv.maxHp = rh.maxHp; rv.hp = Math.max(0, Math.min(rv.maxHp, rh.hp)); rv.ghostHp = rv.hp; }
+  const rp = s.pos && s.pos[L.rival];
+  if (rp && typeof rp.x === "number") pvpPlaceRival(rp.x, rp.facing);
+  if (Number.isInteger(s.turnNo) && s.turnNo > L.turnNo) L.turnNo = s.turnNo;
+  SHM.wind = pvpWindFor(L.turnNo);
+  if (s.turnOwner === L.me) {
+    if (SHM.turn === "paused") { if (L.pendingHandoff) { /* devir bekliyor */ } else SHM.turn = "player"; }
+    else if (SHM.turn === "enemy" && !SHM._pvpHandoffWait) startNewPlayerTurn();
+  } else if (s.turnOwner) {
+    if (SHM.turn === "player" || (SHM.turn === "paused" && !L.pendingHandoff)) { SHM.turn = "enemy"; executePvpRivalTurn(); }
+  }
+  L.pausedTurn = false;
+  pvpSendHpSync();
+  pvpSyncSend("move_aim", { mapId: SHM.pvpMap, x: Math.round(SHM.player.x), y: Math.round(SHM.player.y), facing: SHM.player.facing, angle: Math.round(SHM.player.angle) });
+  if (typeof pvprShowPeerOverlay === "function") pvprShowPeerOverlay();
+  pvpResumeTurnIfReady();
+  updateBattleHudDom();
+}
+
+// Rakibin bildirdiği konum bu ekranda aynalanır (her taraf kendini solda görür).
+function pvpPlaceRival(x, facing) {
+  const rv = SHM.pvpRival;
+  if (!rv) return;
+  const mx = Math.max(90, Math.min(SHM.WORLD_W - 90, 3400 - x));
+  rv.x = mx;
+  if (SHM.heightMap) rv.y = typeof findLocalGroundY === "function" ? findLocalGroundY(Math.round(mx), rv.y) : SHM.heightMap[Math.round(mx)];
+  if (typeof facing === "number") rv.facing = -facing;
 }
 
 const FOOT_SINK_Y = 14; // Layer 3: 3/4 Perspective Foot Sink Offset so Chibi feet stand inside the grass/stone strip
@@ -859,7 +957,7 @@ function initTopcuPvpStage(mapId = "steppe_canyon", teamMode = null) {
   if (!liveKeep) {
     triggerTurnBanner(
       L ? (SHM.turn === "player" ? "İLK ATIŞ SENDE" : "İLK ATIŞ RAKİPTE") : `TOPÇU ER MEYDANI (${SHM.pvpTeamMode.toUpperCase()}) · ${mapDef.name.toUpperCase()}`,
-      L ? `${mapDef.name} · Rakip: ${L.rival}` : (isGroundMap ? "Toprak Katmanlarını Parçala veya Kemer Tünelinden Nişan Al!" : "Uçan Adaları Parçala ve Rakipleri Boşluğa Düşür!"),
+      L ? `${mapDef.name} · Rakip: ${pvpEsc(L.rival)}` : (isGroundMap ? "Toprak Katmanlarını Parçala veya Kemer Tünelinden Nişan Al!" : "Uçan Adaları Parçala ve Rakipleri Boşluğa Düşür!"),
       SHM.turn === "enemy" ? "enemy" : "player"
     );
   }
@@ -927,7 +1025,7 @@ function executePvpRivalTurn() {
     SHM.turn = "enemy";
     rv.isLivePlayer = true;
     SHM.cam.activeActor = { x: rv.x, y: rv.y - 75, zoom: 1.22, label: rv.name };
-    triggerTurnBanner("RAKİBİN SIRASI", `${SHM.pvpLive.rival} nişan alıyor…`, "enemy");
+    triggerTurnBanner("RAKİBİN SIRASI", `${pvpEsc(SHM.pvpLive.rival)} nişan alıyor…`, "enemy");
     updateBattleHudDom();
     return;
   }
@@ -1056,20 +1154,15 @@ function onRemoteTopcuPvpSync(msg) {
   }
   const L = SHM.pvpLive;
   if (!L || L.ended || !msg.matchId || msg.matchId !== L.matchId || msg.from !== L.rival) return;
+  if (typeof msg.seq === "number") { if (msg.seq <= (L.lastSeq || 0) && msg.action !== "move_aim") return; L.lastSeq = Math.max(L.lastSeq || 0, msg.seq); }
   if (!SHM.open || SHM.gameMode !== "pvp" || SHM.screen !== "battle" || !SHM.player || !SHM.pvpRival) return;
   const rv = SHM.pvpRival;
   rv.isLivePlayer = true;
   if (msg.chibi) rv.chibi = msg.chibi;
   if (msg.el) rv.el = msg.el;
   if (msg.action === "move_aim") {
-    if (typeof msg.x === "number") {
-      const mirroredX = Math.max(2160, Math.min(3020, 3400 - msg.x));
-      if (SHM.heightMap && SHM.heightMap[Math.round(mirroredX)] < 1420) {
-        rv.x = mirroredX;
-        rv.y = typeof findLocalGroundY === "function" ? findLocalGroundY(Math.round(mirroredX), rv.y) : SHM.heightMap[Math.round(mirroredX)];
-      }
-    }
-    if (typeof msg.facing === "number") rv.facing = -msg.facing;
+    if (typeof msg.x === "number") pvpPlaceRival(msg.x, msg.facing);
+    else if (typeof msg.facing === "number") rv.facing = -msg.facing;
     if (typeof msg.angle === "number") rv.aimAngle = msg.angle;
     return;
   }
@@ -1084,7 +1177,7 @@ function onRemoteTopcuPvpSync(msg) {
     return;
   }
   if (msg.action === "hit") {
-    pvpApplyIncomingHit(msg.dmg);
+    pvpApplyIncomingHit(msg.dmg, msg.kb);
     return;
   }
   if (msg.action === "turn_handoff") {
