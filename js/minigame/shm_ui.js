@@ -422,14 +422,17 @@ function renderSahmeranApp() {
   const isModeSelect = SHM.screen === "mode_select" || SHM.screen === "mode_gate";
   const isPvp = !isModeSelect && (SHM.gameMode === "pvp" || SHM.screen === "pvp_lobby" || SHM.entryContext === "pvp_arena");
   const isCaravan = !isModeSelect && SHM.gameMode === "caravan";
-  const pvpMapObj = PVP_ARENA_MAPS[SHM.pvpMap || "steppe_canyon"] || PVP_ARENA_MAPS.steppe_canyon;
+  // ENG-14 O-1: PvP lobisinde başlıktaki harita odanın haritasıdır; odada değilken harita yazılmaz.
+  const pvpRoomMap = (typeof PVPR !== "undefined" && PVPR.room && SHM.screen === "pvp_lobby") ? PVPR.room.mapId : null;
+  const pvpMapObj = PVP_ARENA_MAPS[pvpRoomMap || SHM.pvpMap || "steppe_canyon"] || PVP_ARENA_MAPS.steppe_canyon;
+  const pvpTitleMap = SHM.screen === "pvp_lobby" && !pvpRoomMap ? "" : ` · ${pvpMapObj.name.toUpperCase()}`;
 
   const topTitle = isModeSelect
     ? "SAVAŞ & SEFER KAPISI · MOD SEÇİMİ"
     : isCaravan
       ? `KERVAN SEFERİ PUSU SAVUNMASI · ${(SHM.caravanRouteId || "kizil_vadi").toUpperCase()}`
       : isPvp
-        ? `TOPÇU ER MEYDANI (${(SHM.pvpTeamMode || "1v1").toUpperCase()}) · ${pvpMapObj.name.toUpperCase()}`
+        ? `TOPÇU ER MEYDANI (1V1)${pvpTitleMap}`
         : camp.title;
 
   const topSub = isModeSelect
@@ -441,7 +444,7 @@ function renderSahmeranApp() {
             ? `${pvpMapObj.sub} · A/D: Yürü · W/S: Nişan · Boşluk: Ateş · P: Pas`
             : `${stageObj.name} · A/D: Yürü · W/S: Nişan · Boşluk: Ateş`)
         : (isPvp
-            ? "1v1 Hızlı Düello · 2v2 Takım Savaşı · Özel Oyun Odaları · Kara & Uçan Ada Haritaları"
+            ? "1v1 Topçu düellosu · Hızlı savaş, oda kur ya da kodla katıl · Ödülsüz"
             : `${camp.bossTitle} · ${camp.maxStage} Aşamalı Sıralı Zindan Seferi (PvE)`);
 
   // ADIM 2 & ADIM 5: Savaş ekranında (battle) ve Savaş ve Sefer Kapısı V2 (mode_select / mode_gate) ekranında üst bar (.shm-topbar) tamamen kaldırılır!
