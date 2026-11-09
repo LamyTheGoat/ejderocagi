@@ -25,6 +25,7 @@ const minigameSubFiles = [
   "js/minigame/pvp_maps/map_seljuk_ruins.js",
   "js/minigame/pvp_maps/map_dragon_caldera.js",
   "js/minigame/pvp_maps/map_glacier.js",
+  "js/minigame/shm_pvp_rooms.js",
   "js/minigame/shm_ui.js"
 ].filter(f => fs.existsSync(f));
 const jsFiles = [

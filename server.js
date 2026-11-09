@@ -462,7 +462,7 @@ function wsBroadcast(obj, excludeSocket = null) {
 
 const DUEL_SERVER = createDragonDuelServer({ crypto, WS_CLIENTS, WORLD, encodeWsFrame, store: ECONOMY }); // ENG06 P-D: ödüllü oda yalnız sunucu deposuyla
 
-const PVP_ROOMS = createPvpRooms({ crypto, WS_CLIENTS, encodeWsFrame }); // ENG-14: Topçu PvP odaları; mesajlar yalnız oda üyelerine
+const PVP_ROOMS = createPvpRooms({ crypto, WS_CLIENTS, encodeWsFrame, config: { disconnectGraceMs: Number(process.env.PVP_DISCONNECT_GRACE_MS) || undefined } }); // ENG-14: Topçu PvP odaları; mesajlar yalnız oda üyelerine
 
 const NPC_HANDLES = new Set(['@kuzey_ruzgari', '@leydi_sureyya', '@altin_kervan']);
 

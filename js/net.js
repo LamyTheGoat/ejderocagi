@@ -182,6 +182,9 @@ function mpOpenWs(baseWs) {
           if (msg.caravans) MP.caravans = msg.caravans;
           if (msg.chatLog) MP.chatLog = msg.chatLog;
           if (msg.marketListings) MP.marketListings = msg.marketListings;
+          if (typeof pvprOnReconnect === 'function') pvprOnReconnect(); // ENG-14: PvP lobi aboneliği yenilenir
+        } else if (msg.type !== 'pvp_sync' && typeof msg.type === 'string' && msg.type.startsWith('pvp_') && typeof onPvpNetMessage === 'function') {
+          onPvpNetMessage(msg); // ENG-14: oda/kuyruk/maç mesajları (yalnız bu oyuncuya yönlendirilmiş)
         } else if (['duel_invite', 'duel_invite_sent', 'duel_invite_result', 'duel_room_start', 'duel_room_resume', 'duel_waiting', 'duel_room_state', 'duel_opponent_disconnected', 'duel_opponent_reconnected', 'duel_error', 'duel_settlement'].includes(msg.type) && typeof handleDragonDuelNetMessage === 'function') {
           handleDragonDuelNetMessage(msg);
         } else if (msg.type === 'market_update') {
@@ -211,7 +214,6 @@ function mpOpenWs(baseWs) {
           MP.coopPeers[msg.from] = msg;
           if (typeof onRemoteDungeonCoopSync === 'function') onRemoteDungeonCoopSync(msg);
         } else if (msg.type === 'pvp_sync' && msg.from !== ((S && S.handle) || '@ejder_ocagi')) {
-          MP.pvpPeers[msg.from] = msg;
           if (typeof onRemoteTopcuPvpSync === 'function') onRemoteTopcuPvpSync(msg);
         } else if (msg.type === 'chat' && msg.entry) {
           MP.chatLog.push(msg.entry);
@@ -296,7 +298,8 @@ function mpSendWs(obj) {
   if (MP.ws && MP.ws.readyState === 1) {
     try { MP.ws.send(JSON.stringify(obj)); } catch (e) {}
   }
-  if (MP.bc && !(obj && ['duel_invite', 'duel_invite_reply', 'duel_action', 'duel_leave'].includes(obj.type))) {
+  // ENG-14: PvP oda/maç mesajları yalnız sunucu üzerinden (yönlendirmeli) gider; sekmeler arası kanala yazılmaz.
+  if (MP.bc && !(obj && (['duel_invite', 'duel_invite_reply', 'duel_action', 'duel_leave'].includes(obj.type) || String(obj.type || '').startsWith('pvp_')))) {
     try { MP.bc.postMessage(obj); } catch (e) {}
   }
 }

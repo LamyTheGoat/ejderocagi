@@ -395,9 +395,7 @@ function openAnimTestRoom(opts = {}) {
 }
 
 function closeSahmeranApp() {
-  if (typeof cancelPvpQueue === "function") cancelPvpQueue(true);
-  if (SHM.pvpActiveRoom && SHM.pvpActiveRoom.isHost) SHM.pvpRooms = (SHM.pvpRooms || []).filter(r => r.id !== SHM.pvpActiveRoom.id);
-  SHM.pvpActiveRoom = null;
+  if (typeof pvprOnAppClose === "function") pvprOnAppClose(); // ENG-14: kuyruktan/odadan çık, lobi aboneliğini bırak
   SHM.open = false;
   SHM.keys = {};
   SHM.charging = false;
@@ -478,6 +476,7 @@ function renderSahmeranApp() {
   let bodyHtml = "";
   if (isModeSelect) bodyHtml = renderModeSelectScreen(star);
   else if (SHM.screen === "pvp_lobby") bodyHtml = renderPvpLobbyScreen(star);
+  else if (SHM.screen === "pvp_result" && typeof renderPvpResultScreen === "function") bodyHtml = renderPvpResultScreen(star);
   else if (SHM.screen === "lobby") bodyHtml = renderLobbyScreen(star);
   else if (SHM.screen === "comic") bodyHtml = renderComicScreen(star);
   else if (SHM.screen === "victory") bodyHtml = renderVictoryScreen(star);
@@ -2180,6 +2179,11 @@ function bindSahmeranEvents() {
         SHM.screen = "battle";
         initSahmeranBattleStage(SHM.instanceStage || 1);
       } else if (target === "pvp_lobby") {
+        if (typeof pvpIsLive === "function" && pvpIsLive()) {
+          // ENG-14: canlı maçtan lobiye dönmek = maçtan ayrılmak (hükmen); sonuç sunucudan iki tarafa gelir.
+          if (typeof mpSendWs === "function") mpSendWs({ type: "pvp_room_leave" });
+          return;
+        }
         resetDungeonInstanceProgress();
         SHM.entryContext = "pvp_arena";
         SHM.gameMode = "pvp";
@@ -2189,87 +2193,6 @@ function bindSahmeranEvents() {
         SHM.gameMode = "raid";
         SHM.screen = target;
       }
-      renderSahmeranApp();
-    };
-  });
-
-  root.querySelectorAll("[data-shm-pvp-map]").forEach(card => {
-    card.onclick = (ev) => {
-      if (ev.target.closest("[data-shm-pvp-start]")) return;
-      const mId = card.getAttribute("data-shm-pvp-map") || "steppe_canyon";
-      SHM.pvpMap = mId;
-      if (typeof pvpSetRoomMap === "function") pvpSetRoomMap(mId);
-      renderSahmeranApp();
-    };
-  });
-
-  root.querySelectorAll("[data-shm-pvp-start]").forEach(btn => {
-    btn.onclick = (ev) => {
-      ev.stopPropagation();
-      const mId = btn.getAttribute("data-shm-pvp-start") || SHM.pvpMap || "steppe_canyon";
-      SHM.entryContext = "pvp_arena";
-      SHM.gameMode = "pvp";
-      SHM.pvpMap = mId;
-      SHM.screen = "battle";
-      initTopcuPvpStage(mId, SHM.pvpTeamMode || "1v1");
-      renderSahmeranApp();
-    };
-  });
-
-  root.querySelectorAll("[data-shm-room-mode]").forEach(btn => {
-    btn.onclick = () => {
-      SHM.pvpRoomFilterMode = btn.getAttribute("data-shm-room-mode") || "all";
-      renderSahmeranApp();
-    };
-  });
-
-  root.querySelectorAll("[data-shm-room-map]").forEach(btn => {
-    btn.onclick = () => {
-      SHM.pvpRoomFilterMap = btn.getAttribute("data-shm-room-map") || "all";
-      renderSahmeranApp();
-    };
-  });
-
-  root.querySelectorAll("[data-shm-newroom-mode]").forEach(btn => {
-    btn.onclick = () => {
-      SHM.pvpNewRoomMode = btn.getAttribute("data-shm-newroom-mode") || "2v2";
-      renderSahmeranApp();
-    };
-  });
-
-  root.querySelectorAll("[data-shm-newroom-map]").forEach(btn => {
-    btn.onclick = () => {
-      SHM.pvpNewRoomMap = btn.getAttribute("data-shm-newroom-map") || "steppe_canyon";
-      renderSahmeranApp();
-    };
-  });
-
-  root.querySelectorAll("[data-shm-join-room]").forEach(btn => {
-    btn.onclick = () => {
-      const rId = btn.getAttribute("data-shm-join-room");
-      const listed = (SHM.pvpRooms || []).find(r => r.id === rId) || (SHM.pvpRooms || [])[0];
-      if (!listed) return;
-      const mode = listed.mode || "1v1";
-      const mapId = listed.mapId || "steppe_canyon";
-      if (SHM.pvpActiveRoom && SHM.pvpActiveRoom.id === listed.id) return;
-      const slots = pvpBuildSlots(mode, listed.host);
-      slots[0].kind = "peer";
-      slots[0].sub = "Oda Kurucusu";
-      const free = slots.find(s => s.kind === "empty" && s.team === "red") || slots.find(s => s.kind === "empty");
-      if (!free) {
-        if (typeof toast === "function") toast("⚠️ Oda dolu.", "bad");
-        return;
-      }
-      Object.assign(free, { kind: "self", handle: pvpSelfHandle(), name: pvpSelfHandle(), ready: true });
-      SHM.entryContext = "pvp_arena";
-      SHM.gameMode = "pvp";
-      SHM.pvpTeamMode = mode;
-      SHM.pvpMap = mapId;
-      SHM.pvpActiveRoom = {
-        id: listed.id, name: listed.name, host: listed.host, mode, mapId,
-        isHost: false, curPlayers: 2, maxPlayers: mode === "2v2" ? 4 : 2, slots
-      };
-      SHM.screen = "pvp_lobby";
       renderSahmeranApp();
     };
   });
@@ -2299,44 +2222,6 @@ function bindSahmeranEvents() {
       const i = raidSlotIdx(btn, "data-shm-raid-kick");
       if (Array.isArray(SHM.raidPartySlots)) SHM.raidPartySlots[i] = null;
       syncRaidSoloMode();
-      renderSahmeranApp();
-    };
-  });
-
-  root.querySelectorAll("[data-shm-slot-invite]").forEach(btn => {
-    btn.onclick = () => {
-      const room = SHM.pvpActiveRoom;
-      if (!room || !room.isHost) return;
-      if (typeof mpSendWs === "function") {
-        mpSendWs({ type: "pvp_sync", action: "invite", from: pvpSelfHandle(), mapId: room.mapId, roomId: room.id, slot: parseInt(btn.getAttribute("data-shm-slot-invite"), 10), text: JSON.stringify({ name: room.name, mode: room.mode, host: room.host }) });
-      }
-      if (typeof toast === "function") toast("📨 <b>" + room.name + "</b> için arkadaş daveti gönderildi. Oyuncunun katılması bekleniyor.", "goal");
-    };
-  });
-
-  root.querySelectorAll("[data-shm-slot-bot]").forEach(btn => {
-    btn.onclick = () => {
-      const room = SHM.pvpActiveRoom;
-      if (!room || !room.isHost) return;
-      const idx = parseInt(btn.getAttribute("data-shm-slot-bot"), 10);
-      const slot = room.slots[idx];
-      if (!slot || slot.kind !== "empty") return;
-      const used = room.slots.map(s => s.handle);
-      const bot = PVP_BOT_POOL.find(b => !used.includes(b.handle)) || PVP_BOT_POOL[idx % PVP_BOT_POOL.length];
-      Object.assign(slot, { kind: "bot", handle: bot.handle, name: bot.handle, el: bot.el, sub: bot.sub, ready: true });
-      pvpSyncRoomCounts(room);
-      renderSahmeranApp();
-    };
-  });
-
-  root.querySelectorAll("[data-shm-slot-kick]").forEach(btn => {
-    btn.onclick = () => {
-      const room = SHM.pvpActiveRoom;
-      if (!room || !room.isHost) return;
-      const slot = room.slots[parseInt(btn.getAttribute("data-shm-slot-kick"), 10)];
-      if (!slot || slot.kind === "host" || slot.kind === "empty") return;
-      Object.assign(slot, { kind: "empty", handle: null, name: null, el: null, sub: null, ready: false });
-      pvpSyncRoomCounts(room);
       renderSahmeranApp();
     };
   });
@@ -2610,129 +2495,18 @@ function bindSahmeranEvents() {
         SHM.gameMode = "pvp";
         SHM.screen = "pvp_lobby";
         renderSahmeranApp();
-      } else if (act === "pvp-select-1v1") {
-        pvpSetRoomMode("1v1");
-        renderSahmeranApp();
-      } else if (act === "pvp-select-2v2") {
-        pvpSetRoomMode("2v2");
-        renderSahmeranApp();
       } else if (act === "pvp-quick-1v1") {
-        queueQuickMatch({ mode: "1v1", map: "any" });
-      } else if (act === "pvp-quick-2v2") {
-        queueQuickMatch({ mode: "2v2", map: "any" });
-      } else if (act === "pvp-decline-invite") {
-        SHM.pendingInvite = null;
-        renderSahmeranApp();
-      } else if (act === "pvp-accept-invite") {
-        const inv = SHM.pendingInvite;
-        if (!inv) return;
-        const mode = inv.mode === "2v2" ? "2v2" : "1v1";
-        const slots = pvpBuildSlots(mode, inv.host);
-        slots[0].kind = "peer";
-        slots[0].sub = "Oda Kurucusu";
-        let free = slots[inv.slot];
-        if (!free || free.kind !== "empty") free = slots.find(s => s.kind === "empty");
-        if (!free) { if (typeof toast === "function") toast("⚠️ Oda dolu.", "bad"); SHM.pendingInvite = null; renderSahmeranApp(); return; }
-        Object.assign(free, { kind: "self", handle: pvpSelfHandle(), name: pvpSelfHandle(), ready: true });
-        cancelPvpQueue(true);
-        SHM.pvpTeamMode = mode;
-        if (PVP_ARENA_MAPS[inv.mapId]) SHM.pvpMap = inv.mapId;
-        SHM.pvpActiveRoom = { id: inv.roomId, name: inv.name, host: inv.host, mode, mapId: SHM.pvpMap, isHost: false, curPlayers: 2, maxPlayers: mode === "2v2" ? 4 : 2, slots };
-        if (typeof mpSendWs === "function") mpSendWs({ type: "pvp_sync", action: "accept_invite", from: pvpSelfHandle(), to: inv.from, roomId: inv.roomId, slot: inv.slot, mapId: SHM.pvpMap });
-        SHM.pendingInvite = null;
-        renderSahmeranApp();
-      } else if (act === "pvp-cancel-queue") {
-        cancelPvpQueue();
-      } else if (act === "pvp-toggle-create-room") {
-        SHM.pvpCreateRoomOpen = !SHM.pvpCreateRoomOpen;
-        renderSahmeranApp();
-      } else if (act === "pvp-confirm-create-room") {
-        const mode = SHM.pvpNewRoomMode || "1v1";
-        const mapId = (SHM.pvpNewRoomMap && PVP_ARENA_MAPS[SHM.pvpNewRoomMap]) ? SHM.pvpNewRoomMap : "steppe_canyon";
-        const hostHandle = pvpSelfHandle();
-        const mDef = PVP_ARENA_MAPS[mapId] || PVP_ARENA_MAPS.steppe_canyon;
-        if (!Array.isArray(SHM.pvpRooms)) SHM.pvpRooms = [];
-        SHM.pvpTeamMode = mode;
-        SHM.pvpMap = mapId;
-        SHM.pvpCreateRoomOpen = false;
+        // ENG-14: hızlı savaş sunucu kuyruğunda; PvP lobisine geçip aramayı başlat.
         SHM.entryContext = "pvp_arena";
         SHM.gameMode = "pvp";
-        const room = {
-          id: "room_custom_" + Date.now(),
-          name: `Oda #${100 + Math.floor(Math.random() * 900)} · ${mDef.shortName || mDef.name}`,
-          host: hostHandle,
-          mode,
-          mapId,
-          isHost: true,
-          curPlayers: 1,
-          maxPlayers: mode === "2v2" ? 4 : 2,
-          slots: pvpBuildSlots(mode, hostHandle)
-        };
-        SHM.pvpRooms.unshift({
-          id: room.id, name: room.name, host: hostHandle, mode, mapId,
-          curPlayers: 1, maxPlayers: room.maxPlayers
-        });
-        cancelPvpQueue(true);
-        SHM.pvpActiveRoom = room;
         SHM.screen = "pvp_lobby";
-        if (typeof toast === "function") toast("🏰 <b>" + room.name + "</b> odası kuruldu! Arkadaşlarını davet et veya oyuncuların katılmasını bekle.", "goal");
         renderSahmeranApp();
-      } else if (act === "pvp-leave-room") {
-        const room = SHM.pvpActiveRoom;
-        if (room && room.isHost) SHM.pvpRooms = (SHM.pvpRooms || []).filter(r => r.id !== room.id);
-        else if (room) {
-          const listed = (SHM.pvpRooms || []).find(r => r.id === room.id);
-          if (listed) listed.curPlayers = Math.max(1, (listed.curPlayers || 1) - 1);
+        if (typeof PVPR !== "undefined" && typeof onPvpNetMessage === "function") {
+          const q = document.querySelector('[data-pvpr-act="quick"]');
+          if (q && !q.disabled) q.click();
         }
-        SHM.pvpActiveRoom = null;
-        renderSahmeranApp();
-      } else if (act === "pvp-start-match") {
-        const room = SHM.pvpActiveRoom;
-        if (!room) return;
-        if (!room.isHost) {
-          if (typeof toast === "function") toast("⚠️ Maçı yalnızca oda kurucusu başlatabilir.", "bad");
-          return;
-        }
-        const reds = room.slots.filter(s => s.team === "red" && s.kind !== "empty");
-        if (!reds.length) {
-          if (typeof toast === "function") toast("⚠️ Karşı takımda henüz rakip yok! Bir oyuncunun odaya katılmasını bekleyin veya Kırmızı yuvadaki <b>[🤖 Bot Ekle]</b> butonuna basın.", "bad");
-          return;
-        }
-        if (room.slots.some(s => s.kind === "empty")) {
-          if (typeof toast === "function") toast("⚠️ Boş yuvalar var! Oyuncu bekleyin veya <b>[🤖 Bot Ekle]</b> ile yuvaları doldurun; savaş motoru kimseyi sizden habersiz eklemez.", "bad");
-          return;
-        }
-        SHM.entryContext = "pvp_arena";
-        SHM.gameMode = "pvp";
-        SHM.pvpTeamMode = room.mode;
-        SHM.pvpMap = room.mapId;
-        SHM.screen = "battle";
-        initTopcuPvpStage(room.mapId, room.mode);
-        const bluesOther = room.slots.filter(s => s.team === "blue" && s.idx !== 0);
-        if (SHM.pvpAlly && bluesOther[0]) {
-          SHM.pvpAlly.name = bluesOther[0].name || SHM.pvpAlly.name;
-          SHM.pvpAlly.handle = bluesOther[0].handle || SHM.pvpAlly.handle;
-        }
-        (SHM.pvpRivals || []).forEach((rv, i) => {
-          const sl = reds[i];
-          if (sl && !rv.isLivePlayer) { rv.name = sl.name || rv.name; rv.handle = sl.handle || rv.handle; }
-        });
-        renderSahmeranApp();
-      } else if (act === "pvp-send-invite") {
-        if (typeof mpSendWs === "function") {
-          const mapCfg = PVP_ARENA_MAPS[SHM.pvpMap || "skybridge"] || PVP_ARENA_MAPS.skybridge;
-          mpSendWs({
-            type: "pvp_sync",
-            action: "invite",
-            from: (typeof S !== "undefined" && S && S.handle) || "@ejder_ocagi",
-            mapId: SHM.pvpMap || "skybridge",
-            roomId: SHM.pvpActiveRoom ? SHM.pvpActiveRoom.id : undefined,
-            text: SHM.pvpActiveRoom ? JSON.stringify({ name: SHM.pvpActiveRoom.name, mode: SHM.pvpActiveRoom.mode, host: SHM.pvpActiveRoom.host }) : undefined
-          });
-          if (typeof toast === "function") {
-            toast(`<b>⚔️ Canlı Ejder Topçusu PvP Çağrısı Gönderildi</b><br><b>${mapCfg.name}</b> haritasına tüm çevrimiçi terbiyeciler davet edildi!`, "goal");
-          }
-        }
+      } else if (act === "pvp-quick-2v2") {
+        if (typeof toast === "function") toast("2v2 yakında. Şimdilik 1v1 oynayabilirsin.", "goal");
       } else if (act === "spin-wheel") {
         spinSahmeranLootWheel();
       } else if (act === "open-chest") {

@@ -575,6 +575,14 @@ function socGoTable(handle) {
 }
 
 function socStartVsTopcu(handle) {
+  // ENG-14: VS Topçu artık gerçek oda daveti: Topçu PvP lobisi açılır, oda kurulur, arkadaşa davet gider.
+  if (typeof pvprInvite === 'function' && typeof openAnimTestRoom === 'function') {
+    SOC_UI.open = false;
+    socRender();
+    openAnimTestRoom({ screen: 'pvp_lobby', forceUnlock: true });
+    pvprInvite(handle);
+    return;
+  }
   const info = socInfo(handle);
   const friendObj = { handle, name: handle, chibi: info.chibi, fc: info.fc, dragon: info.dragon, el: info.el };
   if (typeof MP !== 'undefined') {
@@ -828,16 +836,9 @@ Object.assign(ACT, {
       if (info.real) socSend({ type: 'pvp_sync', action: 'invite', raidId: SHM.raidId, to: h, slot: i + 1 });
       toast(`📩 <b>${socEsc(h)}</b> Zindan lobisine katıldı!`, 'goal');
       if (typeof renderSahmeranApp === 'function') renderSahmeranApp();
-    } else if (kind === 'pvp' && typeof SHM !== 'undefined' && SHM.pvpActiveRoom) {
-      const room = SHM.pvpActiveRoom;
-      const slot = room.slots[parseInt(idxStr, 10)];
-      if (slot && slot.kind === 'empty') {
-        Object.assign(slot, { kind: 'peer', handle: h, name: h, el: info.el, sub: 'Arkadaş', ready: true, chibi: info.chibi });
-        if (typeof pvpSyncRoomCounts === 'function') pvpSyncRoomCounts(room);
-        if (info.real) socSend({ type: 'pvp_sync', action: 'invite', to: h, mapId: room.mapId, roomId: room.id, slot: slot.idx, text: JSON.stringify({ name: room.name, mode: room.mode, host: room.host }) });
-        toast(`📩 <b>${socEsc(h)}</b> PvP lobisindeki slota katıldı!`, 'goal');
-      }
-      if (typeof renderSahmeranApp === 'function') renderSahmeranApp();
+    } else if (kind === 'pvp' && typeof pvprInvite === 'function') {
+      // ENG-14: PvP daveti sunucu odasından yalnız hedefe gider; oyuncu kabul edince yuvaya oturur.
+      pvprInvite(h);
     } else if (kind === 'table') {
       if (info.real) socSend({ type: 'social_invite', to: h, kind: 'table', chibi: socInfo(socMe()).chibi });
       socGoTable(h);

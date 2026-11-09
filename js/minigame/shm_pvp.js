@@ -125,10 +125,10 @@ function pvpApplyIncomingHit(rawDmg) {
   if (p.shield > 0) { dmg = Math.round(dmg * 0.40); p.shield--; }
   if (p.ghostHp == null) p.ghostHp = p.hp;
   p.ghostHoldTimer = 18; p.hitFlash = 8;
+  SHM.pvpLive.stats.dmgTaken += Math.min(dmg, Math.max(0, Math.round(p.hp)));
   p.hp = Math.max(0, p.hp - dmg);
   p.rage = Math.min(100, p.rage + 18);
   p.animState = "hit"; p.animTimer = 28;
-  SHM.pvpLive.stats.dmgTaken += dmg;
   addFloatText(p.x, p.y - 92, `-${dmg} HASAR!`, "#ff7a6a", 21, true);
   if (typeof SFX !== "undefined" && SFX.play) SFX.play("hit");
   pvpSendHpSync();
