@@ -288,10 +288,14 @@ function renderNodeSefer() {
 }
 
 /* ---------- KERVANSARAY SOSYAL MEYDANI (CANLI HUB) ---------- */
+/* B5-0: sabit NPC akranlar. Gerçek oyuncu mahlası bunlarla çakışırsa canlı akran (`isLive`) NPC sayılmaz. */
+const HUB_NPC_HANDLES = ['@kuzey_ruzgari', '@leydi_sureyya', '@altin_kervan', '@firtina_beyi'];
+function isNpcHandle(h) { return HUB_NPC_HANDLES.includes(h); }
+function isNpcPeer(p) { return !!p && !p.isLive && (!!p.npc || isNpcHandle(p.handle)); }
 function genHubPeers() {
   const peers = [
     {
-      handle: '@kuzey_ruzgari', verified: true, title: 'Rüzgârın Oğlu', guild: 'Ayaz Muhafızları', defenseBonus: 18,
+      handle: '@kuzey_ruzgari', npc: true, verified: false, title: 'Rüzgârın Oğlu', guild: 'Ayaz Muhafızları', defenseBonus: 18,
       x: 24, y: 58, pose: 'P1', chat: 'Buzul Sırtı\'nda parıltılı yumurta arıyorum, ortak sefere gelecek var mı?',
       studFee: 95,
       d: (() => {
@@ -306,7 +310,7 @@ function genHubPeers() {
       })(),
     },
     {
-      handle: '@leydi_sureyya', verified: true, title: 'Saray İncisi', guild: 'İnci Hanedanı', defenseBonus: 24,
+      handle: '@leydi_sureyya', npc: true, verified: false, title: 'Saray İncisi', guild: 'İnci Hanedanı', defenseBonus: 24,
       x: 52, y: 52, pose: 'P2', chat: 'Şahmeran bu hafta da Saray Zarafet Merasimi\'nin favorisi! Damızlık tekliflerine açığım.',
       studFee: 130,
       d: (() => {
@@ -322,7 +326,7 @@ function genHubPeers() {
       })(),
     },
     {
-      handle: '@altin_kervan', verified: true, title: 'Tuz Taciri', guild: 'Tuz Tacirleri', defenseBonus: 20,
+      handle: '@altin_kervan', npc: true, verified: false, title: 'Tuz Taciri', guild: 'Tuz Tacirleri', defenseBonus: 20,
       x: 78, y: 60, pose: 'P6', chat: 'Serap Tuz Çölü\'nden taze Altın Pul genli ejderha getirdim, kapışmaya hazır!',
       studFee: 85,
       d: (() => {
@@ -336,7 +340,7 @@ function genHubPeers() {
       })(),
     },
     {
-      handle: '@firtina_beyi', verified: false, title: 'Bulut Binicisi', guild: 'Bulut Binicileri', defenseBonus: 15,
+      handle: '@firtina_beyi', npc: true, verified: false, title: 'Bulut Binicisi', guild: 'Bulut Binicileri', defenseBonus: 15,
       x: 38, y: 68, pose: 'P1', chat: 'Kaplıcalara şifalı Yıldırım Mantarı bıraktım, yorgun ejderhası olan dinlendirsin!',
       studFee: 90,
       d: (() => {
@@ -679,7 +683,7 @@ function meydanView() {
           <div class="hub-chibi-wrap">${typeof renderChibiDoll === "function" ? renderChibiDoll(peerChibiConfig(p, idx), { cls: "hub-doll", hideAura: false }) : ""}</div>
           <div class="hub-dr">${p.d.stage === 'yetiskin' && hasPose(p.d, p.pose) ? poseSVG(p.d, p.pose, { face: 'r' }) : dragonSVG(p.d)}</div>
         </div>
-        <div class="hub-tag"><b>${esc(p.handle)}</b>${(p.npc || ['@kuzey_ruzgari', '@leydi_sureyya', '@altin_kervan', '@firtina_beyi'].includes(p.handle)) ? ' <em style="font-size:10px;opacity:.75;font-style:normal">[Muhafız NPC]</em>' : ''}<small>${esc(p.d.name)} · “${esc(p.title || 'Ocak Ustası')}”</small></div>
+        <div class="hub-tag"><b>${esc(p.handle)}</b>${isNpcPeer(p) ? ' <em style="font-size:10px;opacity:.75;font-style:normal">[Muhafız NPC]</em>' : ''}<small>${esc(p.d.name)} · “${esc(p.title || 'Ocak Ustası')}”</small></div>
       </div>
     `}).join('');
 
@@ -737,7 +741,7 @@ function meydanView() {
             <button class="mob-peer-card ${H.selPeer === idx ? 'on' : ''}" data-a="hub-peer" data-i="${idx}">
               <div class="mob-peer-art">${dragonSVG(p.d, { still: true })}</div>
               <div class="mob-peer-txt">
-                <b>${esc(p.handle)}</b>
+                <b>${esc(p.handle)}${isNpcPeer(p) ? ' <em style="font-size:12px;opacity:.8;font-style:normal">NPC</em>' : ''}</b>
                 <small>${esc(p.d.name)} · ${esc(p.title || 'Ocak Ustası')}</small>
               </div>
             </button>
@@ -786,7 +790,7 @@ function meydanView() {
           </div>
           ${peer ? `
             <div class="hub-peercard">
-              <span class="kicker">${esc(peer.guild || 'Ocak Birliği')} · Ocak Savunması +%${peer.defenseBonus || 15}</span>
+              <span class="kicker">${isNpcPeer(peer) ? 'NPC · ' : ''}${esc(peer.guild || 'Ocak Birliği')} · Ocak Savunması +%${peer.defenseBonus || 15}</span>
               <h3>${esc(peer.handle)} · ${esc(peer.d.name)} ${sexIc(peer.d.sex)}</h3>
               <p class="sm">${elChip(peer.d.el)} ${peer.d.hybrid && HYBRID_MAP[peer.d.hybrid] ? `<span class="trait sm"><b>${HYBRID_MAP[peer.d.hybrid].ad}</b></span>` : ''} · Zarafet <b>${fullEleganceCalc(peer.d).total}</b> · ${peer.d.w || 10} Zafer</p>
               <p class="mute sm">${phenoTitle(peer.d)}</p>

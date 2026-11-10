@@ -239,7 +239,7 @@ function socFriendRow(f) {
     <div class="soc-frow">
       ${socHead(info)}
       <div class="soc-fmain">
-        <b>${hh}</b><small>${socEsc(info.guild)}</small>
+        <b>${hh}</b>${(typeof isNpcHandle === 'function' && isNpcHandle(f.handle) && !info.real) ? ' <small class="soc-npc">NPC</small>' : ''}<small>${socEsc(info.guild)}</small>
         <small class="soc-st ${st.k}">${st.t}</small>
         <small>⚔️ Kudret <b>${info.fc}</b> · 🐉 ${socEsc(info.dragon)}</small>
       </div>
@@ -831,10 +831,17 @@ Object.assign(ACT, {
     if (kind === 'raid' && typeof SHM !== 'undefined') {
       const i = Math.max(0, Math.min(1, (parseInt(idxStr, 10) || 1) - 1));
       if (!Array.isArray(SHM.raidPartySlots)) SHM.raidPartySlots = [null, null];
-      SHM.raidPartySlots[i] = { kind: 'peer', handle: h, name: h, fc: info.fc, chibi: info.chibi, dragonName: info.dragon };
-      if (typeof syncRaidSoloMode === 'function') syncRaidSoloMode();
-      if (info.real) socSend({ type: 'pvp_sync', action: 'invite', raidId: SHM.raidId, to: h, slot: i + 1 });
-      toast(`📩 <b>${socEsc(h)}</b> Zindan lobisine katıldı!`, 'goal');
+      if (!info.real && typeof isNpcHandle === 'function' && isNpcHandle(h)) {
+        SHM.raidPartySlots[i] = { kind: 'peer', npc: true, handle: h, name: h, fc: info.fc, chibi: info.chibi, dragonName: info.dragon };
+        if (typeof syncRaidSoloMode === 'function') syncRaidSoloMode();
+        toast(`🤖 <b>${socEsc(h)}</b> (NPC) yoldaş olarak yuvaya eklendi.`, 'goal');
+      } else if (info.real) {
+        // B5-0: gerçek oyuncuya davet gider ama kabul/oda eşitlemesi henüz yok; yuva doldurulmaz, "katıldı" denmez.
+        socSend({ type: 'pvp_sync', action: 'invite', raidId: SHM.raidId, to: h, slot: i + 1 });
+        toast(`📨 <b>${socEsc(h)}</b> adlı oyuncuya sefer daveti gönderildi. Ortak sefer eşitlemesi henüz yok; yuva boş kalır.`, 'goal');
+      } else {
+        toast(`<b>${socEsc(h)}</b> şu anda çevrimdışı; davet gönderilemedi.`);
+      }
       if (typeof renderSahmeranApp === 'function') renderSahmeranApp();
     } else if (kind === 'pvp' && typeof pvprInvite === 'function') {
       // ENG-14: PvP daveti sunucu odasından yalnız hedefe gider; oyuncu kabul edince yuvaya oturur.
