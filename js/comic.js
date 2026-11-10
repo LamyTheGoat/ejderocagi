@@ -405,7 +405,7 @@ function comicModal(ev, pg = 0) {
   const curWk = (typeof S !== 'undefined' && S && S.week) || 0;
   showModal(`${pageBgUrl ? `<div class="comic-scrim-bg" style="${scrimStyle}"></div>` : ''}<div class="comic"><div class="cmhead"><span class="kicker">${ev.rstory ? 'Gök Yolu' : ev.astory ? 'Arena' : (STORY[curWk] && STORY[curWk].id === ev.id) || (typeof STORY2 !== 'undefined' && STORY2[curWk] && STORY2[curWk].id === ev.id) ? 'Hikâye' : 'Olay'} · ${esc(ev.title || 'Destan')}</span><span class="cpgn">${pg + 1}/${pages.length}</span></div>
     <div class="cpage lay-${P.lay}">${P.p.map(panel).join('')}</div>
-    ${last ? `<div class="cask">${P.ask ? `<p>${P.ask}</p>` : ''}<div class="vnopts">${opts}</div></div>` : `<div class="cnav"><button class="btn primary" data-a="comic-next">Devam</button></div>`}</div>`, 'comicm');
+    ${last ? `<div class="cask">${P.ask ? `<p>${P.ask}</p>` : ''}<div class="vnopts">${opts}</div></div>` : `<div class="cnav"><button class="btn ghost mux-only" data-a="comic-skip" aria-label="Hikâyeyi atla: son sayfaya geç">Atla</button><button class="btn primary" data-a="comic-next">Devam</button></div>`}</div>`, 'comicm');
   wireComicParallaxContainer(document.querySelector('.comicm'));
   SFX.play('page');
 }
@@ -426,6 +426,7 @@ function comicFit(P) {
 }
 const COMIC_ACT = {
   'comic-next'() { if (!CUR_COMIC) return; comicModal(CUR_COMIC.ev, CUR_COMIC.pg + 1); },
+  'comic-skip'() { if (!CUR_COMIC) return; comicModal(CUR_COMIC.ev, CUR_COMIC.pages.length - 1); },
 };
 
 /* --- Demirhan bölüm 2: haftanın hikâyesi olarak 7. haftaya eklenir --- */

@@ -1,0 +1,148 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   MOBİL UX (UX_UYGULAMA_PLANI.md) · yalnız ≤760 px ve html.mux
+   Kapatma: ?mux=0 ya da localStorage eo_mux=0. style.css'e dokunmaz; sonra yüklenir.
+   Kurallar: dokunma hedefi ≥44 px, yazı ≥12 px, devre dışı nedeni görünür.
+   ═══════════════════════════════════════════════════════════════════════ */
+/* Varsayılan: kapalı (masaüstü ve ?mux=0). Yalnız html.mux + ≤760 px açar. */
+.mux-nav, .mux-sub, .mux-only { display: none; }
+
+@media (max-width: 760px) {
+  html.mux { --mux-dock: calc(64px + env(safe-area-inset-bottom, 0px)); --mux-top: 52px; }
+  html.mux.mux-week { --mux-dock: calc(120px + env(safe-area-inset-bottom, 0px)); }
+
+  /* ── Çerçeve: üst bar (U2) ── */
+  html.mux #hud { height: var(--mux-top) !important; padding: 4px 6px !important; gap: 4px !important; flex-wrap: nowrap !important; align-items: center !important; }
+  html.mux #hud .hud-l, html.mux #hud .hud-c, html.mux #hud .hud-r { display: flex !important; align-items: center !important; gap: 4px !important; flex: 0 0 auto !important; min-width: 0 !important; }
+  html.mux #hud .hud-r { margin-left: auto !important; }
+  html.mux #hud .hud-chibi-btn { width: 44px !important; height: 44px !important; min-width: 44px !important; padding: 0 !important; display: flex !important; align-items: center; justify-content: center; }
+  html.mux #hud .hud-bag-btn { display: flex !important; align-items: center; justify-content: center; width: 44px !important; height: 44px !important; min-width: 44px !important; padding: 0 !important; margin: 0 !important; font-size: 22px !important; }
+  html.mux #hud .hud-bag-btn b { display: none !important; }
+  html.mux #hud .hud-soc-btn { display: none !important; }
+  html.mux #hud .mob-hub-btn { width: 44px !important; height: 44px !important; min-width: 44px !important; padding: 0 !important; display: flex !important; align-items: center; justify-content: center; }
+  html.mux #hud .mob-hub-btn b { display: none !important; }
+  html.mux #hud .mob-hub-btn span { font-size: 22px !important; }
+  html.mux #hud .res { min-height: 44px; display: inline-flex !important; align-items: center; gap: 3px; padding: 0 6px !important; font-size: 14px !important; }
+  html.mux #hud .res small { display: none !important; }
+  html.mux #hud .wk { min-height: 44px; display: inline-flex !important; align-items: center; gap: 3px; font-size: 13px !important; padding: 0 6px !important; }
+
+  /* ── Çerçeve: sahne ve alt gezinme (U3) ── */
+  html.mux #stage { top: var(--mux-top) !important; bottom: var(--mux-dock) !important; padding-bottom: 0 !important; padding-left: 12px !important; padding-right: 12px !important; }
+  html.mux #dock { display: flex !important; flex-direction: column !important; gap: 6px !important; align-items: stretch !important; justify-content: flex-end !important; padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)) !important; }
+  html.mux #dock .places, html.mux #dock .place { display: none !important; }
+  html.mux #dock .endweek { display: none !important; }
+  html.mux.mux-week #dock .endweek { display: flex !important; width: 100%; min-height: 50px; justify-content: center; align-items: center; }
+  html.mux #dock .mux-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+  html.mux .mux-tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 52px; min-width: 44px; padding: 2px 0; border-radius: 12px; border: 1px solid transparent; background: rgba(40, 28, 18, .75); color: var(--ink2, #cdbd9a); font-family: inherit; cursor: pointer; }
+  html.mux .mux-tab .mux-ic { display: flex; width: 26px; height: 26px; align-items: center; justify-content: center; }
+  html.mux .mux-tab .mux-ic * { max-width: 26px; max-height: 26px; }
+  html.mux .mux-tab .mux-lb { font-size: 12px; font-weight: 700; line-height: 1.1; white-space: nowrap; }
+  html.mux .mux-tab.on { border-color: var(--ember, #ef7f3e); color: var(--ember2, #ffb067); background: rgba(80, 44, 20, .85); }
+  html.mux .mux-tab .badge { position: absolute; top: 1px; right: 6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 99px; background: var(--ember, #ef7f3e); color: #1a0a04; font-size: 12px; font-weight: 700; line-height: 18px; text-align: center; }
+
+  /* Alt sekme çubuğu (Ejderhalar: Ahır/Yuva · Sefer: Sefer/Arena/Zindan · Meydan: Meydan/Kasaba/Sosyal) */
+  html.mux .mux-sub { display: flex; position: sticky; top: 0; z-index: 7; display: flex; gap: 6px; padding: 6px 0; margin: 0 0 4px; background: linear-gradient(180deg, rgba(10, 7, 5, .92) 75%, rgba(10, 7, 5, 0)); }
+  html.mux .mux-seg { flex: 1 1 0; min-height: 44px; min-width: 44px; padding: 0 8px; border-radius: 12px; border: 1px solid rgba(196, 148, 74, .35); background: rgba(40, 28, 18, .85); color: var(--ink2, #cdbd9a); font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+  html.mux .mux-seg.on { background: rgba(80, 44, 20, .9); border-color: var(--ember, #ef7f3e); color: var(--ember2, #ffb067); }
+  html.mux .mux-seg:disabled { opacity: .45; }
+  html.mux .mux-seg .badge { display: inline-block; min-width: 18px; height: 18px; border-radius: 99px; background: var(--ember, #ef7f3e); color: #1a0a04; font-size: 12px; line-height: 18px; }
+
+  /* ── Ortak dokunma hedefleri ve okunurluk (U1) ── */
+  html.mux #stage .btn, html.mux #stage button.btn.xs, html.mux #stage button.btn.sm { min-height: 44px; min-width: 44px; }
+  html.mux #stage .plaque { min-height: 44px; }
+  html.mux #stage small, html.mux #stage .kicker, html.mux #stage .stamp, html.mux #stage .cc-h, html.mux #stage .gold-t, html.mux #stage .mp-pill { font-size: 12px !important; }
+  html.mux #stage .sn { font-size: 12px !important; }
+  html.mux #stage input, html.mux #stage select { min-height: 44px; font-size: 16px; }
+
+  /* Ocak haritası: 8 sütun × 44 px */
+  html.mux #stage .mob-parcel { min-width: 44px; min-height: 44px; }
+
+  /* ── Ekran düzeltmeleri (U4–U7): kalan küçük hedefler ve yazılar ── */
+  html.mux #stage .btn.ghost, html.mux #stage .btn.xs, html.mux #stage .tn-badge, html.mux #stage .pstats span, html.mux #stage .pstats b,
+  html.mux #stage .vsb span, html.mux #stage .fp span, html.mux #stage .mp-pill { font-size: 12px !important; }
+  html.mux #stage .starb, html.mux #stage .mob-ahir-tab, html.mux #stage h2[data-a], html.mux #stage .link, html.mux #stage .mp-pill[data-a],
+  html.mux #stage span[data-a] { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  html.mux #stage h2[data-a] { justify-content: flex-start; }
+  html.mux #stage .plaque.pit, html.mux #stage .plaque { min-width: 44px; }
+  html.mux #dock .endweek b { font-size: 18px !important; }
+  html.mux #dock .endweek small { font-size: 12px !important; }
+
+  html.mux .mob-ahir-quickstats span, html.mux .mob-ahir-quickstats b { font-size: 12px !important; }
+  html.mux [style*="font-size:9"], html.mux [style*="font-size:10"], html.mux [style*="font-size:11"],
+  html.mux [style*="font-size: 9"], html.mux [style*="font-size: 10"], html.mux [style*="font-size: 11"] { font-size: 12px !important; }
+
+  /* Modallar: kapat ve ekipman çıkarma düğmeleri (görsel küçük, dokunma alanı 44 px) */
+  html.mux .modal .mclose { min-width: 44px; min-height: 44px; }
+  html.mux .ch-unequip-x { width: 44px !important; height: 44px !important; min-width: 44px !important; min-height: 44px !important; background: transparent !important; border: 0 !important; box-shadow: none !important; top: -16px !important; right: -16px !important; font-size: 20px !important; color: #f0b0a0 !important; display: flex !important; align-items: center; justify-content: center; }
+
+  /* Topçu savaş HUD (U9): ekran genişliğine sığar, yetenek çubuğu kaydırılır */
+  html.mux .shm-center-hud { width: 100vw !important; max-width: 100vw !important; left: 0 !important; transform: none !important; box-sizing: border-box; }
+  html.mux .shm-center-hud .shm-wind-banner, html.mux .shm-center-hud #shmBossBanner, html.mux .shm-center-hud .shm-boss-top, html.mux .shm-center-hud .shm-boss-sub { width: 100% !important; max-width: 100% !important; box-sizing: border-box; }
+  html.mux .shm-boss-sub { white-space: normal !important; font-size: 12px !important; line-height: 1.25; }
+  html.mux .shm-minimap-card { transform: scale(.7); transform-origin: top right; }
+  html.mux .shm-hotbar-wrap { max-width: 100vw; overflow: hidden; }
+  html.mux .shm-hotbar { width: auto !important; max-width: 100vw; overflow-x: auto; justify-content: flex-start !important; scrollbar-width: none; padding: 0 6px; box-sizing: border-box; }
+  html.mux .shm-hotbar::-webkit-scrollbar { display: none; }
+  html.mux .shm-skill-slot { flex: 0 0 auto; }
+
+  html.mux .shm-bottom-dock { overflow-x: auto !important; overflow-y: hidden; max-width: 100vw; grid-template-columns: none !important; grid-auto-flow: column; grid-auto-columns: max-content; justify-content: start !important; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  html.mux .shm-bottom-dock::-webkit-scrollbar { display: none; }
+
+  /* ── Kusur düzeltmeleri (mockup↔gerçek karşılaştırması) ── */
+  /* K1: .scroll-card static olunca ::before/::after süs çubukları .ocak'a bağlanıp HUD altına ve sayfa sonuna biniyordu */
+  html.mux .ocak-cards .scroll-card { position: relative !important; }
+  /* K2: saydam modal (Çanta, Ekipman, kâğıt modallar) arkadaki sayfayla çakışıyordu: perde neredeyse opak */
+  html.mux .scrim:not(.comicscrim) { background: rgba(4, 4, 8, .97); }
+  /* K3: Bedesten sekme şeridi kesilmesin: sığmazsa alt satıra geçer */
+  html.mux .v-bedesten .vtabs, html.mux .vendor .vtabs { flex-wrap: wrap !important; overflow-x: auto !important; }
+  html.mux .v-bedesten .vgoods, html.mux .v-bedesten .plaques { flex-wrap: wrap !important; overflow: visible !important; }
+  html.mux .v-bedesten .vtabs .vtab, html.mux .vendor .vtabs .vtab { flex: 1 1 auto !important; white-space: normal !important; text-align: center; }
+  /* K4: bildirimler içeriğin üstüne binmesin: alt gezinmenin üstünde, tam genişlikte */
+  html.mux #toasts { top: auto !important; bottom: calc(var(--mux-dock) + 10px) !important; left: 12px !important; right: 12px !important; align-items: stretch !important; }
+  /* K5: Topçu minimap banner'ı örtmesin; dokunmatik cihazda klavye ipuçları gizli */
+  html.mux #shmMinimapCard.shm-minimap-card { top: 250px !important; bottom: auto !important; right: 6px !important; transform: scale(.6); transform-origin: top right; }
+
+  /* ── Yapısal ekranlar (U4–U7) ── */
+  html.mux .mux-only { display: revert; }
+  html.mux .mux-hide { display: none !important; }
+  /* Yuva: boş durum kartı + devre dışı nedeni + kontrol listesi */
+  html.mux .mux-cta { display: flex !important; flex-direction: column; gap: 8px; padding: 12px; text-align: center; align-items: stretch; background: rgba(20, 14, 10, .88); border: 1px solid rgba(196, 148, 74, .4); border-radius: 12px; }
+  html.mux .mux-cta b { font-size: 16px; }
+  html.mux .hearth-art.cold + p { display: none; }
+  html.mux .couples > p.mute.sm { display: none; }
+  html.mux .mux-checks { display: grid !important; gap: 6px; list-style: none; margin: 8px 0; padding: 12px; background: rgba(20, 14, 10, .88); border: 1px solid rgba(196, 148, 74, .35); border-radius: 12px; font-size: 14px; }
+  html.mux .mux-checks li::before { content: "\2715"; display: inline-block; width: 18px; font-weight: 700; }
+  html.mux .mux-checks li.ok::before { content: "\2713"; }
+  html.mux .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  html.mux .mux-checks li.ok { color: #7fd19a; } html.mux .mux-checks li.no { color: #f0a39b; }
+  html.mux .why { display: block; color: #e0a050 !important; font-size: 12px !important; margin-top: 4px; text-align: center; }
+  /* Çanta: sıfır adetliler gizli, tek düğmeyle açılır */
+  html.mux .bag-grid:not(.show-zero) .bag-cell.zero { display: none; }
+  html.mux .mux-bagbar { display: flex !important; justify-content: flex-end; margin: 6px 0; }
+  /* Sosyal: satırda tek ana eylem (Mesaj) + ⋯ menüsü */
+  html.mux .soc-frow:not(.more) .soc-fbtns > :not(:first-child):not(.mux-moreb):not([data-trade-with]) { display: none !important; }
+  html.mux .soc-fbtns .mux-moreb { display: inline-flex !important; }
+  /* Pazar: Bedesten ilk sırada ve vurgulu */
+  html.mux .mob-list-cards { display: flex; flex-direction: column; gap: 8px; }
+  html.mux .mob-dir-card.s-bedesten { order: -1; border: 2px solid var(--ember, #ef7f3e) !important; }
+  /* Meydan: tekrarlayan sekme çipleri (Meydan Yapıları ızgarasıyla aynı yerlere gidiyor) gizli */
+  html.mux .city-sub-bar.avlu-quick-tabs { display: none !important; }
+  /* Çizgi roman: Atla + Devam */
+  html.mux .cnav { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+
+  /* Ahır: 3 temel eylem (Antrenman, Dinlen, İkram) + Daha (Gezinti, Konuş, Bakım, Kuşan) */
+  html.mux .st-ahir aside.actions:not(.more) > :nth-child(3), html.mux .st-ahir aside.actions:not(.more) > :nth-child(4),
+  html.mux .st-ahir aside.actions:not(.more) > :nth-child(6), html.mux .st-ahir aside.actions:not(.more) > :nth-child(7) { display: none !important; }
+  html.mux .st-ahir aside.actions .mux-moreact { display: flex !important; align-items: center; justify-content: center; min-height: 44px; border-radius: 12px; border: 1px solid rgba(196, 148, 74, .4); background: rgba(40, 28, 18, .85); color: var(--ink2, #cdbd9a); font: inherit; font-weight: 700; cursor: pointer; }
+
+  /* ── Eklenenler: Sefer kilitli grup, Çanta araması, üst bar hafta etiketi ── */
+  html.mux .sefer:not(.show-locked) .sefer-reg-row.closed { display: none !important; }
+  html.mux .mux-locked-toggle { cursor: pointer; }
+  html.mux [data-mxhide] { display: none !important; }
+  html.mux .mux-bagbar { gap: 8px; align-items: center; }
+  html.mux .mux-bagbar input { flex: 1 1 auto; min-height: 44px; border-radius: 12px; padding: 0 12px; background: rgba(20, 14, 10, .9); color: var(--ink, #ead9b4); border: 1px solid rgba(196, 148, 74, .4); font-size: 16px; }
+  html.mux #hud .wk > span:first-of-type { display: inline !important; font-size: 12px !important; }
+}
+
+@media (max-width: 760px) and (hover: none) and (pointer: coarse) {
+  html.mux .shm-console-plaque .shm-cp-row { display: none !important; }
+}

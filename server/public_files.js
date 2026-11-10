@@ -14,7 +14,7 @@ function createPublicFiles(root, privateDirs = []) {
     try { relative = decodeURIComponent(urlPath).replace(/^\//, ''); } catch (_) { return null; }
     if (!relative || relative.includes('\\') || relative.includes('\0') || relative.split('/').some(p => p.startsWith('.') || !p)) return null;
     const media = /^(img|assets|sfx)\/.+\.(webp|png|jpg|jpeg|gif|svg|mp3|ogg|wav|woff2?|json)$/i.test(relative);
-    if (relative !== 'style.css' && !scripts.has(relative) && !media) return null;
+    if (relative !== 'style.css' && relative !== 'style_mobile.css' && !scripts.has(relative) && !media) return null;
     try {
       const candidate = fs.realpathSync(path.join(root, relative));
       if (!within(candidate, root)) return null;

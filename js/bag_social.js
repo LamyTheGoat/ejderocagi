@@ -198,7 +198,8 @@ function bagModal() {
       <button class="btn sm ghost bag-eco-link" data-a="eco-status" aria-label="Sunucu kesesi: hafta ve borç">⚖ ${(typeof ECO_SYNC !== 'undefined' && ECO_SYNC.purseName ? ECO_SYNC.purseName() : 'Ocak Kesesi')}</button>
       <button class="mclose" data-a="mclose" aria-label="Kapat">${typeof ui === 'function' ? ui('x') : '×'}</button>
     </div>
-    <div class="bag-grid">
+    <div class="mux-only mux-bagbar"><input id="bag-search" type="search" placeholder="Çantada ara" aria-label="Çantada ara" autocomplete="off"><button class="btn sm ghost" data-a="mux-bag-zeros" aria-pressed="${UI.bagZeros ? 'true' : 'false'}">${UI.bagZeros ? 'Sıfırları gizle' : 'Sıfırları göster'}</button></div>
+    <div class="bag-grid ${UI.bagZeros ? 'show-zero' : ''}">
       <section class="bag-sec">
         <div class="bag-sec-head"><h3>🔥 Demirci & Kor Taşları</h3><button class="btn sm primary" data-a="go-usta-kerim" data-tab="ors">🔨 Kor Örsüne Git</button></div>
         <div class="bag-cells">${forge}</div>
@@ -245,6 +246,7 @@ function socFriendRow(f) {
       </div>
       <div class="soc-fbtns">
         <button class="btn xs primary" data-a="soc-dm-open" data-h="${hh}">💬 Mesaj${un ? ` (${un})` : ''}</button>
+        <button class="btn xs mux-only mux-moreb" data-a="mux-soc-more" aria-label="Diğer eylemler: partiye, masaya, takas, VS">Daha</button>
         <button class="btn xs" data-a="soc-party-invite" data-h="${hh}">🛡️ Partiye Çağır</button>
         <button class="btn xs" data-a="soc-table-invite" data-h="${hh}">🎲 Masaya Çağır</button>
         ${socCanTrade(f.handle) ? `<button class="btn xs" data-trade-with="${hh}" aria-label="${hh} ile takas teklif et">⇄ Takas teklif et</button>` : ''}
@@ -736,6 +738,8 @@ Object.assign(ACT, {
     socRender();
   },
   'social-drawer-close'() { SOC_UI.open = false; SOC_UI.vsFor = null; socRender(); },
+  'mux-bag-zeros'() { UI.bagZeros = !UI.bagZeros; bagModal(); },
+  'mux-soc-more'(el) { const row = el.closest('.soc-frow'); if (row) row.classList.toggle('more'); },
   'soc-tab'(el) { SOC_UI.tab = el.dataset.t || 'friends'; SOC_UI.vsFor = null; socRender(); },
   'soc-add-friend'() {
     const inp = document.getElementById('soc-add-in');
