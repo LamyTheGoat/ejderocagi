@@ -658,7 +658,7 @@ function renderLobbyScreen(star) {
               <small>Boş bırakırsan tek başına (Solo) savaşırsın.</small>
               <div class="shm-btn-row" style="gap:6px;flex-wrap:wrap;margin-top:6px">
                 <button class="btn ghost sm" data-shm-raid-invite="${num}">➕ Arkadaş Davet Et</button>
-                <button class="btn primary sm" data-shm-raid-add-bot="${num}">🤖 Yoldaş Ekle (${m.bot})</button>
+                <button class="btn primary sm" data-shm-raid-add-bot="${num}">🤖 NPC Yoldaş Ekle (${m.bot})</button>
                 <button class="btn good sm" data-soc-lobby="raid:${num}">📩 Arkadaşını Lobiye Çağır</button>
               </div>
             </div>
@@ -674,7 +674,7 @@ function renderLobbyScreen(star) {
             <button class="btn bad sm" style="position:absolute;top:6px;right:6px;z-index:3;font-size:10px;padding:2px 7px;min-height:0" data-shm-raid-kick="${num}">✕ Odadan Çıkar</button>
             <div class="shm-mm-avatar-stage">${(filled.chibi && typeof renderChibiDoll === "function") ? renderChibiDoll(filled.chibi, { battleStance: false, hideAura: true }) : m.doll}</div>
             <div class="shm-mm-slot-info">
-              <b>${nm}${filled.kind === "peer" ? " (Arkadaş)" : ""}</b>
+              <b>${nm}${filled.kind === "bot" ? " (NPC yoldaş)" : (filled.kind === "peer" ? (filled.npc ? " (NPC arkadaş)" : " (Arkadaş)") : "")}</b>
               <div class="shm-hero-meta">Kudret: <b class="gold">${filled.fc || m.fc}</b> · Rol: <b class="ember">${m.role}</b></div>
               <small>${m.desc}</small>
             </div>
@@ -2217,7 +2217,7 @@ function bindSahmeranEvents() {
       if (typeof mpSendWs === "function") {
         mpSendWs({ type: "pvp_sync", action: "invite", from: pvpSelfHandle(), raidId: SHM.raidId, slot: raidSlotIdx(btn, "data-shm-raid-invite") + 1 });
       }
-      if (typeof toast === "function") toast("📨 Sefer odası daveti gönderildi. Bir arkadaşın katılması bekleniyor.", "goal");
+      if (typeof toast === "function") toast("📨 Sefer daveti gönderildi. Ortak sefer eşitlemesi henüz yok; yuva dolmaz, yalnız NPC yoldaş eklenebilir.", "goal");
     };
   });
   root.querySelectorAll("[data-shm-raid-kick]").forEach(btn => {
