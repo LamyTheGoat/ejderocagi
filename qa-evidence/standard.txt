@@ -1,0 +1,94 @@
+PASS: authentication, invite accept/reject, shared room, simultaneous actions, canonical state, stale/illegal action guards.
+✔ tests\duel_server.test.js (111.7832ms)
+✔ economic client deduplicates reads; response loss retries exactly the same command (3.641ms)
+✔ version conflicts refresh state but never silently repeat a purchase (1.638ms)
+(node:1416) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ canonical new game preserves gold, Kor, egg, stones and ores; retries cannot reroll (76.7879ms)
+✔ price, resource and ownership claims are rejected at the command boundary (19.648ms)
+✔ building and incubation enforce cost, capacity, maturity and one-time goal reward (35.8607ms)
+✔ crafting and resource conversion retain recipes and reject insufficient funds (26.2519ms)
+✔ NPC purchases use server catalog, stock and locks; cannot resell forged items (23.3584ms)
+✔ SQLite command receipts provide atomic idempotency and version checks (13.8042ms)
+✔ Cloud Run refuses SQLite, emulator and unknown backend instead of falling back (0.3793ms)
+(node:32156) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ENG05: the 420 -> 840 -> 1260 guest attack is rejected, including starter assets and food (190.8835ms)
+✔ ENG05: bound purchases, NPC resale, inflated listings and hatch conversion cannot launder gold (220.2487ms)
+✔ ENG05: spending order is bound then unknown then earned; mixed assets and refunds remain restricted (7.5911ms)
+✔ ENG05: verified gameplay reward trades normally; reserved earned gold cannot be spent, cancellation restores sources (229.9114ms)
+✔ ENG05: legacy balances and assets are quarantined, malformed source accounting fails closed (8.3649ms)
+✔ ENG05: every NPC asset purchase inherits restricted funding; client source labels are rejected (27.2715ms)
+(node:32156) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ENG05: simultaneous sale and trade reservation of the same earned asset cannot both succeed (254.5527ms)
+✔ ENG05: shared limits, invitation rejection cooldown, presence expiry and receipt compaction keep their guarantees (194.5254ms)
+(node:32156) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32908) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ guest sessions persist, contain only token hashes, expire and revoke (125.2423ms)
+✔ gold and all asset kinds commit together; failed ownership/balance rolls back both accounts (163.4752ms)
+✔ invalid values, async/nested work and escaped transaction handles are rejected (109.5904ms)
+✔ process exit during transaction leaves neither gold nor assets committed (215.0067ms)
+✔ cookie protections, duplicate rejection and Origin checks (136.9338ms)
+✔ public files deny private sources, traversal and symlink aliases (15.2547ms)
+(node:32228) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ENG06: fabricated battle results and client reward fields cannot reach the server ledger (26.6085ms)
+✔ ENG06: a goal reward is paid once, including request replays and later claims (169.3865ms)
+✔ ENG06: foreign assets cannot be sold or used, and spends beyond the balance are rejected (180.1939ms)
+(node:32228) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ENG06: two processes racing the same version cannot both spend (224.5002ms)
+✔ ENG06 / REVIEW H-1: borrowed earned gen2 or marked dragons do not mint transferable goal rewards (241.1415ms)
+✔ ENG06: goal input sources fail closed when no recorded input exists (9.0638ms)
+✔ ENG06 policy: one-time goal rewards are bound even when every input is earned; unknown stays unknown (8.0644ms)
+✔ ENG06 / REVIEW H-1 residual: borrowed earned gold cannot farm acq, yuva or kulucka rewards on throwaway accounts (244.3008ms)
+✔ ENG06: renown that predates source tracking keeps later renown goals restricted (29.3472ms)
+✔ ENG06: renown earned entirely from an earned hatch stays earned (25.4067ms)
+(node:32228) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ market rejects unavailable assets and storage failures without changing listings (3.8907ms)
+✔ legacy Bedesten actions cannot change local balances, assets or announce success (10.4615ms)
+✔ client shares bootstrap, keeps gameplay assets and applies identity after a new local game (8.4352ms)
+✔ client never silently creates a replacement account for rejected sessions (5.9988ms)
+✔ HTTP/WS identity, private files and economy isolation survive server restart (835.2416ms)
+(node:30688) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Bedesten HTTP and WS reject forged ownership and cannot settle purchases (416.7746ms)
+✔ trade HTTP/WS authenticate participants and recover completed transfer after socket disconnect (305.073ms)
+✔ ENG05 HTTP and existing WS reject a revoked session without waiting for cache or timer (231.3153ms)
+✔ session reads coalesce and are cached for 60 seconds, never beyond expiry (3.2076ms)
+✔ fresh economic authorization bypasses a cached session immediately after revocation (0.4044ms)
+✔ old WebSocket messages and replay response cannot manufacture completed UI state (4.3394ms)
+✔ ambiguous response persists exact request; account switch never retries another account command (3.4708ms)
+PASS: atomic two-sided transfer, gold, items, dragons, eggs, food, ownership, equipment and incubation guards.
+✔ tests\trade_engine.test.js (102.6822ms)
+(node:28156) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ SQLite trade transfers every asset kind atomically, remaps local ids and replays lost response (256.8512ms)
+✔ ownership, insufficient funds, membership and stale revision fail; changed offers reset both approvals (203.3428ms)
+✔ reservations block competing trades and economy mutations; cancellation, rejection and expiry release them (230.6128ms)
+✔ SQLite write error after first account update rolls back accounts, approvals and reservations (170.8327ms)
+(node:28156) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28156) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ independent SQLite workers race confirmation and spending without double transfer (275.162ms)
+✔ reopening independent store recovers accepted trade and idempotency after connection loss (92.7115ms)
+✔ reservation guard covers food and mutations to reserved assets for every reduced command (1.1726ms)
+✔ expired trade cannot release a newer reservation or complete; lineage ids remain unambiguous (128.7121ms)
+✔ P3 state versions, content-bound approvals, inbox and idempotent cleanup (114.5159ms)
+✔ trade rejects tradeLocked items at offer time and rechecks before settlement (97.265ms)
+✔ trade rejects heirloomId items at offer time and rechecks before settlement (132.3935ms)
+(node:28156) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ℹ tests 58
+ℹ suites 0
+ℹ pass 58
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1988.6007
