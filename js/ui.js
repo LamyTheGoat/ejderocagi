@@ -169,6 +169,7 @@ function render() {
   st.innerHTML = V.draw();
   if (UI.vsayNew) { UI.vsayNew = false; typeInto($('#vsay'), esc(UI.vsay || ''), 14); }
   $('#dock').innerHTML = dock();
+  muxApply(st);
   if (UI.view === 'ocak' && st.scrollWidth > st.clientWidth) st.scrollLeft = sameView ? keepX : (st.scrollWidth - st.clientWidth) / 2;
   if (typeof ENGINE_GL !== 'undefined') ENGINE_GL.onViewRender(UI.view);
 }
@@ -198,7 +199,76 @@ function hud() {
       <button class="mob-hub-btn" data-a="mob-hub-menu" title="Komuta Merkezi · Tüm Özellikler" aria-label="Tüm Özellikler Menüsü"><span>⊞</span><b>Menü</b></button>
     </div>${typeof partyBarHtml === 'function' ? partyBarHtml() : ''}`;
 }
-function dock() {
+/* ---------- MOBİL UX (U3): 5 sekmeli gezinme · yalnız html.mux (≤760 px) ---------- */
+const MUX_GROUPS = [
+  { k: 'ocak', n: 'Ocak', ic: 'ocak', views: ['ocak'] },
+  { k: 'ejd', n: 'Ejderhalar', ic: 'ahir', views: ['ahir', 'yuva'] },
+  { k: 'sef', n: 'Sefer', ic: 'sefer', views: ['sefer', 'arena', 'zindan'] },
+  { k: 'paz', n: 'Pazar', ic: 'pazar', views: ['pazar'] },
+  { k: 'mey', n: 'Meydan', ic: 'meydan', views: ['meydan', 'kasaba'] },
+];
+const MUX_NAMES = { ahir: 'Ahır', yuva: 'Yuva', sefer: 'Sefer', arena: 'Arena', zindan: 'Zindan', meydan: 'Meydan', kasaba: 'Kasaba' };
+function muxOn() {
+  try { if (/[?&]mux=0\b/.test(location.search) || localStorage.getItem('eo_mux') === '0') return false; } catch (e) { /* depolama kapalı */ }
+  return !!(window.matchMedia && matchMedia('(max-width:760px)').matches);
+}
+function muxGroupOf(v) { return MUX_GROUPS.find(g => g.views.includes(v)) || MUX_GROUPS[0]; }
+function muxViewOpen(v) { return v !== 'sefer' || !!(S.flags && S.flags.sefer); }
+function muxBadge(v) {
+  if (v === 'ahir') return S.dragons.filter(d => needsOrder(d)).length || '';
+  if (v === 'yuva') return S.eggs.length || '';
+  if (v === 'arena') return S.tour && !S.tour.done ? '!' : '';
+  return '';
+}
+function muxGroupBadge(g) {
+  const b = g.views.map(muxBadge).filter(Boolean);
+  if (!b.length) return '';
+  return b.some(x => x === '!') ? '!' : b.reduce((a, x) => a + (+x || 0), 0);
+}
+function muxNavHtml() {
+  UI.muxLast = UI.muxLast || {};
+  const cur = muxGroupOf(UI.view);
+  UI.muxLast[cur.k] = UI.view;
+  return `<div class="mux-nav" role="tablist" aria-label="Ana gezinme">${MUX_GROUPS.map(g => {
+    const last = UI.muxLast[g.k];
+    const target = last && g.views.includes(last) && muxViewOpen(last) ? last : (g.views.find(muxViewOpen) || g.views[0]);
+    const b = muxGroupBadge(g);
+    return `<button class="mux-tab ${g.k === cur.k ? 'on' : ''}" role="tab" aria-selected="${g.k === cur.k}" data-a="go" data-v="${target}" aria-label="${g.n}"><span class="mux-ic">${placeIcon(g.ic)}</span><span class="mux-lb">${g.n}</span>${b ? `<span class="badge">${b}</span>` : ''}</button>`;
+  }).join('')}</div>`;
+}
+function muxSubHtml() {
+  const g = muxGroupOf(UI.view);
+  const extra = g.k === 'mey' ? `<button class="mux-seg" data-a="social-drawer-open" aria-label="Sosyal: arkadaşlar, parti, mesajlar">Sosyal</button>` : '';
+  if (g.views.length < 2 && !extra) return '';
+  return `<div class="mux-sub" role="tablist" aria-label="${g.n}">${g.views.map(v => {
+    const b = muxBadge(v);
+    return `<button class="mux-seg ${v === UI.view ? 'on' : ''}" role="tab" aria-selected="${v === UI.view}" data-a="go" data-v="${v}" ${muxViewOpen(v) ? '' : 'disabled title="Henüz yolu bilmiyorsun"'}>${MUX_NAMES[v]}${b ? ` <span class="badge">${b}</span>` : ''}</button>`;
+  }).join('')}${extra}</div>`;
+}
+function muxApply(st) {
+  const on = muxOn(), de = document.documentElement;
+  de.classList.toggle('mux', on);
+  de.classList.toggle('mux-week', on && ['ocak', 'ahir', 'yuva'].includes(UI.view));
+  if (on && st) { st.insertAdjacentHTML('afterbegin', muxSubHtml()); if (UI.view === 'sefer') muxSeferLocked(st); }
+}
+/* Sefer: kilitli bölgeler tek satırda katlanır; satıra dokununca açılır. */
+function muxSeferLocked(st) {
+  const rows = st.querySelectorAll('.sefer-reg-row.closed');
+  if (!rows.length) return;
+  const first = rows[0];
+  const b = document.createElement('button');
+  b.className = 'mob-dir-card compact mux-only mux-locked-toggle';
+  b.dataset.a = 'mux-sefer-locked'; b.setAttribute('aria-expanded', 'false');
+  b.innerHTML = `<div class="mob-dir-info"><b>Kilitli bölgeler (${rows.length})</b><small>Açılma koşullarını gör</small></div>`;
+  first.parentElement.insertBefore(b, first);
+}
+if (window.matchMedia) {
+  const mq = matchMedia('(max-width:760px)');
+  const onMq = () => { if (typeof S !== 'undefined' && S && UI.view !== 'title') render(); };
+  if (mq.addEventListener) mq.addEventListener('change', onMq);
+}
+function dock() { return dockBase() + muxNavHtml(); }
+function dockBase() {
   ensureStar(); const idle = S.dragons.filter(d => needsOrder(d)).length;
   // ENG-12: bilet göstergesi kaldırıldı; sunucu kesesinde borç varsa kısa borç rozeti (yoksa boş; eski görünüm).
   const ecoBadge = typeof ECO_LINK !== 'undefined' ? ECO_LINK.badge() : '';
@@ -353,8 +423,9 @@ function ocakView() {
             </button>
           `;
         }).join('')}
+        ${emptyTiles.length ? `<button class="mob-dir-card compact mux-only" data-a="mux-yuva-build"><div class="mob-dir-ic">${ui('anvil')}</div><div class="mob-dir-info"><b>${emptyTiles.length} boş arsa · İnşa et</b><small>Ya da haritadan bir arsa seç</small></div></button>` : ''}
         ${emptyTiles.map(([, idx], k) => `
-          <button class="mob-dir-card compact ${UI.tile === idx ? 'ready' : ''}" data-a="tile" data-i="${idx}">
+          <button class="mob-dir-card compact mux-hide ${UI.tile === idx ? 'ready' : ''}" data-a="tile" data-i="${idx}">
             <div class="mob-dir-ic">${ui('anvil')}</div>
             <div class="mob-dir-info">
               <b>Boş Arsa #${k + 1} (Parsel ${idx + 1})</b>
@@ -362,8 +433,9 @@ function ocakView() {
             </div>
           </button>
         `).join('')}
+        ${brambleTiles.length ? `<button class="mob-dir-card compact mux-only" data-a="tile" data-i="${brambleTiles[0][1]}"><div class="mob-dir-ic">${ui('tree')}</div><div class="mob-dir-info"><b>${brambleTiles.length} çalılık · Temizle</b><small>Ocağı genişlet · ${goldTxt(clearCost())}</small></div></button>` : ''}
         ${brambleTiles.map(([, idx]) => `
-          <button class="mob-dir-card compact ${UI.tile === idx ? 'ready' : ''}" data-a="tile" data-i="${idx}">
+          <button class="mob-dir-card compact mux-hide ${UI.tile === idx ? 'ready' : ''}" data-a="tile" data-i="${idx}">
             <div class="mob-dir-ic">${ui('tree')}</div>
             <div class="mob-dir-info">
               <b>Çalılık Temizle (Parsel ${idx + 1})</b>
@@ -486,6 +558,7 @@ function ahirView() {
       ${act('drawer-feed', 'feed', 'İkram', d.fed && !(d.stage === 'yavru' && !d.eternalYouth && S.food.genclik > 0) ? 'bu hafta yedi' : 'moral, bağ ve iksir', d.fed && !(d.stage === 'yavru' && !d.eternalYouth && S.food.genclik > 0))}
       ${act('care', 'care', 'Bakım', (d.dirt || 0) >= 15 ? `${dirtWord(d.dirt)} · yıka, besle, oyna` : 'yıka, besle, oyna', false, false)}
       ${act('drawer-gear', 'gear', 'Kuşan', `${Object.values(d.equip).filter(v => v != null).length}/4 yuva dolu`)}
+      <button class="mux-only mux-moreact" data-a="mux-acts-more" aria-label="Diğer eylemler: gezinti, konuş, bakım, kuşan">Daha</button>
     </aside>
     ${UI.drawer ? ahirDrawer(d) : ''}
   </div>`;
@@ -572,6 +645,13 @@ function ahirDrawer(d) {
 }
 
 /* ================= YUVA ================= */
+/* Mobil (html.mux): çift kurma koşulları üç maddelik kontrol listesi. Kurallar `breedChecks` ile aynı; yalnız özet. */
+function muxPairChecklist(pairs) {
+  const romance = pairs.filter(([A, B]) => A.sex !== B.sex);
+  const best = romance.reduce((m, [A, B]) => Math.max(m, getAff(A.id, B.id)), 0);
+  const row = (ok, t) => `<li class="${ok ? 'ok' : 'no'}"><span class="sr-only">${ok ? 'Tamam: ' : 'Eksik: '}</span>${t}</li>`;
+  return `<ul class="mux-only mux-checks" aria-label="Çift olmak için">${row(romance.length > 0, 'Dişi ve erkek, genç ya da yetişkin ejderha')}${row(hasB('yuva'), 'Yuva Bahçesi kurulu')}${row(best >= 60, `Yakınlık en az 60 (şu an ${best})`)}</ul>`;
+}
 function yuvaView() {
   const inK = S.eggs.filter(e => e.inK), out = S.eggs.filter(e => !e.inK);
   const has = hasB('kulucka');
@@ -580,7 +660,7 @@ function yuvaView() {
     if (!e) return `<div class="nslot empty"><span>${has ? 'Boş yuva' : ''}</span></div>`;
     return `<div class="nslot">${eggSVG(e, e.w / 2, { cls: e.w >= 1 ? 'wobble' : '', glow: true })}<div class="moons">${[0, 1].map(k => `<i class="${k < e.w ? 'on' : ''}"></i>`).join('')}</div><small>${esc(e.origin)}</small><button class="btn ghost sm" data-a="egg-out" data-id="${e.id}">Kuluçkadan çıkar</button></div>`;
   }).join('');
-  const basket = pager('basket', out, 2, e => `<div class="bslot">${eggSVG(e)}<small>${esc(e.origin)}</small><button class="btn sm" data-a="egg-in" data-id="${e.id}" ${kuluckaFree() > 0 ? '' : 'disabled'}>Kuluçkaya koy</button></div>`, true);
+  const basket = pager('basket', out, 2, e => `<div class="bslot">${eggSVG(e)}<small>${esc(e.origin)}</small><button class="btn sm" data-a="egg-in" data-id="${e.id}" ${kuluckaFree() > 0 ? '' : 'disabled'}>Kuluçkaya koy</button>${kuluckaFree() > 0 ? '' : `<small class="why">${has ? 'Yuvalar dolu: önce bir yumurtayı çıkar.' : 'Önce Kuluçka Ocağı kur.'}</small>`}</div>`, true);
   const adults = S.dragons.filter(d => d.stage !== 'yavru');
   const pairs = [];
   for (let i = 0; i < adults.length; i++) for (let j = i + 1; j < adults.length; j++) { const [A, B] = adults[i].sex === 'F' ? [adults[j], adults[i]] : [adults[i], adults[j]]; pairs.push([A, B]); }
@@ -602,10 +682,10 @@ function yuvaView() {
   }) : '';
   return `<div class="yuva">
     <section class="hatchery">
-      <div class="hearth">${has ? `<div class="hearth-art warm">${asset('b-kulucka') ? `<img src="${asset('b-kulucka')}" alt="">` : buildingIcon('kulucka')}</div><div class="nslots">${nest}</div>` : `<div class="hearth-art cold">${asset('b-kulucka') ? `<img src="${asset('b-kulucka')}" alt="">` : buildingIcon('kulucka')}</div><p>Kuluçka Ocağı henüz kurulmadı. <button class="link" data-a="go" data-v="ocak">Ocak'ta kur</button></p>`}</div>
+      <div class="hearth">${has ? `<div class="hearth-art warm">${asset('b-kulucka') ? `<img src="${asset('b-kulucka')}" alt="">` : buildingIcon('kulucka')}</div><div class="nslots">${nest}</div>` : `<div class="hearth-art cold">${asset('b-kulucka') ? `<img src="${asset('b-kulucka')}" alt="">` : buildingIcon('kulucka')}</div><p>Kuluçka Ocağı henüz kurulmadı. <button class="link" data-a="go" data-v="ocak">Ocak'ta kur</button></p><div class="mux-only mux-cta"><b>Kuluçka Ocağı kurulmadı</b><span>Yumurtaların ısınması için bir ocak gerekir.</span><button class="btn primary" data-a="mux-yuva-build" ${S.gold >= BUILD.kulucka.fiyat ? '' : 'disabled'}>Ocak'ta kur · ${BUILD.kulucka.fiyat} altın</button>${S.gold >= BUILD.kulucka.fiyat ? '' : `<small class="why">Altının yetmiyor (${S.gold}/${BUILD.kulucka.fiyat}).</small>`}</div>`}</div>
       ${out.length ? `<div class="basket"><h4>Yumurta sepeti</h4><div class="bslots">${basket}</div></div>` : ''}
     </section>
-    <section class="couples"><h3 class="sect">Çiftler</h3><p class="mute sm">Gezinti, aynı inde yaşamak ve olaylar yakınlığı artırır. Yuva kurmak için bir dişi ve bir erkek, Yuva Bahçesi, en az 60 yakınlık ve iyi moral gerekir.${labOn() ? '' : ' Kehaneti netleştirmek için Gen Laboratuvarı kur.'}</p>
+    <section class="couples"><h3 class="sect">Çiftler</h3>${muxPairChecklist(pairs)}<p class="mute sm">Gezinti, aynı inde yaşamak ve olaylar yakınlığı artırır. Yuva kurmak için bir dişi ve bir erkek, Yuva Bahçesi, en az 60 yakınlık ve iyi moral gerekir.${labOn() ? '' : ' Kehaneti netleştirmek için Gen Laboratuvarı kur.'}</p>
       <div class="cgrid">${pairHtml || '<p class="mute">Yakınlık kurabilmek için en az iki genç ya da yetişkin ejderha gerekir.</p>'}</div></section>
   </div>`;
 }
@@ -2264,6 +2344,14 @@ function mobHubModal() {
   </div>`, 'mob-cmd-modal');
 }
 ACT['mob-hub-menu'] = () => { SFX.play('tab'); mobHubModal(); };
+/* Mobil Yuva: "Ocak'ta kur" ilk boş arsayı seçili açar; kurma ve bedel mevcut build akışıyla (kullanıcı Kuluçka'ya dokunur). */
+ACT['mux-sefer-locked'] = el => { const r = el.closest('.sefer'); if (!r) return; const open = r.classList.toggle('show-locked'); el.setAttribute('aria-expanded', open ? 'true' : 'false'); };
+ACT['mux-acts-more'] = el => { const a = el.closest('.actions'); if (a) a.classList.toggle('more'); };
+ACT['mux-yuva-build'] = () => {
+  const i = S.grid.findIndex(t => t.open && !t.b);
+  if (i < 0) { toast('Boş arsa yok: önce bir arsa aç.'); return; }
+  UI.view = 'ocak'; UI.tile = i; UI.buildTab = 0; SFX.play('tab'); render();
+};
 ACT['mob-hub-act'] = el => {
   const act = el.dataset.act;
   if (act === 'sound') { SFX.toggle(); mobHubModal(); render(); return; }

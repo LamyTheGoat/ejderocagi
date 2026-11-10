@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
-COPY server.js index.html style.css ./
+COPY server.js index.html style.css style_mobile.css ./
 COPY js ./js
 COPY server ./server
 COPY img ./img

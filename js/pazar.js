@@ -152,7 +152,7 @@ function pazarView() {
       </div>
       <div class="mob-list-cards">
         ${stalls.map(s => `
-          <button class="mob-dir-card ${s.ready ? 'ready' : ''} ${s.open ? '' : 'closed'}" data-a="${s.act}" ${s.dk ? `data-k="${s.dk}"` : ''} ${s.open ? '' : 'disabled'}>
+          <button class="mob-dir-card s-${s.k} ${s.ready ? 'ready' : ''} ${s.open ? '' : 'closed'}" data-a="${s.act}" ${s.dk ? `data-k="${s.dk}"` : ''} ${s.open ? '' : 'disabled'}>
             <div class="mob-dir-ic">
               <img src="${asset('pazar-' + s.k) || (`img/iso/pazar-${s.k}.webp`)}" alt="${esc(s.ad)}">
               ${s.badge ? `<i class="tn-badge ${s.ready ? 'good' : ''}">${s.badge}</i>` : ''}
