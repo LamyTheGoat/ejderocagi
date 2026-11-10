@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!--HEAD-->
+<title>Ejder Ocağı 2.0 Merkez Meydan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@700;800&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<!--/HEAD-->
+<link rel="stylesheet" href="css/ui2.css">
+<link rel="stylesheet" href="css/ui2_extra.css">
+</head>
+<body>
+<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="tools/mock_claude.js"><\/script>');</script>
+<!--BODY-->
+<div id="app" class="ui2">
+  <canvas id="world" aria-label="Merkez Meydan: yürünen 2.5D sahne"></canvas>
+  <div id="grade"></div>
+  <div id="vignette"></div>
+  <div id="anchors"></div>
+
+  <div id="hud">
+    <div class="tl">
+      <img class="logo" src="assets/logo.webp" alt="Ejder Ocağı">
+      <button id="profile" title="Kuşanma (I)"><canvas id="portrait" width="96" height="96"></canvas><span><b>Terbiyeci</b><span>Kudret 1558</span></span></button>
+    </div>
+
+    <div class="tc">
+      <div class="chip" title="Altın"><span class="coin"></span>420</div>
+      <div class="chip un-chip" title="Ün"><span class="un" data-ic="star"></span>0</div>
+      <div class="chip week"><b>Hafta 1</b>/ 20<small>İlkbahar</small></div>
+      <button class="chip live" id="liveChip" title="Meydandakiler"><i></i><span>Yerel</span></button>
+    </div>
+
+    <div class="tr">
+      <div class="row">
+        <button class="rb" id="btnSound" title="Ses" aria-label="Sesi aç ya da kapat" aria-pressed="true"></button>
+        <button class="rb" id="btnBell" title="Bildirimler" aria-label="Bildirimler"></button>
+        <button class="rb" id="btnGear" title="Menü (M)" aria-label="Menü"></button>
+        <div class="minimap">
+          <canvas id="mini" width="320" height="320" aria-label="Mini harita"></canvas>
+          <div class="loc"><span data-ic="pin"></span><b id="locName">Merkez Meydan</b></div>
+          <div class="n">
+            <button class="rb" id="btnLight" title="Işık: gündüz / akşam (L)" aria-label="Işığı değiştir" aria-pressed="false"></button>
+            <button class="rb" id="btnCam" title="Kamera: yakın / yüksek (C)" aria-label="Kamerayı değiştir"></button>
+          </div>
+        </div>
+      </div>
+      <div id="fps" hidden></div>
+    </div>
+
+    <aside class="quests box">
+      <h3>Hedefler <small>J</small></h3>
+      <ul>
+        <li>Kuluçka Ocağı kur<span>0/1</span></li>
+        <li>Kor'a bir antrenman ver<span>0/1</span></li>
+        <li>Köy Arenası'nda ilk zafer<span>0/1</span></li>
+      </ul>
+      <p class="sim">Dikey dilim · yerel, sunucusuz. Değerler yeni oyunun başlangıcıdır.</p>
+    </aside>
+
+    <section id="chat" class="box" aria-label="Sohbet">
+      <button class="rb" id="chatToggle" aria-label="Sohbeti aç ya da kapat"></button>
+      <div id="chatTabs" role="tablist">
+        <button role="tab" data-tab="genel" aria-selected="true">Genel</button>
+        <button role="tab" data-tab="bolge" aria-selected="false">Bölge</button>
+        <button role="tab" data-tab="parti" aria-selected="false">Parti</button>
+      </div>
+      <div id="chatLog" role="log"></div>
+      <form id="chatForm"><input id="chatInput" maxlength="120" placeholder="Mesaj yaz… (Enter)" autocomplete="off" aria-label="Mesaj"></form>
+    </section>
+
+    <div id="emotes" class="box" aria-label="Jestler">
+      <button aria-label="Gülümse (1)" title="1"></button><button aria-label="El salla (2)" title="2"></button><button aria-label="Kalp (3)" title="3"></button>
+      <button aria-label="Parıltı (4)" title="4"></button><button aria-label="Düşün (5)" title="5"></button><button aria-label="Nota (6)" title="6"></button>
+    </div>
+
+    <nav id="actions" class="box" aria-label="Eylem çubuğu">
+      <button data-panel="ejderhalar" data-icon="dragon" aria-pressed="false"><span class="ic"></span><span>Ejderhalar</span></button>
+      <button data-panel="envanter" data-icon="bag" aria-pressed="false"><span class="ic"></span><span>Envanter</span></button>
+      <button data-panel="uretim" data-icon="anvil" aria-pressed="false"><span class="ic"></span><span>Üretim</span></button>
+      <button data-panel="gorevler" data-icon="scroll" aria-pressed="false"><span class="ic"></span><span>Görevler</span></button>
+      <button data-panel="sosyal" data-icon="people" aria-pressed="false"><span class="ic"></span><span>Sosyal</span></button>
+      <button data-panel="menu" data-icon="grid" aria-pressed="false"><span class="ic"></span><span>Menü</span></button>
+    </nav>
+
+    <div id="toast" class="box" role="status"></div>
+
+    <aside id="panel" class="box" aria-hidden="true">
+      <header><div id="panelKicker"></div><h2 id="panelTitle"></h2><button class="rb" id="panelClose" aria-label="Paneli kapat (Esc)" data-ic="close"></button></header>
+      <div id="panelBody"></div>
+    </aside>
+
+    <div id="joy" aria-hidden="true"><div id="joyKnob"></div></div>
+    <button id="btnE"><b>E</b><span></span></button>
+  </div>
+
+  <div id="titlecard" aria-hidden="true"><i></i><b>Merkez Meydan</b><span>Ejder Ocağı</span><i></i></div>
+  <div id="iris" aria-hidden="true"></div>
+  <div id="loading">
+    <img src="assets/logo.webp" alt="Ejder Ocağı">
+    <div class="bar"><div id="loadbar"></div></div>
+    <div id="loadtxt">Meydan hazırlanıyor</div>
+  </div>
+</div>
+<script src="assets/atlas.js"></script>
+<script src="assets/battle.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/gl.js"></script>
+<script src="js/art.js"></script>
+<script src="js/art2.js"></script>
+<script src="js/art3.js"></script>
+<script src="js/world.js"></script>
+<script src="js/scenes.js"></script>
+<script src="js/scenes2.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/game.js"></script>
+<script src="js/net.js"></script>
+<script src="js/npcai.js"></script>
+<script src="js/battle.js"></script>
+<!--/BODY-->
+</body>
+</html>
