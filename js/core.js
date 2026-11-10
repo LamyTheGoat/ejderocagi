@@ -264,7 +264,7 @@ function getEternalBabyDragon() {
   return S.dragons.find(d => d.stage === 'yavru' && d.eternalYouth) || null;
 }
 function canEnterZindanOrTopcu() {
-  return hasKizilTacChamp() && !!getEternalBabyDragon();
+  return !!getEternalBabyDragon(); // Kızıl Taç şampiyonluğu şartı kaldırıldı (kullanıcı kararı, 2026-11-10)
 }
 
 /* ---------- Ocak / ızgara ---------- */

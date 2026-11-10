@@ -950,10 +950,10 @@ function meydanView() {
     const lockBannerHtml = !isUnlocked ? `
       <div style="background:linear-gradient(135deg,rgba(95,22,22,0.92),rgba(38,14,14,0.96));border:2px solid #e05246;border-radius:12px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;box-shadow:0 8px 24px rgba(0,0,0,0.45);">
         <div>
-          <b style="color:#ffd470;font-size:15px;">🔒 Kervan Yolu Şampiyonluk Mührü</b>
-          <p class="sm" style="color:#f5d5ce;margin:4px 0 0;">Kervan Yolu'na çıkmak için önce <b>Kızıl Taç Turnuvası Şampiyonu</b> olmalı ve yıldız ejderhanızı <b>Ebedi Gençlik İksiri</b> ile kutsamalısınız!</p>
+          <b style="color:#ffd470;font-size:15px;">🔒 Kervan Yolu Mührü</b>
+          <p class="sm" style="color:#f5d5ce;margin:4px 0 0;">Kervan Yolu'na çıkmak için önce yıldız ejderhanızı <b>Ebedi Gençlik İksiri</b> ile kutsamalısınız!</p>
         </div>
-        <button class="btn sm ghost" data-a="go" data-v="arena">Arenaya Git</button>
+        <button class="btn sm ghost" data-a="gate-go-nuri">Baharatçı Nuri'ye Git</button>
       </div>
     ` : '';
 
@@ -1995,7 +1995,7 @@ const HUB_ACT = {
   },
   'lonca-route'(el) {
     if (typeof canEnterZindanOrTopcu === 'function' && !canEnterZindanOrTopcu()) {
-      toast('🔒 Kervan Yolu\'na çıkmak için önce Kızıl Taç Turnuvası Şampiyonu olmalı ve yıldız ejderhanızı Ebedi Gençlik İksiri ile kutsamalısınız!');
+      toast('🔒 Kervan Yolu\'na çıkmak için önce yıldız ejderhanızı Ebedi Gençlik İksiri ile kutsamalısınız!');
       return;
     }
     const H = ensureHub();
@@ -2006,7 +2006,7 @@ const HUB_ACT = {
   },
   'lonca-slot-coop'(el) {
     if (typeof canEnterZindanOrTopcu === 'function' && !canEnterZindanOrTopcu()) {
-      toast('🔒 Kervan Yolu\'na çıkmak için önce Kızıl Taç Turnuvası Şampiyonu olmalı ve yıldız ejderhanızı Ebedi Gençlik İksiri ile kutsamalısınız!');
+      toast('🔒 Kervan Yolu\'na çıkmak için önce yıldız ejderhanızı Ebedi Gençlik İksiri ile kutsamalısınız!');
       return;
     }
     const H = ensureHub();
@@ -2035,7 +2035,7 @@ const HUB_ACT = {
   },
   'lonca-fill-own'() {
     if (typeof canEnterZindanOrTopcu === 'function' && !canEnterZindanOrTopcu()) {
-      toast('🔒 Kervan Yolu\'na çıkmak için önce Kızıl Taç Turnuvası Şampiyonu olmalı ve yıldız ejderhanızı Ebedi Gençlik İksiri ile kutsamalısınız!');
+      toast('🔒 Kervan Yolu\'na çıkmak için önce yıldız ejderhanızı Ebedi Gençlik İksiri ile kutsamalısınız!');
       return;
     }
     const H = ensureHub();
@@ -2057,7 +2057,7 @@ const HUB_ACT = {
   },
   'lonca-battle'() {
     if (typeof canEnterZindanOrTopcu === 'function' && !canEnterZindanOrTopcu()) {
-      toast('🔒 Kervan Yolu\'na çıkmak için önce Kızıl Taç Turnuvası Şampiyonu olmalı ve yıldız ejderhanızı Ebedi Gençlik İksiri ile kutsamalısınız!');
+      toast('🔒 Kervan Yolu\'na çıkmak için önce yıldız ejderhanızı Ebedi Gençlik İksiri ile kutsamalısınız!');
       return;
     }
     const H = ensureHub();
@@ -2081,7 +2081,7 @@ const HUB_ACT = {
   },
   'lonca-join'(el) {
     if (typeof canEnterZindanOrTopcu === 'function' && !canEnterZindanOrTopcu()) {
-      toast('🔒 Kervan Yolu\'na çıkmak için önce Kızıl Taç Turnuvası Şampiyonu olmalı ve yıldız ejderhanızı Ebedi Gençlik İksiri ile kutsamalısınız!');
+      toast('🔒 Kervan Yolu\'na çıkmak için önce yıldız ejderhanızı Ebedi Gençlik İksiri ile kutsamalısınız!');
       return;
     }
     const cvs = ensureCaravans();
@@ -2101,7 +2101,7 @@ const HUB_ACT = {
   },
   'hub-caravan-send'() {
     if (typeof canEnterZindanOrTopcu === 'function' && !canEnterZindanOrTopcu()) {
-      toast('🔒 Kervan Yolu\'na çıkmak için önce Kızıl Taç Turnuvası Şampiyonu olmalı ve yıldız ejderhanızı Ebedi Gençlik İksiri ile kutsamalısınız!');
+      toast('🔒 Kervan Yolu\'na çıkmak için önce yıldız ejderhanızı Ebedi Gençlik İksiri ile kutsamalısınız!');
       return;
     }
     const H = ensureHub();
@@ -2165,7 +2165,7 @@ const HUB_ACT = {
   },
   'hub-caravan-raid'(el) {
     if (typeof canEnterZindanOrTopcu === 'function' && !canEnterZindanOrTopcu()) {
-      toast('🔒 Kervan Yolu\'na çıkmak için önce Kızıl Taç Turnuvası Şampiyonu olmalı ve yıldız ejderhanızı Ebedi Gençlik İksiri ile kutsamalısınız!');
+      toast('🔒 Kervan Yolu\'na çıkmak için önce yıldız ejderhanızı Ebedi Gençlik İksiri ile kutsamalısınız!');
       return;
     }
     const H = ensureHub();

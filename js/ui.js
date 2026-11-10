@@ -723,7 +723,6 @@ function arenaView() {
 
 /* ================= ZİNDAN & EJDER TOPÇUSU (MAHZEN, KALDERA & PVP SEFERLERİ) ================= */
 function showZindanGateModal() {
-  const hasChamp = typeof hasKizilTacChamp === 'function' ? hasKizilTacChamp() : !!(S && S.flags && S.flags.champ);
   const baby = typeof getEternalBabyDragon === 'function' ? getEternalBabyDragon() : null;
   const anyBaby = S && S.dragons ? S.dragons.find(d => d.stage === 'yavru') : null;
   const elixirCount = (S && S.food && S.food.genclik) || 0;
@@ -737,24 +736,13 @@ function showZindanGateModal() {
       </div>
       <button class="icb" data-a="mclose" aria-label="Kapat">${ui('x')}</button>
     </div>
-    <p style="margin:0 0 14px;font-size:14px;line-height:1.45;color:#d8c398">Yerin yedi kat altındaki <b>Kadim Zindanlara</b> ve <b>Ejder Topçusu Meydanına (Sefer & Canlı PvP)</b> adım atabilmek için ocağının iki kutsal şartı yerine getirmesi gerekir:</p>
+    <p style="margin:0 0 14px;font-size:14px;line-height:1.45;color:#d8c398">Yerin yedi kat altındaki <b>Kadim Zindanlara</b> ve <b>Ejder Topçusu Meydanına (Sefer & Canlı PvP)</b> adım atabilmek için ocağının kutsal şartı yerine getirmesi gerekir:</p>
     <div class="gate-cond-grid">
-      <div style="padding:14px;border-radius:10px;background:rgba(20,10,7,.78);border:1.5px solid ${hasChamp ? '#54b86a' : '#b84a39'}">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-          <img src="img/ui/ui-crown.webp" style="width:44px;height:44px;object-fit:contain" alt="">
-          <div>
-            <b style="display:block;font-size:15px;color:#ffe094">1. Kızıl Taç Şampiyonluğu</b>
-            <span class="chip ${hasChamp ? 'good' : 'bad'}" style="font-size:11px">${hasChamp ? 'ŞART TAMAMLANDI' : 'HENÜZ KAZANILMADI'}</span>
-          </div>
-        </div>
-        <p style="margin:0 0 10px;font-size:12.5px;color:#cbb58b">Arenada 20. Hafta düzenlenen <b>Kızıl Taç Turnuvasında</b> 3 turu da kazanarak Kızıl Taç Şampiyonu unvanını almalısın.</p>
-        <button class="btn ${hasChamp ? 'ghost' : 'primary'} sm wide" data-a="gate-go-arena">${hasChamp ? 'Kızıl Taç Kazanıldı' : 'Arenaya Git'}</button>
-      </div>
       <div style="padding:14px;border-radius:10px;background:rgba(20,10,7,.78);border:1.5px solid ${baby ? '#54b86a' : '#b84a39'}">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
           <img src="${ikImg}" style="width:44px;height:44px;object-fit:contain" alt="">
           <div>
-            <b style="display:block;font-size:15px;color:#ffe094">2. Sonsuz Gençlik İksirli Yavru</b>
+            <b style="display:block;font-size:15px;color:#ffe094">Sonsuz Gençlik İksirli Yavru</b>
             <span class="chip ${baby ? 'good' : 'bad'}" style="font-size:11px">${baby ? 'HAZIR: ' + esc(baby.name) : 'EKSİK (Kilerde İksir: ×' + elixirCount + ')'}</span>
           </div>
         </div>
@@ -774,7 +762,6 @@ function showZindanGateModal() {
 
 function zindanHubView() {
   const unlocked = typeof canEnterZindanOrTopcu === 'function' ? canEnterZindanOrTopcu() : false;
-  const hasChamp = typeof hasKizilTacChamp === 'function' ? hasKizilTacChamp() : false;
   const eternalBaby = typeof getEternalBabyDragon === 'function' ? getEternalBabyDragon() : null;
   const anyBaby = S && S.dragons ? S.dragons.find(d => d.stage === 'yavru') : null;
   const elixirCount = (S && S.food && S.food.genclik) || 0;
@@ -799,37 +786,23 @@ function zindanHubView() {
           </div>
         </div>
         <div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(0,0,0,.35);border:1px solid rgba(212,162,76,.3)">
-          <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>1. Kızıl Taç Şampiyonluğu:</span><b class="${hasChamp ? 'good' : 'bad'}">${hasChamp ? 'Tamamlandı' : 'Kazanılmadı'}</b></div>
-          <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>2. Kilerde Gençlik İksiri:</span><b>×${elixirCount}</b></div>
-          <div style="display:flex;justify-content:space-between"><span>3. Mühürlü Yavru Silahı:</span><b class="${eternalBaby ? 'good' : 'bad'}">${eternalBaby ? esc(eternalBaby.name) : 'Yok'}</b></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>1. Kilerde Gençlik İksiri:</span><b>×${elixirCount}</b></div>
+          <div style="display:flex;justify-content:space-between"><span>2. Mühürlü Yavru Silahı:</span><b class="${eternalBaby ? 'good' : 'bad'}">${eternalBaby ? esc(eternalBaby.name) : 'Yok'}</b></div>
         </div>
         <div class="cact" style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
           <button class="btn primary sm wide" data-a="gate-go-nuri">Baharatçı Nuri'den İksir Al (140 Altın)</button>
           ${elixirCount > 0 && anyBaby && !eternalBaby ? `<button class="btn good sm wide" data-a="gate-drink-baby" data-id="${anyBaby.id}">${esc(anyBaby.name)} (Yavru) İksiri İçsin</button>` : ''}
-          <button class="btn ghost sm wide" data-a="gate-go-arena">Arenaya Git (Kızıl Taç Turnuvası)</button>
         </div>
       </section>
       <section class="board pitboard">
         <div class="plaques">
           <button class="plaque on">Kadim Zindanlar & Ejder Topçusu Meydanı (MÜHÜRLÜ)</button>
         </div>
-        <p class="tierd">Zindanlar ve Ejder Topçusu Mini-Oyunu (Sefer & Canlı PvP) yalnızca <b>bir Kızıl Taç Şampiyonluğu kazanıldıktan</b> ve <b>Baharatçı Nuri'den alınan Sonsuz Gençlik İksiri bir Yavru Ejderhaya içirildikten</b> sonra açılır.</p>
+        <p class="tierd">Zindanlar ve Ejder Topçusu Mini-Oyunu (Sefer & Canlı PvP) yalnızca <b>Baharatçı Nuri'den alınan Sonsuz Gençlik İksiri bir Yavru Ejderhaya içirildikten</b> sonra açılır.</p>
         <div class="posters">
           <div class="poster special zindan-poster" style="max-width:340px">
             <i class="nail"></i>
-            <span class="stamp deadly zindan-poster-badge">Şart 1</span>
-            <div class="ph zindan-poster-badge">KIZIL TAÇ ŞAMPİYONLUĞU</div>
-            <div class="pdr zindan-poster-art" style="display:flex;align-items:center;justify-content:center">
-              <img src="img/ui/ui-crown.webp" class="zindan-poster-img" style="max-height:110px;object-fit:contain" alt="Kızıl Taç">
-            </div>
-            <b class="pname">Kızıl Taç Turnuvası</b>
-            <small>20. Hafta Büyük Turnuva Şampiyonluğu</small>
-            <div class="pmeta"><span class="chip ${hasChamp ? 'good' : 'bad'}">${hasChamp ? 'Şampiyonluk Kazanıldı' : 'Şampiyonluk Gerekli'}</span></div>
-            <button class="btn ${hasChamp ? 'ghost' : 'primary'} sm wide zindan-poster-go" data-a="gate-go-arena">${hasChamp ? 'Tamamlandı' : 'Arenaya Git'}</button>
-          </div>
-          <div class="poster special zindan-poster" style="max-width:340px">
-            <i class="nail"></i>
-            <span class="stamp hard zindan-poster-badge">Şart 2</span>
+            <span class="stamp hard zindan-poster-badge">Şart 1</span>
             <div class="ph zindan-poster-badge">SONSUZ GENÇLİK İKSİRİ</div>
             <div class="pdr zindan-poster-art" style="display:flex;align-items:center;justify-content:center">
               <img src="${ikImg}" class="zindan-poster-img" style="max-height:110px;object-fit:contain" alt="Sonsuz Gençlik İksiri">
