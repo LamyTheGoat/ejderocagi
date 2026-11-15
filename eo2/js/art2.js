@@ -76,11 +76,11 @@
     g.poly([[0.28, 0.32], [0.62, 0.32], [0.45, 0.12]], C.goldD, 0.04); g.circle(0.45, 0.08, 0.05, C.gold, 0.03); return g; };
 
   /* ---------- Ejder Bahçesi ---------- */
-  art.nest = function () { const g = P(2.6, 1.7), x = g.x, r = rng(31);
+  art.nest = function (empty) { const g = P(2.6, 1.7), x = g.x, r = rng(31);
     x.beginPath(); x.ellipse(1.3, 0.5, 1.15, 0.45, 0, 0, 6.3); g.fs('#8a6a3c', 0.05);
     for (let i = 0; i < 60; i++) { x.strokeStyle = r() > 0.5 ? '#d9b05a' : '#b98a3a'; x.lineWidth = 0.035; const a = r() * 6.3, d = 0.5 + r() * 0.6; x.beginPath(); x.moveTo(1.3 + Math.cos(a) * d, 0.52 + Math.sin(a) * d * 0.36); x.lineTo(1.3 + Math.cos(a + 0.5) * (d + 0.3), 0.52 + Math.sin(a + 0.5) * (d + 0.3) * 0.36); x.stroke(); }
     g.lit(xx => { xx.beginPath(); xx.ellipse(1.3, 0.62, 0.62, 0.2, 0, 0, 6.3); }, '#ff8a3c', '#c9773a');
-    for (const [cx, col, sp] of [[0.98, '#d9442f', '#ffb04a'], [1.6, '#3f7fd0', '#bfe6ff']]) { x.beginPath(); x.ellipse(cx, 0.98, 0.3, 0.42, cx < 1.3 ? -0.15 : 0.15, 0, 6.3); g.fs(col, 0.05); x.fillStyle = sp; for (let k = 0; k < 7; k++) { x.beginPath(); x.arc(cx + (r() - 0.5) * 0.36, 0.98 + (r() - 0.5) * 0.56, 0.035 + r() * 0.03, 0, 6.3); x.fill(); } x.fillStyle = 'rgba(255,255,255,.35)'; x.beginPath(); x.ellipse(cx - 0.1, 1.14, 0.06, 0.12, 0.4, 0, 6.3); x.fill(); }
+    if (!empty) for (const [cx, col, sp] of [[0.98, '#d9442f', '#ffb04a'], [1.6, '#3f7fd0', '#bfe6ff']]) { x.beginPath(); x.ellipse(cx, 0.98, 0.3, 0.42, cx < 1.3 ? -0.15 : 0.15, 0, 6.3); g.fs(col, 0.05); x.fillStyle = sp; for (let k = 0; k < 7; k++) { x.beginPath(); x.arc(cx + (r() - 0.5) * 0.36, 0.98 + (r() - 0.5) * 0.56, 0.035 + r() * 0.03, 0, 6.3); x.fill(); } x.fillStyle = 'rgba(255,255,255,.35)'; x.beginPath(); x.ellipse(cx - 0.1, 1.14, 0.06, 0.12, 0.4, 0, 6.3); x.fill(); }
     for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI + 3.14, cx = 1.3 + Math.cos(a) * 1.12, cy = 0.44 + Math.sin(a) * 0.4; x.beginPath(); x.ellipse(cx, cy, 0.2, 0.15, 0, 0, 6.3); g.fs(['#d9cbb6', '#c7b79f', '#e6dac8'][i % 3], 0.04); }
     return g; };
   art.pondRim = function () { const c = document.createElement('canvas'); c.width = c.height = 512; const x = c.getContext('2d'), r = rng(9); for (let i = 0; i < 30; i++) { const a = i / 30 * 6.2832, cx = 256 + Math.cos(a) * 232, cy = 256 + Math.sin(a) * 232; x.save(); x.translate(cx, cy); x.rotate(a); x.beginPath(); x.ellipse(0, 0, 20 + r() * 6, 24 + r() * 5, 0, 0, 6.3); x.fillStyle = ['#e6dac8', '#d3c4ae', '#efe5d6'][i % 3]; x.fill(); x.lineWidth = 3; x.strokeStyle = '#3a2530'; x.stroke(); x.restore(); } return c; };

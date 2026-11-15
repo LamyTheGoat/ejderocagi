@@ -4,20 +4,28 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <!--HEAD-->
-<title>Ejder Ocağı 2.0 Merkez Meydan</title>
+<title>Ejder Ocağı</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@700;800&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@700;800&family=Alegreya+Sans:wght@400;500;700;800&family=Alegreya:ital,wght@0,400;0,600;1,400&family=Grenze+Gotisch:wght@500;600&family=Noto+Sans:wght@500;600;700;800&display=swap">
 <!--/HEAD-->
 <link rel="stylesheet" href="css/ui2.css">
 <link rel="stylesheet" href="css/ui2_extra.css">
+<link rel="stylesheet" href="css/cam.css">
+<link rel="stylesheet" href="css/susleme.css">
+<link rel="stylesheet" href="css/ejder.css">
+<link rel="stylesheet" href="css/olcu.css">
+<link rel="stylesheet" href="css/cila.css">
+<link rel="stylesheet" href="css/cila_mobil.css">
+<link rel="stylesheet" href="css/bedesten.css">
 </head>
 <body>
-<script>if (/[?&]mock=1/.test(location.search)) document.write('<script src="tools/mock_claude.js"><\/script>');</script>
 <!--BODY-->
 <div id="app" class="ui2">
+<script>if (/[?&]gelistirici/.test(location.search)) document.getElementById('app').classList.add('gelistirici');</script>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="altinG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6cf"/><stop offset=".42" stop-color="#f5cf74"/><stop offset=".58" stop-color="#e2a83c"/><stop offset="1" stop-color="#b97a1e"/></linearGradient></defs></svg>
   <canvas id="world" aria-label="Merkez Meydan: yürünen 2.5D sahne"></canvas>
   <div id="grade"></div>
   <div id="vignette"></div>
@@ -26,7 +34,7 @@
   <div id="hud">
     <div class="tl">
       <img class="logo" src="assets/logo.webp" alt="Ejder Ocağı">
-      <button id="profile" title="Kuşanma (I)"><canvas id="portrait" width="96" height="96"></canvas><span><b>Terbiyeci</b><span>Kudret 1558</span></span></button>
+      <button id="profile" title="Kuşanma (I)"><canvas id="portrait" width="96" height="96"></canvas><span><b>Terbiyeci</b><span></span></span></button>
     </div>
 
     <div class="tc">
@@ -71,7 +79,7 @@
         <button role="tab" data-tab="parti" aria-selected="false">Parti</button>
       </div>
       <div id="chatLog" role="log"></div>
-      <form id="chatForm"><input id="chatInput" maxlength="120" placeholder="Mesaj yaz… (Enter)" autocomplete="off" aria-label="Mesaj"></form>
+      <form id="chatForm"><input id="chatInput" maxlength="120" placeholder="Mesaj yaz…" autocomplete="off" aria-label="Mesaj"><button id="chatSend" aria-label="Gönder"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 11.5 21 3l-6.5 18-3-7.5z"/></svg></button></form>
     </section>
 
     <div id="emotes" class="box" aria-label="Jestler">
@@ -80,6 +88,7 @@
     </div>
 
     <nav id="actions" class="box" aria-label="Eylem çubuğu">
+      <button data-panel="ocak" data-icon="flame" aria-pressed="false"><span class="ic"></span><span>Ocak</span></button>
       <button data-panel="ejderhalar" data-icon="dragon" aria-pressed="false"><span class="ic"></span><span>Ejderhalar</span></button>
       <button data-panel="envanter" data-icon="bag" aria-pressed="false"><span class="ic"></span><span>Envanter</span></button>
       <button data-panel="uretim" data-icon="anvil" aria-pressed="false"><span class="ic"></span><span>Üretim</span></button>
@@ -107,6 +116,9 @@
     <div id="loadtxt">Meydan hazırlanıyor</div>
   </div>
 </div>
+<!-- Oyunun kendi kuralları: eski mantık dosyaları olduğu gibi yüklenir (bkz. js/shim.js). Sunucuda ../js/, yerel araçta oyun/js/ -->
+<script src="js/shim.js"></script>
+<script>window.EO2_OLD = /\/eo2\//.test(location.pathname) ? '../' : 'oyun/'; document.write(['data', 'core', 'week', 'content', 'art', 'scenes', 'assets', 'pose', 'angle', 'fightev', 'care', 'cosmetic', 'race', 'auction', 'bond', 'star', 'career', 'season', 'fsupport', 'comic', 'racestory', 'arenastory', 'social', 'rival', 'pazar', 'orders', 'lineage', 'pageant', 'hub', 'kiraathane', 'endgame'].map(function (f) { return '<script src="' + window.EO2_OLD + 'js/' + f + '.js"><\/script>'; }).join(''));</script>
 <script src="assets/atlas.js"></script>
 <script src="assets/battle.js"></script>
 <script src="js/icons.js"></script>
@@ -119,9 +131,40 @@
 <script src="js/scenes2.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/game.js"></script>
-<script src="js/net.js"></script>
-<script src="js/npcai.js"></script>
+<script src="js/sohbet.js"></script>
+<script src="js/oyun.js"></script>
+<script src="js/rihtim.js"></script>
+<script src="js/gorunus.js"></script>
+<script src="js/efekt.js"></script>
+<script src="js/ekranlar.js"></script>
+<script src="js/ahir.js"></script>
+<script src="js/ocak25.js"></script>
+<script src="js/meydan25.js"></script>
+<script src="js/doku.js"></script>
+<script src="js/pilot.js"></script>
+<script src="js/master_duzen.js"></script>
+<script src="js/bolumler/liste.js"></script>
+<script src="js/bolum.js"></script>
+<script src="js/eski.js"></script>
+<script src="js/arena.js"></script>
+<script src="js/yaris25.js"></script>
+<script src="js/yaris.js"></script>
+<script src="js/saray.js"></script>
+<script src="js/yuva.js"></script>
+<script src="js/cizgi.js"></script>
+<script src="js/sefer.js"></script>
+<script src="js/pazar.js"></script>
+<script src="js/muzayede.js"></script>
+<script src="js/siparis.js"></script>
+<script src="js/han.js"></script>
+<script src="js/defter.js"></script>
+<script src="js/son.js"></script>
+<script src="js/sus.js"></script>
+<script src="js/kutuk.js"></script>
+<script src="js/kule.js"></script>
+<script src="js/diyar.js"></script>
 <script src="js/battle.js"></script>
+<script src="js/bedesten.js"></script>
 <!--/BODY-->
 </body>
 </html>

@@ -13,7 +13,7 @@
   const load = src => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error(src + ' yüklenemedi')); i.src = src; });
   EO2.hooks = {}; EO2.frameHooks = [];
   const S = EO2.state = { focusK: 0, night: 0, nightT: 0, camMode: 'yakin', hud: true, fps: false, companion: true, panel: null, time: 0, intro: reduce ? 1 : 0 };
-  const CAM = { yakin: { th: 0, H: 3.57, D: 7, feet: 0.72 }, yuksek: { th: 16 * Math.PI / 180, H: 5.4, D: 8.6, feet: 0.69 } };
+  const CAM = { yakin: { th: 0, H: 3.57, D: 7, feet: 0.72 }, yuksek: { th: 16 * Math.PI / 180, H: 5.4, D: 8.6, feet: 0.69 } }; EO2.CAM = CAM;      // başka kipler (yarış gibi) kendi ön ayarını ekleyebilir
   const cam = { ...CAM.yakin, x: L.start.x, y: L.start.y };
 
   /* ---------- Yükleme ---------- */
@@ -59,11 +59,12 @@
     addEventListener('keydown', e => {
       if (typing()) { if (e.key === 'Escape') { document.activeElement.blur(); if (EO2.dialog && EO2.dialog.isOpen()) EO2.dialog.close(); } return; }
       if (EO2.dialog && EO2.dialog.isOpen() && e.key === 'Escape') { EO2.dialog.close(); return; }
+      if (EO2.blocked && EO2.blocked()) return;      // oyun ekranı ya da pencere açıkken dünya tuş almaz
       const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
       if (['w', 'a', 's', 'd', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Shift'].includes(k)) { keys.add(k); target = null; if (k.startsWith('Arrow')) e.preventDefault(); return; }
       if (e.repeat) return;
       if (EO2.battle && EO2.battle.active()) return;
-      if (k === 'e') doInteract(); else if (k === 'Enter') { e.preventDefault(); (EO2.dialog && EO2.dialog.isOpen() ? $('dlgInput') : $('chatInput')).focus(); }
+      if (k === 'e') doInteract(); else if (k === 'Enter') { e.preventDefault(); $('chatInput').focus(); }
       else if (k === 'i') togglePanel('envanter'); else if (k === 'j') togglePanel('gorevler'); else if (k === 'm') togglePanel('menu'); else if (k === 'Escape') togglePanel(S.panel ? S.panel : 'menu');
       else if (k === 'l') setNight(S.nightT ? 0 : 1); else if (k === 'c') setCam(S.camMode === 'yakin' ? 'yuksek' : 'yakin'); else if (k === 'h') setHud(!S.hud);
       else if (k >= '1' && k <= '6') emote(+k - 1);
@@ -115,7 +116,7 @@
       if (S.intro < 1) S.intro = Math.min(1, S.intro + dt / 2.6);
       // oyuncu
       let ix = 0, iy = 0;
-      const frozen = EO2.battle && EO2.battle.active();
+      const frozen = (EO2.battle && EO2.battle.active()) || !!EO2.gizli; if (frozen) target = null;      // EO2.gizli: terbiyeci sahnede değil (yarış); kamera yine konumunu izler
       if (!typing() && !frozen) { if (keys.has('a') || keys.has('ArrowLeft')) ix -= 1; if (keys.has('d') || keys.has('ArrowRight')) ix += 1; if (keys.has('w') || keys.has('ArrowUp')) iy += 1; if (keys.has('s') || keys.has('ArrowDown')) iy -= 1; }
       if (joy.on && !frozen && Math.hypot(joy.x, joy.y) > 0.18) { ix = joy.x; iy = joy.y; }
       if ((ix || iy) && EO2.dialog && EO2.dialog.isOpen() && Math.hypot(ix, iy) > 0.5 && !typing()) EO2.dialog.close();
@@ -160,7 +161,7 @@
       if (L.flyer && EO2.ext.fly && !reduce) { flyT -= dt; if (!flyer && flyT < 0) { const dir = Math.random() < 0.5 ? 1 : -1; flyer = { x: cam.x - dir * 48, y: player.y + 19 + Math.random() * 9, z: 12 + Math.random() * 5, dir, t: 0 }; if (EO2.audio && EO2.audio.whoosh) EO2.audio.whoosh(); }
         if (flyer) { flyer.t += dt; flyer.x += flyer.dir * 9.5 * dt; if (Math.abs(flyer.x - cam.x) > 62) { flyer = null; flyT = 34 + Math.random() * 30; } } }
       // kamera
-      const T = CAM[S.camMode], k = Math.min(1, dt * 3.2); cam.th = lerp(cam.th, T.th, k); cam.H = lerp(cam.H, T.H, k); cam.D = lerp(cam.D, T.D, k); cam.feet = lerp(cam.feet, T.feet, k);
+      const T = CAM[S.camMode], k = Math.min(1, dt * 3.2); cam.th = lerp(cam.th, T.th, k); cam.H = lerp(cam.H, T.H, k); cam.D = lerp(cam.D, T.D, k); cam.feet = lerp(cam.feet, T.feet, k); cam.kisi = lerp(cam.kisi || 0.2, T.kisi || 0.2, k);   // kisi: karakterin ekrandaki boyu (taban ölçünün oranı); ön ayar vermezse 0.2
       const fn = EO2.dialog && EO2.dialog.npc && EO2.dialog.npc(), fx = fn ? (fn.x - player.x) * 0.5 : 0;
       cam.x = lerp(cam.x, clamp(player.x + look.x + fx * S.focusK, Math.min(0, L.bounds[0] + 4.1), Math.max(0, L.bounds[1] - 4.1)), Math.min(1, dt * 4)); cam.y = lerp(cam.y, player.y + look.y * 0, Math.min(1, dt * 7));
       updateInteract();
@@ -182,6 +183,7 @@
       runAct(near.act);
     }
     function runAct(act) {
+      if (EO2.hooks.act && EO2.hooks.act(act)) return;
       if (act.startsWith('panel:')) { if (EO2.audio) EO2.audio.chime(); openPanel(act.slice(6)); }
       else if (act.startsWith('go:')) goScene(act.slice(3));
       else if (act === 'duel') { if (EO2.battle) EO2.battle.start(); }
@@ -192,7 +194,8 @@
 
     /* ---------- Çizim ---------- */
     const lightAt = (x, y) => { let s = 0; for (const l of L.lights) { const d = Math.hypot(x - l[0], y - l[1]); if (d < l[2]) { const a = 1 - d / l[2]; s += a * a * l[3]; } } return Math.min(1, s); };
-    const litCol = (F, x, y, a = 1) => { const k = F.night * lightAt(x, y) * 0.8; return [Math.min(1.08, F.amb[0] + k), Math.min(1.08, F.amb[1] + k * 0.72), Math.min(1.08, F.amb[2] + k * 0.38), a]; };
+    /* L.golgeKat (bölüm motoru): zemine düşen gölge kütlesinin içindeki kişi ve nesne koyulaşır, hafifçe morarır. ham: kütleyi yok say. */
+    const litCol = (F, x, y, a = 1, ham) => { const k = F.night * lightAt(x, y) * 0.8, g = !ham && L.golgeKat ? L.golgeKat(x, y) : 1; return [Math.min(1.08, F.amb[0] + k) * g, Math.min(1.08, F.amb[1] + k * 0.72) * g * (0.985 + 0.015 * g), Math.min(1.08, F.amb[2] + k * 0.38) * (g + (1 - g) * 0.3), a]; };
     function drawChibi(R, F, c) {
       const st = sets[c.set], m = st.m, k = CHAR_H / m.tall, vdir = c.dir === 'left' ? 'right' : c.dir;
       const key = c.moving ? vdir + '_walk_' + (Math.floor(c.ph * 16) % 16 + 16) % 16 : (c.happy > 0 && vdir !== 'up' ? vdir + '_happy' : vdir + '_idle');
@@ -255,12 +258,12 @@
       return fxStatics; }
     const list = [];
     const F = { amb: [1, 1, 1], night: 0, time: 0, dt: 0, camX: 0, camY: 0, D: 7, horizonNDC: 0, coverTest: null };
-    F.lit = (x, y, a) => litCol(F, x, y, a);
+    F.lit = (x, y, a, ham) => litCol(F, x, y, a, ham);
     const flyerDraw = { key: 0, draw(R, F) { const e = W.ext('fly'), f = flyer; if (!e || !f) return; const w = 9, hh = w * e.h / e.w, bob = Math.sin(f.t * 1.6) * 0.6, x0 = f.x - w / 2 * f.dir, x1 = f.x + w / 2 * f.dir, sh = uv('shadow');
       R.quad(FX, [f.x - 4.2, f.y - 3.4, 0.013], [f.x + 4.2, f.y - 3.4, 0.013], [f.x + 4.2, f.y - 0.6, 0.013], [f.x - 4.2, f.y - 0.6, 0.013], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, 0.42]);
       R.quad(e.t, [x0, f.y, f.z + bob], [x1, f.y, f.z + bob], [x1, f.y, f.z + bob + hh], [x0, f.y, f.z + bob + hh], 0, 0, 1, 1, [F.amb[0], F.amb[1], F.amb[2], 1], false, 0.5); } };
     let playerScreen = null;
-    F.coverTest = it => { if (!playerScreen || it.y > player.y - 0.15) return false; const a = R.project(it.x - it.w * 0.5, it.y, it.h), b = R.project(it.x + it.w * 0.5, it.y, 0.6); if (!a || !b) return false;
+    F.coverTest = it => { if (!playerScreen || it.y > player.y - 0.15) return false; const a = R.project(it.x - it.w * 0.5, it.y, it.h), b = R.project(it.x + it.w * 0.5, it.y, Math.max(0.6, it.alt || 0)); if (!a || !b) return false;   // it.alt: asılı nesnenin alt kenarı (bölüm motoru)
       return playerScreen[0] > a[0] + 6 && playerScreen[0] < b[0] - 6 && playerScreen[1] > a[1] && playerScreen[1] < b[1] + 30; };
 
     function render(dt) {
@@ -268,22 +271,27 @@
       // giriş süzülüşü: kamera uzaktan ve yüksekten iner
       const it = 1 - ease(S.intro), D = lerp(cam.D, 10.5, pk) * (1 - 0.2 * S.focusK) + it * 9, H = lerp(cam.H, 10.5, pk) + it * 3.2, th = lerp(cam.th, 0.56, pk) + it * 0.16, cos = Math.cos(th), sin = Math.sin(th), feet = lerp(cam.feet, 0.6, pk);
       const df = D * cos + H * sin, uf = D * sin - H * cos, dh = D * cos + (H - CHAR_H) * sin, uh = D * sin - (H - CHAR_H) * cos;
-      const Fc = 0.2 * base / (uh / dh - uf / df), ppy = feet * h + Fc * uf / df;
+      const Fc = (cam.kisi || 0.2) * base / (uh / dh - uf / df), ppy = feet * h + Fc * uf / df;
       R.setCamera({ x: cam.x, y: cam.y - D, h: H, F: Fc, cos, sin, ppy });
       const fogC = [lerp(0.80, 0.33, n), lerp(0.89, 0.25, n), lerp(0.97, 0.44, n), LT.fog === undefined ? 0.86 : LT.fog];
       R.setFog(fogC, [30, 105]);
-      F.amb = LT.amb || [lerp(1, 0.50, n), lerp(1, 0.49, n), lerp(1, 0.74, n)]; F.camH = H; F.py = player.y; F.night = n; F.time = S.time; F.dt = dt; F.camX = cam.x; F.camY = cam.y - D; F.D = D;
+      /* çizim dünyasında gündüz "altın saat"tir: ortam ışığı sıcak, pencereler ve fenerler gündüz de hafifçe yanar (ik); gece değerleri aynı */
+      const ciz = EO2.meydanUslup === 'cizim' && EO2.doku && EO2.doku.hazir, IA = EO2.isikAyar || { ik: 0.24, sicak: 1 }, ik = ciz && !L.indoor ? IA.ik : 0, nI = Math.max(n, ik), sk = IA.sicak; R.zaman = S.time;
+      F.amb = LT.amb || (ciz ? [lerp(1 + 0.06 * sk, 0.50, n), lerp(1 - 0.015 * sk, 0.49, n), lerp(1 - 0.13 * sk, 0.74, n)] : [lerp(1, 0.50, n), lerp(1, 0.49, n), lerp(1, 0.74, n)]); F.camH = H; F.py = player.y; F.night = nI; F.time = S.time; F.dt = dt; F.camX = cam.x; F.camY = cam.y - D; F.D = D;
       F.horizonNDC = 1 - 2 * (ppy - Fc * sin / cos) / h;
       playerScreen = R.project(player.x, player.y, 0.9);
       R.begin(LT.clear || fogC);
       // gök ve uzak plan zeminden önce
       list.length = 0; for (const s of SC.w.statics) list.push(s); for (const s of fxStatics) list.push(s); if (flyer) { flyerDraw.key = flyer.y; list.push(flyerDraw); }
-      for (const c of npcs) list.push({ key: c.y, c }); list.push({ key: player.y, c: player }); if (S.companion) list.push({ key: pet.y + 0.001, pet });
+      for (const c of npcs) list.push({ key: c.y, c }); if (!EO2.gizli) { list.push({ key: player.y, c: player }); if (S.companion) list.push({ key: pet.y + 0.001, pet }); }
       for (const c of remotes) { if ((c.area || 'meydan') !== SC.id) continue; list.push({ key: c.y, c }); if (c.pet) list.push({ key: c.pet.y + 0.001, pet: c.pet }); }
       for (const p of parts) list.push({ key: p.y, p });
       list.sort((a, b) => b.key - a.key);
       let groundDone = false;
-      const ground = () => { groundDone = true; R.ground(mapTex, [-90, cam.y - D + 0.3, 90, 170], { map: L.mapRect, amb: F.amb, night: n, time: S.time, fount: L.fount ? [L.fount.x, L.fount.y, L.fount.ringIn, L.fount.ringOut] : [0, 0, 0, 0], emb: L.emb ? [L.emb.x, L.emb.y, L.emb.r, 0] : [0, 0, -1, 0], lights: L.lights || [], mode: L.floor === 'wood' ? 1 : L.floor === 'sand' ? 2 : 0, road: L.road });
+      /* çizilmiş zemin dokuları (js/doku.js yükler): sahne L.zemin = [döşeme, yer, karo1, karo2] verebilir; yoksa zemin türünden seçilir */
+      const zeminDoku = L => { const K = EO2.doku; if (!K || EO2.meydanUslup !== 'cizim' || !K.zemin) return {}; const z = L.zemin || ({ wood: ['ahsap', null, 4.2], sand: ['tas', 'kum', 4.4, 8], kar: [null, null], kul: [null, null], kaya: [null, null] })[L.floor] || ['tas', 'cim', 4.4, 7];
+        const zmT = K.zmT || (K.zmT = {}), al = ad => { if (!ad || !K.zemin[ad]) return null; return zmT[ad] || (zmT[ad] = R.texture(K.zemin[ad])); }; return { t1: al(z[0]), t2: al(z[1]), s1: z[2] || 4.4, s2: z[3] || 7 }; };
+      const ground = () => { groundDone = true; R.ground(mapTex, [-(L.gx || 90), cam.y - D + 0.3, L.gx || 90, L.gy || 170], { map: L.mapRect, amb: F.amb, night: F.night, time: S.time, fount: L.fount ? [L.fount.x, L.fount.y, L.fount.ringIn, L.fount.ringOut] : [0, 0, 0, 0], emb: L.emb ? [L.emb.x, L.emb.y, L.emb.r, L.sadeHalka ? 1 : 0] : [0, 0, -1, L.sadeHalka ? 1 : 0], lights: L.lights || [], mode: ({ wood: 1, sand: 2, kar: 3, kul: 4, kaya: 5 })[L.floor] || 0, road: L.road, ...zeminDoku(L) });
         // madalyonun ortasındaki altın ejder mührü ve tıklama hedefi
         const e = L.emb || { x: 0, y: -999 }, s = 0.62, hh = s * W.E.emblem.height / W.E.emblem.width; if (L.emb) R.quad(tEmb, [e.x - s, e.y - hh, 0.01], [e.x + s, e.y - hh, 0.01], [e.x + s, e.y + hh, 0.01], [e.x - s, e.y + hh, 0.01], 0, 0, 1, 1, [F.amb[0], F.amb[1], F.amb[2], 0.95]);
         if (target) { const u = uv('ring'), r = 0.34 + Math.sin(target.t * 7) * 0.05; R.quad(FX, [target.x - r, target.y - r, 0.015], [target.x + r, target.y - r, 0.015], [target.x + r, target.y + r, 0.015], [target.x - r, target.y + r, 0.015], u[0], u[1], u[2], u[3], [1.0, 0.85, 0.45, 0.95]); } };
@@ -304,7 +312,7 @@
     /* ---------- Dünyaya bağlı arayüz: tabela, isim, balon, istem ---------- */
     const anchors = $('anchors'), mk = (cls, html) => { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; d.hidden = true; anchors.appendChild(d); return d; };
     const rebuildSigns = () => { for (const o of signEls) o.el.remove(); signEls = (L.signs || []).map(s => { const el = mk('sign', '<span></span>'); el.firstChild.textContent = s.label; return { s, el }; }); };
-    const setPlate = c => { if (!c.plate) return; const b = c.plate.firstChild, i = c.plate.lastChild; b.textContent = c.name; i.textContent = c.isPlayer ? 'Kudret 1558' : c.remote ? 'oyuncu' : (c.role && c.role !== 'NPC' ? c.role : ''); i.hidden = !i.textContent; };
+    const setPlate = c => { if (!c.plate) return; const b = c.plate.firstChild, i = c.plate.lastChild; b.textContent = c.name; i.textContent = c.isPlayer ? (EO2.game && EO2.game.plate ? EO2.game.plate() : '') : c.remote ? 'oyuncu' : (c.role && c.role !== 'NPC' ? c.role : ''); i.hidden = !i.textContent; };
     const plateOf = c => { if (!c.plate) { c.plate = mk('plate' + (c.isPlayer ? ' me' : c.remote ? ' real' : ''), '<b></b><i></i>'); setPlate(c); } return c.plate; };
     const dropChar = c => { for (const k of ['plate', 'bub']) if (c[k]) { c[k].remove(); c[k] = null; } if (c.pet && c.pet.bub) c.pet.bub.remove(); };
     const bubbleOf = c => c.bub || (c.bub = mk('bubble', ''));
@@ -320,7 +328,9 @@
         place(plateOf(c), top); if (c.bubble) { c.bubble.t -= dt; if (c.bubble.t <= 0) { c.bubble = null; c.bub.hidden = true; } else place(c.bub, top, 0, -plateOf(c).offsetHeight - 6); } else if (c.bub) c.bub.hidden = true; }
       if (pet.bubble) { pet.bubble.t -= dt; const p = R.project(pet.x, pet.y, 1.0); if (pet.bubble.t <= 0 || !S.companion) { pet.bubble = null; pet.bub.hidden = true; } else place(pet.bub, p); }
       if (SC.w.pets) for (const o of Object.values(SC.w.pets)) if (o.bubble) { o.bubble.t -= dt; if (o.bubble.t <= 0) { o.bubble = null; o.bub.hidden = true; } else place(o.bub, R.project(o.x, o.y, o.z)); }
-      if (near && !S.panel) { const p = R.project(near.x, near.y, near.z); promptEl.innerHTML = '<kbd>E</kbd><span><b>' + near.label + '</b><i>' + near.sub + '</i></span>'; if (p) place(promptEl, [clamp(p[0], 90, R.w - 90), clamp(p[1] - (near.npc ? R.h * 0.045 : 0), R.h * 0.2, R.h * 0.8), 1]); $('btnE').classList.add('on'); $('btnE').querySelector('span').textContent = near.label; }
+      if (near && !S.panel) { const p = R.project(near.x, near.y, near.z); promptEl.innerHTML = '<kbd>E</kbd><span><b>' + near.label + '</b><i>' + near.sub + '</i></span>'; if (p) { const px = clamp(p[0], 90, R.w - 90), py = clamp(p[1] - (near.npc ? R.h * 0.045 : 0), R.h * 0.2, R.h * 0.8); place(promptEl, [px, py, 1]);
+        /* etkileşim baloncuğu oyuncunun isim plakasına biniyorsa plakanın üstüne çıkar */
+        const pl = player.plate; if (pl && !pl.hidden && !promptEl.hidden) { const a = promptEl.getBoundingClientRect(), b = pl.getBoundingClientRect(); if (a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top) place(promptEl, [px, py - (a.bottom - b.top) - 6, 1]); } } $('btnE').classList.add('on'); $('btnE').querySelector('span').textContent = near.label; }
       else { promptEl.hidden = true; $('btnE').classList.remove('on'); }
     }
 
@@ -351,7 +361,7 @@
     for (const b of $('chatTabs').querySelectorAll('button')) b.addEventListener('click', () => { chat.tab = b.dataset.tab; for (const o of $('chatTabs').querySelectorAll('button')) o.setAttribute('aria-selected', String(o === b)); chatRender(); });
     $('chatForm').addEventListener('submit', e => { e.preventDefault(); const v = $('chatInput').value.trim(); if (!v) { $('chatInput').blur(); return; } const ch = chat.tab === 'parti' ? 'parti' : chat.tab; chatAdd(ch, 'Sen', v.slice(0, 120)); say(player, v.slice(0, 80), 4.5); if (EO2.hooks.chat) EO2.hooks.chat(v.slice(0, 120)); $('chatInput').value = ''; $('chatInput').blur(); });
     $('chatToggle').addEventListener('click', () => $('chat').classList.toggle('open'));
-    chatAdd('sistem', '', 'Dikey dilim: sohbet yereldir, sunucuya gitmez. Meydandakiler NPC\'dir.');
+    chatAdd('sistem', '', 'Meydana hoş geldin, terbiyeci.');
 
     // emote
     const EM = ['smile', 'wave', 'heart', 'spark', 'think', 'note'];
@@ -383,7 +393,7 @@
         on: () => { $('segCam').querySelectorAll('button').forEach(b => b.addEventListener('click', () => setCam(b.dataset.v))); $('segLight').querySelectorAll('button').forEach(b => b.addEventListener('click', () => setNight(+b.dataset.v))); $('chkFps').addEventListener('change', e => { S.fps = e.target.checked; $('fps').hidden = !S.fps; }); $('btnHide').addEventListener('click', () => { closePanel(); setHud(false); }); syncMenu(); } },
     };
     function syncMenu() { if (S.panel !== 'menu') return; $('segCam').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.camMode))); $('segLight').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === S.nightT))); }
-    function openPanel(id) { const p = PANELS[id]; if (!p) return; S.panel = id; if (EO2.audio) EO2.audio.ui(); $('panelKicker').textContent = p.k; $('panelTitle').textContent = p.t; $('panelBody').innerHTML = p.b(); if (p.on) p.on(); $('panel').classList.add('open'); $('panel').setAttribute('aria-hidden', 'false');
+    function openPanel(id) { if (EO2.hooks.panel && EO2.hooks.panel(id)) return; const p = PANELS[id]; if (!p) return; S.panel = id; if (EO2.audio) EO2.audio.ui(); $('panelKicker').textContent = p.k; $('panelTitle').textContent = p.t; $('panelBody').innerHTML = p.b(); if (p.on) p.on(); $('panel').classList.add('open'); $('panel').setAttribute('aria-hidden', 'false');
       $('actions').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.panel === id))); }
     function closePanel() { S.panel = null; $('panel').classList.remove('open'); $('panel').setAttribute('aria-hidden', 'true'); $('actions').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', 'false')); }
     function togglePanel(id) { if (S.panel === id) closePanel(); else openPanel(id); }
@@ -416,10 +426,12 @@
       const sp = (from && L.entry && L.entry[from]) || L.start; player.x = sp.x; player.y = sp.y; player.dir = sp.dir || 'up'; player.moving = false; pet.x = player.x + 0.8; pet.y = player.y - 0.3; crumbs.length = 0; crumbs.push([player.x, player.y]);
       cam.x = clamp(player.x, Math.min(0, L.bounds[0] + 4.1), Math.max(0, L.bounds[1] - 4.1)); cam.y = player.y; target = null; near = null; flyer = null; flyT = 10 + Math.random() * 10; keys.clear();
       rebuildSigns(); $('locName').textContent = L.name; app.dataset.scene = id; app.classList.toggle('indoor', !!L.indoor); if (EO2.audio && EO2.audio.scene) EO2.audio.scene(L);
-      if (from) { titleCard(L.name, L.sub); chatAdd('sistem', '', L.name + ': ' + L.sub + '.'); } if (EO2.hooks.scene) EO2.hooks.scene(id); return true; }
+      if (from) { titleCard(L.name, L.sub); chatAdd('sistem', '', L.name + (L.sub ? ' · ' + L.sub : '')); } if (EO2.hooks.scene) EO2.hooks.scene(id); return true; }
     EO2.iris = fn => { const el = $('iris'); el.classList.add('on'); setTimeout(() => { fn(); setTimeout(() => el.classList.remove('on'), 180); }, 430); };
     let switching = false;
-    function goScene(id) { if (switching || !SC || id === SC.id || !(id === 'meydan' || (EO2.sceneDefs || {})[id])) return; switching = true; const from = SC.id; if (EO2.dialog) EO2.dialog.close(); closePanel(); if (EO2.audio) EO2.audio.chime(); EO2.iris(() => { enter(id, from); switching = false; }); }
+    /* varsayılan harita master Merkez Meydan'dır: 'meydan' isteği ona gider (eski meydan yalnız ?gelistirici ile) */
+    function merkez(id) { return id === 'meydan' && (EO2.sceneDefs || {}).master && !app.classList.contains('gelistirici') ? 'master' : id; }
+    function goScene(id) { id = merkez(id); if (switching || !SC || id === SC.id || !(id === 'meydan' || (EO2.sceneDefs || {})[id])) return; switching = true; const from = SC.id; if (EO2.dialog) EO2.dialog.close(); closePanel(); if (EO2.audio) EO2.audio.chime(); EO2.iris(() => { enter(id, from); switching = false; }); }
 
     /* ---------- Döngü ---------- */
     function fit() { const r = app.getBoundingClientRect(); if (r.width && r.height) R.resize(r.width, r.height, Math.min(devicePixelRatio || 1, 2)); }
@@ -434,12 +446,12 @@
       acc += dt; frames++; if (acc >= 0.5) { stats.fps = Math.round(frames / acc); stats.quads = R.quads; stats.flushes = R.flushes; if (S.fps) $('fps').textContent = stats.fps + ' fps · ' + R.quads + ' dörtgen · ' + R.flushes + ' çizim'; acc = 0; frames = 0; }
       requestAnimationFrame(frame);
     }
-    enter('meydan', null);
+    enter(merkez('meydan'), null);
     EO2.api = { W, titleCard, player, pet, remotes, go: goScene, scene: () => SC.id, sceneState: () => SC, cam, setNight, setCam, setHud, openPanel, closePanel, emote, R, S, sets, mkChar, setPlate, dropChar, say, chatAdd, toast, runAct, drawPortrait, PANELS, ICON, step(dt) { update(dt); render(dt); updateAnchors(dt); } };
     Object.defineProperty(EO2.api, 'npcs', { get: () => npcs }); Object.defineProperty(EO2.api, 'L', { get: () => L });
     requestAnimationFrame(t => { last = t; frame(t); });
     if (coarse) app.classList.add('touch');
-    setTimeout(() => toast(coarse ? 'Yön çubuğuyla ya da dokunarak yürü · E ile etkileşim' : 'WASD ya da tıklayarak yürü · Shift hızlan · E etkileşim · L ışık · C kamera'), 3000);
+    const ipucu = () => { if (document.querySelector('#app > .giris:not(.gitti), #app .pen, #modal-root > *')) return setTimeout(ipucu, 900); toast(coarse ? 'Yön çubuğuyla ya da dokunarak yürü · E ile etkileşim' : 'WASD ya da tıklayarak yürü · Shift hızlan · E etkileşim'); }; setTimeout(ipucu, 3000);
   }
   boot().catch(e => { console.error(e); const t = $('loadtxt'); if (t) t.textContent = 'Yüklenemedi: ' + e.message; });
 })();

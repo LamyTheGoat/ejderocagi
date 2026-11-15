@@ -27,14 +27,20 @@
         { id: 'hamal', name: 'Hamal', role: 'NPC', set: 'bare', x: 1.6, y: 5, dir: 'up', path: [[1.6, 5], [1.6, 14.4], [-1.6, 14.4], [-1.6, 5]], lines: ['Yol ver terbiyeci, yük ağır.'] },
       ] };
     D.pazar = { L, build(h) {
-      const art = h.art, tBack = h.tex(art.bazaarBack()), tW = h.tex(art.bazaarSide(19.2, 3)), tE = h.tex(art.bazaarSide(19.2, 6));
+      const art = h.art, tBack = h.D('ic-pazar-arka', () => art.bazaarBack()), tW = h.D('ic-pazar-yan#b', () => art.bazaarSide(19.2, 3)), tE = h.D('ic-pazar-yan#d', () => art.bazaarSide(19.2, 6));
       tW.glowK = tE.glowK = 0.42;
       const tCeil = h.R.texture(art.vaultTile(), { repeat: true });
       h.push({ key: 950, draw(R, F) { if (F.camH > 6.6) return; const c = h.amb(F, 0.85); R.quad(tCeil, [-6.4, F.camY + 0.5, 7.2], [6.4, F.camY + 0.5, 7.2], [6.4, 19.2, 7.2], [-6.4, 19.2, 7.2], 0, 0, 4, (19.2 - F.camY) / 3.2, c, false, 0); } });
-      const tRun = h.R.texture(art.kilim(21, true)); h.flat(tRun, -1.0, 0.9, 1.0, 8.6); h.flat(tRun, -1.0, 8.8, 1.0, 16.2, { key: 899 });
+      const hlIm = EO2.meydanUslup === 'cizim' && EO2.doku && EO2.doku.im['hali-yolluk'], tRun = h.R.texture(hlIm || art.kilim(21, true)); h.flat(tRun, -1.0, 0.9, 1.0, 8.6); h.flat(tRun, -1.0, 8.8, 1.0, 16.2, { key: 899 });
+      const B = EO2.boyali && EO2.boyali.acik() ? EO2.boyali : null, spr = B ? B.spr(h) : null, eA = B && h.ext('my-ic-pazar-arka'), eY = B && h.ext('my-ic-pazar-yan');
+      if (eA && eY) { /* boyalı çizimler: ilan panolu dip duvar, kemerli dükkân gözleri */
+        h.billboard(eA.t, -6.4, 19.2, { ax: 0, w: 12.8, h: 7.2, fade: false, occl: false, fog: 0 }); h.side(eY.t, -6.35, 0, 19.2, 'E', 7.2); h.side(eY.t, 6.35, 0, 19.2, 'W', 7.2);
+        goods.forEach(q => spr(q[2] % 2 ? 'fici' : 'tezgah0', q[0], q[1], { w: q[2] % 2 ? 1.7 : 2.4, occl: false, m: q[0] > 0 })); spr('sayac', 0, 17.2, { w: 3.2, occl: false });
+      } else {
       h.billboard(tBack, -6.4, 19.2, { ax: 0, fade: false, occl: false, fog: 0, glowK: 0.45 }); h.side(tW, -6.35, 0, 19.2, 'E'); h.side(tE, 6.35, 0, 19.2, 'W');
-      const tG = [0, 1, 2, 3].map(k => h.tex(art.goods(k))); for (const q of goods) h.billboard(tG[q[2]], q[0], q[1], { occl: false });
-      h.billboard(h.tex(art.counter()), 0, 17.2, { occl: false }); h.billboard(h.tx.crates, 4.6, 17.6); h.billboard(h.tx.barrel, -4.6, 17.7);
+      const tG = [0, 1, 2, 3].map(k => h.D('ic-sergi' + k, () => art.goods(k))); for (const q of goods) h.billboard(tG[q[2]], q[0], q[1], { occl: false });
+      h.billboard(h.D('ic-sayac#pazar', () => art.counter()), 0, 17.2, { occl: false }); h.billboard(h.tx.crates, 4.6, 17.6); h.billboard(h.tx.barrel, -4.6, 17.7);
+      }
       // mozaik fenerler: her biri kendi renginde ışır
       const cache = {}, g = h.uv('glow');
       for (const l of LAMPS) { const t = cache[l[2]] || (cache[l[2]] = h.tex(art.mosaicLamp(l[2]))); h.billboard(t, l[0], l[1], { z0: 4.3, occl: false, fade: true, glowK: 0.5 });
@@ -69,12 +75,20 @@
       ] };
     D.arena = { L, build(h) {
       const art = h.art; h.addSky();
-      h.billboard(h.tex(art.arenaBack(h.E)), -12.5, 22.6, { ax: 0, fade: false, occl: false, glowK: 1.1 });
-      h.side(h.tex(art.arenaSide(22.6, 41)), -12.0, 0, 22.6, 'E'); h.side(h.tex(art.arenaSide(22.6, 47)), 12.0, 0, 22.6, 'W');
-      const tT = h.tex(art.target()), tR = h.tex(art.cannonRack()), tPole = h.tex(art.bannerPole(h.E, '#bb362f'));
+      const B = EO2.boyali && EO2.boyali.acik() ? EO2.boyali : null, spr = B ? B.spr(h) : null, eD = B && h.ext('my-ic-arena-duvar');
+      if (eD) { /* boyalı çizimler: taş avlu duvarı, ortada arena kapısı, üç zindan kapısı, talim eşyaları */
+        B.ufuk(h, L, 84); h.billboard(eD.t, -12.5, 22.6, { ax: 0, w: 25, h: 8.4, fade: false, occl: false }); h.side(eD.t, -12.0, 0, 22.6, 'E', 8.4); h.side(eD.t, 12.0, 0, 22.6, 'W', 8.4);
+        spr('arena', 0, 22.5, { w: 8.4, fade: false, occl: false, isik: [0.5, 0.22, 2.2] }); spr('kapi-yilan', -9.4, 22.5, { w: 2.8, fade: false, occl: false }); spr('kapi-migfer', -6.3, 22.5, { w: 2.8, fade: false, occl: false }); spr('kapi-dalga', 6.3, 22.5, { w: 2.8, fade: false, occl: false });
+        for (const t of targets) spr('hedef', t[0], t[1], { w: 1.8, occl: false, m: t[0] > 0 }); for (const t of racks) spr('toprafi', t[0], t[1], { w: 2.6, occl: false, m: t[0] < 0 }); for (const p of poles) spr('ys-direk', p[0], p[1], { h: 4.6, sway: 0.01, m: p[0] > 0 });
+        for (const q of braz) h.billboard(h.tx.braz, q[0], q[1], { glowK: 1.4 }); spr('fici', 9.6, 3.2, { w: 1.7 }); spr('fici', -9.6, 2.8, { w: 1.6, m: 1 });
+      } else {
+      h.billboard(h.D('ic-arena-arka', () => art.arenaBack(h.E)), -12.5, 22.6, { ax: 0, fade: false, occl: false, glowK: 1.1 });
+      h.side(h.D('ic-arena-yan#b', () => art.arenaSide(22.6, 41)), -12.0, 0, 22.6, 'E'); h.side(h.D('ic-arena-yan#d', () => art.arenaSide(22.6, 47)), 12.0, 0, 22.6, 'W');
+      const tT = h.D('ic-hedef', () => art.target()), tR = h.D('ic-toprafi', () => art.cannonRack()), tPole = h.tex(art.bannerPole(h.E, '#bb362f'));
       for (const t of targets) h.billboard(tT, t[0], t[1], { occl: false }); for (const t of racks) h.billboard(tR, t[0], t[1], { occl: false, glowK: 1.2 });
       for (const p of poles) h.billboard(tPole, p[0], p[1], { ax: 0.2, sway: 0.03 }); for (const b of braz) h.billboard(h.tx.braz, b[0], b[1], { glowK: 1.4 });
       h.billboard(h.tx.crates, 9.6, 3.2); h.billboard(h.tx.barrel, -9.8, 3.0); h.billboard(h.tx.barrel, -9.2, 2.5);
+      }
       // avlu çemberi: kumda iki halka
       const ring = h.uv('ring');
       h.push({ key: 891, draw(R, F) { const c = h.amb(F), e = L.emb; for (const [rr, a] of [[6.2, 0.55], [6.6, 0.3]]) R.quad(h.T.fx, [e.x - rr, e.y - rr, 0.011], [e.x + rr, e.y - rr, 0.011], [e.x + rr, e.y + rr, 0.011], [e.x - rr, e.y + rr, 0.011], ring[0], ring[1], ring[2], ring[3], [c[0] * 0.75, c[1] * 0.6, c[2] * 0.5, a]); } });

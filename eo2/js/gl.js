@@ -13,9 +13,9 @@
   uniform vec4 u_view;   // cosθ, sinθ, asal nokta y (css px, üstten), 0
   uniform vec2 u_res;    // css px
   uniform float u_screen;
-  out vec2 v_uv; out vec4 v_col; out float v_fog; out vec2 v_w;
+  out vec2 v_uv; out vec4 v_col; out float v_fog; out vec2 v_w; out float v_z;
   void main() {
-    v_uv = a_uv; v_col = a_col; v_w = a_pos.xy;
+    v_uv = a_uv; v_col = a_col; v_w = a_pos.xy; v_z = a_pos.z;
     if (u_screen > 0.5) { gl_Position = vec4(a_pos.xy, 0.0, 1.0); v_fog = 0.0; return; }
     float rx = a_pos.x - u_cam.x, yd = a_pos.y - u_cam.y, zd = a_pos.z - u_cam.z;
     float depth = yd * u_view.x - zd * u_view.y;
@@ -24,14 +24,37 @@
     v_fog = a_fog * depth;
   }`;
 
+  /* Dik yüzeyler. Kabartma haritası olan dokuda (u_rel.x > 0) düz resim derinlik kazanır:
+     - kabartma: haritadaki eğim, sabit bir üst-sol ışığa ve dokunun kendi ışık noktasına (şömine, fener) göre aydınlanır ya da gölgelenir;
+       taş araları çukur, taş yüzü tümsek okunur.
+     - derinlik kayması: çukur yerler bakış açısına göre hafifçe kayar (kamera yürüdükçe raf gözü ve pencere girintisi geride kalır).
+     u_rel: güç, derinlik (m), yön (0 kameraya bakan, 1 doğuya, 2 batıya bakan yan duvar), zaman. u_wm: en, boy (m), en/boy. u_lp: ışığın uv konumu, yarıçapı, şiddeti. */
   const FS = `#version 300 es
   precision highp float;
-  in vec2 v_uv; in vec4 v_col; in float v_fog; in vec2 v_w;
-  uniform sampler2D u_tex; uniform vec4 u_fogCol; uniform vec2 u_fogR;
+  in vec2 v_uv; in vec4 v_col; in float v_fog; in vec2 v_w; in float v_z;
+  uniform sampler2D u_tex; uniform sampler2D u_nrm; uniform vec4 u_fogCol; uniform vec2 u_fogR;
+  uniform vec4 u_rel; uniform vec4 u_wm; uniform vec4 u_lp; uniform vec4 u_cam;
   out vec4 o;
   void main() {
-    vec4 t = texture(u_tex, v_uv);
-    vec4 c = vec4(t.rgb * v_col.rgb * v_col.a, t.a * v_col.a);
+    vec2 uv = v_uv; float rel = u_rel.x;
+    if (rel > 0.0 && u_rel.y > 0.0) {
+      vec3 E = vec3(u_cam.x, u_cam.y, u_cam.z) - vec3(v_w, v_z), V;
+      if (u_rel.z < 0.5) V = vec3(E.x, -E.z, -E.y); else if (u_rel.z < 1.5) V = vec3(E.y, -E.z, E.x); else V = vec3(-E.y, -E.z, -E.x);
+      float d = 1.0 - texture(u_nrm, uv).b;
+      uv -= clamp(V.xy / max(V.z, 0.5) * d * u_rel.y / u_wm.xy, vec2(-0.012), vec2(0.012));
+    }
+    vec4 t = texture(u_tex, uv);
+    vec3 rgb = t.rgb;
+    if (rel > 0.0) {
+      vec3 m = texture(u_nrm, uv).rgb, nn = normalize(vec3(m.rg * 2.0 - 1.0, 0.5)), Lk = normalize(vec3(-0.5, 0.62, 0.6));
+      float sh = 1.0 + rel * (dot(nn, Lk) - Lk.z * nn.z) * 1.5;
+      vec2 dl = (u_lp.xy - uv) * vec2(u_wm.z, -1.0); float att = clamp(1.0 - length(dl) / max(u_lp.z, 0.001), 0.0, 1.0); att = att * att * u_lp.w * (0.9 + 0.1 * sin(u_rel.w * 9.0) * sin(u_rel.w * 5.3));
+      vec3 Lp = normalize(vec3(dl, 0.1));
+      sh += rel * att * (dot(nn, Lp) - Lp.z * nn.z) * 2.4;
+      sh *= mix(1.0, 0.72 + 0.28 * m.b, min(rel, 1.0) * 0.8);                     // çukurlar biraz koyu (derz gölgesi)
+      rgb = rgb * clamp(sh, 0.3, 1.9) + t.rgb * vec3(1.0, 0.6, 0.26) * att * 0.5;
+    }
+    vec4 c = vec4(rgb * v_col.rgb * v_col.a, t.a * v_col.a);
     float f = clamp((v_fog - u_fogR.x) / (u_fogR.y - u_fogR.x), 0.0, 1.0) * u_fogCol.a * step(0.0001, v_fog);
     c.rgb = mix(c.rgb, u_fogCol.rgb * c.a, f);
     o = c;
@@ -47,13 +70,22 @@
   uniform vec3 u_amb; uniform float u_night; uniform float u_time;
   uniform vec4 u_fount;            // cx, cy, iç yarıçap, dış halka yarıçapı
   uniform vec4 u_emb;              // madalyon: cx, cy, r, 0
-  uniform float u_mode;            // 0 taş döşeme, 1 ahşap döşeme (iç mekân), 2 kum (arena avlusu)
+  uniform float u_mode;            // 0 taş döşeme, 1 ahşap döşeme (iç mekân), 2 kum (arena avlusu), 3 kar, 4 kül, 5 kayalık (yarış pistleri)
   uniform vec2 u_road;             // yol: yarı genişlik, başlangıç y
   uniform vec4 u_lights[16]; uniform int u_nl;
+  uniform sampler2D u_t1, u_t2;     // çizilmiş zemin dokuları: 1 döşeme (taş, ahşap, toprak yol), 2 yer (çim, kum)
+  uniform vec4 u_dok;              // x: doku 1 var mı, y: doku 2 var mı, z ve w: karo boyu (m)
+  uniform float u_kab;             // zemin kabartması: taşların eğimi ışığa göre aydınlanır (0 kapalı)
   out vec4 o;
   float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
   float vnoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
     return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
+  /* çizilmiş doku: aynalı döşeme (dikiş görünmez), türevler sürekli koordinattan (ayna çizgisinde bulanıklık olmaz), iri gürültüyle hafif ton oynaması (tekrar göze batmaz) */
+  vec3 doku(sampler2D t, vec2 p, float s) { vec2 a = p / s, u = abs(fract(a * 0.5) * 2.0 - 1.0); vec3 c = textureGrad(t, u, dFdx(a), dFdy(a)).rgb; return c * (0.93 + 0.14 * vnoise(p * 0.21 + 7.0)); }
+  /* zemin kabartması: dokunun aydınlık farkından eğim (derz çukur, taş yüzü tümsek). Aynalı döşemede eğimin yönü de aynalanır. */
+  vec3 dokuN(sampler2D t, vec2 p, float s) { vec2 a = p / s, fl = step(1.0, mod(a, 2.0)), sg = 1.0 - 2.0 * fl, u = abs(fract(a * 0.5) * 2.0 - 1.0), dx = dFdx(a), dy = dFdy(a); float e = 0.004;
+    float l0 = dot(textureGrad(t, u, dx, dy).rgb, vec3(0.3, 0.59, 0.11)), lx = dot(textureGrad(t, u + vec2(e, 0.0), dx, dy).rgb, vec3(0.3, 0.59, 0.11)), ly = dot(textureGrad(t, u + vec2(0.0, e), dx, dy).rgb, vec3(0.3, 0.59, 0.11));
+    return normalize(vec3((l0 - lx) * sg.x * 7.0, (l0 - ly) * sg.y * 7.0, 1.0)); }
   float sdBox(vec2 p, float s) { vec2 d = abs(p) - s; return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0); }
   // Taş: hücre içi konum f (0..1), hücre ölçüsü (m), piksel başına metre aa → rengi ve derzi karıştırır.
   vec3 paver(vec2 id, vec2 f, vec2 size, float aa, vec3 base, vec3 jointCol) {
@@ -76,18 +108,23 @@
     { float row = floor(p.y / 0.5); float off = mod(row, 2.0) * 0.43 + hash(vec2(row, 3.0)) * 0.16;
       vec2 q = vec2((p.x + off) / 0.86, p.y / 0.5);
       col = paver(floor(q), fract(q), vec2(0.86, 0.5), aa, vec3(0.845, 0.755, 0.675), JOINT); }
+    vec3 d1 = u_dok.x > 0.5 ? doku(u_t1, p, u_dok.z) : vec3(0.0); float dl = u_dok.x > 0.5 ? clamp(dot(d1, vec3(0.3, 0.59, 0.11)) / 0.72, 0.7, 1.2) : 1.0;   // dl: çizilmiş dokunun aydınlığı, hesap desenlerine (yol, halka) doku katar
+    if (u_dok.x > 0.5) col = d1;
+    vec3 nz = (u_dok.x > 0.5 && u_kab > 0.0) ? dokuN(u_t1, p, u_dok.z) : vec3(0.0, 0.0, 1.0); float kabK = u_kab * 0.6 * clamp(0.05 / aa, 0.0, 1.0);   // uzakta kabartma söner (kırpışmasın)
     // 2) kuzey yolu: daha iri, daha açık levhalar
     float road = (1.0 - smoothstep(u_road.x - aa, u_road.x + aa, abs(p.x))) * smoothstep(u_road.y - aa, u_road.y + aa, p.y);
     if (road > 0.0) { float row = floor(p.y / 0.9); vec2 q = vec2((p.x + mod(row, 2.0) * 0.7) / 1.4, p.y / 0.9);
       vec3 r = paver(floor(q) + 91.0, fract(q), vec2(1.4, 0.9), aa, vec3(0.90, 0.83, 0.74), JOINT);
       float edge = smoothstep(u_road.x - 0.18 - aa, u_road.x - 0.18 + aa, abs(p.x));
       r = mix(r, vec3(0.60, 0.52, 0.54) * (0.94 + 0.12 * hash(vec2(floor(p.y / 0.45), 5.0))), edge);
-      col = mix(col, r, road); }
+      col = mix(col, r * mix(1.0, dl, 0.7), road); }
     if (u_mode > 0.5 && u_mode < 1.5) {   // ahşap döşeme: uzun tahtalar, şaşırtmalı ek yerleri, hafif damar
       float pw = 0.26, ci = floor(p.x / pw), off = hash(vec2(ci, 1.0)) * 2.4; vec2 q = vec2(p.x / pw, (p.y + off) / 2.4), f = fract(q);
       vec3 wood = vec3(0.60, 0.39, 0.24) * (0.80 + 0.32 * hash(floor(q) + 40.0)); wood *= 0.93 + 0.12 * vnoise(vec2(p.x * 46.0, p.y * 2.2));
       vec2 d = min(f, 1.0 - f) * vec2(pw, 2.4); float e = min(d.x, d.y), vis = clamp(pw / (aa * 5.0), 0.0, 1.0), j = 1.0 - smoothstep(0.006 - aa * 0.6, 0.006 + aa * 0.9, e);
       col = mix(wood, vec3(0.20, 0.11, 0.08), j * 0.85 * vis + (1.0 - vis) * 0.08);
+      if (u_dok.x > 0.5) col = d1;
+    vec3 nz = (u_dok.x > 0.5 && u_kab > 0.0) ? dokuN(u_t1, p, u_dok.z) : vec3(0.0, 0.0, 1.0); float kabK = u_kab * 0.6 * clamp(0.05 / aa, 0.0, 1.0);   // uzakta kabartma söner (kırpışmasın)
     }
     // 3) çeşme çevresi: halka halka döşeme, iki çini mavisi kuşak
     vec2 fd = p - u_fount.xy; float r = length(fd);
@@ -98,10 +135,11 @@
       vec2 f = vec2(fract(ang * nseg), fract(t)), size = vec2(6.2832 * rmid / nseg, rw);
       float last = floor((u_fount.w - u_fount.z) / rw) - 1.0;
       vec3 base = vec3(0.86, 0.78, 0.70);
-      if (ri == 1.0 || ri == last) base = vec3(0.47, 0.61, 0.80);            // çini kuşağı
+      if ((ri == 1.0 || ri == last) && u_emb.w < 0.5) base = vec3(0.47, 0.61, 0.80);            // çini kuşağı (u_emb.w = 1: sade taş halka)
+      else if ((ri == 1.0 || ri == last)) base = vec3(0.70, 0.60, 0.56);
       else if (mod(ri, 2.0) < 0.5) base = vec3(0.80, 0.70, 0.64);
       vec3 ring = paver(vec2(floor(ang * nseg), ri) + 300.0, f, size, aa, base, JOINT);
-      col = mix(col, ring, smoothstep(u_fount.w, u_fount.w - 0.05 - aa, r));
+      col = mix(col, ring * mix(1.0, dl, 0.7), smoothstep(u_fount.w, u_fount.w - 0.05 - aa, r));
     }
     // 4) meydan madalyonu: sekiz köşeli Selçuklu yıldızı, lacivert ve altın kakma
     vec2 ed = p - u_emb.xy; float er = length(ed), embK = 0.0;
@@ -123,18 +161,24 @@
     float n = vnoise(p * 2.3) * 0.6 + vnoise(p * 7.0) * 0.4;
     vec3 grass = mix(vec3(0.36, 0.60, 0.30), vec3(0.52, 0.74, 0.36), n);
     grass += (hash(floor(p * 34.0)) - 0.5) * 0.05 * clamp(0.03 / aa, 0.0, 1.0);
-    if (u_mode > 1.5) { float rp = sin(p.y * 7.0 + vnoise(p * 0.9) * 7.0) * 0.5 + 0.5; grass = mix(vec3(0.84, 0.72, 0.52), vec3(0.93, 0.83, 0.64), n) * (0.95 + 0.07 * rp * clamp(0.14 / aa, 0.0, 1.0)); grass += (hash(floor(p * 40.0)) - 0.5) * 0.04 * clamp(0.025 / aa, 0.0, 1.0); }
+    if (u_mode > 1.5) { float rp = sin(p.y * 7.0 + vnoise(p * 0.9) * 7.0) * 0.5 + 0.5; grass = mix(vec3(0.84, 0.72, 0.52), vec3(0.93, 0.83, 0.64), n) * (0.95 + 0.07 * rp * clamp(0.14 / aa, 0.0, 1.0)); grass += (hash(floor(p * 40.0)) - 0.5) * 0.04 * clamp(0.025 / aa, 0.0, 1.0);
+      float rk = 0.95 + 0.07 * rp * clamp(0.14 / aa, 0.0, 1.0);   // 3 kar, 4 kül, 5 kayalık: aynı dalga deseni, yerin kendi rengi
+      if (u_mode > 2.5 && u_mode < 3.5) grass = mix(vec3(0.78, 0.86, 0.96), vec3(0.97, 0.99, 1.0), n) * rk;
+      if (u_mode > 3.5 && u_mode < 4.5) grass = mix(vec3(0.30, 0.23, 0.22), vec3(0.47, 0.35, 0.30), n) * rk;
+      if (u_mode > 4.5) grass = mix(vec3(0.44, 0.40, 0.52), vec3(0.62, 0.56, 0.68), n) * rk; }
+    if (u_dok.y > 0.5) grass = doku(u_t2, p, u_dok.w);
     col = mix(col, grass, smoothstep(0.35, 0.65, m.r + (n - 0.5) * 0.25) * (1.0 - embK));   // madalyon çimin ve kumun üstünde kalır
     col *= mix(vec3(1.0), vec3(0.60, 0.56, 0.76), m.b);
     // 6) ışık: gündüz ambiyansı; akşam fener havuzları
-    vec3 lit = col * u_amb;
+    vec3 Lg = normalize(vec3(-0.5, 0.55, 0.67)); vec3 lit = col * u_amb * (1.0 + kabK * (dot(nz, Lg) - Lg.z) * 1.6);
     for (int i = 0; i < 16; i++) { if (i >= u_nl) break; vec4 L = u_lights[i];
       float a = clamp(1.0 - length(p - L.xy) / L.z, 0.0, 1.0); a = a * a * L.w;
-      lit += col * vec3(1.25, 0.74, 0.34) * a * u_night; }
+      lit += col * vec3(1.25, 0.74, 0.34) * a * u_night * (1.0 + kabK * (dot(nz, normalize(vec3(L.xy - p, 1.3))) - 0.78) * 2.2); }
     float f = clamp((v_fog - u_fogR.x) / (u_fogR.y - u_fogR.x), 0.0, 1.0) * u_fogCol.a;
     o = vec4(mix(lit, u_fogCol.rgb, f), 1.0);
   }`;
 
+  EO2.GLSL = { FS, FS_GROUND };   // fragman çizicisi (trailer/engine.js) aynı gölgelendiricileri kullanır
   EO2.createRenderer = function (canvas) {
     const gl = canvas.getContext('webgl2', { antialias: true, alpha: false, premultipliedAlpha: true, powerPreference: 'high-performance' });
     if (!gl) return null;
@@ -213,12 +257,17 @@
       gl.uniform4f(pr.u.u_view, cam.cos, cam.sin, cam.ppy, 0);
       gl.uniform2f(pr.u.u_res, R.w, R.h);
       gl.uniform4fv(pr.u.u_fogCol, fog.col); gl.uniform2fv(pr.u.u_fogR, fog.r);
-      gl.uniform1i(pr.u.u_tex, 0);
+      gl.uniform1i(pr.u.u_tex, 0); if (pr.u.u_nrm) { gl.uniform1i(pr.u.u_nrm, 1); gl.uniform4f(pr.u.u_rel, 0, 0, 0, 0); relAcik = false; }
     }
+    let relAcik = false; R.kabartma = 1; R.kayma = 1; R.zaman = 0;
     function flush() {
       if (!n) return;
       gl.bufferSubData(gl.ARRAY_BUFFER, 0, buf.subarray(0, n * 4 * STRIDE));
       gl.bindTexture(gl.TEXTURE_2D, curTex.t);
+      const nr = !curAdd && !curScreen && curTex.nrm && R.kabartma > 0 ? curTex.nrm : null;
+      if (nr) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, nr); gl.activeTexture(gl.TEXTURE0); const wm = curTex.wm || 4, hm = curTex.hm || 4, lp = curTex.lp || [0.5, 0.5, 0.001, 0];
+        gl.uniform4f(prog.u.u_rel, (curTex.relK || 1) * R.kabartma, R.kayma ? (curTex.derin === undefined ? 0.14 : curTex.derin) * R.kayma : 0, curTex.yon || 0, R.zaman); gl.uniform4f(prog.u.u_wm, wm, hm, wm / hm, 0); gl.uniform4f(prog.u.u_lp, lp[0], lp[1], lp[2], lp[3]); relAcik = true; }
+      else if (relAcik) { gl.uniform4f(prog.u.u_rel, 0, 0, 0, 0); relAcik = false; }
       gl.blendFunc(gl.ONE, curAdd ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA);
       gl.uniform1f(prog.u.u_screen, curScreen ? 1 : 0);
       gl.drawElements(gl.TRIANGLES, n * 6, gl.UNSIGNED_SHORT, 0);
@@ -251,6 +300,8 @@
       gl.uniform4fv(progG.u.u_fount, g.fount); gl.uniform4fv(progG.u.u_emb, g.emb); gl.uniform1f(progG.u.u_mode, g.mode || 0); gl.uniform2fv(progG.u.u_road, g.road || [0, 1e6]);
       const L = new Float32Array(64); g.lights.slice(0, 16).forEach((l, i) => L.set(l, i * 4));
       gl.uniform4fv(progG.u.u_lights, L); gl.uniform1i(progG.u.u_nl, Math.min(16, g.lights.length));
+      gl.uniform1f(progG.u.u_kab, g.kab === undefined ? R.kabartma : g.kab); const t1 = g.t1, t2 = g.t2; gl.uniform4f(progG.u.u_dok, t1 ? 1 : 0, t2 ? 1 : 0, g.s1 || 6, g.s2 || 7); gl.uniform1i(progG.u.u_t1, 1); gl.uniform1i(progG.u.u_t2, 2);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, (t1 || mapTex).t); gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, (t2 || mapTex).t); gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, mapTex.t); gl.blendFunc(gl.ONE, gl.ZERO);
       const [x0, y0, x1, y1] = rect, c = WHITE; let o = 0;
       const put = (x, y) => { buf[o++] = x; buf[o++] = y; buf[o++] = 0; buf[o++] = 0; buf[o++] = 0; buf[o++] = 1; buf[o++] = 1; buf[o++] = 1; buf[o++] = 1; buf[o++] = 1; };

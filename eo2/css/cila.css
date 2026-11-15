@@ -1,0 +1,57 @@
+/* Ejder Ocağı 2.0 · çıkış cilası (2026-11-15). olcu.css'ten sonra yüklenir. */
+
+/* Giriş açıkken dünya bildirimi ve yer başlığı görünmez */
+.ui2:has(> .giris:not(.gitti)) .bildirimler,
+.ui2:has(> .giris:not(.gitti)) #titlecard { visibility: hidden; }
+
+/* Ekranlarda ve dövüşte bildirim sol alt köşede birikir: sekmeleri, can çubuklarını örtmez */
+.ui2.ekranda .bildirimler {
+  top: auto !important;
+  bottom: max(1.1em, env(safe-area-inset-bottom, 0px));
+  left: 1.2em;
+  transform: none;
+  justify-items: start;
+  width: auto;
+  max-width: min(24em, 60vw);
+}
+.ui2.ekranda .bildirim { text-align: left; }
+
+/* Geliştirici araçları yalnız ?gelistirici ile görünür (sınıfı index.html ekler) */
+.ui2:not(.gelistirici) .menu-d[data-m="pilot"],
+.ui2:not(.gelistirici) .menu-d[data-m="deneme"],
+.ui2:not(.gelistirici) .menu-d[data-m="editor"],
+.ui2:not(.gelistirici) .menu-d[data-m="meydan"],
+.ui2:not(.gelistirici) .menu-d[data-m="master"] { display: none !important; }
+
+/* Sahne kayması: taşan ön plan çizimleri yüzünden bir düğme odak alınca bütün oyun yukarı kayıyordu.
+   clip, hidden'dan farklı olarak programla kaydırmaya da izin vermez. */
+html, body, #app.ui2 { overflow: clip; }
+.ui2 > .bolumOn { overflow: clip; }
+
+/* ---------- Rıhtım: kısa eylem çubuğu + açılır tepsi (js/rihtim.js) ---------- */
+.ui2 #actions.kisa { gap: .9em; }
+.ui2 #actions [data-yeni] .ic, .ui2 #actionsDaha .ic {            /* çizilmiş madalyonu olmayan düğmeler: aynı lacivert disk, altın çerçeve, krem simge */
+  background: radial-gradient(circle at 50% 30%, #3b4a86, #141a3a 74%);
+  box-shadow: inset 0 0 0 2px #d9b96a, inset 0 0 0 3.5px rgba(10, 12, 26, .55), 0 .22em .5em rgba(4, 6, 16, .55);
+  color: #f6e7bd;
+}
+.ui2 #actions [data-yeni] .ic svg, .ui2 #actionsDaha .ic svg { display: block; width: 54%; height: 54%; filter: drop-shadow(0 1px 0 rgba(6, 8, 20, .8)); }
+.ui2 #actions button[data-panel="arena"] .ic { background: center / 100% 100% no-repeat url(../assets/ik/mdl-arena.webp), radial-gradient(circle at 50% 30%, #3b4a86, #141a3a 74%); }
+.ui2 #actions button[data-panel="topcu"] .ic { background: center / 100% 100% no-repeat url(../assets/ik/mdl-topcu.webp), radial-gradient(circle at 50% 30%, #3b4a86, #141a3a 74%); }
+.ui2 #actions button[data-panel="pazar"] .ic { background: center / 100% 100% no-repeat url(../assets/ik/mdl-carsi.webp), radial-gradient(circle at 50% 30%, #3b4a86, #141a3a 74%); }
+.ui2 #actionsDaha .ic { transition: transform .22s cubic-bezier(.3, 1.4, .5, 1); }
+.ui2 #actions.acik #actionsDaha .ic { transform: rotate(45deg); box-shadow: inset 0 0 0 2px #ffe9a8, 0 0 1em rgba(255, 214, 120, .6), 0 .22em .5em rgba(4, 6, 16, .55); }
+
+.ui2 #actionsMore {
+  position: absolute; right: 0; bottom: calc(100% + 1.6em);
+  display: grid; grid-template-columns: repeat(3, auto); gap: 1.5em 1.1em; padding: 2em 1.5em .8em;
+  border-radius: 1.6em; background: var(--cam-koyu, rgba(12, 18, 44, .82)); box-shadow: var(--frame, inset 0 0 0 1.5px #c9a85c);
+  -webkit-backdrop-filter: var(--bulanik, blur(10px)); backdrop-filter: var(--bulanik, blur(10px));
+  opacity: 0; transform: translateY(.6em) scale(.96); transform-origin: 90% 100%; transition: opacity .16s, transform .18s cubic-bezier(.3, 1.3, .5, 1); pointer-events: none;
+}
+.ui2 #actionsMore[hidden] { display: none; }
+.ui2 #actions.acik #actionsMore { opacity: 1; transform: none; pointer-events: auto; }
+.ui2 #actionsMore::after {                                        /* tepsiyi çubuğa bağlayan küçük altın baklava */
+  content: "◆"; position: absolute; right: 2.6em; bottom: -.62em; font-size: .8em; line-height: 1; color: var(--ref-altin, #e3c377); text-shadow: 0 1px 2px rgba(4, 6, 16, .8);
+}
+@media (prefers-reduced-motion: reduce) { .ui2 #actionsMore, .ui2 #actionsDaha .ic { transition: none; } }

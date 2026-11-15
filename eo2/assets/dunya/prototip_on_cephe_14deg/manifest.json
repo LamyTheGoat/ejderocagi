@@ -1,0 +1,874 @@
+{
+  "name": "Ejder Ocagi 2 front-facing 14 deg prototype assets",
+  "version": "0.1",
+  "items": [
+    {
+      "id": "han_front",
+      "category": "buildings",
+      "file": "buildings/han_front.png",
+      "w": 235,
+      "h": 173,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        6,
+        123,
+        247,
+        296
+      ]
+    },
+    {
+      "id": "castle_gate_front",
+      "category": "buildings",
+      "file": "buildings/castle_gate_front.png",
+      "w": 177,
+      "h": 183,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        250,
+        111,
+        428,
+        294
+      ]
+    },
+    {
+      "id": "market_house_front",
+      "category": "buildings",
+      "file": "buildings/market_house_front.png",
+      "w": 151,
+      "h": 156,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        431,
+        117,
+        582,
+        293
+      ]
+    },
+    {
+      "id": "stone_house_front",
+      "category": "buildings",
+      "file": "buildings/stone_house_front.png",
+      "w": 162,
+      "h": 183,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        584,
+        113,
+        746,
+        296
+      ]
+    },
+    {
+      "id": "forge_front",
+      "category": "buildings",
+      "file": "buildings/forge_front.png",
+      "w": 159,
+      "h": 137,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        4,
+        296,
+        163,
+        442
+      ]
+    },
+    {
+      "id": "greenhouse_front",
+      "category": "buildings",
+      "file": "buildings/greenhouse_front.png",
+      "w": 143,
+      "h": 137,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        168,
+        296,
+        311,
+        441
+      ]
+    },
+    {
+      "id": "windmill_front",
+      "category": "buildings",
+      "file": "buildings/windmill_front.png",
+      "w": 139,
+      "h": 149,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        313,
+        289,
+        459,
+        441
+      ]
+    },
+    {
+      "id": "cottage_front",
+      "category": "buildings",
+      "file": "buildings/cottage_front.png",
+      "w": 149,
+      "h": 141,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        459,
+        296,
+        608,
+        442
+      ]
+    },
+    {
+      "id": "library_front",
+      "category": "buildings",
+      "file": "buildings/library_front.png",
+      "w": 134,
+      "h": 150,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        608,
+        289,
+        747,
+        442
+      ]
+    },
+    {
+      "id": "stall_red",
+      "category": "market",
+      "file": "market/stall_red.png",
+      "w": 96,
+      "h": 102,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        1237,
+        122,
+        1333,
+        229
+      ]
+    },
+    {
+      "id": "stall_blue",
+      "category": "market",
+      "file": "market/stall_blue.png",
+      "w": 96,
+      "h": 102,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        1331,
+        120,
+        1438,
+        231
+      ]
+    },
+    {
+      "id": "stall_canvas",
+      "category": "market",
+      "file": "market/stall_canvas.png",
+      "w": 84,
+      "h": 100,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        1440,
+        123,
+        1533,
+        230
+      ]
+    },
+    {
+      "id": "market_counter",
+      "category": "market",
+      "file": "market/market_counter.png",
+      "w": 91,
+      "h": 77,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        1234,
+        232,
+        1332,
+        315
+      ]
+    },
+    {
+      "id": "market_plants",
+      "category": "market",
+      "file": "market/market_plants.png",
+      "w": 59,
+      "h": 74,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        1332,
+        234,
+        1406,
+        313
+      ]
+    },
+    {
+      "id": "market_counter_covered",
+      "category": "market",
+      "file": "market/market_counter_covered.png",
+      "w": 114,
+      "h": 86,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        1410,
+        228,
+        1532,
+        318
+      ]
+    },
+    {
+      "id": "market_wagon_blue",
+      "category": "market",
+      "file": "market/market_wagon_blue.png",
+      "w": 131,
+      "h": 117,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        1232,
+        315,
+        1382,
+        441
+      ]
+    },
+    {
+      "id": "market_wagon_gold",
+      "category": "market",
+      "file": "market/market_wagon_gold.png",
+      "w": 134,
+      "h": 122,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        1389,
+        317,
+        1532,
+        443
+      ]
+    },
+    {
+      "id": "bench_front",
+      "category": "decor",
+      "file": "decor/bench_front.png",
+      "w": 87,
+      "h": 65,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        492,
+        483,
+        582,
+        559
+      ]
+    },
+    {
+      "id": "cafe_table_chairs",
+      "category": "decor",
+      "file": "decor/cafe_table_chairs.png",
+      "w": 139,
+      "h": 78,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        584,
+        481,
+        723,
+        562
+      ]
+    },
+    {
+      "id": "direction_signpost",
+      "category": "decor",
+      "file": "decor/direction_signpost.png",
+      "w": 60,
+      "h": 88,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        731,
+        471,
+        800,
+        560
+      ]
+    },
+    {
+      "id": "quest_noticeboard",
+      "category": "decor",
+      "file": "decor/quest_noticeboard.png",
+      "w": 94,
+      "h": 95,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        799,
+        466,
+        893,
+        565
+      ]
+    },
+    {
+      "id": "royal_banner",
+      "category": "decor",
+      "file": "decor/royal_banner.png",
+      "w": 71,
+      "h": 112,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        893,
+        458,
+        972,
+        570
+      ]
+    },
+    {
+      "id": "short_bench",
+      "category": "decor",
+      "file": "decor/short_bench.png",
+      "w": 81,
+      "h": 48,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        497,
+        557,
+        582,
+        605
+      ]
+    },
+    {
+      "id": "barrel_oak",
+      "category": "decor",
+      "file": "decor/barrel_oak.png",
+      "w": 57,
+      "h": 62,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        582,
+        555,
+        647,
+        619
+      ]
+    },
+    {
+      "id": "wooden_crate",
+      "category": "decor",
+      "file": "decor/wooden_crate.png",
+      "w": 50,
+      "h": 54,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        651,
+        559,
+        713,
+        621
+      ]
+    },
+    {
+      "id": "standing_banner",
+      "category": "decor",
+      "file": "decor/standing_banner.png",
+      "w": 65,
+      "h": 99,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        725,
+        574,
+        799,
+        678
+      ]
+    },
+    {
+      "id": "hanging_bell",
+      "category": "decor",
+      "file": "decor/hanging_bell.png",
+      "w": 72,
+      "h": 107,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        789,
+        562,
+        875,
+        675
+      ]
+    },
+    {
+      "id": "flame_brazier",
+      "category": "decor",
+      "file": "decor/flame_brazier.png",
+      "w": 45,
+      "h": 82,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        873,
+        589,
+        926,
+        675
+      ]
+    },
+    {
+      "id": "street_lantern_small",
+      "category": "decor",
+      "file": "decor/street_lantern_small.png",
+      "w": 40,
+      "h": 74,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        921,
+        599,
+        973,
+        674
+      ]
+    },
+    {
+      "id": "barrel_small",
+      "category": "decor",
+      "file": "decor/barrel_small.png",
+      "w": 52,
+      "h": 66,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        493,
+        601,
+        559,
+        674
+      ]
+    },
+    {
+      "id": "food_sack",
+      "category": "decor",
+      "file": "decor/food_sack.png",
+      "w": 47,
+      "h": 58,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        558,
+        607,
+        621,
+        673
+      ]
+    },
+    {
+      "id": "treasure_chest",
+      "category": "decor",
+      "file": "decor/treasure_chest.png",
+      "w": 50,
+      "h": 47,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        614,
+        609,
+        672,
+        675
+      ]
+    },
+    {
+      "id": "pot_sack",
+      "category": "decor",
+      "file": "decor/pot_sack.png",
+      "w": 42,
+      "h": 53,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        674,
+        603,
+        725,
+        674
+      ]
+    },
+    {
+      "id": "tree_summer",
+      "category": "nature",
+      "file": "nature/tree_summer.png",
+      "w": 107,
+      "h": 110,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        8,
+        473,
+        115,
+        592
+      ]
+    },
+    {
+      "id": "tree_sakura",
+      "category": "nature",
+      "file": "nature/tree_sakura.png",
+      "w": 92,
+      "h": 108,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        111,
+        467,
+        212,
+        592
+      ]
+    },
+    {
+      "id": "tree_autumn",
+      "category": "nature",
+      "file": "nature/tree_autumn.png",
+      "w": 82,
+      "h": 106,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        206,
+        468,
+        309,
+        590
+      ]
+    },
+    {
+      "id": "tree_winter",
+      "category": "nature",
+      "file": "nature/tree_winter.png",
+      "w": 80,
+      "h": 114,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        288,
+        466,
+        376,
+        589
+      ]
+    },
+    {
+      "id": "tree_olive",
+      "category": "nature",
+      "file": "nature/tree_olive.png",
+      "w": 78,
+      "h": 98,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        371,
+        475,
+        450,
+        590
+      ]
+    },
+    {
+      "id": "shrub_simple",
+      "category": "nature",
+      "file": "nature/shrub_simple.png",
+      "w": 41,
+      "h": 47,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        433,
+        519,
+        474,
+        579
+      ]
+    },
+    {
+      "id": "flower_bush_white",
+      "category": "nature",
+      "file": "nature/flower_bush_white.png",
+      "w": 67,
+      "h": 57,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        97,
+        573,
+        167,
+        630
+      ]
+    },
+    {
+      "id": "flower_bush_pink",
+      "category": "nature",
+      "file": "nature/flower_bush_pink.png",
+      "w": 63,
+      "h": 57,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        166,
+        569,
+        241,
+        634
+      ]
+    },
+    {
+      "id": "flower_bush_lavender",
+      "category": "nature",
+      "file": "nature/flower_bush_lavender.png",
+      "w": 77,
+      "h": 52,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        228,
+        579,
+        309,
+        635
+      ]
+    },
+    {
+      "id": "flower_bush_yellow",
+      "category": "nature",
+      "file": "nature/flower_bush_yellow.png",
+      "w": 49,
+      "h": 51,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        312,
+        579,
+        379,
+        631
+      ]
+    },
+    {
+      "id": "flower_bush_purple",
+      "category": "nature",
+      "file": "nature/flower_bush_purple.png",
+      "w": 46,
+      "h": 52,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        384,
+        574,
+        444,
+        633
+      ]
+    },
+    {
+      "id": "flowers_single",
+      "category": "nature",
+      "file": "nature/flowers_single.png",
+      "w": 44,
+      "h": 39,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        6,
+        594,
+        59,
+        639
+      ]
+    },
+    {
+      "id": "shrub_green",
+      "category": "nature",
+      "file": "nature/shrub_green.png",
+      "w": 43,
+      "h": 41,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        49,
+        592,
+        100,
+        639
+      ]
+    },
+    {
+      "id": "moss_rocks",
+      "category": "nature",
+      "file": "nature/moss_rocks.png",
+      "w": 67,
+      "h": 46,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        93,
+        624,
+        160,
+        676
+      ]
+    },
+    {
+      "id": "flower_rocks",
+      "category": "nature",
+      "file": "nature/flower_rocks.png",
+      "w": 76,
+      "h": 53,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        155,
+        622,
+        236,
+        676
+      ]
+    },
+    {
+      "id": "white_flowers",
+      "category": "nature",
+      "file": "nature/white_flowers.png",
+      "w": 50,
+      "h": 44,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        264,
+        628,
+        326,
+        674
+      ]
+    },
+    {
+      "id": "timber_stack",
+      "category": "nature",
+      "file": "nature/timber_stack.png",
+      "w": 50,
+      "h": 36,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        358,
+        620,
+        416,
+        671
+      ]
+    },
+    {
+      "id": "logs_stack",
+      "category": "nature",
+      "file": "nature/logs_stack.png",
+      "w": 63,
+      "h": 43,
+      "view": "front",
+      "camera_pitch_deg": 14,
+      "alpha": true,
+      "status": "prototype_isolated_from_generated_sheet",
+      "source_bbox": [
+        411,
+        618,
+        479,
+        673
+      ]
+    }
+  ],
+  "note": "PNG alpha masks are generated from a catalog illustration; inspect object borders and verify native game perspective/scale before integration; not production-ready masters."
+}

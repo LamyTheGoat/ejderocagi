@@ -1,4 +1,52 @@
-# Ejder Ocağı 2.0 · oynanır dilim
+# Ejder Ocağı 2.0
+
+> **2026-11-11 yön değişikliği (kullanıcı talimatı):** 2.0 artık bir gösterim dilimi değil, oyunun kendisidir. Eski sistemler 2.0 arayüzünde
+> tek tek yeniden kurulur; görünüm camsı (glassmorphism), kalite ve döngü için örnek alınan oyun Genshin Impact'tir. Claude ve dış API bağlantıları kaldırıldı.
+
+## Mimari
+- **Kurallar değişmez.** 2.0 sayfası oyunun kendi mantık dosyalarını (`../js/data.js`, `core.js`, `week.js`, `content.js` ve diğerleri) olduğu gibi yükler.
+  Fiyat, ödül, olasılık ve kayıt biçimi aynıdır; eski oyunun kaydı 2.0'da açılır. Eski arayüzün beklediği küreseller `js/shim.js` içindedir.
+- **Arayüz yenidir.** `css/cam.css` cam kiti; `js/oyun.js` giriş, HUD, ekran çerçevesi, pencereler ve hafta sonu akışı; `js/ekranlar.js` oyun ekranları; `js/sohbet.js` hazır replikli NPC sohbeti.
+- **Yerel çalıştırma:** `node eo2/tools/serve.mjs 3210` → `http://localhost:3210`. Eski oyunun dosyaları `/oyun/…` altında salt okunur sunulur.
+- **Denetim:** `node eo2/tools/check_oyun.mjs <klasör> [--mobil]` yeni ocaktan ikinci haftaya kadar bütün döngüyü oynar ve ekran görüntüsü alır.
+
+## Yeniden kurulan sistemler (2026-11-11 sabahı)
+Tasarım dili **sahne önce**: her ekran tam ekran bir sahnedir (yer çizimi, sahnede duran ejderha ya da kişi), bilgi sahnenin üstünde yüzer; tablo ve kart ızgarası yoktur.
+Ocak ve Gök Yarışı pencere değil, meydanla aynı 2.5D motorda yürünen ve uçulan sahnelerdir.
+
+| Sistem | Dosya | Durum |
+|---|---|---|
+| Giriş, dedenin mektubu, HUD, hedefler, Haftayı Bitir | `js/oyun.js` | Tamam |
+| Hafta sonu: gece sahnesi, büyüme, doğum sahnesi (yumurtaya dokun, ad ver), olaylar, sabah | `js/oyun.js` | Tamam |
+| Ahır: sahnede ejderha (göreve göre poz), emir, üslup, besleme, yıkama ve top oyunu, sohbet, kuşam, rol, bilgi | `js/ahir.js` | Tamam |
+| **Ejderhanın gerçek görünüşü**: pul ve süs rengi, pigment, desen, parıltı, göz, yaş ve süsler bütün ekranlarda | `js/gorunus.js` | Tamam (oyunun kendi çizimi: `dragonSVG`, `poseSVG`) |
+| **Süs Dolabı**: beş yuva, deneme, satın alma, takma | `js/sus.js` | Tamam |
+| Ocak: **2.5D yürünen arazi** (orman açıklığı, dağ manzarası), arazi açma, yapı kurma ve yıkma, kuluçka, gezen ejderhalar | `js/ocak25.js` | Tamam |
+| **Çizim dünyası**: Merkez Meydan, Ejder Bahçesi, Kuzey Yolu ve Ocak, çizgi dünyanın geometrisine oturan tam karşıdan çizilmiş anime dokularla; taş, çim, ahşap, kum, toprak zemin dokuları. Menü → Dünya çizimi çizgi dünyaya döndürür. Gece denenen "boyalı dünya" reddedildi (menüde yok) | `js/doku.js`, `js/world.js` (`yerlestir`), `js/ocak25.js`, `tools/anahtar.mjs`, `docs/CIZIM_DUNYASI.md` |
+| Arena: eşleşme sahnesi, tur tabanlı dövüş, turnuva, Kızıl Taç sonu, maç öncesi ve sonrası sahneler | `js/arena.js` | Tamam |
+| Gök Yarışı: ilan sahnesi ve **2.5D pist** (dört pistin kendi zemini ve dekoru) | `js/yaris.js`, `js/yaris25.js` | Tamam; fizik `race.js` |
+| Saray Zarafet Merasimi: ilan sahnesi | `js/saray.js` | İlan tamam; podyum gösterisi eski çizimle çalışıyor |
+| Yuva: gezinti, çiftleştirme, yumurtalar | `js/yuva.js` | Tamam |
+| Pazar (Gece Çarşısı), Mermer Salon müzayedesi, Sipariş Panosu | `js/pazar.js`, `js/muzayede.js`, `js/siparis.js` | Tamam |
+| Sefer: bölge sahneleri, yol karşılaşmaları, yaban ejderhası yakalama | `js/sefer.js` | Tamam |
+| Han: kişiler, akşam sohbeti, Kor Dili; Ün Tablosu | `js/han.js` | Tamam |
+| Görev Defteri, **Soy Kütüğü** (ilk keşifler, çift kan uyanışı), Envanter, Menü | `js/defter.js`, `js/kutuk.js` | Tamam |
+| Sezon sonu ve varis seçimi | `js/son.js` | Tamam |
+| Çizgi roman okuyucusu (41 hikâye olayı) | `js/cizgi.js` | Tamam |
+| Kıraathane, Bedesten ve takas, Topçu ve zindanlar, Kor Örsü, dünya boss'u ve kervan, Gök Kulesi | | Kurulmadı (çoğu oyun sunucusu ister) |
+| Sunucu ekonomisi (altın senkronu) | | Kurulmadı; 2.0 şu an yalnız yerel kayıt |
+
+**Çizimler:** sahne arka planları ve 2.5D dünya parçaları Midjourney ile üretildi (`assets/bg/`, `assets/dunya/`, `assets/ik/`). Dünya parçalarında `my-` öneki meydan ve alanların, `yapi-` Ocak yapılarının, `ys-` pist ve doğa parçalarının, `my-ic-` iç mekân duvarlarının çizimidir.
+Bir çizim bile yüklenemezse dünya kendiliğinden eski düz çizimle kurulur (`EO2.meydanHazir`).
+`tools/kes.mjs` koyu zeminli çizimi keser (kenar şeritlerinden zemin kestirimi, isteğe bağlı pus ayıklama), `tools/kirp.mjs` boş payı atar.
+
+**Denetim:** `tools/check_oyun.mjs <klasör> [--mobil]` yeni ocaktan ikinci haftaya bütün döngü; `tools/check_uc.mjs <klasör> [senaryo…]`
+uç senaryolar: `turnuva`, `olum`, `ureme`, `yakala`, `pazar`, `yaris`, `ocak25`, `sus`, `kutuk`.
+
+Aşağısı önceki dilimin belgesidir; dünya, kamera ve sanat notları geçerlidir, "dikey dilim" ve "Claude'lu NPC" bölümleri artık geçerli değildir.
+
+---
+
 
 Yürünen altı alan (Merkez Meydan, Han, Pazar, Ejder Bahçesi, Kuzey Yolu, Topçu Arenası avlusu), canlı oda, konuşan NPC'ler ve Topçu Arenası gösterim düellosu.
 Oyun kodundan bağımsızdır: `js/`, `server/`, `style.css` kullanılmaz ve değiştirilmedi.

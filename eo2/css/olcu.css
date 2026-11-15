@@ -1,0 +1,91 @@
+/* Ejder Ocağı 2.0 · ana ekran ölçüleri ve okunurluk düzeltmeleri (2026-11-11)
+   Ana ekranın parçaları master referansın ölçülerine getirilir (docs/ARAYUZ_DENETIMI_2026-11-11.md).
+   Master 1672 × 941'de ölçüldü; o boyda kök yazı 16 pikseldir, aşağıdaki em değerleri ona göre seçildi.
+   Yalnız geniş ekranda geçerlidir; telefon düzeni (ui2.css içindeki dar ekran kuralları) aynen kalır.
+   En son yüklenir: cam.css, susleme.css ve ejder.css'teki ölçülerin üstüne yazar; renk ve doku onlarda kalır. */
+/* Sohbet + ifade çubuğu + eylem çubuğu yan yana yaklaşık 95 em tutar; bu, en-boy oranı 3:2'den dar pencereye sığmaz. O pencerelerde eski ölçüler kalır. */
+@media (min-aspect-ratio: 3/2) and (min-width: 821px) and (min-height: 561px) {
+  /* sol üst: logo 160, profil plakası 310 × 65, portre 62 */
+  .ui2 .logo { width: 10em; }
+  .ui2 #profile { font-size: 1.34em; }
+  /* üst orta: para kutuları 50 yüksek, yazı 20 */
+  .ui2 .tc { gap: .7em; }
+  .ui2 .tc .chip { font-size: 1.26em; padding: .42em 1.15em .42em .3em; }
+  /* sağ üst: düğmeler 46; yer adı plakası üstte, mini harita onun altında (plaka haritaya binmez), harita 215 */
+  .ui2 .tr .rb { font-size: 1.08em; }
+  .ui2 .minimap { width: 13.4em; height: 13.4em; margin-top: 2.1em; }
+  .ui2 .minimap .loc { top: -2.35em; font-size: 1.12em; }
+  .ui2 .minimap .n .rb { font-size: 1em; }
+  /* sol: görev paneli 328 genişlik, profil büyüdüğü için biraz aşağıda */
+  .ui2 .quests { top: 7.1em; width: 20.5em; font-size: 1.04em; }
+  /* sol alt: sohbet 403 genişlik; günlüğün üst kenarı yumuşar, yarım kalan satır kesik görünmez */
+  .ui2 #chat { width: 25.2em; }
+  .ui2 #chatLog { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 1.5em); mask-image: linear-gradient(to bottom, transparent 0, #000 1.5em); }
+  /* alt: ifade düğmeleri 56, eylem düğmeleri büyük, yazı 19 */
+  .ui2 #emotes { padding: .35em .8em; gap: .3em; left: auto; right: 48.4em; transform: none; }   /* eylem çubuğunun solunda durur; ortalanınca çubuğun altında kalıyordu */
+  .ui2 #emotes button { width: 3.3em; height: 3.3em; } .ui2 #emotes button svg { width: 2.15em; height: 2.15em; }
+  .ui2 #actions { gap: 1.05em; padding: .55em 1.9em .55em; }
+  .ui2 #actions button { font-size: 1.16em; }
+  .ui2 #actions .ic { width: 4.25em; height: 4.25em; }
+  /* simgeler düğmesini daha çok doldurur: master'da ses, zil ve çark simgeleri düğmenin yaklaşık %60'ı kadardır */
+  .ui2 .tr .rb svg { width: 1.72em; height: 1.72em; }
+  .ui2 .minimap .n .rb svg { width: 1.5em; height: 1.5em; }
+  .ui2 .minimap .loc svg { width: 1.15em; height: 1.15em; }
+  /* sohbet: yazı master'daki gibi 18, gönder düğmesi büyük ve simgesi belirgin */
+  .ui2 #chatLog { font-size: 1.12em; height: 7.6em; }
+  .ui2 #chatInput { font-size: 1.08em; padding: .45em .9em; }
+  .ui2 #chatSend { width: 2.9em; height: 2.9em; } .ui2 #chatSend svg { width: 1.5em; height: 1.5em; }
+  /* dünya üstü etiketler master ölçüsünde: isim plakası (master 180 × 40, yazı 19), tabela (170 × 40, yazı 20),
+     etkileşim baloncuğu ve konuşma balonu. Konumları kod verir; yalnız yazı boyu büyür, kutu onunla birlikte büyür. */
+  .ui2 #anchors .plate { font-size: 1.12em; } .ui2 #anchors .plate.me { font-size: 1.36em; }   /* master'da yalnız oyuncunun plakası büyük; yan yana duran kişilerin plakaları birbirine binmesin */
+  .ui2 #anchors .sign { font-size: 1.22em; }
+  .ui2 #anchors .prompt { font-size: 1.2em; }
+  .ui2 #anchors .bubble { font-size: 1.14em; }
+}
+
+/* Eylem çubuğu madalyonları: master'ın dilinde çizilmiş rozetler (lacivert disk, altın çerçeve, krem-altın biçim).
+   Kaynak: Midjourney sayfası, tools/madalyon.mjs ile kesildi (assets/ik/mdl-*.webp, 256 piksel). Eski çizgi simge gizlenir;
+   çerçeve ve zemin çizimin kendisindedir. Seçili düğme altın bir haleyle belli olur. Telefon düzeninde de geçerlidir. */
+.ui2 #actions .ic { background: center / 100% 100% no-repeat; box-shadow: 0 .22em .5em rgba(4, 6, 16, .55); border: 0; }
+.ui2 #actions .ic svg { display: none; }
+.ui2 #actions button[data-panel="ocak"] .ic { background-image: url(../assets/ik/mdl-ocak.webp); }
+.ui2 #actions button[data-panel="ejderhalar"] .ic { background-image: url(../assets/ik/mdl-ejder.webp); }
+.ui2 #actions button[data-panel="envanter"] .ic { background-image: url(../assets/ik/mdl-canta.webp); }
+.ui2 #actions button[data-panel="uretim"] .ic { background-image: url(../assets/ik/mdl-ors.webp); }
+.ui2 #actions button[data-panel="gorevler"] .ic { background-image: url(../assets/ik/mdl-ferman.webp); }
+.ui2 #actions button[data-panel="sosyal"] .ic { background-image: url(../assets/ik/mdl-sosyal.webp); }
+.ui2 #actions button[data-panel="menu"] .ic { background-image: url(../assets/ik/mdl-menu.webp); }
+.ui2 #actions button:hover .ic { filter: brightness(1.12); }
+.ui2 #actions button:active .ic { transform: translateY(.05em) scale(.94); filter: brightness(.92); }
+.ui2 #actions button[aria-pressed="true"] .ic { box-shadow: 0 0 0 2px #ffe9a8, 0 0 1em rgba(255, 214, 120, .75), 0 .22em .5em rgba(4, 6, 16, .55); }
+/* İfade simgeleri: master'daki gibi krem-beyaz biçim, koyu lacivert dış çizgi, altında ince gölge (eskiden düz sarıydı).
+   Çizimler aynı (js/icons.js); yalnız renk ve çizgi buradan verilir. Kalp kırmızı, parıltı altın, nota açık mavi kalır. */
+.ui2 #emotes button { color: #fff1d8; }
+.ui2 #emotes button svg { overflow: visible; filter: drop-shadow(0 .09em 0 rgba(8, 10, 24, .65)); }
+.ui2 #emotes button svg > path, .ui2 #emotes button svg > circle { stroke: #161b36; stroke-width: 1.7; stroke-linejoin: round; paint-order: stroke; }
+.ui2 #emotes button:nth-child(6) svg > path { fill: #8fd2ff; }
+/* ortak dokunuş (bütün ekranlar): sekme, geri düğmesi, kart ve seçim satırı basınca hafifçe çöker; seçili olmayan sekme üzerine gelince aydınlanır */
+.ui2 .sekme button { transition: background .2s, color .2s, transform .12s, filter .12s; }
+.ui2 .sekme button:hover:not([aria-selected="true"]) { background: rgba(255, 255, 255, .12); }
+.ui2 .sekme button:active { transform: scale(.95); filter: brightness(.93); }
+.ui2 .geri2:active, .ui2 .kartx:active:not(:disabled), .ui2 .secim:active:not(:disabled), .ui2 .madalyon:active { filter: brightness(.92); }
+/* dokunuş: basınca küçülme (ifade düğmeleri, sohbet sekmeleri, gönder) */
+.ui2 #emotes button:active { transform: scale(.88); }
+.ui2 #chatTabs button:active, .ui2 #chatSend:active { transform: scale(.95); filter: brightness(.92); }
+
+/* Ahır eylem çubuğu: ana ekranla aynı madalyon ailesi (eskiden renkli eşya resimleriydi; iki çubuk ayrı dil konuşuyordu).
+   Kaynak: Midjourney sayfası, ALTIN=1 tools/madalyon.mjs ile kesildi (assets/ik/mdl-emir, besle, bakim, kusam, rol, bilgi). */
+.ui2 .ah-dok i { background: center / 100% 100% no-repeat; box-shadow: 0 .25em .6em rgba(4, 6, 16, .55); }
+.ui2 .ah-dok img { display: none; }
+.ui2 .ah-dok button[data-mod="antrenman"] i { background-image: url(../assets/ik/mdl-emir.webp); }
+.ui2 .ah-dok button[data-mod="besle"] i { background-image: url(../assets/ik/mdl-besle.webp); }
+.ui2 .ah-dok button[data-mod="bakim"] i { background-image: url(../assets/ik/mdl-bakim.webp); }
+.ui2 .ah-dok button[data-mod="kusam"] i { background-image: url(../assets/ik/mdl-kusam.webp); }
+.ui2 .ah-dok button[data-mod="rol"] i { background-image: url(../assets/ik/mdl-rol.webp); }
+.ui2 .ah-dok button[data-mod="bilgi"] i { background-image: url(../assets/ik/mdl-bilgi.webp); }
+.ui2 .ah-dok button[aria-pressed="true"] i { background-size: 100% 100%; background-position: center; background-repeat: no-repeat; box-shadow: 0 0 0 2px #ffe9a8, 0 0 1.2em rgba(255, 214, 120, .8), 0 .25em .6em rgba(4, 6, 16, .55); }
+.ui2 .ah-dok button:active i { transform: translateY(.05em) scale(.94); filter: brightness(.92); }
+
+/* Arena karşılaşma ekranı: ejderhanın üst yazısı ve güç satırı açık duvarın üstünde okunmuyordu */
+.ui2 .ar-ad .ust, .ui2 .ar-ad small { text-shadow: 0 1px 2px rgba(4, 6, 16, 1), 0 0 .45em rgba(4, 6, 16, .95), 0 0 1em rgba(4, 6, 16, .85); }
+.ui2 .ar-ad small { padding: .14em .7em; border-radius: 1em; background: rgba(10, 13, 26, .6); }

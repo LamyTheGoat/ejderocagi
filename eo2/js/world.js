@@ -71,18 +71,27 @@
     /* Kameraya yaklaşan nesne solar: oyuncunun önünü kapatmasın. */
     const nearFade = (F, y) => { const d = y - F.camY; return Math.max(0, Math.min(1, (d - 2.4) / (F.D * 0.66 - 2.4))); };
     function billboard(t, x, y, o = {}) {
-      const w = o.w || t.wm, h = o.h || t.hm, ax = o.ax === undefined ? 0.5 : o.ax, z0 = o.z0 || 0, it = { key: o.key === undefined ? y : o.key, x: x - w * ax + w / 2, y, w, h, tall: h > 2.2 && o.occl !== false, cover: 1,
+      x += t.dx || 0; const w = o.w || t.wm, h = t.cz && o.w ? o.w * t.hm / t.wm : (o.h || t.hm), ax = o.ax === undefined ? 0.5 : o.ax, z0 = o.z0 || 0, it = { key: o.key === undefined ? y : o.key, x: x - w * ax + w / 2, y, w, h, tall: h > 2.2 && o.occl !== false, cover: 1,
         draw(R, F) {
           let a = o.fade === false ? 1 : nearFade(F, y); if (it.tall) { it.cover += ((F.coverTest(it) ? 0.28 : 1) - it.cover) * Math.min(1, F.dt * 8); a *= it.cover; }
           if (a < 0.01) return;
           const sw = o.sway ? Math.sin(F.time * 0.9 + x * 1.7) * o.sway + Math.sin(F.time * 2.3 + x) * o.sway * 0.3 : 0, x0 = x - w * ax, x1 = x0 + w, c = amb(F); c[3] = a;
-          R.quad(t, [x0, y, z0], [x1, y, z0], [x1 + sw, y, z0 + h], [x0 + sw, y, z0 + h], 0, 0, 1, 1, c, false, o.fog === undefined ? 1 : o.fog);
-          if (t.glow && F.night > 0.02) { const k = F.night * a * (o.glowK || 1); R.quad(t.glow, [x0, y, z0], [x1, y, z0], [x1 + sw, y, z0 + h], [x0 + sw, y, z0 + h], 0, 0, 1, 1, [k, k, k, 1], true, 0); }
+          /* katmanlı cephe (t.kat = [saçak, kat çizgisi, çıkma, çatı derinliği]; oranlar üstten): zemin kat geride, üst kat öne çıkar, çatı arkaya doğru eğik ayrı yüzeydir.
+             Kamera yürüdükçe katmanlar birbirine göre kayar; dümdüz cephe hacim kazanır. Resim aynı, yalnız üç dilim hâlinde çizilir. */
+          const ciz = (tx, col, add, fog) => { if (!t.kat || EO2.katmanKapali) { R.quad(tx, [x0, y, z0], [x1, y, z0], [x1 + sw, y, z0 + h], [x0 + sw, y, z0 + h], 0, 0, 1, 1, col, add, fog); return; }
+            const [fe, fj, cik, derin] = t.kat, zj = z0 + h * (1 - fj), ze = z0 + h * (1 - fe), yu = y - cik, ys = yu - 0.22;
+            R.quad(tx, [x0, y, z0], [x1, y, z0], [x1, y, zj], [x0, y, zj], 0, fj, 1, 1, col, add, fog);
+            if (!add && cik > 0.05) { const sh = T.fxMap.shadow; R.quad(T.fx, [x0, y - 0.01, zj - 0.9], [x1, y - 0.01, zj - 0.9], [x1, y - 0.01, zj + 0.25], [x0, y - 0.01, zj + 0.25], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, 0.5 * col[3]]); }   // çıkmanın alt kata düşen gölgesi
+            R.quad(tx, [x0, yu, zj], [x1, yu, zj], [x1, yu, ze], [x0, yu, ze], 0, fe, 1, fj, col, add, fog);
+            R.quad(tx, [x0, ys, ze - 0.05], [x1, ys, ze - 0.05], [x1, yu + derin, ze + h * fe * 0.82], [x0, yu + derin, ze + h * fe * 0.82], 0, 0, 1, fe, col, add, fog); };
+          ciz(t, c, false, o.fog === undefined ? 1 : o.fog);
+          if (t.glow && F.night > 0.02) { const k = F.night * a * (o.glowK || 1); ciz(t.glow, [k, k, k, 1], true, 0); }
         } };
       statics.push(it); return it;
     }
     // Yan cephe: X düzleminde, y0..y1 arası. face: 'E' doğuya bakar (kamera doğusundaysa görünür), 'W' batıya.
     function side(t, X, y0, y1, face, h) {
+      if (t.nrm) { t.yon = face === 'E' ? 1 : 2; t.wm = y1 - y0; }
       statics.push({ key: y1 + 0.001, draw(R, F) {
         if (face === 'E' ? F.camX <= X : F.camX >= X) return; const ya = Math.max(y0, F.camY + 0.4); if (ya >= y1) return;
         const u0 = (ya - y0) / (y1 - y0), c = amb(F), hh = h || t.hm;
@@ -110,36 +119,43 @@
     // Yere serili doku (kilim, su, bilezik): zeminden hemen sonra çizilir.
     function flat(t, x0, y0, x1, y1, o = {}) { const z = o.z || 0.011; statics.push({ key: o.key || 900, draw(R, F) { const c = amb(F); c[3] = o.a || 1; R.quad(t, [x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z], 0, 0, 1, 1, c, false, 1); } }); }
 
-    // --- yapılar ---
-    const tHan = tex(art.han(E)), tHanS = tex(art.sideWall(6.6, { seed: 22, wins: 2 }));
-    billboard(tHan, -15.4, 19.4, { ax: 0, fade: false, occl: false }); side(tHanS, -5.4, 19.4, 26, 'E');
-    const tBed = tex(art.bedesten()), tBedS = tex(art.sideWall(5.5, { plaster: false, wallH: 4.9, roofH: 0, seed: 33, base: '#eddcc2', wins: 2 }));
-    billboard(tBed, 5.2, 21.5, { ax: 0, fade: false, occl: false }); side(tBedS, 5.4, 21.5, 27, 'W');
-    const tGate = tex(art.northGate(E)); billboard(tGate, -15.5, 29.5, { ax: 0, fade: false, occl: false });
-    const tArena = tex(art.arenaGate(E)), tArenaS = tex(art.sideWall(3.6, { plaster: false, wallH: 7.6, roofH: 0, cren: true, base: '#d9c8b4', seed: 44, wins: 1 }));
-    billboard(tArena, -15.4, 8.6, { ax: 0, fade: true, occl: false }); side(tArenaS, -8.4, 8.6, 12.2, 'E');
-    const tHouseA = tex(art.house(7, '#2f7fc8', 1.3)), tHouseAS = tex(art.sideWall(4.0, { wallH: 5.6, stoneH: 2.9, roofH: 1.8, seed: 55, wins: 1 }));
-    billboard(tHouseA, -15.4, 14.2, { ax: 0, fade: true, occl: false }); side(tHouseAS, -10.3, 14.2, 18.2, 'E');
-    const tHouseB = tex(art.house(8, '#c9603f', 4.1)), tHouseBS = tex(art.sideWall(3.8, { wallH: 5.6, stoneH: 2.9, roofH: 1.8, seed: 56, wins: 1, shutter: '#c9603f' }));
-    billboard(tHouseB, 10.0, 13.4, { ax: 0, fade: true, occl: false }); side(tHouseBS, 10.3, 13.4, 17.2, 'W');
-    const tGarden = tex(art.gardenGate()), tLow = tex(art.lowWall(4.4, 181));
-    billboard(tGarden, 8.8, 7.8, { ax: 0, fade: true, occl: false }); side(tLow, 8.8, 7.8, 12.2, 'W');
-    const tBoundW = tex(art.boundary(22.4, 190)), tBoundE = tex(art.boundary(24.5, 195));
-    side(tBoundW, -15.4, -3, 19.4, 'E'); side(tBoundE, 15.4, -3, 21.5, 'W');
+    /* --- yapılar, ağaçlar, eşyalar ---
+       D(ad, üret) dokuyu verir (ad 'sur-b#bahce' biçimindeyse '#' öncesi çizimin adıdır, tamamı çizgi dokunun önbellek adıdır). Çizgi dünya: kodla çizilir. Çizim dünyası (js/doku.js): assets/dunya/an/<ad>.webp aynı yere, aynı ene oturur;
+       çizimi olmayan parça çizgi haliyle kalır. Yerleşim, ölçü ve perspektif iki dünyada aynıdır: çizim yalnız dokudur. */
+    const duzT = {}, duzD = (ad, g) => duzT[ad] || (duzT[ad] = tex(g()));
+    const cizD = (ad, g) => { const kok = ad.split('#')[0], K = EO2.doku, im = K && K.im[kok]; if (!im) return duzD(ad, g); const z = duzD(ad, g), o = K.olcu[kok] || {}, t = R.texture(im); t.cz = 1; t.wm = o.w || z.wm; t.hm = o.h || t.wm * im.naturalHeight / im.naturalWidth; t.dx = o.dx || 0; if (o.kat) t.kat = o.kat; if (K.kab && K.kab[kok]) { t.nrm = (K.kabT[kok] || (K.kabT[kok] = R.texture(K.kab[kok], { raw: true }))).t; t.lp = o.lp; t.relK = o.relK; t.derin = o.derin; } if (K.isik[kok]) { t.glow = R.texture(K.isik[kok]); t.glowK = o.gk || 1; } return t; };
+    function yerlestir(D) {
+      const tHan = D('han', () => art.han(E)), tHanS = D('han-yan', () => art.sideWall(6.6, { seed: 22, wins: 2 }));
+      billboard(tHan, -15.4, 19.4, { ax: 0, fade: false, occl: false }); side(tHanS, -5.4, 19.4, 26, 'E');
+      const tBed = D('bedesten', () => art.bedesten()), tBedS = D('bedesten-yan', () => art.sideWall(5.5, { plaster: false, wallH: 4.9, roofH: 0, seed: 33, base: '#eddcc2', wins: 2 }));
+      billboard(tBed, 5.2, 21.5, { ax: 0, fade: false, occl: false }); side(tBedS, 5.4, 21.5, 27, 'W');
+      const tGate = D('kapi', () => art.northGate(E)); billboard(tGate, -15.5, 29.5, { ax: 0, fade: false, occl: false });
+      const tArena = D('arena', () => art.arenaGate(E)), tArenaS = D('arena-yan', () => art.sideWall(3.6, { plaster: false, wallH: 7.6, roofH: 0, cren: true, base: '#d9c8b4', seed: 44, wins: 1 }));
+      billboard(tArena, -15.4, 8.6, { ax: 0, fade: true, occl: false }); side(tArenaS, -8.4, 8.6, 12.2, 'E');
+      const tHouseA = D('ev-a', () => art.house(7, '#2f7fc8', 1.3)), tHouseAS = D('ev-a-yan', () => art.sideWall(4.0, { wallH: 5.6, stoneH: 2.9, roofH: 1.8, seed: 55, wins: 1 }));
+      billboard(tHouseA, -15.4, 14.2, { ax: 0, fade: true, occl: false }); side(tHouseAS, -10.3, 14.2, 18.2, 'E');
+      const tHouseB = D('ev-b', () => art.house(8, '#c9603f', 4.1)), tHouseBS = D('ev-b-yan', () => art.sideWall(3.8, { wallH: 5.6, stoneH: 2.9, roofH: 1.8, seed: 56, wins: 1, shutter: '#c9603f' }));
+      billboard(tHouseB, 10.0, 13.4, { ax: 0, fade: true, occl: false }); side(tHouseBS, 10.3, 13.4, 17.2, 'W');
+      const tGarden = D('bahce', () => art.gardenGate()), tLow = D('alcak', () => art.lowWall(4.4, 181));
+      billboard(tGarden, 8.8, 7.8, { ax: 0, fade: true, occl: false }); side(tLow, 8.8, 7.8, 12.2, 'W');
+      const tBoundW = D('sur-b', () => art.boundary(22.4, 190)), tBoundE = D('sur-d', () => art.boundary(24.5, 195));
+      side(tBoundW, -15.4, -3, 19.4, 'E'); side(tBoundE, 15.4, -3, 21.5, 'W');
 
-    // --- ağaçlar ve eşyalar ---
-    const tCinar = tex(art.cinar()), tErg = [1, 2, 3, 4, 7].map(s => tex(art.erguvan(s * 11))), tSelvi = tex(art.selvi()), tBahce = [tex(art.gardenTree(5)), tex(art.gardenTree(6))];
-    let ei = 0, bi = 0;
-    for (const t of L.trees) { const k = t[0]; if (k === 'cinar') billboard(tCinar, t[1], t[2], { sway: 0.07 }); else if (k === 'erguvan') billboard(tErg[ei++ % tErg.length], t[1], t[2], { sway: 0.06 });
-      else if (k === 'bahce') billboard(tBahce[bi++ % 2], t[1], t[2], { sway: 0.05, occl: false }); else billboard(tSelvi, t[1], t[2], { sway: 0.05 }); }
-    const tLamp = tex(art.lampPost()); for (const l of L.lamps) billboard(tLamp, l[0], l[1], { glowK: 1.2 });
-    const tBench = tex(art.bench()); for (const b of L.benches) billboard(tBench, b[0], b[1]);
-    const tPl = [0, 1, 2, 3].map(s => tex(art.planter(s + 20))); for (const p of L.planters) billboard(tPl[p[2]], p[0], p[1]);
-    const tStall = [0, 1, 2].map(k => tex(art.stall(k))); for (const s of L.stalls) billboard(tStall[s[2]], s[0], s[1]);
-    billboard(tStall[2], 4.9, 20.4, { w: 2.5, h: 2.67 });
-    const tBarrel = tex(art.barrel()), tCrates = tex(art.crates()); billboard(tBarrel, -6.0, 18.9); billboard(tBarrel, -5.5, 18.5); billboard(tCrates, 9.9, 19.9); billboard(tCrates, -14.3, 13.9, { w: 1.2, h: 1.12 });
-    const tPoleN = tex(art.bannerPole(E, '#213270')); billboard(tPoleN, -4.4, 20.6, { ax: 0.2, sway: 0.03 }); billboard(tPoleN, 4.4, 20.6, { ax: 0.2, sway: 0.03 });
-    const tBraz = tex(art.brazier()); for (const b of L.braziers) billboard(tBraz, b[0], b[1], { glowK: 1.4 });
+      const tCinar = D('cinar', () => art.cinar()), tErg = [1, 2, 3, 4, 7].map((s, i) => D('erguvan' + i, () => art.erguvan(s * 11))), tSelvi = D('selvi', () => art.selvi()), tBahce = [D('bahce-agac0', () => art.gardenTree(5)), D('bahce-agac1', () => art.gardenTree(6))];
+      let ei = 0, bi = 0;
+      for (const t of L.trees) { const k = t[0]; if (k === 'cinar') billboard(tCinar, t[1], t[2], { sway: 0.07 }); else if (k === 'erguvan') billboard(tErg[ei++ % tErg.length], t[1], t[2], { sway: 0.06 });
+        else if (k === 'bahce') billboard(tBahce[bi++ % 2], t[1], t[2], { sway: 0.05, occl: false }); else billboard(tSelvi, t[1], t[2], { sway: 0.05 }); }
+      const tLamp = D('fener', () => art.lampPost()); for (const l of L.lamps) billboard(tLamp, l[0], l[1], { glowK: 1.2 });
+      const tBench = D('bank', () => art.bench()); for (const b of L.benches) billboard(tBench, b[0], b[1]);
+      const tPl = [0, 1, 2, 3].map(s => D('saksi' + s, () => art.planter(s + 20))); for (const p of L.planters) billboard(tPl[p[2]], p[0], p[1]);
+      const tStall = [0, 1, 2].map(k => D('tezgah' + k, () => art.stall(k))); for (const s of L.stalls) billboard(tStall[s[2]], s[0], s[1]);
+      billboard(tStall[2], 4.9, 20.4, { w: 2.5, h: 2.67 });
+      const tBarrel = D('fici', () => art.barrel()), tCrates = D('sandik', () => art.crates()); billboard(tBarrel, -6.0, 18.9); billboard(tBarrel, -5.5, 18.5); billboard(tCrates, 9.9, 19.9); billboard(tCrates, -14.3, 13.9, { w: 1.2, h: 1.12 });
+      const tPoleN = D('direk', () => art.bannerPole(E, '#213270')); billboard(tPoleN, -4.4, 20.6, { ax: 0.2, sway: 0.03 }); billboard(tPoleN, 4.4, 20.6, { ax: 0.2, sway: 0.03 });
+      const tBraz = D('mangal', () => art.brazier()); for (const b of L.braziers) billboard(tBraz, b[0], b[1], { glowK: 1.4 });
+      return { lamp: tLamp, bench: tBench, planter: tPl, barrel: tBarrel, crates: tCrates, selvi: tSelvi, erguvan: tErg, bahce: tBahce, cinar: tCinar, braz: tBraz };
+    }
+    const TX = yerlestir(duzD), tLamp = TX.lamp, tBench = TX.bench, tPl = TX.planter, tBarrel = TX.barrel, tCrates = TX.crates, tSelvi = TX.selvi, tErg = TX.erguvan, tBahce = TX.bahce, tCinar = TX.cinar, tBraz = TX.braz;
 
     // --- çeşme: gerçek çokgen gövde, yatay su yüzeyi, ejder heykeli, su jetleri ---
     const f = L.fount, tStrip = R.texture(art.basinStrip().c, { repeat: true }), tWater = R.texture(art.waterDisc()), tPed = tex(art.pedestal());
@@ -157,10 +173,12 @@
       const wr = f.R * 0.86; R.quad(tWater, [f.x - wr, f.y - wr, zw], [f.x + wr, f.y - wr, zw], [f.x + wr, f.y + wr, zw], [f.x - wr, f.y + wr, zw], 0, 0, 1, 1, c);
       const ring = uvOf('ring'); for (let i = 0; i < 4; i++) { const p = ((F.time * 0.42 + i * 0.25) % 1), r = 0.25 + p * 1.6, a = (1 - p) * 0.5, ox = i % 2 ? 1.0 : -0.75, oy = i > 1 ? 0.35 : -0.45;
         R.quad(T.fx, [f.x + ox - r, f.y + oy - r, zw + 0.01], [f.x + ox + r, f.y + oy - r, zw + 0.01], [f.x + ox + r, f.y + oy + r, zw + 0.01], [f.x + ox - r, f.y + oy + r, zw + 0.01], ring[0], ring[1], ring[2], ring[3], [c[0], c[1], c[2], a]); }
-      R.quad(tPed, [f.x - 0.8, f.y, 0.3], [f.x + 0.8, f.y, 0.3], [f.x + 0.8, f.y, 1.8], [f.x - 0.8, f.y, 1.8], 0, 0, 1, 1, c);
-      const sw = 2.9, sh2 = sw * stC.height / stC.width; R.quad(tStatue, [f.x - sw * 0.5, f.y - 0.01, 1.42], [f.x + sw * 0.5, f.y - 0.01, 1.42], [f.x + sw * 0.5, f.y - 0.01, 1.42 + sh2], [f.x - sw * 0.5, f.y - 0.01, 1.42 + sh2], 0, 0, 1, 1, c);
+      const hk = EO2.meydanUslup === 'boyali' && EO2.meydanHazir ? ext('my-heykel') : null;
+      if (hk) { const hw = 3.0, hh2 = hw * hk.h / hk.w; R.quad(hk.t, [f.x - hw / 2, f.y - 0.01, 0.42], [f.x + hw / 2, f.y - 0.01, 0.42], [f.x + hw / 2, f.y - 0.01, 0.42 + hh2], [f.x - hw / 2, f.y - 0.01, 0.42 + hh2], 0, 0, 1, 1, c); }
+      else R.quad(tPed, [f.x - 0.8, f.y, 0.3], [f.x + 0.8, f.y, 0.3], [f.x + 0.8, f.y, 1.8], [f.x - 0.8, f.y, 1.8], 0, 0, 1, 1, c);
+      const sw = 2.9, sh2 = sw * stC.height / stC.width; if (!hk) R.quad(tStatue, [f.x - sw * 0.5, f.y - 0.01, 1.42], [f.x + sw * 0.5, f.y - 0.01, 1.42], [f.x + sw * 0.5, f.y - 0.01, 1.42 + sh2], [f.x - sw * 0.5, f.y - 0.01, 1.42 + sh2], 0, 0, 1, 1, c);
       // jetler: ejderin ağzından ve kaidenin iki yanından kavisli su
-      const drop = uvOf('drop'), jets = [[f.x + 0.95, 3.02, 1.25, 1.6, 14], [f.x + 0.72, 1.55, 0.9, 1.2, 8], [f.x - 0.72, 1.55, -0.9, 1.2, 8]], boost = 1 + fountain.splash * 0.8;
+      const drop = uvOf('drop'), jets = hk ? [[f.x + 0.9, 1.3, 0.9, 1.2, 8], [f.x - 0.9, 1.3, -0.9, 1.2, 8]] : [[f.x + 0.95, 3.02, 1.25, 1.6, 14], [f.x + 0.72, 1.55, 0.9, 1.2, 8], [f.x - 0.72, 1.55, -0.9, 1.2, 8]], boost = 1 + fountain.splash * 0.8;
       for (const j of jets) for (let i = 0; i < j[4]; i++) { const p = ((F.time * 0.9 + i / j[4]) % 1), t = p * 0.78, px = j[0] + j[2] * t * boost, pz = j[1] + j[3] * t * boost - 4.9 * t * t; if (pz < zw) continue;
         const s = 0.07 + p * 0.07; R.quad(T.fx, [px - s, f.y - 0.02, pz - s * 1.5], [px + s, f.y - 0.02, pz - s * 1.5], [px + s, f.y - 0.02, pz + s * 1.5], [px - s, f.y - 0.02, pz + s * 1.5], drop[0], drop[1], drop[2], drop[3], [c[0], c[1], c[2], 0.9 - p * 0.3]); }
       const dot = uvOf('dot'); for (let i = 0; i < 9; i++) { const tw = Math.max(0, Math.sin(F.time * (2.1 + i * 0.37) + i * 1.9)), a = tw * tw * tw * 0.9 * (1 - F.night * 0.5), ang = i * 2.4 + Math.floor(F.time * 0.5 + i) * 1.3, rr = 0.5 + (i % 4) * 0.36, sx = f.x + Math.cos(ang) * rr, sy = f.y + Math.sin(ang) * rr * 0.9, s = 0.07;
@@ -173,8 +191,13 @@
     const meydan = { id: 'meydan', L, statics, fountain }, cache = { meydan }, extTex = {};
     const tx = { lamp: tLamp, bench: tBench, planter: tPl, barrel: tBarrel, crates: tCrates, selvi: tSelvi, erguvan: tErg, bahce: tBahce, cinar: tCinar, braz: tBraz, water: tWater };
     const ext = n => { if (extTex[n] !== undefined) return extTex[n]; const im = (EO2.ext || {})[n]; return extTex[n] = im ? { t: R.texture(im), w: im.naturalWidth, h: im.naturalHeight } : null; };
-    const h = { R, A, art, E, T, tx, tex, billboard, side, flat, amb, nearFade, addSky, ext, push: it => statics.push(it), uv: n => T.fxMap[n] };
+    const h = { R, A, art, E, T, get tx() { if (EO2.meydanUslup === 'cizim' && EO2.doku && EO2.doku.hazir) { void meydan.statics; if (TXc) return TXc; } return tx; }, D: (ad, g) => (EO2.meydanUslup === 'cizim' && EO2.doku && EO2.doku.hazir ? cizD : duzD)(ad, g), tex, billboard, side, flat, amb, nearFade, addSky, ext, push: it => statics.push(it), uv: n => T.fxMap[n] };
+    /* meydanın görünüşü: boyalı çizimler (js/meydan25.js) hazırsa ve seçiliyse onlar, değilse kodla çizilmiş düz meydan */
+    let boyali = null, cizim = null, TXc = null; const duz = meydan.statics;
+    Object.defineProperty(meydan, 'statics', { get() {
+      if (EO2.meydanUslup === 'cizim' && EO2.doku && EO2.doku.hazir) { if (!cizim) { const eski = statics; statics = []; try { addSky(); TXc = Object.assign(yerlestir(cizD), { water: tWater }); statics.push(fountain); cizim = statics; } catch (e) { console.error(e); cizim = duz; } statics = eski; } return cizim; }
+      if (EO2.meydanUslup !== 'boyali' || !EO2.meydanBoyali || !EO2.meydanHazir) return duz; if (!boyali) { const eski = statics; statics = []; try { EO2.meydanBoyali(h, { fountain }); boyali = statics; } catch (e) { console.error(e); boyali = duz; } statics = eski; } return boyali; } });
     function scene(id) { if (cache[id]) return cache[id]; const def = (EO2.sceneDefs || {})[id]; if (!def) return null; statics = []; const extra = def.build(h) || {}; cache[id] = Object.assign({ id, L: def.L, statics }, extra); return cache[id]; }
-    return { statics: meydan.statics, T, E, fountain, amb, nearFade, scene, ext };
+    return { get statics() { return meydan.statics; }, T, E, fountain, amb, nearFade, scene, ext };
   };
 })();

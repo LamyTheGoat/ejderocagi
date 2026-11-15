@@ -29,14 +29,22 @@
         { id: 'tavlaci2', name: 'Tavlacı', role: 'NPC', set: 'temel', x: -1.65, y: 6.6, dir: 'left', lines: ['Yine mars olacağım galiba.', 'Bir el daha, bu sefer benim.'] },
       ] };
     D.han = { L, build(h) {
-      const art = h.art, tBack = h.tex(art.hanBack()), tSideW = h.tex(art.hanSide(12.9, 3)), tSideE = h.tex(art.hanSide(12.9, 4));
+      const art = h.art, tBack = h.D('ic-han-arka', () => art.hanBack()), tSideW = h.D('ic-han-yan#b', () => art.hanSide(12.9, 3)), tSideE = h.D('ic-han-yan#d', () => art.hanSide(12.9, 4));
       const tCeil = h.R.texture(art.ceilingTile(), { repeat: true });
       h.push({ key: 950, draw(R, F) { if (F.camH > 6.6) return; const c = h.amb(F, 0.8); R.quad(tCeil, [-8, F.camY + 0.5, 7.2], [8, F.camY + 0.5, 7.2], [8, 12.9, 7.2], [-8, 12.9, 7.2], 0, 0, 8, (12.9 - F.camY) / 2, c, false, 0); } });
-      const tRun = h.R.texture(art.kilim(5, true)), tRug = h.R.texture(art.kilim(12, false));
-      h.flat(tRun, -1.15, 0.9, 1.15, 10.6); h.flat(tRug, -5.4, 4.6, -1.0, 8.4, { key: 899 }); h.flat(tRug, 1.2, 3.2, 5.6, 6.8, { key: 898 });
+      const hali = (ad, g) => { const im = EO2.meydanUslup === 'cizim' && EO2.doku && EO2.doku.im[ad]; return h.R.texture(im || g()); };   // halı: çizim varsa o, yoksa kodla çizilen kilim
+      const tRun = hali('hali-yolluk', () => art.kilim(5, true)), tRug = hali('hali-kilim', () => art.kilim(12, false));
+      const hc = EO2.meydanUslup === 'cizim' && EO2.doku && EO2.doku.im['hali-kilim'];   // çizilmiş kilim enine uzun: masanın altına oranını bozmadan serilir
+      h.flat(tRun, -1.15, 0.9, 1.15, 10.6); if (hc) { h.flat(tRug, -5.7, 5.35, -0.7, 7.65, { key: 899 }); h.flat(tRug, 0.9, 3.85, 5.9, 6.15, { key: 898 }); } else { h.flat(tRug, -5.4, 4.6, -1.0, 8.4, { key: 899 }); h.flat(tRug, 1.2, 3.2, 5.6, 6.8, { key: 898 }); }
+      const B = EO2.boyali && EO2.boyali.acik() ? EO2.boyali : null, spr = B ? B.spr(h) : null, eA = B && h.ext('my-ic-han-arka'), eY = B && h.ext('my-ic-han-yan');
+      if (eA && eY) { /* boyalı çizimler: ocaklı arka duvar, sedirli yan duvarlar, masalar */
+        h.billboard(eA.t, -8, 12.9, { ax: 0, w: 16, h: 7.2, fade: false, occl: false, fog: 0 }); h.side(eY.t, -7.95, 0, 12.9, 'E', 7.2); h.side(eY.t, 7.95, 0, 12.9, 'W', 7.2);
+        for (const t of tables) spr('masa', t[0], t[1], { w: 3.0, occl: false, m: t[2] }); spr('sayac', -5.5, 9.4, { w: 3.2, occl: false }); spr('fici', -6.3, 2.0, { w: 1.6 }); spr('fici', 6.5, 11.2, { w: 1.4, m: 1 });
+      } else {
       h.billboard(tBack, -8, 12.9, { ax: 0, fade: false, occl: false, fog: 0, glowK: 0.55 }); h.side(tSideW, -7.95, 0, 12.9, 'E'); h.side(tSideE, 7.95, 0, 12.9, 'W');
-      const tT = [h.tex(art.tableSet(0)), h.tex(art.tableSet(1))]; for (const t of tables) h.billboard(tT[t[2]], t[0], t[1], { occl: false });
-      h.billboard(h.tex(art.counter()), -5.5, 9.4, { occl: false }); h.billboard(h.tx.barrel, -6.6, 2.2); h.billboard(h.tx.barrel, -6.0, 1.7); h.billboard(h.tx.crates, 6.5, 11.2);
+      const tT = [h.D('ic-masa#0', () => art.tableSet(0)), h.D('ic-masa#1', () => art.tableSet(1))]; for (const t of tables) h.billboard(tT[t[2]], t[0], t[1], { occl: false });
+      h.billboard(h.D('ic-sayac', () => art.counter()), -5.5, 9.4, { occl: false }); h.billboard(h.tx.barrel, -6.6, 2.2); h.billboard(h.tx.barrel, -6.0, 1.7); h.billboard(h.tx.crates, 6.5, 11.2);
+      }
       const tH = h.tex(art.hangLantern()); for (const l of hang) h.billboard(tH, l[0], l[1], { z0: 4.3, occl: false, fade: true, glowK: 1.3 });
       // asılı fener haleleri ve ocak ateşi
       const g = h.uv('glow');
@@ -74,12 +82,21 @@
       mini: { paved: [[-1.5, 0, 1.5, 21], [-10.6, 9.0, 10.6, 11.4]], water: [[pond.x, pond.y, pond.r]], blocks: drg.map(d => [d.x - d.w * 0.3, d.y - 0.4, d.x + d.w * 0.3, d.y + 0.6]), bg: '#6fb85e' },
       npcs: [{ id: 'bahcivan', name: 'Bahçıvan', role: 'Ejder Bahçesi', set: 'bare', x: 3.0, y: 8.2, dir: 'down', lines: ['Kor bugün keyifli, güneşe yattı.', 'Yavrulara yaklaşırken acele etme, terbiyeci.'] }] };
     D.bahce = { L, build(h) {
-      const art = h.art; h.addSky();
-      const tWall = h.tex(art.boundary(28, 501)), tWS = h.tex(art.boundary(24, 502)), tWE = h.tex(art.boundary(24, 503));
+      const art = h.art; h.addSky(); const B = EO2.boyali && EO2.boyali.acik() ? EO2.boyali : null;
+      if (B) { /* boyalı çizimler (js/meydan25.js): duvar yerine ağaç sınırı, uzakta orman ve dağlar */
+        const spr = B.spr(h); B.ufuk(h, L, 74); B.agaclar(spr, trees); B.orman(spr, [[28, 5.4, 9], [36, 6.6, 11.5], [48, 8.6, 14]], 0, 57);
+        [['selvi', -14.8, 2.4, 7], ['ys-cam1', -14.9, 6.8, 7.6], ['ys-agac1', -14.7, 15.2, 6.4], ['selvi', -14.9, 18.8, 7.2], ['selvi', 14.8, 6.6, 7], ['ys-agac0', 15.0, 15.6, 7.2], ['ys-cam0', 14.8, 19.2, 7.8],
+          ['ys-cam0', -13.4, 25.6, 8.2], ['erguvan0', -8.2, 25.2, 5.8], ['ys-agac1', -4.4, 25.6, 6.6], ['erguvan1', 5.4, 25.4, 5.8], ['ys-agac0', 9.6, 25.8, 7.4], ['ys-cam1', 13.6, 25.5, 8.0]].forEach((t, i) => spr(t[0], t[1], t[2], { h: t[3], sway: 0.01, m: i % 2 }));
+        for (const l of lamps) spr('yapi-fener', l[0], l[1], { h: 3.3, occl: false, isik: [0.5, 0.84, 1.5] }); L.benches.forEach((q, i) => spr('bank', q[0], q[1], { w: 2.0, m: i % 2 })); planters.forEach((q, i) => spr('saksi', q[0], q[1], { w: 1.5, m: i % 2 }));
+        spr('yapi-yuva', -2.6, 19.9, { w: 2.8, occl: false, isik: [0.5, 0.3, 1.4] });
+        [[-11.4, 5.4, 1.6, 0], [11.2, 6.2, 1.5, 1], [-6.4, 21.6, 1.5, 1], [7.4, 21.4, 1.6, 0], [-12.2, 13.6, 1.4, 0], [12.4, 17.2, 1.5, 1], [5.8, 3.2, 1.4, 0], [-5.6, 3.4, 1.4, 1]].forEach(q => spr('cicek' + q[3], q[0], q[1], { w: q[2], golge: false, occl: false }));
+      } else {
+      const tWall = h.D('sur-b#bahce-k', () => art.boundary(28, 501)), tWS = h.D('sur-d#bahce-b', () => art.boundary(24, 502)), tWE = h.D('sur-b#bahce-d', () => art.boundary(24, 503));
       h.billboard(tWall, -14, 24, { ax: 0, fade: false, occl: false }); h.side(tWS, -14, 0, 24, 'E'); h.side(tWE, 14, 0, 24, 'W');
       let ei = 0, bi = 0; for (const t of trees) { if (t[0] === 'erguvan') h.billboard(h.tx.erguvan[ei++ % h.tx.erguvan.length], t[1], t[2], { sway: 0.06 }); else if (t[0] === 'bahce') h.billboard(h.tx.bahce[bi++ % 2], t[1], t[2], { sway: 0.05 }); else h.billboard(h.tx.selvi, t[1], t[2], { sway: 0.05 }); }
       for (const l of lamps) h.billboard(h.tx.lamp, l[0], l[1], { glowK: 1.2 }); for (const b of L.benches) h.billboard(h.tx.bench, b[0], b[1]); for (const p of planters) h.billboard(h.tx.planter[p[2]], p[0], p[1]);
       h.billboard(h.tex(art.nest()), -2.6, 19.9, { occl: false, glowK: 1.5 });
+      }
       // gölet: su, taş bilezik, nilüferler, pırıltı
       const tW = h.tx.water, tRim = h.R.texture(art.pondRim()), tL0 = h.R.texture(art.lily(false)), tL1 = h.R.texture(art.lily(true)), p = pond, rr = p.r + 0.35;
       h.flat(tW, p.x - p.r, p.y - p.r, p.x + p.r, p.y + p.r, { key: 897 }); h.flat(tRim, p.x - rr, p.y - rr, p.x + rr, p.y + rr, { key: 896, z: 0.02 });
@@ -102,7 +119,7 @@
     const trees = [['selvi', -5.2, 4.2], ['selvi', 5.4, 5.0], ['erguvan', -6.4, 10.5, 1], ['cinar', 6.6, 14.5], ['selvi', -5.6, 17.0], ['erguvan', 6.2, 22.0, 2], ['selvi', -6.2, 23.5], ['selvi', 5.6, 34.0], ['erguvan', -6.6, 36.5, 3], ['selvi', -5.4, 42.0], ['erguvan', 6.6, 43.0, 4], ['selvi', -6.8, 55.5], ['selvi', 6.8, 55.8], ['bahce', -9.5, 30], ['bahce', 10, 12], ['selvi', -11, 46], ['selvi', 11.5, 26], ['erguvan', 12, 50, 1]];
     const lamps = [[-3.3, 46.4], [3.3, 46.4]], camp = [[0.2, 51.3]];
     const rocks = [[4.6, 8.6, 1], [-4.8, 14.0, 2], [5.2, 26.2, 3], [-5.0, 32.6, 4], [4.4, 39.5, 5]], patches = [[-4.4, 6.2, 1], [4.3, 11.4, 2], [-4.2, 20.2, 3], [4.6, 18.2, 4], [-4.4, 38.6, 5], [4.2, 44.6, 6], [-4.6, 25.0, 7], [4.4, 33.0, 8]];
-    const L = { id: 'yol', name: 'Kuzey Yolu', sub: 'Dış bölge', flyer: true, petals: false, road: [2.8, -100],
+    const L = { id: 'yol', name: 'Kuzey Yolu', sub: 'Kervan yolu', flyer: true, petals: false, road: [2.8, -100],
       bounds: [-7.4, 7.4, 0.6, 54.6], mapRect: [-24, -6, 48, 72], paved: [[-2.95, -8, 2.95, 70]], start: { x: 0, y: 2.0, dir: 'up' }, entry: {},
       signs: [{ id: 'kamp', label: 'Kervan Kampı', x: 0, y: 51.5, z: 4.6 }],
       interact: [
@@ -122,19 +139,25 @@
         { id: 'devriye', name: 'Bekçi', role: 'Kuzey Yolu', set: 'muhafiz', x: -1.6, y: 12, dir: 'up', path: [[-1.6, 12], [-1.6, 23], [1.6, 23], [1.6, 12]], lines: ['Yol açık. Dereyi köprüden geç.'] },
       ] };
     D.yol = { L, build(h) {
-      const art = h.art; h.addSky();
+      const art = h.art; h.addSky(); const B = EO2.boyali && EO2.boyali.acik() ? EO2.boyali : null, spr = B ? B.spr(h) : null;
+      if (B) { /* boyalı çizimler: yol boyunca ağaçlar, iki yanda orman, uzakta dağlar; çit yok */
+        B.ufuk(h, L, 112); B.agaclar(spr, trees); B.orman(spr, [[62, 6, 10], [74, 8, 13], [90, 11, 16]], 0, 31);
+        { let sd = 19; const rn = () => (sd = (sd * 16807) % 2147483647) / 2147483647, T = ['ys-cam0', 'ys-cam1', 'ys-agac1', 'selvi', 'ys-agac0', 'erguvan0']; for (let y = 3; y < 58; y += 3.6 + rn() * 2.4) for (const yan of [-1, 1]) { if (y > 25 && y < 32) continue; const x = yan * (13.5 + rn() * 5), x2 = yan * (22 + rn() * 14); spr(T[Math.floor(rn() * T.length)], x, y + rn() * 2, { h: 6.4 + rn() * 2.4, m: rn() < 0.5, sway: 0.008 }); spr(T[Math.floor(rn() * 5)], x2, y + rn() * 3, { h: 8 + rn() * 3, m: rn() < 0.5, uzak: 0.86, fade: false, occl: false }); } }
+      } else {
       let ei = 0, bi = 0; for (const t of trees) { if (t[0] === 'erguvan') h.billboard(h.tx.erguvan[ei++ % h.tx.erguvan.length], t[1], t[2], { sway: 0.06 }); else if (t[0] === 'bahce') h.billboard(h.tx.bahce[bi++ % 2], t[1], t[2], { sway: 0.05 }); else if (t[0] === 'cinar') h.billboard(h.tx.cinar, t[1], t[2], { sway: 0.07 }); else h.billboard(h.tx.selvi, t[1], t[2], { sway: 0.05 }); }
       const tF1 = h.tex(art.fence(24.2)), tF2 = h.tex(art.fence(15.2));
       h.side(tF1, -3.7, 2, 26.2, 'E'); h.side(tF1, 3.7, 2, 26.2, 'W'); h.side(tF2, -3.7, 30.8, 46, 'E'); h.side(tF2, 3.7, 30.8, 46, 'W');
-      const tPar = h.tex(art.lowWall(4.2, 601)); h.side(tPar, -3.0, 26.4, 30.6, 'E'); h.side(tPar, 3.0, 26.4, 30.6, 'W');
+      }
+      const tPar = h.D('alcak#yol', () => art.lowWall(4.2, 601)); h.side(tPar, -3.0, 26.4, 30.6, 'E'); h.side(tPar, 3.0, 26.4, 30.6, 'W');
       // dere: yolun iki yanında akan su şeritleri (köprünün altı yolun kendisi)
       const tWs = h.R.texture(art.waterStrip(), { repeat: true });
       for (const [a, b] of [[-60, -3.0], [3.0, 60]]) h.push({ key: 893, draw(R, F) { const c = h.amb(F), du = (F.time * 0.06) % 1, u = (b - a) / 8; R.quad(tWs, [a, 27.0, 0.011], [b, 27.0, 0.011], [b, 30.0, 0.011], [a, 30.0, 0.011], du, 0, du + u, 1, c, false, 1); } });
-      h.billboard(h.tex(art.signpost()), 3.5, 6.5, { occl: false });
-      rocks.forEach(r => h.billboard(h.tex(art.rock(r[2] * 13)), r[0], r[1], { occl: false })); const tP = [1, 2, 3].map(s => h.tex(art.flowerPatch(s * 7))); patches.forEach((p, i) => h.billboard(tP[i % 3], p[0], p[1], { occl: false }));
-      for (const l of lamps) h.billboard(h.tx.lamp, l[0], l[1], { glowK: 1.2 }); h.billboard(h.tx.braz, camp[0][0], camp[0][1], { glowK: 1.4 });
-      h.billboard(h.tex(art.tent()), 4.0, 52.0, { occl: false, glowK: 1.3 }); const wg = h.ext('wagon'); if (wg) h.billboard(wg.t, -4.7, 50.4, { w: 3.0, h: 3.0 * wg.h / wg.w, occl: false });
-      h.billboard(h.tx.crates, -2.6, 52.6); h.billboard(h.tx.barrel, 1.6, 53.0);
+      if (B) spr('tabela', 3.5, 6.5, { h: 2.9, occl: false }); else h.billboard(h.tex(art.signpost()), 3.5, 6.5, { occl: false });
+      if (B) { rocks.forEach((r, i) => spr(i % 3 === 2 ? 'yapi-yosun' : 'ys-kaya' + (i % 2), r[0], r[1], { w: 1.9, occl: false, m: i % 2 })); patches.forEach((p, i) => spr('cicek' + (i % 2), p[0], p[1], { w: 1.5, golge: false, occl: false, m: i % 3 === 0 })); for (const l of lamps) spr('yapi-fener', l[0], l[1], { h: 3.3, occl: false, isik: [0.5, 0.84, 1.5] }); }
+      else { rocks.forEach(r => h.billboard(h.tex(art.rock(r[2] * 13)), r[0], r[1], { occl: false })); const tP = [1, 2, 3].map(s => h.tex(art.flowerPatch(s * 7))); patches.forEach((p, i) => h.billboard(tP[i % 3], p[0], p[1], { occl: false })); for (const l of lamps) h.billboard(h.tx.lamp, l[0], l[1], { glowK: 1.2 }); }
+      h.billboard(h.tx.braz, camp[0][0], camp[0][1], { glowK: 1.4 });
+      if (B) spr('cadir', 4.0, 52.0, { w: 4.0, occl: false, isik: [0.5, 0.3, 1.4] }); else h.billboard(h.tex(art.tent()), 4.0, 52.0, { occl: false, glowK: 1.3 }); const wg = h.ext('wagon'); if (wg) h.billboard(wg.t, -4.7, 50.4, { w: 3.0, h: 3.0 * wg.h / wg.w, occl: false });
+      if (B) { spr('fici', -2.6, 52.6, { w: 1.7 }); spr('fici', 1.8, 53.0, { w: 1.4, m: 1 }); } else { h.billboard(h.tx.crates, -2.6, 52.6); h.billboard(h.tx.barrel, 1.6, 53.0); }
       // yol okları: referanstaki gibi ileriyi gösteren ışıklı işaretler
       const ch = h.uv('chev');
       h.push({ key: 892, draw(R, F) { for (let i = 0; i < 5; i++) { const y = F.py + 3.2 + i * 1.5; if (y > 46 || (y > 26 && y < 31)) continue; const k = 0.5 + 0.5 * Math.sin(F.time * 4 - i * 0.9), a = (0.3 + 0.55 * k) * (1 - i * 0.15); R.quad(h.T.fx, [-0.7, y + 0.55, 0.014], [0.7, y + 0.55, 0.014], [0.7, y - 0.55, 0.014], [-0.7, y - 0.55, 0.014], ch[0], ch[1], ch[2], ch[3], [0.25, 0.62, 1.0, a], false, 0); } } });

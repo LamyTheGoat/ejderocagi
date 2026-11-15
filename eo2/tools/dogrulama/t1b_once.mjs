@@ -1,0 +1,21 @@
+import path from 'node:path'; import { createRequire } from 'node:module';
+const out = process.cwd(); const { chromium } = createRequire('C:/Users/user/Documents/GitHub/ejderocagi-eng06/package.json')('playwright-core');
+const b = await chromium.launch({ channel: 'msedge', headless: true, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
+const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage(); const err = []; p.on('pageerror', e => err.push(e.message));
+await p.goto('http://localhost:3240/', { waitUntil: 'domcontentloaded' });
+await p.waitForFunction('window.EO2 && EO2.api && EO2.game && window.PROTO && document.querySelector(".giris")', null, { timeout: 45000 });
+await p.locator('.giris .gbtn:has-text("Yeni ocak kur")').first().evaluate(x => x.click()); await p.waitForTimeout(400);
+if (await p.locator('.pen:has-text("silinsin")').count()) await p.locator('.pen .gbtn:has-text("Yeni ocak kur")').first().evaluate(x => x.click());
+await p.waitForTimeout(400); await p.locator('.pen .gbtn:has-text("Ocağa gir")').first().evaluate(x => x.click()); await p.waitForTimeout(1500);
+// hiçbir durum değişmez; yalnız Math.random tıklama anında düşük tutulur (chance(55) tutsun)
+await p.evaluate(() => { EO2.game.open('arena'); });
+await p.waitForTimeout(500);
+const r = await p.evaluate(async () => { const mr = Math.random; Math.random = () => 0.01; window.__noPre = 0; document.querySelector('[data-fight]').click(); await new Promise(r => setTimeout(r, 300)); Math.random = mr; await new Promise(r => setTimeout(r, 900));
+  const v = document.querySelector('.vn'); return { kat: UI.arenaTier, vn: !!v, cizgi: !!document.querySelector('.cizgi'), ad: v && v.querySelector('.vn-ad').textContent, metin: v && v.querySelector('.vn-metin').textContent.slice(0, 200), sec: v ? [...v.querySelectorAll('.vn-opt')].map(x => x.textContent.slice(0, 60)) : [] }; });
+await p.waitForTimeout(600); await p.screenshot({ path: path.join(out, 'a2_arena_oncesi_sahne.png') });
+await p.evaluate(() => { const v = document.querySelector('.vn'); if (v) { v.click(); const o = v.querySelector('.vn-opt:not([disabled])'); if (o) o.click(); } }); await p.waitForTimeout(1200);
+await p.screenshot({ path: path.join(out, 'a3_arena_oncesi_sonuc.png') });
+const r2 = await p.evaluate(() => { const v = document.querySelector('.vn'); return v && v.querySelector('.vn-metin').textContent.slice(0, 200); });
+await p.evaluate(() => { const v = document.querySelector('.vn'); if (v) { v.click(); const o = v.querySelector('.vn-opt:not([disabled])'); if (o) o.click(); } }); await p.waitForTimeout(900);
+const r3 = await p.evaluate(() => ({ dov: !!document.getElementById('dov'), log: [...document.querySelectorAll('#dovLog p')].map(x => x.textContent.slice(0, 120)) }));
+console.log(JSON.stringify({ r, r2, r3, err }, null, 1)); await b.close();

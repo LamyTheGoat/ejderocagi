@@ -1,0 +1,263 @@
+/* Ejder Ocağı · telefon cilası (yalnız dar ve dokunmatik ekran kuralları)
+   Bu dosya en son yüklenir. Masaüstünü etkilememesi için her kural şu üç kapıdan birinin altındadır:
+   TELEFON  = (max-width: 900px), (max-height: 500px)
+   DİKEY    = (max-width: 620px)
+   YATAY    = (min-width: 621px) and (max-height: 500px)
+   Kurallar #app ile başlar: kimlik ağırlığı önceki dosyalardaki sınıf kurallarını ezer. */
+
+/* ================= 1. TABAN ÖLÇÜ ================= */
+/* Telefonda taban 11 pikseldi; 1em ve altındaki bütün yazılar 12'nin altında kalıyordu. */
+@media (max-width: 900px), (max-height: 500px) {
+  #app.ui2 { font-size: 12px; }
+}
+
+/* ================= 2. MEYDAN HUD · ORTAK ================= */
+@media (max-width: 900px), (max-height: 500px) {
+  /* kimlik plakası: iki satır da en az 12 piksel, taşarsa üç nokta */
+  #app #profile { min-height: 44px; }
+  #app #profile > span { min-width: 0; overflow: hidden; }
+  #app #profile > span > b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  #app #profile > span > span, #app #profile > span small.kudret-satir { font-size: 12px; white-space: nowrap; }
+  #app #btnWeekMobil { min-height: 44px; font-size: 12px; padding: 0 12px; white-space: nowrap; }
+  #app #hud .tc .chip { min-height: 28px; }
+
+  /* sağ üst: 44 piksellik düğmeler, harita, altında yer adı ve görev takipçisi */
+  #app #hud .tr { right: 8px; top: 8px; justify-items: end; gap: 0; }
+  #app #hud .tr .row { display: flex; justify-content: flex-end; align-items: flex-start; gap: 4px; }
+  #app #hud .tr .row > .rb { width: 44px; height: 44px; flex: none; }
+  #app #hud .minimap { width: 92px; height: 92px; flex: none; margin: 0; }
+  #app #hud .minimap .n { right: auto; bottom: auto; transform: none; display: grid; gap: 4px; }
+  #app #hud .minimap .n .rb { width: 44px; height: 44px; }
+  #app #hud .minimap .loc { left: auto; right: 0; top: auto; bottom: -22px; transform: none; max-width: 140px; white-space: nowrap; }
+  #app #hud .minimap .loc b { font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+  #app #hud .minimap .yon-etiket { display: none; }
+
+  /* görev takipçisi: kapalıyken 44 piksellik plaket; açıkken sola doğru genişler, haritayı örtmez */
+  #app #questLog { margin-top: 30px; width: 140px; font-size: 12px; }
+  #app #questLog h3 { min-height: 44px; display: flex; align-items: center; font-size: 12px; box-sizing: border-box; }
+  #app #questLog h3 .gorev-sayac { font-size: 12px; }
+  #app #questLog li, #app #questLog li span { font-size: 12px; line-height: 1.25; }
+  #app #questLog .rh-etiket { font-size: 12px; }
+  #app #questLog .rh-kapat { min-width: 44px; min-height: 44px; font-size: 14px; }
+  #app #questLog .rh-adim { min-height: 44px; font-size: 12px; }
+
+  /* dünyadaki ad plaketleri ve konuşma balonu */
+  #app #anchors .plate b, #app #anchors .plate i { font-size: 12px; }
+  #app #anchors .bubble { font-size: 12px; }
+
+  /* 4. sohbet düğmesi: kapalıyken büyük çerçeve ve köşe süsü 44 piksellik düğmeye sığmıyordu */
+  #app #chat:not(.open) { background: none !important; box-shadow: none; border: 0; overflow: visible; }
+  #app #chat:not(.open)::before, #app #chat:not(.open)::after { content: none; display: none; }
+  #app #chatToggle { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+  /* Açık sohbette sekmeler ve yazı alanı gizli kalıyordu (ui2.css'teki gizleme kuralı açma kuralından ağır). */
+  #app #chat.open { width: min(300px, calc(100vw - 16px)); z-index: 40; grid-template-rows: auto 1fr auto; }
+  #app #chat.open > #chatTabs { display: flex; padding-right: 50px; }
+  #app #chat.open > #chatForm { display: grid; }
+  #app #chat.open #chatToggle { position: absolute; right: 2px; top: 2px; margin: 0; z-index: 2; }
+  #app #chatLog { font-size: 12px; }
+  #app #chatLog p { font-size: 12px; }
+  #app #chatTabs button { min-height: 44px; font-size: 12px; }
+  #app #chatInput { min-height: 44px; font-size: 16px; }
+  #app #chatSend { width: 44px; height: 44px; }
+
+  /* 3. rıhtım: madalyonların altında ad */
+  #app #actions button { grid-template-rows: auto auto; row-gap: 1px; padding: 2px 0 3px; min-height: 52px; }
+  #app #actions button > span:last-child { display: block; font-size: 12px; line-height: 1.15; font-weight: 600; white-space: nowrap; letter-spacing: -.01em; }
+}
+
+/* ================= 3. MEYDAN HUD · DİKEY ================= */
+@media (max-width: 620px) {
+  /* sol sütun: kimlik plakası, kese satırı, sohbet */
+  #app #hud .tl { left: 8px; top: 8px; }
+  #app #profile { max-width: calc(100vw - 172px); }
+  #app #hud .tc { left: 8px; right: 156px; top: 58px; flex-wrap: nowrap; align-items: center; gap: 5px; }
+  #app #chat, #app.touch #chat { left: 8px; top: 108px; }
+
+  /* sağ sütun: üstte üç düğme, altında ışık ve kamera ile harita */
+  #app #hud .tr { width: 140px; grid-template-columns: 140px; }
+  #app #hud .tr .row { flex-wrap: wrap; width: 140px; }
+  #app #hud .minimap .n { left: -48px; top: 0; }
+  #app #questLog:not(.kapali) { width: 236px; margin-left: -96px; justify-self: start; }
+
+  /* 1. kontrol ipucu: kese satırının üstünden alınır, HUD'un altına iner */
+  #app #toast { top: 232px; max-width: calc(100vw - 24px); width: max-content; font-size: 13px; }
+
+  /* 2. ön plan: dikeyde vh ile ölçülen ağaçlar ekranı kaplıyordu. Alt köşedekiler gizlenir (orada rıhtım ve çubuk var),
+        sol üstteki ağaç ekran enine göre küçülür; sıcak ton ve kenar karartması aynen kalır. */
+  #app .bolumOn img[style*="bottom:"] { display: none; }
+  #app .bolumOn img[src*="mm-agac"][style*="top:-"] { height: 68vw !important; left: -30% !important; top: -3% !important; }
+
+  #app.touch #joy { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
+  #app.touch #btnE.on { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ================= 4. MEYDAN HUD · YATAY ================= */
+@media (min-width: 621px) and (max-height: 500px) {
+  #app #hud .tc { top: 8px; align-items: center; }
+  #app #chat, #app.touch #chat { top: 58px; left: 8px; }
+
+  /* sağ üst: ses, zil, menü ve harita tek sırada; ışık ve kamera düğmelerin altında, haritanın solunda */
+  #app #hud .tr { width: 236px; grid-template-columns: 236px; }
+  #app #hud .tr .row { flex-wrap: nowrap; width: 236px; }
+  #app #hud .minimap .n { left: -100px; top: 48px; grid-auto-flow: column; }
+  #app #questLog:not(.kapali) { width: 420px; margin-left: -184px; margin-top: 6px; justify-self: start; }
+  #app #hud .tr:has(#questLog:not(.kapali)) .minimap .loc { display: none; }
+  #app #questLog .rh-adimlar { grid-template-columns: repeat(4, 1fr); }
+
+  #app #toast { top: 60px; font-size: 13px; }
+
+  /* rıhtım: tek sıra, adlı */
+  #app #actions, #app.touch #actions { gap: 2px; padding: 3px 12px; }
+  #app #actions button { min-width: 56px; }
+}
+
+/* ================= 5. EKRANLAR · ORTAK ================= */
+@media (max-width: 900px), (max-height: 500px) {
+  /* üst şerit: geri, hafta, sekmeler en az 44 piksel */
+  #app #scrBack, #app #scrWeek { min-height: 44px; }
+  #app #scrNav button, #app .sekme button { min-height: 44px; }
+  #app .gbtn { min-height: 44px; }
+  #app .gbtn.kucuk { font-size: 12px; }
+  /* küçük yazı tabanı: üst başlık, rozet, dipnot */
+  #app :is(small, .ust, .etk, .not, .kaynak-rozet, .malz-hap) { font-size: 12px; }
+  #app .scr-h small { letter-spacing: .12em; }
+}
+
+/* ================= 6. EKRANLAR · KÜÇÜK YAZI TABANI ================= */
+@media (max-width: 900px), (max-height: 500px) {
+  #app .madalyon > span, #app .madalyon > b,
+  #app .ah-halka-g > b, #app .ah-halka-g > span,
+  #app .ah-dok > button > span, #app .ah-dok > button > b,
+  #app .damga2, #app .kiyas em, #app .kiyas b,
+  #app #hpPt, #app #hpEt, #app .dov-terbiyeci span, #app .drm-hap,
+  #app .beceri b, #app .beceri small, #app #dovLog p,
+  #app .rap .genel span,
+  #app .kr-kudret div span, #app .kr-yuva b, #app .kr-yuva small, #app .ors-kademe-rozet, #app .kr-kart b, #app .kr-kart small,
+  #app .tp-mod-kart b, #app .tp-mod-kart small, #app #tpSonNot, #app .tp-deger, #app #tpAciDeger, #app #tpGucDeger,
+  #app .kare2 b,
+  #app .kariyer li b, #app .kariyer li span, #app .sayfa p.dip, #app .sayfa p.alt, #app .ayraclar button,
+  #app .kay .satir, #app .kay .satir b, #app .hedef li span, #app .hedef li em,
+  #app .yol li em, #app .yol li span, #app .yol li b,
+  #app .menu-kayit p,
+  #app .bildirim, #app .bildirim b,
+  #app .muhur-kart b, #app .muhur-kart span, #app .muhur-kart small,
+  #app .han-bilgi .gbtn { font-size: 12px; }
+}
+
+/* ================= 7. EKRANLAR · TEK TEK ================= */
+@media (max-width: 900px), (max-height: 500px) {
+  /* Ahır: durum halkalarının adları (YORGUNLUK, TEMİZLİK) üst üste biniyordu */
+  #app .ah-durum { grid-template-columns: repeat(4, 80px); gap: 4px; }
+  #app .ah-halka-g span { letter-spacing: 0; white-space: nowrap; }
+  #app .ah-dok > button { min-width: 48px; min-height: 48px; }
+
+  /* Dövüş: beceri düğmeleri ve nefes rozetleri */
+  #app .beceri { min-width: 60px; min-height: 48px; }
+  #app .beceri.kucuk { min-width: 52px; }
+  #app .beceri small { top: -1.45em; right: 50%; transform: translateX(50%); padding: 0 .5em; }
+
+  /* Kor Örsü: dar ekranda üç pano birbirini eziyordu; içerik kendi boyunda durur */
+  #app .kr-kart small { font-size: 12px; }
+  #app .menu-d { min-height: 44px; display: flex; align-items: center; }
+  #app #tpSonNot { font-size: 12px; }
+}
+
+@media (max-width: 620px) {
+  /* üst şerit: 1. sıra geri + başlık, 2. sıra kese ve Haftayı Bitir, 3. sıra sekmeler */
+  #app .scr-h { column-gap: 6px; row-gap: 6px; }
+  #app .scr-h .ad { flex: 1 1 calc(100% - 130px); padding-right: 0; }
+  #app .scr-h small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #app .scr-h #scrWeek { margin-left: auto; }
+  #app .scr-h .res2:not(.un) { margin-left: 0; }
+  #app .sekme { max-width: 100%; }
+
+  /* Arena karşılaşma: iki ad da ekranın dışına taşıyordu */
+  #app .ar-ben .ar-ad { left: 12%; }
+  #app .ar-rakip .ar-ad { right: 12%; }
+  #app .ar-ad { max-width: 46vw; }
+  #app .ar-ad h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Dövüş: dört beceri bir sırada, Otomatik ve Teslim ol altında */
+  #app .dov-eylem { gap: 20px 12px; padding-top: 14px; }
+  #app .dov-eylem .ara { flex: 0 0 100%; width: 100%; height: 0; }
+
+  /* Kor Örsü: tek sütun, bütün sayfa kayar */
+  #app .scr-b.kr-ors { grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; align-content: start; overflow-y: auto; }
+  #app .kr-sol, #app .kr-orta, #app .kr-sag { overflow: visible; min-height: auto; }
+}
+
+@media (min-width: 621px) and (max-height: 500px) {
+  /* Kor Örsü: üç sütun yan yana, her biri kendi içinde kayar */
+  #app .scr-b.kr-ors { grid-template-columns: minmax(13em, 15em) minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+  #app .kr-sol > * { flex: none; }
+
+  /* Topçu: kip seçimi sol sütunda alt alta (yatay şerit dar sütuna sıkışıyordu) */
+  #app .scr-b.tp-scr { grid-template-rows: minmax(0, 1fr); }
+  #app .scr-b.tp-scr .tp-modlar { flex-direction: column; overflow-x: hidden; overflow-y: auto; }
+  #app .scr-b.tp-scr .tp-mod-kart { min-width: 0; flex: none; }
+}
+
+/* ================= 8. EKRANLAR · YATAY TELEFON ================= */
+@media (min-width: 621px) and (max-height: 500px) {
+  /* üst şerit tek sıra: üst başlık dar sütunda üç satıra bölünüp başlığın üstüne biniyordu */
+  #app .scr-h { gap: 6px; }
+  #app .scr-h .ad { min-width: 6em; flex: 0 1 auto; padding-right: .6em; }
+  #app .scr-h small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #app .scr-h #scrNav { margin-left: 0; min-width: 0; }
+
+  #app .dov-eylem { gap: 12px; }
+
+  /* Bedesten ve Ocak Sandığı: iki pano yan yana, her biri kendi içinde kayar (alt alta ezilip üst üste biniyordu) */
+  #app .scr-b.bd-scr, #app .scr-b.sd-scr { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+  #app .bd-sol, #app .bd-sag { min-height: 0; overflow-y: auto; }
+
+  /* Görev Defteri: iki sayfa yan yana (alt alta tek satıra eziliyordu) */
+  #app .defter { grid-template-columns: 1fr 1fr; height: 100%; overflow: hidden; }
+  #app .sayfa.sag { min-height: 0; }
+
+  /* Menü: düğmeler iki sütun, sayfa kayar (alttaki düğmeler ekran dışında kalıyordu) */
+  #app .scr-b.mn { align-items: start; overflow-y: auto; }
+  #app .menu-sol { grid-template-columns: 1fr 1fr; align-content: start; }
+  #app .menu-d.cik { margin-top: 0; }
+
+  /* Topçu: kumanda tek sırada kalsın, Ateşle ekran dışına düşmesin */
+  #app .tp-sahne { grid-template-rows: auto minmax(96px, 1fr) auto; gap: 4px; padding: 6px 8px; }
+  #app .tp-tuval-sar { min-height: 96px; }
+  #app .tp-kumanda { flex-wrap: nowrap; gap: 4px; padding: 4px 6px; }
+  #app .tp-ayar { gap: 3px; }
+  #app .tp-kumanda .gbtn { padding-left: 8px; padding-right: 8px; min-width: 44px; }
+}
+
+/* ================= 9. SON DOKUNMA HEDEFLERİ VE YAZILAR ================= */
+@media (max-width: 900px), (max-height: 500px) {
+  #app .kr-yuva { min-height: 44px; }
+  #app .tp-ayar .gbtn, #app .kr-liste .gbtn.kucuk, #app #sdTazele, #app #bdTazele { min-width: 44px; }
+  #app #sdAra { min-height: 44px; font-size: 16px; }
+  #app .ayraclar button { min-height: 44px; }
+  #app .madalyon { min-width: 44px; min-height: 44px; }
+  #app #loadtxt { font-size: 12px; }
+  /* satır içi ya da daha ağır kuralla küçültülmüş iki yazı */
+  #app .kr-liste .kr-kart b, #app .kr-liste .kr-kart small, #app #tpSonNot { font-size: 12px !important; }
+}
+@media (min-width: 621px) and (max-height: 500px) {
+  /* Defter: ayraçlar sağ sayfanın başlığını örtmesin */
+  #app .sayfa.sag { padding-top: 52px; }
+  /* Arena: uzun rakip üst yazısı lig sekmelerinin altına girmesin */
+  #app .ar-ad { max-width: 36vw; }
+  #app .ar-ad .ust { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+
+/* ================= 10. İPUCU, SEKME ŞERİDİ, YATAY GÖREV TAKİPÇİSİ ================= */
+@media (max-width: 900px), (max-height: 500px) {
+  /* Kontrol ipucu dede mektubu açıkken çıkıyor ve mektubun üstüne biniyor; mektup kapanana kadar gizlenir.
+     (Kalıcı çözüm JS'te: eo2/js/game.js ipucu() mektubu da beklemeli.) */
+  #app:has(.mektup) #toast { visibility: hidden; }
+}
+@media (max-width: 620px) {
+  /* beş sekmeli üst şerit ekrana sığsın: sekmeler eşit daralır, uzun adlar iki satıra iner */
+  #app .scr-h #scrNav button { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; white-space: normal; line-height: 1.1; }
+}
+@media (min-width: 621px) and (max-height: 500px) {
+  /* açık görev takipçisi rıhtımın üstünde bitsin */
+  #app #questLog .rh-ust { height: 26px; overflow: visible; align-items: center; }
+}

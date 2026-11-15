@@ -66,3 +66,6 @@ Desktop.ini
 # Browser test output (reproducible with npm run test:trade-ui)
 test-results/
 playwright-report/
+
+# Yerel çalışma dosyaları
+.git.kopuk-worktree-isaretcisi

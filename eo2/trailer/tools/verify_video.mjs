@@ -1,0 +1,12 @@
+// Kaydedilen videoyu denetler: süre, çözünürlük, ses izi; verilen saniyelerden kare alıp önizleme sayfası yazar.
+// Kullanım: node eo2/trailer/tools/verify_video.mjs <video (eo2 köküne göre yol)> <çıktı.png> <saniye...>   Sunucu: node eo2/tools/serve.mjs 3210
+import path from 'node:path'; import { createRequire } from 'node:module'; import { fileURLToPath } from 'node:url';
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..'), require = createRequire(path.join(repo, 'package.json')), { chromium } = require('playwright-core');
+const [rel, out, ...ts] = process.argv.slice(2), times = ts.map(Number), cols = Math.min(4, times.length), cw = 480, ch = 270;
+const b = await chromium.launch({ channel: 'msedge', headless: true, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] }), p = await b.newPage({ viewport: { width: cols * cw, height: Math.ceil(times.length / cols) * ch } });
+await p.goto('http://localhost:3210/trailer/tools/blank.html').catch(() => {}); await p.setContent('<body style="margin:0;background:#000;display:grid;grid-template-columns:repeat(' + cols + ',' + cw + 'px)"></body>');
+const info = await p.evaluate(async ({ src, times, cw, ch }) => { const v = document.createElement('video'); v.src = src; v.muted = true; v.preload = 'auto'; await new Promise((r, j) => { v.onloadedmetadata = r; v.onerror = () => j(new Error('video açılmadı')); });
+  for (const t of times) { v.currentTime = t; await new Promise(r => { v.onseeked = r; }); await new Promise(r => setTimeout(r, 120)); const c = document.createElement('canvas'); c.width = cw; c.height = ch; c.getContext('2d').drawImage(v, 0, 0, cw, ch); document.body.appendChild(c); }
+  let audio = null; try { const ac = new AudioContext(), buf = await ac.decodeAudioData(await (await fetch(src, { headers: { Range: 'bytes=0-' } })).arrayBuffer()); let s = 0; const d = buf.getChannelData(0); for (let i = 0; i < d.length; i += 97) s += d[i] * d[i]; audio = { kanal: buf.numberOfChannels, sn: +buf.duration.toFixed(2), rms: +Math.sqrt(s / (d.length / 97)).toFixed(4) }; } catch (e) { audio = String(e.message || e); }
+  return { sure: +v.duration.toFixed(2), en: v.videoWidth, boy: v.videoHeight, audio }; }, { src: 'http://localhost:3210/' + rel, times, cw, ch });
+await p.screenshot({ path: out }); await b.close(); console.log(JSON.stringify(info));

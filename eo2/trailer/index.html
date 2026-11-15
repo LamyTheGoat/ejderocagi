@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ejder Ocağı Fragmanı</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<!--HEAD-->
+<style>
+  /* Tek görünüm: sinema perdesi. Koyu zemin bilinçli seçimdir; açık tema yok. */
+  :root { --ink: #f4ead6; --gold: #f0c765; --navy: #070b18; --screen: #000; color-scheme: dark; }
+  html, body { height: 100%; background: var(--screen); color: var(--ink); }
+  .trl { position: fixed; inset: 0; background: var(--screen); color: var(--ink); font: 500 15px/1.4 "Alegreya Sans", system-ui, sans-serif; overflow: hidden; user-select: none; -webkit-user-select: none; }
+  .trl [hidden] { display: none !important; }
+  .trl canvas { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(100vw, 177.78vh); height: min(56.25vw, 100vh); display: block; background: var(--screen); }
+  .trl .veil { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 55%, rgba(7, 11, 24, .35), rgba(0, 0, 0, .8)); transition: opacity .35s; }
+  .trl .veil.gone { opacity: 0; pointer-events: none; }
+  .trl .big { all: unset; cursor: pointer; display: grid; place-items: center; gap: 14px; text-align: center; padding: 24px 40px; }
+  .trl .big .ring { width: 104px; height: 104px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--gold); background: rgba(7, 11, 24, .6); box-shadow: 0 0 40px rgba(240, 199, 101, .35), inset 0 0 24px rgba(240, 199, 101, .18); transition: transform .2s, box-shadow .2s; }
+  .trl .big:hover .ring, .trl .big:focus-visible .ring { transform: scale(1.06); box-shadow: 0 0 60px rgba(240, 199, 101, .55), inset 0 0 24px rgba(240, 199, 101, .25); }
+  .trl .big svg { width: 40px; height: 40px; fill: var(--gold); margin-left: 6px; }
+  .trl .big b { font: 800 22px/1 "Alegreya SC", serif; letter-spacing: .14em; color: var(--gold); }
+  .trl .big span { opacity: .75; font-size: 14px; }
+  .trl .load { display: grid; gap: 12px; justify-items: center; }
+  .trl .load i { display: block; width: 240px; height: 3px; background: rgba(244, 234, 214, .16); border-radius: 2px; overflow: hidden; }
+  .trl .load i::after { content: ""; display: block; height: 100%; width: calc(var(--p, 0) * 100%); background: var(--gold); transition: width .2s; }
+  .trl .bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 12px; padding-block: 28px max(12px, env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); background: linear-gradient(transparent, rgba(0, 0, 0, .78)); opacity: 0; transition: opacity .25s; }
+  .trl.ui .bar, .trl .bar:focus-within { opacity: 1; }
+  .trl .bar button { all: unset; cursor: pointer; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 8px; flex: none; }
+  .trl .bar button:hover, .trl .bar button:focus-visible { background: rgba(244, 234, 214, .14); }
+  .trl button:focus-visible, .trl input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .trl .bar svg { width: 22px; height: 22px; fill: var(--ink); }
+  .trl .bar input { flex: 1; min-width: 0; accent-color: var(--gold); height: 22px; cursor: pointer; }
+  .trl .bar time { font-variant-numeric: tabular-nums; font-size: 14px; opacity: .85; flex: none; }
+  .trl.still .veil, .trl.still .bar { display: none; }
+</style>
+<!--/HEAD-->
+</head>
+<body>
+<!--BODY-->
+<div class="trl" id="trl">
+  <canvas id="film" width="1920" height="1080" aria-label="Ejder Ocağı fragmanı"></canvas>
+  <div class="veil" id="veil">
+    <div class="load" id="load"><span id="loadtxt">Yükleniyor</span><i id="loadbar"></i></div>
+    <button class="big" id="big" hidden aria-label="Fragmanı oynat"><span class="ring"><svg viewBox="0 0 24 24"><path d="M6 3.5v17l14-8.5z"/></svg></span><b>Fragmanı Oynat</b><span>Sesi aç. 67 saniye.</span></button>
+  </div>
+  <div class="bar" id="bar">
+    <button id="bPlay" aria-label="Oynat ya da duraklat"><svg viewBox="0 0 24 24" id="icPlay"><path d="M6 3.5v17l14-8.5z"/></svg></button>
+    <input id="seek" type="range" min="0" max="67.2" step="0.01" value="0" aria-label="Konum">
+    <time id="clock">0:00 / 1:07</time>
+    <button id="bMute" aria-label="Sesi kapat ya da aç"><svg viewBox="0 0 24 24" id="icMute"><path d="M4 9v6h4l5 4V5L8 9zm11.5 3a4 4 0 0 0-2-3.5v7a4 4 0 0 0 2-3.5zm-2-8v2a7 7 0 0 1 0 12v2a9 9 0 0 0 0-16z"/></svg></button>
+    <button id="bFull" aria-label="Tam ekran"><svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 0h2v6h-6v-2h4z"/></svg></button>
+  </div>
+</div>
+<script>window.EO2_PATH = window.EO2_PATH || { game: '../', tr: '' };</script>
+<script src="../assets/atlas.js"></script>
+<script src="../assets/battle.js"></script>
+<script src="../js/gl.js"></script>
+<script src="../js/art.js"></script>
+<script src="../js/art2.js"></script>
+<script src="../js/art3.js"></script>
+<script src="../js/world.js"></script>
+<script src="../js/scenes.js"></script>
+<script src="../js/scenes2.js"></script>
+<script src="engine.js"></script>
+<script src="fx.js"></script>
+<script src="score.js"></script>
+<script src="film.js"></script>
+<script src="shots.js"></script>
+<script src="player.js"></script>
+<!--/BODY-->
+</body>
+</html>
