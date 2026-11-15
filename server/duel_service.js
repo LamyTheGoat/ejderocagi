@@ -55,7 +55,7 @@ function duelEntry(game, dragonAssetId, { tradeLock, hold, duelLock, now }) {
   if (!game) fail('game_not_started');
   const dragon = game.dragons.find(d => d.assetId === dragonAssetId);
   if (!dragon) fail('dragon_not_owned', 403);
-  if (dragon.dead || dragon.task || dragon.tradeLocked || dragon.busy) fail('dragon_busy');
+  if (dragon.dead || dragon.task || dragon.tradeLocked || dragon.busy || dragon.yerel) fail('dragon_busy'); // ayna (yerel beyan) ödüllü düelloya giremez
   if (tradeLock && tradeLock.expiresAt > now && tradeLock.offer?.dragons?.includes(dragonAssetId)) fail('dragon_trade_reserved');
   if (hold && hold.dragons?.includes(dragonAssetId)) fail('dragon_market_listed');
   if (duelLock && duelLock.expiresAt > now) fail('duel_busy');

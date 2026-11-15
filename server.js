@@ -942,7 +942,7 @@ async function handleHttp(req, res) {
   if (pathname === '/api/economy/command' && req.method === 'POST') {
     if(req.headers['x-trade-account'] && req.headers['x-trade-account'] !== req.identity?.accountId)return sendJson(res,409,{ok:false,error:'trade_account_changed'});
     if (!req.identity) return sendJson(res, 401, { ok: false, error: 'guest_session_required' });
-    const command = await readJsonBody(req, false, 8192);
+    const command = await readJsonBody(req, false, 450_000); // ocak.sync yerel ocağın ejderhalarını taşır; öteki komutların alanları şemada 100 karakterle sınırlıdır
     const applied = await ECONOMY.executeCommand(req.identity.accountId, command);
     // ENG-10 (O-7): ilan önizlemesi değiştiyse okuma önbelleği bırakılır ve açık Bedesten ekranları yenilenir.
     if (applied.listingsRefreshed) marketChanged(null);

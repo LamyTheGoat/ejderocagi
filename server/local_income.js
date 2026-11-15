@@ -172,7 +172,8 @@ function removeDragon(S, api, d) {
 }
 // Ölen/verilen ejderha: ilan, takas ve kilit denetimi depo katmanında (guardMarketHold / guardReservation) yapılır:
 // ilandaki ya da takastaki ejderha için komut `market_reserved_asset` / `trade_reserved_asset` ile reddedilir.
-function exitable(d) { if (d.task || d.dead || d.tradeLocked || d.busy) fail('dragon_busy', 409); return d; }
+// `yerel`: 2.0 yerel ocağının aynası (istemci beyanı, server/ocak_service.js); sunucu komutuyla altına çevrilemez.
+function exitable(d) { if (d.task || d.dead || d.tradeLocked || d.busy || d.yerel) fail('dragon_busy', 409); return d; }
 const income = (S, amount, source) => (amount > 0 ? debt.receive(S, amount, source) : { paidDebt: 0, credited: 0 });
 // Y-1 (D15): ejderhanın çıkışından gelen bedel ejderhanın kaynağını korur (dragon.sell ile aynı); başlangıç/bound
 // ejderha satılınca gelir bound girer.

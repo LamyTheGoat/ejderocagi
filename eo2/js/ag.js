@@ -59,10 +59,10 @@
   /* Gösterge: sunucudaki arena payını yerel keseye yansıt. `S.ag` kayıtla birlikte saklanır. */
   let harcaniyor = false;
   function esitle() {
-    if (!eko || typeof S === 'undefined' || !S || !EO2.game || !EO2.game.live) return;
+    if (!eko || !eko.game || typeof S === 'undefined' || !S || !EO2.game || !EO2.game.live) return;      // sunucu ocağı kurulmadan (game.start) taban alınmaz: başlangıç kesesi pay sayılmasın
     let A = S.ag;
     if (!A || A.acct !== eko.accountId) {
-      if (A && A.srv) S.gold -= A.srv;                    // başka hesaba geçildi: eski hesabın payı artık bu keseden okunmaz
+      /* başka hesaba geçildi (misafir çerezi gitti): o ana dek gösterilen pay yerel kesede kalır; oyuncunun altını silinmez */
       A = S.ag = { acct: eko.accountId, base: eko.gold, srv: 0 };   // taban: bağlandığı andaki sunucu altını (başlangıç kesesi) sayılmaz
     }
     const simdi = eko.gold - A.base, fark = simdi - A.srv;

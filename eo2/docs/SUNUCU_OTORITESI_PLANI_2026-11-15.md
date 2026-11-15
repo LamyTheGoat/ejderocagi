@@ -3,6 +3,30 @@
 > 2026-11-15 · yalnız plan, uygulama yok. Her adım ayrı onay ister.
 > Temel alınan belgeler: `ENG06_04_PLAN.md` (P-A…P-G), `MULTIPLAYER_MIGRATION_ROADMAP.md` (F5 alt dilimleri 5a–5h), `ENG13_DELIVERY.md` (tek kese), `server/week_runtime.js` (`week.end`). Bu belge onların sırasını değiştirmez; 2.0'ın bugünkü durumuna göre hangi dilimin ne getirdiğini yazar. Çelişki görülürse o belgeler geçerlidir.
 
+## 0. Güncelleme · D adımı gerçekleşti (aynı gece)
+
+Kullanıcı kararı: **yerel ocak sıfırlanmaz, deftere bir kez içe aktarılır** (aşağıdaki D-b). Uygulanan hâli (`server/ocak_service.js`, `eo2/js/ocak_defteri.js`, komut `ocak.sync`):
+
+- **Ayna:** yerel ocaktaki ejderha ve yumurtalar hesabın defterine `bound` (hesaba bağlı) ve `yerel` damgalı satırlar olarak girer; kimlik = ocak kimliği + yerel kimlik, bu yüzden yeniden gönderme, ikinci sekme ve eski kayıt satır çoğaltmaz. Ayna Bedesten'e, takasa, ödüllü düelloya giremez ve sunucu komutuyla altına çevrilemez. **İstemci beyanıdır; sunucu doğrulamaz.**
+- **Sunucu kökenli (kazanılmış) varlık:** Bedesten'den ya da takasla gelen ejderha, yumurta, kuşam yerel ocağa konur; satılınca yerelden kalkar. İstemci verisiyle güncellenmez. Yerelde ocaktan çıkarsa defterden silinir (altınsız). Kazanılmış yem kilere teslim alınır (tek yön).
+- **Altın içe aktarılmadı:** `gold.import` bağlı altın üretir ve Bedesten yalnız kazanılmış altın kabul eder; içe aktarmanın oyuncuya faydası yok, 2000 tavanı ise zarar verirdi. Gösterge yerel kese + sunucu payı olarak sürüyor.
+- **Yapılmayan (D'nin kalan yarısı):** yerel kayıt hâlâ oyunun kaynağıdır; hafta, bina, yem, ün sunucuda ilerlemez. Sunucu ocağının yer sayısı (in × 2) yerel ocaktan bağımsızdır ve aynalar onu doldurur; sunucu tezgâhından ejderha alımı (S5) bu yüzden bina aynası ya da yer sayımının yerelden alınmasını ister.
+- **Hedef ödülleri:** bağlı ocakta sunucu hedef ödülü yazmaz (yerel oyun öder); aksi hâlde aynalar sunucu hedeflerini tetikleyip çift ödeme yapardı. S4'te tersine çevrilecek.
+
+Bu adımdan sonra iş büyüklükleri:
+
+| Adım | Önce | Şimdi | Neden |
+|---|---|---|---|
+| S5' Locadan teklif satışı | K (defterden sonra) | **Yapıldı** (kazanılmış ejderha için `offer.sell`) | Yerel kökenli ejderhada satış hâlâ yerel: değeri doğrulanamaz |
+| S7 Müzayedede kendi ejderhanı satma | O | **K** | `auction.sell` hazır; kazanılmış ejderha için yalnız istemci bağı kaldı. Ayna için kapalı kalır |
+| S6 Sipariş teslimi | O | **K–O** | `order.deliver` hazır ve gen şartını sunucu kopyasında doğrular; kazanılmış ejderha için bağlanabilir. Pano hâlâ yerelde üretiliyor (B-13) |
+| S5 Pazar tezgâhı | O | **O** | Komutlar hazır, alınan mal artık yerel ocakta görünür; engel yer sayısı ve tezgâhın sunucu haftasıyla yenilenmesi |
+| S3 Hafta sonu | B | **B** | Değişmedi: `week.end` aynaları yaşlandırır ama yerel hafta ayrı ilerler. Önce "tek hafta" kararı gerekir |
+| S4 Hedefler | K (S3'ten sonra) | **K (S3'ten sonra)** | Değişmedi |
+| S1 Kıraathane, S2 Yarış | K, B | **K, B** | Bağımsızdı, hâlâ bağımsız |
+
+Sıradaki en küçük anlamlı adım: **S7 + S6'nın kazanılmış ejderha kısmı** (iki istemci bağı) ya da **S1 Kıraathane**.
+
 ## 1. Bugünkü durum
 
 | Akış | Durum |
@@ -66,11 +90,11 @@ ROADMAP'teki karşılığı: A = 5d (V2: girdi + tohumla yeniden oynatma), B = 5
    └─ S11 Giderler + kese birleşmesi; gold.local kapanır     [O]      (ROADMAP 5g)
 ```
 
-S1 ve S2 bugün başlatılabilir (arena ile aynı kalıp: iddia edilen girdi + tohum + yeniden oynatma/zar). **D adımı en büyük ve en riskli iştir** ve kullanıcı kararı ister: yerel kayıt sunucuya nasıl taşınacak (ENG06_04 §9 "yerel geçmişin taşınması: otomatik earned aktarım yok" ve ENG-13'ün `gold.import` 2000 tavanı bugünkü kurallardır; 2.0 oyuncusunun birikmiş yerel ocağı için ayrı bir geçiş kararı gerekir).
+S1 ve S2 bugün başlatılabilir (arena ile aynı kalıp: iddia edilen girdi + tohum + yeniden oynatma/zar). **D adımı en büyük ve en riskli iştir** (ilk yarısı yapıldı, bkz. §0) ve kullanıcı kararı ister: yerel kayıt sunucuya nasıl taşınacak (ENG06_04 §9 "yerel geçmişin taşınması: otomatik earned aktarım yok" ve ENG-13'ün `gold.import` 2000 tavanı bugünkü kurallardır; 2.0 oyuncusunun birikmiş yerel ocağı için ayrı bir geçiş kararı gerekir).
 
 D adımı için iki yol var; seçim kullanıcıya aittir:
 - **D-a · Sunucu ocağı esas, yerel ocak sıfırlanır:** yeni sezonla birlikte herkes sunucu ocağından başlar. En temiz; birikmiş yerel ilerleme kaybolur.
-- **D-b · Tek seferlik içe aktarma:** yerel ejderhalar ve binalar sunucuya bir kez, `bound` (takas edilemez) olarak alınır (D15 ile uyumlu), altın `gold.import` kuralıyla. İstemci beyanına bir kez güvenilir; sonrası sunucuda. ENG-13'ün `economy_sync.js` eşleme mantığı (assetId, `reconcile`) yeniden kullanılır.
+- **D-b · Tek seferlik içe aktarma (SEÇİLDİ, 2026-11-15):** yerel ejderhalar ve binalar sunucuya bir kez, `bound` (takas edilemez) olarak alınır (D15 ile uyumlu), altın `gold.import` kuralıyla. İstemci beyanına bir kez güvenilir; sonrası sunucuda. ENG-13'ün `economy_sync.js` eşleme mantığı (assetId, `reconcile`) yeniden kullanılır.
 
 ## 5. `gold.local` ne zaman kapanır
 

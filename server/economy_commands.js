@@ -7,6 +7,7 @@ const sources = require('./economy_sources');
 const debt = require('./economy_debt');
 const week = require('./week_runtime');
 const localIncome = require('./local_income'); // ENG-13: tek kese (yerel akışların sunucu komutları)
+const ocak = require('./ocak_service'); // 2.0 yerel ocağının deftere bağlanması (ayna varlıklar, bırakma, yem teslimi)
 const arena = require('./arena_service'); // Arena PvE: dövüş sunucuda yeniden oynatılır, ödülü sunucu hesaplar
 
 // Execute only repository-owned rules. No command name, argument or client text
@@ -78,6 +79,7 @@ const SHAPES = Object.freeze({
   'topcu.clear': ['mode'], 'topcu.spin': ['wheel'], 'goal.reach': ['id'],
   'gold.local': ['amount', 'reason'], 'gold.import': ['amount'],
   'arena.open': ['spec'], 'arena.settle': ['acts', 'fightId'], 'arena.story': ['id'],
+  'ocak.sync': ['body'],
 });
 // Borç varken reddedilen harcama komutları (D4). Ayrıca her `spend` aynı kapıdan geçer.
 const DEBT_BLOCKED = new Set(['building.buy', 'land.clear', 'shop.food', 'shop.item', 'shop.dragon', 'shop.egg',
@@ -96,6 +98,7 @@ function validateCommand(input) {
     else if (key === 'tile') { if (!Number.isSafeInteger(value) || value < 0) fail('invalid_arguments'); }
     else if (key === 'id') { if (!(typeof value === 'string' || Number.isSafeInteger(value))) fail('invalid_arguments'); }
     else if (key === 'amount') { if (!Number.isSafeInteger(value) || Math.abs(value) > 1_000_000 || (value === 0 && input.type !== 'gold.import')) fail('invalid_arguments'); }
+    else if (input.type === 'ocak.sync' && key === 'body') { if (typeof value !== 'string' || !value || value.length > 400_000) fail('invalid_arguments'); }
     else if (input.type === 'arena.open' && key === 'spec') { if (typeof value !== 'string' || !value || value.length > 6000) fail('invalid_arguments'); }
     else if (input.type === 'arena.settle' && key === 'acts') { if (typeof value !== 'string' || !value || value.length > 1200) fail('invalid_arguments'); }
     else if (typeof value !== 'string' || !value || value.length > 100) fail('invalid_arguments');
@@ -193,7 +196,7 @@ function reduceCommand(previous, command, { accountId, seed, now }) {
     }
     case 'dragon.sell': {
       const dragon = owned(S.dragons, a.assetId);
-      if (dragon.task || dragon.dead || dragon.tradeLocked) fail('dragon_busy', 409);
+      if (dragon.task || dragon.dead || dragon.tradeLocked || dragon.yerel) fail('dragon_busy', 409); // ayna (yerel beyan) sunucuda altına çevrilemez
       result.credit = debt.receive(S, Math.round(api.value(dragon) * 0.6), dragon.funding);
       for (const slot of Object.keys(dragon.equip)) dragon.equip[slot] = null;
       api.linReg(dragon); S.dragons = S.dragons.filter(d => d !== dragon);
@@ -208,7 +211,7 @@ function reduceCommand(previous, command, { accountId, seed, now }) {
     case 'egg.hatch': {
       const egg = owned(S.eggs, a.assetId);
       // w is advanced only by the server week.end command, never by client time.
-      if (!egg.inK || egg.w < (api.perk('yumurtaci', 50) ? 1 : 2) || api.freeSlots() < 1) fail('egg_not_ready', 409);
+      if (egg.yerel || !egg.inK || egg.w < (api.perk('yumurtaci', 50) ? 1 : 2) || api.freeSlots() < 1) fail('egg_not_ready', 409);
       const beforeUn = S.un;
       const hatched = api.hatchEgg(egg); hatched.d.funding = egg.funding;
       S.milestoneSources.hatch = sources.combine([S.milestoneSources.hatch || 'earned', egg.funding]);
@@ -255,6 +258,7 @@ function reduceCommand(previous, command, { accountId, seed, now }) {
     }
     case 'ocak.rebuild': result = debt.rebuild(S, undefined, now); break; // ENG-12: 8 hafta + 24 sa (sunucu saati)
     default:
+      if (ocak.TYPES.has(command.type)) { result = ocak.reduce(command.type, S, a, { api, now }); break; }
       if (arena.TYPES.has(command.type)) { result = arena.reduce(command.type, S, a, { api, now }); break; }
       if (!localIncome.TYPES.has(command.type)) fail('unsupported_command');
       result = localIncome.reduce(command.type, S, a, { api, now, owned, spend });
@@ -264,6 +268,9 @@ function reduceCommand(previous, command, { accountId, seed, now }) {
   const beforeGoals = S.gold;
   result.goals = api.checkGoals().map(g => ({ id: g.id, gold: g.r, source: sources.goalSource(S, g.id) }));
   S.gold = beforeGoals;
+  // 2.0'a bağlı ocakta hedef ödüllerini şimdilik yerel oyun öder (plan S4). Sunucu aynı hedefi ikinci kez ödemesin diye
+  // hedef burada yalnız "görüldü" sayılır; altın yazılmaz. Bağlı olmayan (eski oyun) hesaplarda davranış aynen sürer.
+  if (S.ocak) result.goals = [];
   for (const reward of result.goals) debt.receive(S, reward.gold, reward.source);
   if (command.type === 'week.end') week.closeDebtWeek(S, result);
   if (!Number.isSafeInteger(S.gold) || S.gold < -2_000_000_000 || S.gold > 2_000_000_000) fail('gold_limit', 409);
