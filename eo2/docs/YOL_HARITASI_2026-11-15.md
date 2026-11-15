@@ -22,7 +22,7 @@
 | Ocak sahnesi cilası | bitti | Yeni çizim üretilemedi (Midjourney bakiyesi); gece görünüşü doğrulanmadı |
 | Ocağın sunucu defterine içe aktarılması, Bedesten köprüsü | bitti | Karar: içe aktar (2026-11-16). Aynalar istemci beyanı; altın içe aktarılmadı |
 | Hesap tezgâhı: sunucu pazar stoğu Gece Çarşısı'nda (ejderha, yumurta) | bitti | Kazanılmış altınla alınan mal Bedesten'de satılabilir. Çift başlangıç kesesi bağlanınca sıfırlanır (karar 2026-11-16); tezgâh arena kazancıyla açılır. Kazanılmış alım tarayıcıda değil, birim testinde doğrulandı |
-| Hedef ödülleri sunucuda (`goal.reach`, hesap başına bir kez) | bitti | Koşul yerel oyunda gerçekleşir (istemci beyanı). Aynı hesapta yeniden kurulan ocakta alınmış ödül yeniden yazılmaz. Kariyer hedefleri hâlâ yerelde |
+| Hedef ödülleri sunucuda (`goal.reach`, hesap başına bir kez) | bitti | Koşul yerel oyunda gerçekleşir (istemci beyanı). Aynı hesapta yeniden kurulan ocakta alınmış ödül yeniden yazılmaz. (kullanıcı kararı 2026-11-16: bir kez kalır) Kariyer hedefleri hâlâ yerelde |
 | Kor Örsü ve kuşam yükseltme | bekliyor | Bkz. 2.3 |
 | Çok oyunculu zindan (ortak boss) | bekliyor | Bkz. 2.2 |
 
