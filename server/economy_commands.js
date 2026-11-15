@@ -7,6 +7,7 @@ const sources = require('./economy_sources');
 const debt = require('./economy_debt');
 const week = require('./week_runtime');
 const localIncome = require('./local_income'); // ENG-13: tek kese (yerel akışların sunucu komutları)
+const arena = require('./arena_service'); // Arena PvE: dövüş sunucuda yeniden oynatılır, ödülü sunucu hesaplar
 
 // Execute only repository-owned rules. No command name, argument or client text
 // is interpolated as JavaScript. Each transaction attempt gets its own context.
@@ -76,6 +77,7 @@ const SHAPES = Object.freeze({
   'dragon.die': ['assetId'], 'auction.sell': ['assetId'], 'offer.sell': ['assetId'], 'order.deliver': ['assetId', 'spec'],
   'topcu.clear': ['mode'], 'topcu.spin': ['wheel'], 'goal.reach': ['id'],
   'gold.local': ['amount', 'reason'], 'gold.import': ['amount'],
+  'arena.open': ['spec'], 'arena.settle': ['acts', 'fightId'],
 });
 // Borç varken reddedilen harcama komutları (D4). Ayrıca her `spend` aynı kapıdan geçer.
 const DEBT_BLOCKED = new Set(['building.buy', 'land.clear', 'shop.food', 'shop.item', 'shop.dragon', 'shop.egg',
@@ -94,6 +96,8 @@ function validateCommand(input) {
     else if (key === 'tile') { if (!Number.isSafeInteger(value) || value < 0) fail('invalid_arguments'); }
     else if (key === 'id') { if (!(typeof value === 'string' || Number.isSafeInteger(value))) fail('invalid_arguments'); }
     else if (key === 'amount') { if (!Number.isSafeInteger(value) || Math.abs(value) > 1_000_000 || (value === 0 && input.type !== 'gold.import')) fail('invalid_arguments'); }
+    else if (input.type === 'arena.open' && key === 'spec') { if (typeof value !== 'string' || !value || value.length > 6000) fail('invalid_arguments'); }
+    else if (input.type === 'arena.settle' && key === 'acts') { if (typeof value !== 'string' || !value || value.length > 1200) fail('invalid_arguments'); }
     else if (typeof value !== 'string' || !value || value.length > 100) fail('invalid_arguments');
   }
   const command = { requestId: input.requestId, expectedVersion: input.expectedVersion, type: input.type, args: Object.fromEntries(Object.entries(args).sort(([a], [b]) => a.localeCompare(b))) };
@@ -251,6 +255,7 @@ function reduceCommand(previous, command, { accountId, seed, now }) {
     }
     case 'ocak.rebuild': result = debt.rebuild(S, undefined, now); break; // ENG-12: 8 hafta + 24 sa (sunucu saati)
     default:
+      if (arena.TYPES.has(command.type)) { result = arena.reduce(command.type, S, a, { api, now }); break; }
       if (!localIncome.TYPES.has(command.type)) fail('unsupported_command');
       result = localIncome.reduce(command.type, S, a, { api, now, owned, spend });
   }

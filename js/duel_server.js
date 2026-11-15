@@ -14,6 +14,11 @@ function createDragonDuelServer(deps) {
   const rooms = new Map();
   const starting = new Set();
   const pending = new Set();
+  // Er Meydanı lobisi (EO 2.0): görev bulucu mantığı. Oyuncu lobiye ejderhasının savaş verisiyle GİRER (ayrı bir
+  // /api/sync beklenmez; "ilk davet düşüyor" pürüzü böyle kapanır), sonra kuyruğa girer, açık oda kurar, açık odaya
+  // katılır ya da birini davet eder. Lobi maçları dostça (vitrin) odadır: kayıt yok, ÖDÜL YOK.
+  const lobby = new Map();      // handle → { handle, star, fighter, queued, room, since }
+  const LOBBY_MAX = 300;
   const INVITE_TTL = 30_000;
   const DISCONNECT_GRACE = 30_000;
   const ROOM_TTL = 3 * 60_000;
@@ -49,6 +54,12 @@ function createDragonDuelServer(deps) {
   const isRegistered = socket => !!(socket && socket.playerInfo && socket.playerInfo.xVerified === true);
   const socketFor = handle => [...WS_CLIENTS].find(s => !s.destroyed && isAuthed(s) && handleOf(s) === handle) || null;
   const playerFor = handle => WORLD.players && WORLD.players[handle] || null;
+  // Dostça düellonun savaşçı kaynağı: önce lobi kaydı (EO 2.0), yoksa /api/sync ile gelen meydan kaydı (eski istemci).
+  const duelData = handle => {
+    const L = lobby.get(handle), P = playerFor(handle);
+    if (L) return { guild: P && P.guild, title: P && P.title, defenseBonus: P && P.defenseBonus, chibi: P && P.chibi || null, star: L.star, duelFighter: L.fighter };
+    return P;
+  };
   const validAssetId = v => typeof v === 'string' && v.length > 0 && v.length <= 200;
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
   // Arka plan iş: hata yutulur (oda zaten kullanıcıya bildirilir); test/kapanış `idle()` ile bekler.
@@ -127,6 +138,7 @@ function createDragonDuelServer(deps) {
     }
     if (room.fight.over && !room.cleanupTimer) {
       room.finishedAt = Date.now();
+      lobbyBroadcast();
       room.cleanupTimer = setTimeout(() => rooms.delete(room.id), ROOM_TTL);
       if (room.cleanupTimer.unref) room.cleanupTimer.unref();
     }
@@ -176,6 +188,7 @@ function createDragonDuelServer(deps) {
     const handle = handleOf(socket);
     if (!handle || !socket.playerInfo || !socket.playerInfo.authenticated) return;
     if (socketFor(handle)) return;
+    lobbyDrop(handle);
     for (const room of rooms.values()) {
       if (room.fight.over || (room.p1.handle !== handle && room.p2.handle !== handle)) continue;
       if (room.disconnectTimer) clearTimeout(room.disconnectTimer);
@@ -231,7 +244,7 @@ function createDragonDuelServer(deps) {
     if (liveRoomFor(to)) return sendError(socket, 'Rakibin şu anda başka bir düelloda.');
     const targetSocket = socketFor(to);
     if (!targetSocket) return sendError(socket, `${to} şu anda çevrimiçi değil.`);
-    const p1 = playerFor(from);
+    const p1 = duelData(from);
     if (Object.hasOwn(msg, 'dragonAssetId')) {
       // Ödüllü oda: istemci yalnız hangi ejderhayla gireceğini söyler; istatistik/sahiplik sunucu defterinden.
       const fromAccount = accountOf(socket), toAccount = accountOf(targetSocket);
@@ -248,9 +261,9 @@ function createDragonDuelServer(deps) {
         issueInvite(socket, socketFor(to), from, to, { economy: true, fromAccount, dragonAssetId }, entry.dragon, p1 && p1.chibi);
       });
     }
-    const p2 = playerFor(to);
-    if (!p1 || !p1.star || !p1.duelFighter) return sendError(socket, 'Ejderhanın savaş verileri sunucuya henüz eşitlenmedi. Meydana dönüp tekrar dene.');
-    if (!p2 || !p2.star || !p2.duelFighter) return sendError(socket, 'Rakibin ejderhası henüz meydan verilerini eşitlemedi.');
+    const p2 = duelData(to);
+    if (!p1 || !p1.star || !p1.duelFighter) return sendError(socket, 'Ejderhanın savaş verileri sunucuya henüz eşitlenmedi. Meydana dönüp tekrar dene.', { code: 'sync_required' });
+    if (!p2 || !p2.star || !p2.duelFighter) return sendError(socket, 'Rakibin ejderhası henüz meydan verilerini eşitlemedi.', { code: 'opponent_sync_required' });
     issueInvite(socket, targetSocket, from, to, {}, p1.star, p1.chibi);
   }
 
@@ -319,21 +332,74 @@ function createDragonDuelServer(deps) {
       return sendError(socket, 'Rakip artık hazır değil; düello başlatılamadı.');
     }
     if (pendingInvite.economy) return startEconomyRoom(socket, senderSocket, pendingInvite, msg);
-    const p1 = playerFor(pendingInvite.from), p2 = playerFor(pendingInvite.to);
+    if (!startShowRoom(pendingInvite.from, pendingInvite.to, 'invite')) return sendError(socket, 'Ejderha savaş verileri eksik; düello başlatılamadı.');
+  }
+
+  // Dostça (vitrin) oda: kayıt, ödül ve settlement YOK. Davet, kuyruk eşleşmesi ve açık oda aynı yoldan açılır.
+  function startShowRoom(h1, h2, via) {
+    const p1 = duelData(h1), p2 = duelData(h2);
     const f1 = p1 && cleanFighter(p1.duelFighter, p1.star);
     const f2 = p2 && cleanFighter(p2.duelFighter, p2.star);
-    if (!f1 || !f2) return sendError(socket, 'Ejderha savaş verileri eksik; düello başlatılamadı.');
+    if (!f1 || !f2) return null;
     const id = 'dragon_' + crypto.randomBytes(10).toString('hex');
-    const room = {
-      id,
-      p1: { handle: pendingInvite.from, guild: p1.guild || 'Gezgin Ocak', title: p1.title || 'Ocak Ustası', defenseBonus: p1.defenseBonus || 12, chibi: p1.chibi || null, dragon: p1.star },
-      p2: { handle: pendingInvite.to, guild: p2.guild || 'Gezgin Ocak', title: p2.title || 'Ocak Ustası', defenseBonus: p2.defenseBonus || 12, chibi: p2.chibi || null, dragon: p2.star },
-      fight: DuelEngine.createFight(f1, f2),
-      actions: {}, disconnectTimer: null, cleanupTimer: null,
-    };
+    const seat = (h, p) => ({ handle: h, guild: p.guild || 'Gezgin Ocak', title: p.title || 'Ocak Ustası', defenseBonus: p.defenseBonus || 12, chibi: p.chibi || null, dragon: p.star });
+    const room = { id, p1: seat(h1, p1), p2: seat(h2, p2), fight: DuelEngine.createFight(f1, f2), actions: {}, disconnectTimer: null, cleanupTimer: null, via };
     rooms.set(id, room);
-    send(senderSocket, roomMessage(room, 'duel_room_start', pendingInvite.from));
-    send(socket, roomMessage(room, 'duel_room_start', pendingInvite.to));
+    for (const h of [h1, h2]) { const L = lobby.get(h); if (L) { L.queued = false; L.room = false; } }
+    send(socketFor(h1), roomMessage(room, 'duel_room_start', h1, { via }));
+    send(socketFor(h2), roomMessage(room, 'duel_room_start', h2, { via }));
+    lobbyBroadcast();
+    return room;
+  }
+
+  // ---------- Er Meydanı lobisi ----------
+  const lobbyStatus = L => (liveRoomFor(L.handle) ? 'fight' : L.queued ? 'queue' : L.room ? 'room' : 'idle');
+  const power = f => Math.round((f.gu + f.ce + f.da + f.ze) / 4);
+  function lobbyView(forHandle) {
+    const list = [...lobby.values()].filter(L => socketFor(L.handle));
+    return {
+      type: 'duel_lobby_state', you: forHandle,
+      players: list.map(L => ({ handle: L.handle, status: lobbyStatus(L), dragon: copy(L.star), power: power(L.fighter), since: L.since })),
+      queue: list.filter(L => L.queued).length, rewards: false,
+    };
+  }
+  function lobbyBroadcast() { for (const L of lobby.values()) send(socketFor(L.handle), lobbyView(L.handle)); }
+  function lobbyDrop(handle) { if (lobby.delete(handle)) lobbyBroadcast(); }
+  function lobbyMatch() {
+    const waiting = [...lobby.values()].filter(L => L.queued && socketFor(L.handle) && !liveRoomFor(L.handle)).sort((a, b) => a.queuedAt - b.queuedAt);
+    while (waiting.length >= 2) { const a = waiting.shift(), b = waiting.shift(); if (!startShowRoom(a.handle, b.handle, 'queue')) { a.queued = b.queued = false; } }
+  }
+  function lobbyMessage(socket, msg) {
+    if (!isAuthed(socket)) return sendError(socket, 'Er Meydanı için oyuncu oturumu gerekir.');
+    const handle = handleOf(socket), action = String(msg.action || '');
+    if (action === 'enter') {
+      // Savaşçı istemcinin yerel ejderhasından gelir (dostça oda; ödül olmadığı için sunucu defteri aranmaz).
+      const star = msg.star && typeof msg.star === 'object' && !Array.isArray(msg.star) ? msg.star : null;
+      let size = 0; try { size = JSON.stringify(star).length; } catch (_) { size = Infinity; }
+      const fighter = star && size <= 12000 ? cleanFighter(msg.duelFighter, star) : null;
+      if (!fighter) return sendError(socket, 'Ejderhanın savaş verisi okunamadı.', { code: 'sync_required' });
+      if (!lobby.has(handle) && lobby.size >= LOBBY_MAX) return sendError(socket, 'Er Meydanı şu an dolu.', { code: 'lobby_full' });
+      const old = lobby.get(handle), busy = !!liveRoomFor(handle);
+      // Dövüş sürerken savaşçı değiştirilemez; kuyruk ve oda durumu sıfırlanır.
+      lobby.set(handle, { handle, star: busy && old ? old.star : copy(star), fighter: busy && old ? old.fighter : fighter, queued: false, room: false, since: old ? old.since : Date.now() });
+      return lobbyBroadcast();
+    }
+    const L = lobby.get(handle);
+    if (!L) return sendError(socket, 'Önce Er Meydanı\'na gir.', { code: 'lobby_required' });
+    if (action === 'leave') return lobbyDrop(handle);
+    if (action === 'state') return send(socket, lobbyView(handle));
+    if (liveRoomFor(handle)) return sendError(socket, 'Zaten devam eden bir düellodasın.', { code: 'duel_busy' });
+    if (action === 'queue') { L.queued = true; L.room = false; L.queuedAt = Date.now(); lobbyMatch(); return lobbyBroadcast(); }
+    if (action === 'unqueue') { L.queued = false; return lobbyBroadcast(); }
+    if (action === 'room_open') { L.room = true; L.queued = false; return lobbyBroadcast(); }
+    if (action === 'room_close') { L.room = false; return lobbyBroadcast(); }
+    if (action === 'room_join') {
+      const host = lobby.get(String(msg.host || ''));
+      if (!host || host.handle === handle || !host.room || !socketFor(host.handle) || liveRoomFor(host.handle)) { lobbyBroadcast(); return sendError(socket, 'Bu oda artık açık değil.', { code: 'room_closed' }); }
+      if (!startShowRoom(host.handle, handle, 'room')) return sendError(socket, 'Ejderha savaş verileri eksik; düello başlatılamadı.', { code: 'sync_required' });
+      return;
+    }
+    sendError(socket, 'Bilinmeyen Er Meydanı isteği.');
   }
 
   function submitAction(socket, msg) {
@@ -372,8 +438,9 @@ function createDragonDuelServer(deps) {
   }
 
   function onMessage(socket, msg) {
-    if (!msg || !['duel_invite', 'duel_invite_reply', 'duel_action', 'duel_leave'].includes(msg.type)) return false;
-    if (msg.type === 'duel_invite') invite(socket, msg);
+    if (!msg || !['duel_invite', 'duel_invite_reply', 'duel_action', 'duel_leave', 'duel_lobby'].includes(msg.type)) return false;
+    if (msg.type === 'duel_lobby') lobbyMessage(socket, msg);
+    else if (msg.type === 'duel_invite') invite(socket, msg);
     else if (msg.type === 'duel_invite_reply') reply(socket, msg);
     else if (msg.type === 'duel_action') submitAction(socket, msg);
     else if (msg.type === 'duel_leave') leave(socket, msg);

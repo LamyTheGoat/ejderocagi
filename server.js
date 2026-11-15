@@ -891,7 +891,9 @@ async function handleHttp(req, res) {
     req.resume();
     let identity = req.identity;
     if (!identity) {
-      if (GUEST_SESSIONS.tokenFrom(req) !== null) return sendJson(res, 401, { ok: false, error: 'invalid_guest_session' });
+      // EO 2.0 (eo2/js/ag.js): `?yeni=1` ile gelen istekte GEÇERSİZ/eskimiş çerez yok sayılır ve yeni misafir açılır (sunucu yeniden
+      // başlayınca eski çerez 401 döngüsüne sokmasın). Geçerli oturum asla değiştirilmez; hız sınırları aynen uygulanır.
+      if (GUEST_SESSIONS.tokenFrom(req) !== null && parsedUrl.searchParams.get('yeni') !== '1') return sendJson(res, 401, { ok: false, error: 'invalid_guest_session' });
       if (!allowGuestCreation(req)) return sendJson(res, 429, { ok: false, error: 'guest_creation_rate_limited' });
       await ECONOMY.consumeRate('guest-ip:'+req.socket.remoteAddress,20,60000);
       identity = await ECONOMY.createGuest();

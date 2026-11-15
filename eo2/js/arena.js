@@ -1,6 +1,10 @@
 /* Ejder Ocağı 2.0 · Arena: kademeler, rakip ilanları, tur tabanlı dövüş ve turnuvalar
    Dövüş motoru oyunun kendisidir (js/core.js: newFight, fightRound; js/week.js: fightOutcome, rollDeath). Sonuç, ödül ve ölüm
-   zarı eski arayüzdeki finishFight / finishTourRound ile aynı sırayla işlenir. Maç öncesi ve sonrası hikâye sahneleri henüz yok. */
+   zarı eski arayüzdeki finishFight / finishTourRound ile aynı sırayla işlenir.
+   ALTIN SUNUCUDADIR (eo2/js/ag.js, server/arena_service.js): kademe ve turnuva dövüşleri sunucuda açılır (arena.open), turlar
+   sunucunun tohumuyla oynanır, bitince yalnız hamle listesi gider (arena.settle); sunucu dövüşü yeniden oynatıp ödülü kendi yazar.
+   Bu dosya arena altınını yerel keseye YAZMAZ. Sunucu yoksa dövüş oynanır, altın ödülü yazılmaz ve ekranda söylenir.
+   Er Meydanı (oyuncuya karşı dostça düello) aynı dövüş sahnesinde oynanır; hamleler sunucuya gider, ödül yoktur. */
 (function () {
   'use strict';
   const EO2 = window.EO2, G = EO2.game, el = G.el, app = document.getElementById('app');
@@ -11,6 +15,31 @@
   /* oyunun kule mantığı (endgame.js) dövüş durumunu küresel FT adıyla kurar ve okur; buradaki duruma bağlanır */
   Object.defineProperty(window, 'FT', { configurable: true, get: () => FT, set: v => { FT = v; } });
   const pickAuto = () => { const x = autoChoose(FT.F.p, FT.F.e); return can(x) ? x : 'pence'; };      // otomatik dövüş: oyunun kendi dövüş zekâsı oyuncu adına seçer
+
+  /* ---------- sunucu bağı ---------- */
+  const cevrimici = () => !!(EO2.ag && EO2.ag.cevrimici());
+  const P_KEYS = ['name', 'el', 'mood', 'cards', 'gu', 'ce', 'da', 'ze', 'atk', 'def', 'crit', 'dodge', 'nefesB', 'maxHp', 'hp', 'sta', 'bond', 'saves', 'cesur', 'temkinli', 'demir', 'vahsi', 'bondUsed', 'heart', 'tired'];
+  const O_KEYS = ['name', 'trainer', 'arch', 'el', 'st', 'gear', 'eye', 'mood', 'traits', 'cards', 'gx', 'genes', 'story', 'odul'];
+  const sec = (o, keys) => { const r = {}; for (const k of keys) if (o[k] !== undefined && o[k] !== null) r[k] = o[k]; return r; };
+  const BAHIS_PAYI = { 180: 80 };                          // js/fightev.js: 80 altın yatırılır, kazanırsa 180 öder
+  const HATA = { baglanti_yok: 'sunucuya ulaşılamadı', rate_limited: 'sunucu şu an çok yoğun', arena_reward_invalid: 'sunucu bu ilanın ödülünü tanımadı', arena_opp_invalid: 'sunucu bu rakibi tanımadı', arena_fighter_invalid: 'sunucu dövüşçü verisini kabul etmedi' };
+  const neden = e => HATA[e && e.code] || (e && e.code) || 'bilinmeyen hata';
+  /* Yalnız tur çözülürken oyunun rastgeleliği sunucunun tohumuna bağlanır; böylece sunucu aynı dövüşü yeniden oynatabilir. */
+  const tohumla = (rnd, fn) => { const o = Math.random; Math.random = rnd; try { return fn(); } finally { Math.random = o; } };
+  /* Dövüş kurulduktan (destekler, turnuva canı) sonra, sahne açılmadan önce: dövüşü sunucuda aç. */
+  async function sunucuAc() { const F = FT.F; FT.srv = null;
+    if (FT.mode === 'kule') return;                        // Gök Kulesi kendi kurallarıyla yerelde kalır (js/endgame.js)
+    const cevrimdisi = why => { FT.cevrimdisi = true; FT.log.push({ t: '<b>Çevrimdışı:</b> bu dövüşün altın ödülü yazılmayacak (' + why + ').', c: 'kotu' });
+      if (FT.bet && BAHIS_PAYI[FT.bet]) { S.gold += BAHIS_PAYI[FT.bet]; FT.log.push({ t: 'Bahis geçersiz sayıldı; yatırdığın ' + BAHIS_PAYI[FT.bet] + ' altın iade edildi.', c: 'soluk' }); FT.bet = 0; } };
+    if (!cevrimici()) return cevrimdisi('sunucuya bağlı değilsin');
+    const spec = { mode: FT.mode === 'tour' ? 'tour' : 'tier', week: S.week, season: typeof seasonNo === 'function' ? seasonNo() : 1, p: sec(F.p, P_KEYS), opp: sec(FT.opp, O_KEYS) };
+    if (spec.mode === 'tour') { spec.tour = S.tour.id; spec.round = S.tour.round; } else { spec.tier = FT.tier; spec.bet = FT.bet || 0; spec.goldB = equipStats(FT.d).gold || 0; }
+    try { const a = (await EO2.ag.komut('arena.open', { spec: JSON.stringify(spec) })).result.arena; Object.assign(F.p, a.p); Object.assign(F.e, a.e); FT.srv = { id: a.fightId, rnd: EO2.ag.rng(a.seed), acts: [], odul: a.reward }; }
+    catch (e) { cevrimdisi(neden(e)); } }
+  /* Dövüş bitince: hamle listesini gönder, sunucunun kararını al. Döner: { ok, gold, a } ya da { ok: false, why, bekliyor } */
+  async function sunucuBitir() { if (!FT.srv) return { ok: false, why: 'çevrimdışı' };
+    try { const a = await EO2.ag.arenaBitir(FT.srv.id, FT.srv.acts); if (a.winner !== FT.F.winner) { console.warn('[arena] sunucu sonucu farklı', a.winner, FT.F.winner); FT.F.winner = a.winner; FT.F.surrender = a.surrender; } return { ok: true, gold: a.gold, a }; }
+    catch (e) { return { ok: false, why: neden(e), bekliyor: !e.status || e.status >= 500 }; } }
 
   /* ---------- olay metni (eski evText ile aynı cümleler) ---------- */
   function evText(ev) { const F = FT.F, a = ev.who === 'p' ? F.p : F.e, t = ev.who === 'p' ? F.e : F.p, A = '<b>' + esc(a.name) + '</b>';
@@ -44,11 +73,11 @@
     document.getElementById('hpPt').textContent = Math.max(0, v.p.hp) + ' / ' + F.p.maxHp; document.getElementById('hpEt').textContent = Math.max(0, v.e.hp) + ' / ' + F.e.maxHp;
     document.getElementById('hpP').classList.toggle('az', v.p.hp / F.p.maxHp < 0.3); document.getElementById('hpE').classList.toggle('az', v.e.hp / F.e.maxHp < 0.3);
     document.getElementById('dovTur').textContent = 'Tur ' + Math.max(1, F.round + (F.over ? 0 : 1)) + ' / 30'; }
-  function paint() { bars(); const box = document.getElementById('dovAct'), p = FT.F.p; if (FT.F.over) { box.innerHTML = ''; return; }
+  function paint() { bars(); const box = document.getElementById('dovAct'), p = FT.F.p, mp = FT.mode === 'mp'; if (FT.F.over) { box.innerHTML = ''; return; }
     const IK = { pence: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.600" stroke-linecap="round"><path d="M6 3c1.600 6 2 11 0 18M12 2c1.600 7 2 13 0 20M18 3c1.600 6 2 11 0 18"/></svg>', nefes: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.500 2c1 4-3.500 6-3.500 10 0 1.500.8 2.600 1.800 3-.2-2 .9-3.200 2-4.200.3 2.500 3.200 3.400 3.200 6.400 0 2.700-2 4.800-4.800 4.800C7.600 22 5 19.400 5 15.600 5 9.800 11 8 12.500 2z"/></svg>', kukre: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round"><path d="M4 9v6M9 5v14M14 8v8M19 3v18"/></svg>', savun: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l8 3v6c0 5-3.500 9-8 11-4.500-2-8-6-8-11V5z"/></svg>', teslim: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 2h2v20H5zM8 3h11l-3 4 3 4H8z"/></svg>' };
-    const B = (x, t, sub, cls) => { const card = x.startsWith('card:') ? x.slice(5) : null; return '<button type="button" class="beceri ' + (cls || '') + '" data-x="' + x + '" ' + (can(x) && !FT.busy ? '' : 'disabled') + ' title="' + (card && CARDS[card].d ? CARDS[card].d : '') + '"><i>' + (card ? '<img alt="" src="' + G.OLD + 'img/ui/card-' + card + '.webp">' : IK[x] || '') + '</i><b>' + t + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</button>'; };
+    const B = (x, t, sub, cls) => { const card = x.startsWith('card:') ? x.slice(5) : null; return '<button type="button" class="beceri ' + (cls || '') + '" data-x="' + x + '" ' + (can(x) && !FT.busy && !FT.bekle ? '' : 'disabled') + ' title=""' + (card && CARDS[card].d ? CARDS[card].d : '') + '"><i>' + (card ? '<img alt="" src="' + G.OLD + 'img/ui/card-' + card + '.webp">' : IK[x] || '') + '</i><b>' + t + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</button>'; };
     box.innerHTML = B('pence', 'Pençe', '', 'altin') + B('nefes', EL_AD[p.el] + ' nefesi', NEFES_COST + ' nefes', 'kor') + B('kukre', 'Kükre', '15 nefes', '') + B('savun', 'Savun', 'nefes toplar', 'cini') +
-      p.cards.filter(k => !(p.used || []).includes(k)).map(k => B('card:' + k, CARDS[k].ad, 'kart', 'kart')).join('') + '<span class="ara"></span>' + '<button type="button" class="beceri kucuk' + (FT.auto ? ' secili' : '') + '" data-auto="1"><i><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4l9 8-9 8zM13 4l9 8-9 8z"/></svg></i><b>Otomatik</b></button>' + B('teslim', 'Teslim ol', '', 'kucuk');
+      p.cards.filter(k => !(p.used || []).includes(k)).map(k => B('card:' + k, CARDS[k].ad, 'kart', 'kart')).join('') + '<span class="ara"></span>' + (mp ? '<span class="dov-bekle' + (FT.bekle ? ' acik' : '') + '">' + (FT.bekle ? 'Hamlen gitti · rakip bekleniyor' : 'Hamleni seç') + '</span>' : '<button type="button" class="beceri kucuk' + (FT.auto ? ' secili' : '') + '" data-auto="1"><i><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4l9 8-9 8zM13 4l9 8-9 8z"/></svg></i><b>Otomatik</b></button>') + B('teslim', 'Teslim ol', '', 'kucuk');
     on(box, '[data-x]', b => act(b.dataset.x)); on(box, '[data-auto]', () => { FT.auto = !FT.auto; paint(); if (FT.auto && !FT.busy) act(pickAuto()); }); }
   async function play(ev) { const t = evText(ev); logLine(t); if (ev.after) FT.view = ev.after; const tgt = ev.who === 'p' ? 'E' : 'P', im = document.getElementById('im' + tgt), me = document.getElementById('im' + (ev.who === 'p' ? 'P' : 'E'));
     const fx = G.fx, who = ev.who === 'p' ? FT.d : FT.opp, elc = G.ELC[(ev.who === 'p' ? FT.F.p : FT.F.e).el], pz = ev.act === 'kukre' ? 'P7' : ev.act === 'savun' ? 'P6' : ev.act === 'nefes' || (ev.act || '').startsWith('card') ? 'P12' : ev.act === 'pence' ? 'P8' : null;
@@ -59,7 +88,8 @@
     if (ev.dmg && !ev.miss && !ev.blocked) { await wait(170); const d = document.getElementById('dm' + tgt); d.textContent = '-' + ev.dmg; d.className = ev.crit ? 'kritik' : ''; void d.offsetWidth; d.classList.add('uc'); im.classList.remove('vuruldu'); void im.offsetWidth; im.classList.add('vuruldu'); if (fx) { fx.burst(im, ev.act === 'pence' ? '#fff' : elc, ev.crit ? 26 : 12); if (ev.crit) { fx.shake(document.getElementById('dov'), true); fx.flash('rgba(255,255,255,.28)'); } } if (EO2.audio) (ev.crit ? EO2.audio.boom || EO2.audio.pop : EO2.audio.hit || EO2.audio.pop)(); }
     else if (EO2.audio) EO2.audio.pop();
     bars(); await wait(FT.auto ? 300 : 620); }
-  async function act(x) { if (!FT || FT.busy || FT.F.over || !can(x)) return; FT.busy = true; paint(); const evs = fightRound(FT.F, x); for (const ev of evs) await play(ev); FT.busy = false;
+  async function act(x) { if (!FT || FT.busy || FT.F.over || !can(x)) return; if (FT.mode === 'mp') return mpHamle(x);
+    FT.busy = true; paint(); const evs = FT.srv ? tohumla(FT.srv.rnd, () => fightRound(FT.F, x)) : fightRound(FT.F, x); if (FT.srv) FT.srv.acts.push(x); for (const ev of evs) await play(ev); FT.busy = false;
     if (FT.F.over) return finish(); paint(); if (FT.auto) act(pickAuto()); }
   function closeFight() { const w = document.getElementById('dov'); if (w) w.remove(); FT = null; }
   async function died(d, why, where) { killDragon(d, why); afterAction(true); await G.pen({ k: where, t: esc(d.name) + ' aramızdan ayrıldı', face: G.img(d), body: '<p>' + esc(d.name) + ' ' + why + '. Ocak bu gece sessiz.</p>', btns: [{ t: 'Uğurla', cls: 'altin' }] }); }
@@ -71,11 +101,15 @@
       text: esc(d.name) + ' kulenin ' + kat + '. katını aştı. Mermer sunaktaki üç kadim mühürden birini seçip ' + T.curFloor + '. kata tırmanabilir ya da dinlenmek için ocağa dönebilirsin.',
       btns: [...sec.map((b, j) => ({ t: b.ad + ': ' + b.d, v: j })), { t: 'Ganimetle kuleden ayrıl', v: -1 }] });
     if (i >= 0 && sec[i]) { if (!T.boons.includes(sec[i].k)) T.boons.push(sec[i].k); saveGame(); return G.kuleBasla(d); } G.open('kule'); }
-  async function finish() { const { F, d, opp } = FT, won = F.winner === 'p'; let lines = [], dead = false, tourOver = false;
+  async function finish() { const { F, d, opp } = FT; let lines = [], dead = false, tourOver = false;
+    /* altın: sunucu dövüşü yeniden oynatır ve öder; yerel keseye arena altını yazılmaz */
+    const srv = FT.mode === 'kule' ? null : await sunucuBitir(), won = F.winner === 'p';
+    const altin = g => srv && srv.ok ? '+' + srv.gold + ' altın' : '<span class="kotu">altın yazılmadı</span>';
+    const altinNot = () => { if (!srv || srv.ok || !won) return; lines.push(srv.bekliyor ? '<span class="kotu">Sonuç sunucuya ulaşmadı. Bağlantı gelince yeniden gönderilecek; ödül o zaman yazılır.</span>' : '<span class="kotu">Çevrimdışı dövüş: altın ödülü yazılmadı' + (srv.why === 'çevrimdışı' ? '' : ' (' + srv.why + ')') + '.</span>'); };
     if (FT.mode === 'kule') { finishKuleFight(); lines = (FT.result || []).map(x => x.replace(/class="good"/g, 'class="iyi"').replace(/class="bad"/g, 'class="kotu"')); }
     else if (FT.mode === 'tour') { const T = S.tour; d.fat = clamp(d.fat + 12, 0, 100);
-      if (won) { const g = T.odul[T.round], u = T.un[T.round]; S.gold += g; S.un += u; d.w++; S.st.wins++; addBond(d, 3); nudge(d, 'ces', 3); d.tourW = d.tourW || {}; d.tourW[T.id] = Math.max(d.tourW[T.id] || 0, T.round + 1);
-        lines.push('<b class="iyi">' + ['İlk turu', 'Yarı finali', 'Finali'][T.round] + ' kazandın!</b> +' + g + ' altın, +' + u + ' ün.');
+      if (won) { const g = T.odul[T.round], u = T.un[T.round]; S.un += u; d.w++; S.st.wins++; addBond(d, 3); nudge(d, 'ces', 3); d.tourW = d.tourW || {}; d.tourW[T.id] = Math.max(d.tourW[T.id] || 0, T.round + 1);
+        lines.push('<b class="iyi">' + ['İlk turu', 'Yarı finali', 'Finali'][T.round] + ' kazandın!</b> ' + altin(g) + ', +' + u + ' ün.'); altinNot();
         if (typeof awardChibiStones === 'function') { const rs = awardChibiStones({ stones: { kor_t2: ri(1, 2) } }); if (rs.length) lines.push('Turnuva Turu Ödülü: <b>' + rs.join(', ') + '</b>.'); }
         T.hp = F.p.hp; T.round++; if (F.p.saves) d.saved = (d.saved || 0) + F.p.saves; if (T.round === 3 && T.id === 'kupa' && typeof rivalBeaten === 'function') rivalBeaten('demirhan', 6);
         if (T.round >= 3) { d.champ = T.id; if (T.id === 'tac') { S.flags = S.flags || {}; S.flags.champ = true; S.flags.kizilTac = true; S.st.kupa = (S.st.kupa || 0) + 1; }
@@ -85,9 +119,10 @@
         lines.push(F.surrender ? 'Teslim oldun ve turnuvadan çekildin.' : '<span class="kotu">' + where[0].toUpperCase() + where.slice(1) + ' elendin.</span>');
         if (!F.surrender) { if (chance(hasMark(d, 'Temkinli') ? 25 : 50)) d.inj = ri(1, 2); const r = rollDeath(d, 10); if (r.anka) lines.push('<b>Anka Külü alev aldı!</b> Ejderhan ölümden döndü.'); else if (r.died) { dead = true; lines.push('<b class="kotu">' + esc(d.name) + ' ayağa kalkmadı.</b>'); } }
         addMood(d, -1, true); } }
-    else { const out = fightOutcome(d, F, FT.tier, opp); lines = out.lines;
+    else { const g0 = S.gold, out = fightOutcome(d, F, FT.tier, opp); lines = out.lines;
+      if (out.won) { S.gold = g0; lines[0] = lines[0].replace(/\+\d+ altın/, altin()); altinNot(); }      // oyunun yazdığı ilan ödülü geri alınır: altını sunucu yazdı
       if (!out.won && !F.surrender && FT.lethal) { const r = rollDeath(d, TIERS[FT.tier].olum); if (r.anka) lines.push('<b>Anka Külü alev aldı!</b> Ejderhan ölümün eşiğinden döndü. Tılsım yandı.'); else if (r.died) { dead = true; lines.push('<b class="kotu">' + esc(d.name) + ' ayağa kalkmadı.</b>'); } else lines.push('Ölüm zarı (%' + r.risk + ') tuttu; ' + esc(d.name) + ' yaralı ama hayatta.'); }
-      if (out.won && FT.bet) { S.gold += FT.bet; lines.push('Bahis kâğıdı kazandı: <b class="iyi">+' + FT.bet + ' altın</b>.'); }
+      if (out.won && FT.bet && srv && srv.ok) lines.push('Bahis kâğıdı kazandı: <b class="iyi">+' + FT.bet + ' altın</b> (ödülün içinde).');
       S.arena[FT.tier].splice(FT.idx, 1); d.task = { t: 'done', what: (out.won ? 'Kazandığı' : 'Kaybettiği') + ' bir dövüşe çıktı' }; }
     const mode = FT.mode, tier = FT.tier, kat = FT.floor; paint(); if (EO2.audio) (won ? EO2.audio.win || EO2.audio.chime : EO2.audio.pop)();
     await wait(500); await G.pen({ k: FT.title, t: won ? 'Zafer' : F.surrender ? 'Teslim' : 'Yenilgi', face: G.img(d), body: '<div class="rap">' + lines.map(l => '<div class="genel"><span>' + l + '</span></div>').join('') + '</div>', btns: [{ t: 'Devam', cls: 'altin' }] });
@@ -115,14 +150,109 @@
     if (T.id === 'kupa' && T.round === 2) Object.assign(opp, { trainer: 'Demirhan', name: 'Kuzgun' });
     const F = start(d, opp, { mode: 'tour', lethal: true, risk: deathRisk(d, 10), title: T.ad + ' · ' + ['İlk tur', 'Yarı final', 'Final'][T.round] + ' · ' + opp.trainer });
     if (T.hp != null) { F.p.hp = Math.round(T.hp + (F.p.maxHp - T.hp) * 0.5); if (T.round > 0) FT.log.push({ t: 'Turlar arası yaraların yarısı sarıldı. ' + esc(d.name) + ' ' + F.p.hp + '/' + F.p.maxHp + ' canla çıkıyor.', c: 'soluk' }); }
-    fightUI(); }
+    return sunucuAc().then(fightUI); }
   function startTour(d) { const T = S.tour; d.tourW = d.tourW || {}; if (d.tourW[T.id] == null) d.tourW[T.id] = 0; if (typeof careerCheck === 'function') careerCheck(false); T.dragon = d.id; T.round = 0; T.hp = null; d.task = { t: 'done', what: ek(T.ad, 'loc') + ' dövüştü' }; tourRound(); }
-  EO2.arena = { fight: () => FT, act };
+  EO2.arena = { fight: () => FT, act, er: () => ER };
+
+  /* ================= Er Meydanı: oyuncuya karşı dostça düello =================
+     Görev bulucu mantığı: lobiye ejderhanla girersin; kuyruğa girer (eşleşince dövüş kendiliğinden açılır), sancak diker
+     (açık oda; ilk gelenle dövüşürsün), dikili bir sancağa katılır ya da birine meydan okursun. Dövüş bu dosyadaki sahnede
+     oynanır; iki taraf hamlesini sunucuya yollar, turu sunucu çözer (js/duel_engine.js), iki ekran aynı sonucu oynatır.
+     DOSTÇA: altın, ün, taş, yorgunluk, yara, ölüm YOK. Yerel kayda hiçbir şey yazılmaz. */
+  const ER = { lobi: null, sec: null, girdi: null, davet: null, sira: Promise.resolve() };
+  const ET = { idle: 'meydanda', queue: 'eşleşme arıyor', room: 'sancağı dikili', fight: 'dövüşte' };
+  const benim = () => ((EO2.ag && EO2.ag.kimlik()) || {}).handle;
+  const erDurum = () => { const me = ER.lobi && ER.lobi.players.find(p => p.handle === benim()); return me ? me.status : null; };
+  const erAcik = () => UI.arenaTier === 'er' && document.querySelector('#scr.acik .scr-b.ar2');
+  const dovusci = d => { const f = Object.assign({}, fighterFromDragon(d), { seasonMult: typeof seasonMult === 'function' ? seasonMult(d.el) : 1 }); delete f.ref; return f; };
+  /* rakibin ekranında çizilecek kopya: yalnız görünüş ve ad (G.img bunlardan çizer) */
+  const vitrin = d => sec(d, ['id', 'name', 'el', 'stage', 'sex', 'genes', 'gx', 'hue', 'eye', 'pat', 'horn', 'cos', 'old', 'retired', 'st', 'bond', 'traits', 'cards', 'w', 'l']);
+  const erIste = (action, extra) => EO2.ag.gonder(Object.assign({ type: 'duel_lobby', action }, extra || {}));
+  function erGir(d) { if (!d || !cevrimici()) return; ER.girdi = d.id; erIste('enter', { star: vitrin(d), duelFighter: dovusci(d) }); }
+  function erCik() { if (ER.girdi != null && cevrimici() && !(FT && FT.mode === 'mp')) erIste('leave'); ER.girdi = null; ER.lobi = null; ER.sec = null; }
+  const erTazele = () => { if (erAcik() && G.sakin() && !FT) render(); };
+
+  function erCiz(body, f, elig, sekme, sekmeBagla) {
+    const acik = cevrimici(); if (acik && f && ER.girdi !== f.id) erGir(f);
+    const L = ER.lobi, ben = benim(), diger = L ? L.players.filter(p => p.handle !== ben) : [], st = erDurum();
+    if (ER.sec && !diger.find(p => p.handle === ER.sec)) ER.sec = null; if (!ER.sec && diger.length) ER.sec = (diger.find(p => p.status === 'room') || diger[0]).handle;
+    const r = diger.find(p => p.handle === ER.sec) || null, guc = f ? pw(f) : 0;
+    const muhur = st === 'queue' ? ['denk ara', 'Eşleşme aranıyor'] : st === 'room' ? ['kolay ara', 'Sancağın dikili · rakip bekleniyor'] : r ? [r.power > guc * 1.25 ? 'olum' : r.power > guc * 1.05 ? 'zor' : r.power > guc * 0.82 ? 'denk' : 'kolay', 'Güç ' + guc + ' · ' + r.power] : ['denk', 'Meydan boş'];
+    body.innerHTML = sekme + '<div class="ag-rozet ' + (acik ? 'acik' : 'kapali') + '"><i></i>' + (acik ? 'Dostça düello · ödül yok · turu sunucu çözer' : 'Çevrimdışı: Er Meydanı kapalı') + '</div>' +
+      '<div class="ar-ben" style="--el:' + (f ? G.ELC[f.el] : '#888') + '">' + (f ? '<img class="ar-ej" alt="" src="' + G.img(f) + '"><div class="ar-ad"><span class="ust">' + STAGE_AD[f.stage] + ' · ' + EL_AD[f.el] + '</span><h2>' + esc(f.name) + '</h2><small>Güç ' + guc + ' · ' + esc(ben || '') + '</small></div>' : '<p class="ah-not">Boşta dövüşçü yok: ejderlerin görevde ya da sakat.</p>') + '</div>' +
+      (elig.length > 1 ? '<div class="ar-kadro">' + elig.map(d => '<button type="button" class="madalyon ejm" data-sel="' + d.id + '" aria-pressed="' + (d.id === UI.arenaSel) + '" title="' + esc(d.name) + '"' + (st === 'queue' || st === 'room' ? ' disabled' : '') + '><img alt="" src="' + G.img(d) + '" style="background:radial-gradient(circle at 50% 40%, color-mix(in srgb, ' + G.ELC[d.el] + ' 55%, #151a2c), #151a2c 80%)"><span>' + esc(d.name) + '</span></button>').join('') + '</div>' : '') +
+      (!acik ? '<div class="ar-kilit"><i></i><p>Er Meydanı sunucuya bağlanınca açılır.<br>Şu an çevrimdışısın.</p><button type="button" class="gbtn altin" data-er="baglan">Yeniden bağlan</button></div>' :
+        (r ? '<div class="ar-rakip" style="--el:' + G.ELC[r.dragon.el] + '"><img class="ar-ej" alt="" src="' + G.img(r.dragon) + '"><div class="ar-ad"><span class="ust">' + esc(r.handle) + ' · ' + ET[r.status] + '</span><h2>' + esc(r.dragon.name) + '</h2><small><span class="etk el-' + r.dragon.el + '">' + EL_AD[r.dragon.el] + '</span>' + (elMult(f ? f.el : 'ates', r.dragon.el) > 1 ? '<span class="etk iyi">üstünsün</span>' : f && elMult(r.dragon.el, f.el) > 1 ? '<span class="etk kotu">dezavantaj</span>' : '') + '</small></div></div>'
+           : '<div class="ar-rakip er-bos"><div class="er-siluet"></div><p>Meydanda senden başka terbiyeci yok.<br>Kuyruğa gir ya da sancağını dik; biri gelince dövüş kendiliğinden açılır.</p></div>') +
+        '<div class="ar-orta"><i class="vs2">VS</i><span class="damga2 ' + muhur[0] + '">' + muhur[1] + '</span></div>' +
+        '<div class="ar-alt"><div class="ar-odul"><b class="au">Dostça düello</b><span>altın ve ün yazılmaz</span><span>' + (diger.length ? diger.length + ' terbiyeci meydanda' : 'meydan sessiz') + '</span></div>' +
+          '<div class="er-dugme">' +
+            (st === 'queue' ? '<button type="button" class="gbtn buyuk" data-er="unqueue">Aramayı bırak</button>' : '<button type="button" class="gbtn buyuk altin" data-er="queue" ' + (f && st !== 'room' ? '' : 'disabled') + '>Eşleşme ara</button>') +
+            (st === 'room' ? '<button type="button" class="gbtn buyuk" data-er="room_close">Sancağı indir</button>' : '<button type="button" class="gbtn buyuk" data-er="room_open" ' + (f && st !== 'queue' ? '' : 'disabled') + '>Sancak dik</button>') +
+            (r && f && st === 'idle' && r.status === 'room' ? '<button type="button" class="gbtn buyuk kor" data-er="join">Sancağına katıl</button>' : r && f && st === 'idle' && r.status !== 'fight' ? '<button type="button" class="gbtn buyuk kor" data-er="invite">Meydan oku</button>' : '') +
+          '</div>' +
+          '<div class="kadro">' + diger.map(x => '<button type="button" class="madalyon ejm er-' + x.status + '" data-ersec="' + esc(x.handle) + '" aria-pressed="' + (x.handle === ER.sec) + '" title="' + esc(x.handle) + ' · ' + ET[x.status] + '"><img alt="" src="' + G.img(x.dragon) + '" style="background:radial-gradient(circle at 50% 40%, color-mix(in srgb, ' + G.ELC[x.dragon.el] + ' 55%, #151a2c), #151a2c 80%)"><span>' + esc(x.dragon.name) + '</span></button>').join('') + '</div></div>');
+    sekmeBagla(); on(body, '[data-sel]', b => { UI.arenaSel = +b.dataset.sel; render(); }); on(body, '[data-ersec]', b => { ER.sec = b.dataset.ersec; render(); });
+    on(body, '[data-er]', b => { const x = b.dataset.er;
+      if (x === 'baglan') return EO2.ag.baglan().then(() => render());
+      if (x === 'invite') { if (EO2.ag.gonder({ type: 'duel_invite', to: ER.sec })) toast('Meydan okuma gönderildi: ' + esc(ER.sec), 'iyi'); return; }
+      if (x === 'join') return erIste('room_join', { host: ER.sec });
+      erIste(x); });
+  }
+
+  /* ---------- sunucu görüntüsünü dövüş sahnesine çevir: ben hep soldayım ---------- */
+  const cevir = (fight, rol) => { const F = JSON.parse(JSON.stringify(fight)); if (rol === 'e') { const p = F.e, e = F.p; F.p = p; F.e = e; p.side = 'p'; e.side = 'e'; if (F.winner) F.winner = F.winner === 'p' ? 'e' : 'p'; } return F; };
+  const olayCevir = (ev, rol) => { if (rol !== 'e') return ev; const o = Object.assign({}, ev, { who: ev.who === 'p' ? 'e' : 'p' }); if (ev.after) o.after = { p: ev.after.e, e: ev.after.p }; return o; };
+  async function mpAc(m) { const rol = m.players[0].handle === m.you ? 'p' : 'e', ben = m.players[rol === 'p' ? 0 : 1], rakip = m.players[rol === 'p' ? 1 : 0];
+    for (let i = 0; i < 60 && (FT || !G.sakin()); i++) await wait(500);      // açık pencere ya da başka dövüş varsa bitmesini bekle
+    if (FT) return EO2.ag.gonder({ type: 'duel_leave', roomId: m.roomId });
+    if (ER.davet) { ER.davet(false); ER.davet = null; }
+    const d = byId(ER.girdi) || byId(UI.arenaSel) || S.dragons[0];
+    FT = { mode: 'mp', F: cevir(m.fight, rol), d, opp: rakip.dragon, rakip: rakip.handle, oda: m.roomId, rol, log: [], auto: false, busy: false, bekle: (m.submitted || []).includes(m.you), title: 'Er Meydanı · ' + rakip.handle };
+    FT.log.push({ t: '<b>' + esc(rakip.handle) + '</b> ile dostça düello. ' + (m.via === 'queue' ? 'Kuyruk eşleştirdi.' : m.via === 'room' ? 'Sancak karşılık buldu.' : 'Meydan okuma kabul edildi.') + ' Ödül yok; iki taraf hamlesini seçince tur çözülür.', c: 'soluk' });
+    void ben; G.close(); fightUI(); }
+  function mpHamle(x) { if (FT.bekle) return; if (!EO2.ag.gonder({ type: 'duel_action', roomId: FT.oda, round: FT.F.round + 1, action: x })) { logLine({ t: 'Bağlantı yok; hamle gönderilemedi.', c: 'kotu' }); return; } FT.bekle = true; paint(); }
+  function mpDurum(m) { ER.sira = ER.sira.then(async () => { if (!FT || FT.mode !== 'mp' || FT.oda !== m.roomId) return;
+      FT.busy = true; paint(); for (const ev of m.events || []) await play(olayCevir(ev, FT.rol));
+      FT.F = cevir(m.fight, FT.rol); FT.view = { p: { hp: FT.F.p.hp, sta: FT.F.p.sta }, e: { hp: FT.F.e.hp, sta: FT.F.e.sta } }; FT.busy = false; FT.bekle = (m.submitted || []).includes(benim());
+      if (FT.F.over) return mpBitir(m); paint(); }).catch(e => console.error('[er]', e)); }
+  async function mpBitir(m) { const F = FT.F, d = FT.d, kopan = m.fight.disconnected, lines = [];
+    const won = F.winner === 'p', berabere = F.winner == null;
+    lines.push(berabere ? '<b>Berabere.</b> İki taraf da meydandan çekildi.' : won ? '<b class="iyi">Zafer!</b> ' + (kopan ? esc(FT.rakip) + ' meydanı bıraktı.' : F.surrender ? esc(FT.rakip) + ' teslim oldu.' : esc(FT.opp.name) + ' yere serildi.') : '<span class="kotu">Yenilgi.</span> ' + (kopan ? 'Meydanı bıraktın.' : F.surrender ? 'Teslim oldun.' : esc(d.name) + ' bu kez geride kaldı.'));
+    lines.push('Dostça düello: altın, ün ve ganimet yazılmaz. ' + esc(d.name) + ' yorulmadı, yaralanmadı.');
+    paint(); if (EO2.audio) (won ? EO2.audio.win || EO2.audio.chime : EO2.audio.pop)(); await wait(500);
+    await G.pen({ k: FT.title, t: berabere ? 'Berabere' : won ? 'Zafer' : F.surrender && !kopan ? 'Teslim' : 'Yenilgi', face: G.img(d), body: '<div class="rap">' + lines.map(l => '<div class="genel"><span>' + l + '</span></div>').join('') + '</div>', btns: [{ t: 'Er Meydanı\'na dön', cls: 'altin' }] });
+    closeFight(); ER.girdi = null; UI.arenaTier = 'er'; G.open('arena'); }
+
+  /* ---------- ağ olayları ---------- */
+  function agBagla() { const A = EO2.ag; if (!A) return;
+    A.dinle('duel_lobby_state', m => { ER.lobi = m; erTazele(); });
+    A.dinle('durum', d => { if (d !== 'cevrimici') { ER.lobi = null; ER.girdi = null; } if (document.querySelector('#scr.acik .scr-b.ar2') && G.live && G.sakin() && !FT) render(); });
+    A.dinle('duel_room_start', m => { mpAc(m).catch(() => {}); });
+    A.dinle('duel_room_resume', m => { if (!FT) mpAc(m).catch(() => {}); });
+    A.dinle('duel_room_state', mpDurum);
+    A.dinle('duel_waiting', m => { if (FT && FT.mode === 'mp' && FT.oda === m.roomId && !FT.busy) { FT.bekle = (m.submitted || []).includes(benim()); paint(); } });
+    A.dinle('duel_opponent_disconnected', m => { if (FT && FT.mode === 'mp' && FT.oda === m.roomId) logLine({ t: 'Rakibin bağlantısı koptu. ' + Math.round((m.graceMs || 30000) / 1000) + ' saniye içinde dönmezse meydan senin.', c: 'soluk' }); });
+    A.dinle('duel_opponent_reconnected', m => { if (FT && FT.mode === 'mp' && FT.oda === m.roomId) logLine({ t: 'Rakip geri döndü.', c: 'soluk' }); });
+    A.dinle('duel_error', m => { if (FT && FT.mode === 'mp') { FT.bekle = (m.submitted || []).includes(benim()); logLine({ t: esc(m.message || 'Düello hatası'), c: 'kotu' }); paint(); } else { if (m.code === 'lobby_required' || m.code === 'sync_required') ER.girdi = null; toast(esc(m.message || 'Er Meydanı isteği reddedildi.'), 'kotu'); erTazele(); } });
+    A.dinle('duel_invite_sent', () => {});
+    A.dinle('duel_invite_result', m => { if (ER.davet && m.from) { ER.davet(false); ER.davet = null; } if (m.status === 'rejected') toast(esc(m.from || 'Rakip') + ' meydan okumanı geri çevirdi.', 'kotu'); else if (m.status === 'expired' && m.to) toast('Meydan okuman yanıtsız kaldı.', 'kotu'); });
+    A.dinle('duel_invite', async m => { if (m.ranked) return;                      // ödüllü oda 2.0'da açık değil
+      if (FT || !G.live || !G.sakin() || ER.davet) return A.gonder({ type: 'duel_invite_reply', inviteId: m.id, accept: false });
+      const kabul = await G.pen({ k: 'Er Meydanı · dostça düello', t: esc(m.from) + ' meydan okuyor', face: m.dragon ? G.img(m.dragon) : null, body: '<p><b>' + esc(m.dragon ? m.dragon.name : 'Ejderhası') + '</b> ile karşına çıkmak istiyor. Dostça düello: ödül yok, kimse yaralanmaz.</p>', btns: [{ t: 'Geri çevir', v: false }, { t: 'Kabul et', cls: 'altin', v: true }], on: (p, done) => { ER.davet = done; } });
+      ER.davet = null; A.gonder({ type: 'duel_invite_reply', inviteId: m.id, accept: !!kabul }); });
+    A.dinle('kanal_kapandi', () => { if (FT && FT.mode === 'mp') logLine({ t: 'Sunucu bağlantısı koptu; yeniden bağlanılıyor.', c: 'kotu' }); });
+  }
+  agBagla();
+
 
   /* ---------- arena ekranı ---------- */
   /* Arena: eşleşme sahnesi. Dövüşçün solda, seçili rakip sağda karşı karşıya durur; değerler ortada kıyaslanır, rakipler alttaki madalyonlardan seçilir. */
-  G.screen('arena', { k: 'Dövüş ve turnuva', t: 'Arena', cls: 'ar2', bg: 'bg-arena', enter() { if (!TIERS[UI.arenaTier]) UI.arenaTier = 'koy'; UI.arenaOpp = 0; }, draw(body) {
+  G.screen('arena', { k: 'Dövüş ve turnuva', t: 'Arena', cls: 'ar2', bg: 'bg-arena', enter() { if (UI.arenaTier !== 'er' && !TIERS[UI.arenaTier]) UI.arenaTier = 'koy'; UI.arenaOpp = 0; }, draw(body) {
     const elig = S.dragons.filter(d => canAct(d)); if (UI.arenaSel && !elig.find(d => d.id === UI.arenaSel)) UI.arenaSel = null; if (!UI.arenaSel && elig.length) UI.arenaSel = (elig.find(d => d.stage === 'yetiskin') || elig[0]).id;
+    const sekme = '<div class="ar-sekme"><div class="sekme" role="tablist">' + Object.keys(TIERS).map(k => '<button type="button" role="tab" data-tier="' + k + '" aria-selected="' + (k === UI.arenaTier) + '">' + (TIERS[k].flag && !S.flags[TIERS[k].flag] ? '???' : TIERS[k].ad) + '</button>').join('') + '<button type="button" role="tab" class="er-sekme" data-tier="er" aria-selected="' + (UI.arenaTier === 'er') + '">Er Meydanı</button></div></div>';
+    const sekmeBagla = () => on(body, '[data-tier]', b => { if (UI.arenaTier === 'er' && b.dataset.tier !== 'er') erCik(); UI.arenaTier = b.dataset.tier; UI.arenaOpp = 0; render(); });
+    if (UI.arenaTier === 'er') return erCiz(body, byId(UI.arenaSel), elig, sekme, sekmeBagla);
     const f = byId(UI.arenaSel), tk = UI.arenaTier, T = TIERS[tk]; let lock = '';
     if (T.flag && !S.flags[T.flag]) lock = 'Bu kapının yerini henüz bilmiyorsun.'; else if (T.unReq && S.un < T.unReq) lock = 'Mermer kapıdaki bekçi seni içeri almıyor: ' + T.unReq + ' ün gerekiyor (sende ' + S.un + ').';
     const okStage = f && T.stages.includes(f.stage) && !f.old, opps = lock ? [] : (S.arena[tk] || []); if (!(UI.arenaOpp >= 0 && UI.arenaOpp < opps.length)) UI.arenaOpp = 0; const oi = UI.arenaOpp, o = opps[oi];
@@ -131,7 +261,7 @@
     const kiyas = o && f ? '<div class="kiyas">' + STATS.map(k => { const a = f.st[k], b = o.st[k], m = Math.max(a, b, 1); return '<div><b class="' + (a >= b ? 'ust' : '') + '">' + a + '</b><span class="cb sol"><i style="width:' + (a / m * 100) + '%"></i></span><em>' + ST_KISA[k] + '</em><span class="cb sag"><i style="width:' + (b / m * 100) + '%"></i></span><b class="' + (b > a ? 'ust' : '') + '">' + b + '</b></div>'; }).join('') + '</div>' : '';
     let tour = ''; if (S.tour) { const Tt = S.tour, okUn = S.un >= Tt.unReq, cand = f && canAct(f) && f.stage === 'yetiskin' && !f.old;
       tour = '<div class="turnuva2' + (Tt.done ? ' bitti' : '') + '"><span class="ust">Turnuva</span><b>' + Tt.ad + '</b><p>' + (Tt.done ? (Tt.summary || '') : 'Üç tur, tek ejderha. Turlar arasında yaraların yarısı sarılır. Yenilgide ölüm riski %10. Şampiyona ' + Tt.odul[2] + ' altın.' + (okUn ? '' : ' <span class="kotu">Katılmak için ' + Tt.unReq + ' ün gerekiyor (sende ' + S.un + ').</span>')) + '</p>' + (Tt.done ? '' : '<button type="button" class="gbtn altin" data-tour="1" ' + (okUn && cand ? '' : 'disabled') + '>' + (cand ? esc(f.name) + ' ile katıl' : 'Yetişkin bir dövüşçü seç') + '</button>') + '</div>'; }
-    body.innerHTML = '<div class="ar-sekme"><div class="sekme" role="tablist">' + Object.keys(TIERS).map(k => '<button type="button" role="tab" data-tier="' + k + '" aria-selected="' + (k === tk) + '">' + (TIERS[k].flag && !S.flags[TIERS[k].flag] ? '???' : TIERS[k].ad) + '</button>').join('') + '</div></div>' + tour +
+    body.innerHTML = sekme + '<div class="ag-rozet ' + (cevrimici() ? 'acik' : 'kapali') + '"><i></i>' + (cevrimici() ? 'Arena altını sunucu kesesine yazılır' : 'Çevrimdışı: arena altını yazılmaz') + '</div>' + tour +
       '<div class="ar-ben" style="--el:' + (f ? G.ELC[f.el] : '#888') + '">' + (f ? '<img class="ar-ej" alt="" src="' + G.img(f) + '"><div class="ar-ad"><span class="ust">' + STAGE_AD[f.stage] + ' · ' + EL_AD[f.el] + '</span><h2>' + esc(f.name) + '</h2><small>Güç ' + pw(f) + ' · ' + f.w + ' G ' + f.l + ' M</small></div>' : '<p class="ah-not">Boşta dövüşçü yok: ejderlerin görevde ya da sakat.</p>') + '</div>' +
       (elig.length > 1 ? '<div class="ar-kadro">' + elig.map(d => '<button type="button" class="madalyon ejm" data-sel="' + d.id + '" aria-pressed="' + (d.id === UI.arenaSel) + '" title="' + esc(d.name) + '"><img alt="" src="' + G.img(d) + '" style="background:radial-gradient(circle at 50% 40%, color-mix(in srgb, ' + G.ELC[d.el] + ' 55%, #151a2c), #151a2c 80%)"><span>' + esc(d.name) + '</span></button>').join('') + '</div>' : '') +
       (lock ? '<div class="ar-kilit"><i></i><p>' + lock + '</p></div>' : !o ? '<div class="ar-kilit bos"><p>Bu hafta başka rakip kalmadı. Haftaya yeni ilanlar asılır.</p></div>' :
@@ -140,10 +270,10 @@
         '<div class="ar-alt"><div class="ar-odul"><b class="au">' + o.odul + ' altın</b><span>+' + T.un + ' ün</span>' + (T.olum ? '<span class="kotu">ölüm riski %' + risk + '</span>' : '') + '</div>' +
           '<button type="button" class="gbtn buyuk ' + (T.olum ? 'kor' : 'altin') + '" data-fight="' + oi + '" ' + (!f || !okStage ? 'disabled' : '') + '>' + (!f ? 'Boşta dövüşçü yok' : okStage ? 'Meydan oku' : f.old ? 'Emekli, dövüşmüyor' : STAGE_AD[f.stage] + ' giremez') + '</button>' +
           '<div class="kadro">' + opps.map((x, i) => { const z = zor(x); return '<button type="button" class="madalyon ejm zr-' + z.st[0] + '" data-opp="' + i + '" aria-pressed="' + (i === oi) + '" title="' + esc(x.name) + '"><img alt="" src="' + G.img(x) + '" style="background:radial-gradient(circle at 50% 40%, color-mix(in srgb, ' + G.ELC[x.el] + ' 55%, #151a2c), #151a2c 80%)"><span>' + esc(x.name) + '</span></button>'; }).join('') + '</div></div>');
-    on(body, '[data-tier]', b => { UI.arenaTier = b.dataset.tier; UI.arenaOpp = 0; render(); }); on(body, '[data-sel]', b => { UI.arenaSel = +b.dataset.sel; render(); }); on(body, '[data-opp]', b => { UI.arenaOpp = +b.dataset.opp; render(); });
+    sekmeBagla(); on(body, '[data-sel]', b => { UI.arenaSel = +b.dataset.sel; render(); }); on(body, '[data-opp]', b => { UI.arenaOpp = +b.dataset.opp; render(); });
     on(body, '[data-tour]', () => { if (f) startTour(f); });
     on(body, '[data-fight]', async b => { const i = +b.dataset.fight, o = S.arena[tk][i]; if (!o || !f) return; if (T.olum) { const ok = await G.pen({ k: T.ad, t: 'Ölüm riski var', body: '<p>Bu dövüşte yenilirsen ' + esc(f.name) + ' için ölüm riski <b class="kotu">%' + deathRisk(f, T.olum) + '</b>.</p>', btns: [{ t: 'Vazgeç', v: false }, { t: 'Yine de çık', cls: 'kor', v: true }] }); if (!ok) return; }
       const ctx = { tier: tk, idx: i, lethal: !!T.olum, risk: deathRisk(f, T.olum), title: T.ad + ' · ' + o.trainer }, pe = !window.__noPre && typeof pickFightPre === 'function' && chance(55) ? pickFightPre(f, o, tk) : null; if (pe) Object.assign(ctx, await preScene(pe, f, o));
-      UI.arenaOpp = 0; start(f, o, ctx); fightUI(); });
+      UI.arenaOpp = 0; start(f, o, ctx); await sunucuAc(); fightUI(); });
   } });
 })();
