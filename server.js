@@ -59,6 +59,11 @@ const MIME_TYPES = {
   '.jpg': 'image/jpeg',
   '.svg': 'image/svg+xml; charset=utf-8',
   '.mp3': 'audio/mpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
+  '.woff2': 'font/woff2',
 };
 
 let saveTimer = null;
@@ -1314,6 +1319,19 @@ async function handleHttp(req, res) {
   if (pathname === '/' || pathname === '/index.html') {
     try {
       const raw = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8').split('__PUBLIC_URL__').join(PUBLIC_URL);
+      res.writeHead(200, { 'Content-Type': MIME_TYPES['.html'], 'Cache-Control': 'no-cache' });
+      return res.end(raw);
+    } catch (e) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('404 Bulunamadı');
+    }
+  }
+
+  // 10c. Ejder Ocağı 2.0 sayfası (eo2/index.html); betik, stil ve çizimleri aşağıdaki izin listesi sunar
+  if (pathname === '/eo2') { res.writeHead(302, { Location: '/eo2/' }); return res.end(); }
+  if (pathname === '/eo2/' || pathname === '/eo2/index.html') {
+    try {
+      const raw = fs.readFileSync(path.join(__dirname, 'eo2', 'index.html'), 'utf8').split('__PUBLIC_URL__').join(PUBLIC_URL);
       res.writeHead(200, { 'Content-Type': MIME_TYPES['.html'], 'Cache-Control': 'no-cache' });
       return res.end(raw);
     } catch (e) {
