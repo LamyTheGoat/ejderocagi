@@ -40,7 +40,7 @@ test('içe aktarma: yerel ejderha ve yumurtalar hesaba bağlı ayna olur; altın
   const { game, result } = sync(g0, { ocak: OCAK, ej: [yerelEj(g0, 1, 'Kor'), yerelEj(g0, 2, 'Ayaz')], yu: [yerelYu(g0, 'e7')], ejIds: [1, 2], yuIds: ['e7'] });
   assert.equal(result.ocak.ilk, true); assert.deepEqual(result.ocak.ayna, { ej: 2, yu: 1 }); assert.deepEqual(result.ocak.eksik, { ej: [], yu: [] });
   assert.equal(game.dragons.length, n0 + 2); assert.equal(game.eggs.length, e0 + 1);
-  assert.equal(game.gold, g0.gold); assert.equal(toplam(game), game.gold);
+  assert.equal(game.gold, g0.gold - g0.funds.bound); assert.equal(game.funds.earned, g0.funds.earned); assert.equal(toplam(game), game.gold); // yalnız çift başlangıç kesesi düşer
   for (const d of aynalar(game)) { assert.equal(d.funding, 'bound'); assert.ok(d.assetId); assert.equal(d.task, null); assert.deepEqual(Object.values(d.equip), [null, null, null, null]); }   // istemcinin 'earned' beyanı yok sayıldı
   assert.deepEqual(game.ocak.taban.sort(), [...g0.dragons, ...g0.eggs, ...g0.inv].map(r => r.assetId).sort());
   assert.equal(new Set(game.dragons.map(d => d.assetId)).size, game.dragons.length);
@@ -77,9 +77,10 @@ test('ayna sunucuda altına ya da takas malına çevrilemez; hedef ödülü bağ
   const g0 = start(), a = sync(g0, { ocak: OCAK, ej: [yerelEj(g0, 1, 'Kor', { stage: 'yetiskin', st: { gu: 400, ce: 400, da: 400, ze: 400 } })], ejIds: [1] });
   const ayna = aynalar(a.game)[0];
   for (const type of ['dragon.sell', 'auction.sell', 'offer.sell']) assert.throws(() => run(a.game, type, { assetId: ayna.assetId }), /dragon_busy/);
-  assert.equal(a.game.gold, g0.gold); assert.deepEqual(a.result.goals, []);
+  assert.equal(a.game.gold, g0.gold - g0.funds.bound); assert.deepEqual(a.result.goals, []);
   // bağlı ocakta başka komutlar da hedef ödülü yazmaz (yerel oyun öder); bağlı olmayan hesapta eskisi gibi
-  const s = run(a.game, 'gold.local', { amount: -1, reason: 'other' }); assert.deepEqual(s.result.goals, []);
+  const altinli = JSON.parse(JSON.stringify(a.game)); altinli.funds.earned += 5; altinli.gold += 5; // kese sıfırlandı: harcama için kazanılmış altın gerekir
+  const s = run(altinli, 'gold.local', { amount: -1, reason: 'other' }); assert.deepEqual(s.result.goals, []);
   const yu = sync(a.game, { ocak: OCAK, yu: [yerelYu(g0, 'e1')], ejIds: [1], yuIds: ['e1'] }).game.eggs.find(e => e.yerel);
   assert.throws(() => run(a.game, 'egg.hatch', { assetId: 'yok' }), /asset_not_owned/);
   assert.equal(yu.funding, 'bound'); assert.equal(yu.inK, false);
@@ -95,7 +96,7 @@ test('bırakma: sunucu kökenli varlık defterden silinir, altın yazılmaz; tab
   assert.deepEqual(r.result.ocak.birakildi, ['baska:dragon:77']);
   assert.equal(r.game.dragons.some(d => d.assetId === 'baska:dragon:77'), false);
   assert.equal(r.game.dragons.some(d => d.assetId === tabanId) || r.game.eggs.some(d => d.assetId === tabanId) || r.game.inv.some(d => d.assetId === tabanId), true);
-  assert.equal(r.game.gold, g0.gold);
+  assert.equal(r.game.gold, g0.gold - g0.funds.bound);
   assert.deepEqual(sync(r.game, { ocak: OCAK, ejIds: [], birak: ['baska:dragon:77'] }).result.ocak.birakildi, []);
 });
 
@@ -125,7 +126,7 @@ test('depo: aynı istek iki kez gelirse tek uygulanır; iki sekmenin eşzamanlı
     assert.throws(() => send({ requestId: crypto.randomUUID(), expectedVersion: r.economy.version, type: 'ocak.sync', args: { body } }), /version_conflict/);
     const c = await send({ requestId: crypto.randomUUID(), expectedVersion: a.economy.version, type: 'ocak.sync', args: { body } });
     assert.equal(c.economy.dragons.filter(d => d.data.yerel).length, 2);
-    assert.equal(c.economy.gold, r.economy.gold);
+    assert.equal(c.economy.gold, a.economy.gold); assert.equal(a.economy.gold, r.economy.gold - r.economy.funds.bound); // yineleme bir daha düşmez
     const ayna = c.economy.dragons.find(d => d.data.yerel);
     assert.throws(() => store.executeMarket(acc, { requestId: crypto.randomUUID(), op: 'list', kind: 'dragon', assetId: ayna.assetId, quantity: 1, unitPrice: 100 }), /asset_not_transferable/);
   } finally { store.close(); fs.rmSync(dir, { recursive: true, force: true }); }

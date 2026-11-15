@@ -21,7 +21,7 @@
 | Ayarlar, kayıt aktarma, oyuncu adı, ilk hafta rehberi, müzik | bitti | Oyuncu adı sunucuya gitmiyor; parçalar dinlenerek denetlenmedi |
 | Ocak sahnesi cilası | bitti | Yeni çizim üretilemedi (Midjourney bakiyesi); gece görünüşü doğrulanmadı |
 | Ocağın sunucu defterine içe aktarılması, Bedesten köprüsü | bitti | Karar: içe aktar (2026-11-16). Aynalar istemci beyanı; altın içe aktarılmadı |
-| Hesap tezgâhı: sunucu pazar stoğu Gece Çarşısı'nda (ejderha, yumurta) | bitti | Kazanılmış altınla alınan mal Bedesten'de satılabilir. Sunucudaki 420 bağlı başlangıç altını bitmeden alınan mal bağlı kalır (**Karar**, bkz. 2.1). Kazanılmış alım tarayıcıda değil, birim testinde doğrulandı |
+| Hesap tezgâhı: sunucu pazar stoğu Gece Çarşısı'nda (ejderha, yumurta) | bitti | Kazanılmış altınla alınan mal Bedesten'de satılabilir. Çift başlangıç kesesi bağlanınca sıfırlanır (karar 2026-11-16); tezgâh arena kazancıyla açılır. Kazanılmış alım tarayıcıda değil, birim testinde doğrulandı |
 | Kor Örsü ve kuşam yükseltme | bekliyor | Bkz. 2.3 |
 | Çok oyunculu zindan (ortak boss) | bekliyor | Bkz. 2.2 |
 
@@ -29,7 +29,7 @@
 
 ### 2.1 Ocağın sunucu defterine geçmesi · ilk adım bitti
 > 2026-11-16: içe aktarma yapıldı; sunucu tezgâhı 2.0 pazarına bağlandı (`eo2/js/tezgah.js`, `tezgah.hafta`). Sıradaki: hafta sonu ve hedef kazançları.
-> **Karar:** her hesabın sunucuda görünmeyen 420 bağlı başlangıç altını var (yerel başlangıç kesesinin eşi). Sunucu önce bağlı altını harcadığı için ilk 420 altınlık hesap tezgâhı alımı satılamaz mal verir. Seçenekler: (a) böyle kalsın, (b) 2.0'a bağlanan hesapta bu çift başlangıç kesesi sıfırlansın. Açık kararlar: kazanılmış ejderhanın yerel antrenmanı satış kopyasına yansısın mı; misafir hesabının kurtarılması (X ile bağlama).
+> Karar (2026-11-16): 2.0'a bağlanan hesapta sunucunun bağlı başlangıç altını (yerel başlangıç kesesinin eşi) bir kez sıfırlanır (`S.ocak.kese`); gösterge değişmez. Açık kararlar: kazanılmış ejderhanın yerel antrenmanı satış kopyasına yansısın mı; misafir hesabının kurtarılması (X ile bağlama).
 
 Hafta sonu geliri, hedef ödülleri, pazar, sipariş, müzayede, saray ve olay kazançlarının sunucuya taşınması tek ön koşula bağlı:
 2.0'daki ejderha ve yumurtaların sunucu defterinde tutulması. Aynı adım şunları da çözer: Bedesten'den alınan ejderhanın Ahır'da

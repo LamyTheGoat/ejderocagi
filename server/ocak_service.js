@@ -18,7 +18,11 @@
 //   TABAN: bağlanma anında defterde zaten duran varlıklar (sunucunun başlangıç armağanı, eski oyunun defteri). Dokunulmaz,
 //     yerel ocağa kopyalanmaz.
 //
-// Kaynak politikası (economy_sources.js) değişmedi; bu dosya altın yazmaz ve altın düşmez.
+// ÇİFT BAŞLANGIÇ KESESİ (kullanıcı kararı, 2026-11-16): 2.0'da başlangıç altınını yerel oyun verir; sunucunun game.start
+//   ile verdiği bağlı başlangıç altını bunun eşidir ve göstergede görünmez. Ocak bağlanınca defterde kalan bağlı altın
+//   bir kez sıfırlanır (`S.ocak.kese`): hesapta yalnız sunucunun yazdığı kazanç kalır, hesap tezgâhından alınan mal
+//   kazanılmış olur. Yalnız AZALTIR; bağlı olmayan (eski oyun) hesaplara dokunmaz.
+// Kaynak politikası (economy_sources.js) değişmedi; bu dosya altın yazmaz.
 function fail(code, status = 409) { throw Object.assign(new Error(code), { code, status }); }
 const clone = v => JSON.parse(JSON.stringify(v));
 const plain = v => v && typeof v === 'object' && !Array.isArray(v);
@@ -74,6 +78,12 @@ function sync(S, a, { api, now }) {
     // Başka bir yerel ocak (yeni oyun ya da bağlanmadan önceki eski kayıt): eski ocağın aynaları kalkar, yenisininki kurulur.
     S.dragons = S.dragons.filter(d => !d.yerel); S.eggs = S.eggs.filter(e => !e.yerel);
     S.ocak.id = b.ocak; out.degisti = true;
+  }
+  if (!S.ocak.kese && S.funds && Number.isSafeInteger(S.funds.bound)) {
+    const n = Math.max(0, Math.min(S.funds.bound, S.gold));
+    S.funds.bound -= n; S.gold -= n;
+    S.ocak.kese = { at: Number.isSafeInteger(now) ? now : null, dusulen: n };
+    out.kese = n;
   }
   const taban = new Set(Array.isArray(S.ocak.taban) ? S.ocak.taban : []);
   const key = v => String(v);

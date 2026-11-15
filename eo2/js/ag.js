@@ -64,7 +64,12 @@
     if (!A || A.acct !== eko.accountId) {
       /* başka hesaba geçildi (misafir çerezi gitti): o ana dek gösterilen pay yerel kesede kalır; oyuncunun altını silinmez */
       A = S.ag = { acct: eko.accountId, base: eko.gold, srv: 0 };   // taban: bağlandığı andaki sunucu altını (başlangıç kesesi) sayılmaz
+      if (eko.game.ocak && eko.game.ocak.kese) A.dus = eko.game.ocak.kese.dusulen;
     }
+    /* Sunucu, ocak bağlanınca çift başlangıç kesesini sıfırlar (server/ocak_service.js). O altın zaten tabandaydı,
+       göstergede hiç görünmedi: taban aynı tutar kadar iner, oyuncunun göstergesi değişmez. Bir kez uygulanır. */
+    const K = eko.game.ocak && eko.game.ocak.kese;
+    if (K && A.dus == null) { A.base -= K.dusulen; A.dus = K.dusulen; }
     const simdi = eko.gold - A.base, fark = simdi - A.srv;
     if (fark && !harcaniyor) { S.gold += fark; A.srv = simdi; kaydetCiz(); }
     /* Yerel harcama sunucu payına uzandıysa (yerel kısım eksiye düştü) farkı sunucudan düş. İstemci yalnız azaltır. */

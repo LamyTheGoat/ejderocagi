@@ -51,7 +51,8 @@ test('bağlı ocakta shop.dragon: sunucu ızgarası dolu olsa da alınır; kazan
   assert.equal(r.game.gold, b.gold - fiyat); assert.equal(r.game.funds.earned, 5000 - fiyat);
   assert.equal(r.game.market.dragons.some(d => d.name === mal.name && d.price === fiyat), false);
   // bağlı altın duruyorken: önce o harcanır, mal bağlı olur (kaynak politikası değişmedi)
-  const k = run(zengin(JSON.parse(JSON.stringify(g)), 5000), 'shop.dragon', { id: mal.id });
+  const karisik = zengin(JSON.parse(JSON.stringify(g)), 5000); karisik.funds.bound += 100; karisik.gold += 100;
+  const k = run(karisik, 'shop.dragon', { id: mal.id });
   assert.equal(k.game.dragons[k.game.dragons.length - 1].funding, 'bound');
   // altın yetmezse reddedilir
   assert.throws(() => run(bosalt(JSON.parse(JSON.stringify(g))), 'shop.dragon', { id: mal.id }), /insufficient_gold/);
@@ -62,4 +63,22 @@ test('bağlı ocakta shop.egg: kazanılmış altınla alınan yumurta kazanılm�
   g = bosalt(zengin(run(g, 'tezgah.hafta', { week: 3 }).game, 1000));
   const r = run(g, 'shop.egg', { id: g.market.egg.id });
   assert.equal(r.game.eggs[r.game.eggs.length - 1].funding, 'earned'); assert.equal(r.game.market.egg, null);
+});
+
+test('çift başlangıç kesesi: ocak bağlanınca bağlı altın bir kez sıfırlanır; kazanılmış altın ve bağlı olmayan hesap etkilenmez', () => {
+  const g = zengin(start(), 300), bagliAltin = g.funds.bound;
+  assert.ok(bagliAltin > 0);
+  const a = run(g, 'ocak.sync', { body: JSON.stringify({ ocak: 'ocak-0001-aaaa', ej: [], yu: [], ejIds: [], yuIds: [] }) });
+  assert.equal(a.result.ocak.kese, bagliAltin);
+  assert.deepEqual([a.game.gold, a.game.funds.bound, a.game.funds.earned], [300, 0, 300]);
+  assert.equal(a.game.ocak.kese.dusulen, bagliAltin);
+  // ikinci eşleme bir daha düşmez; sonradan yazılan altına dokunmaz
+  const sonra = JSON.parse(JSON.stringify(a.game)); sonra.funds.bound += 50; sonra.gold += 50;
+  const b = run(sonra, 'ocak.sync', { body: JSON.stringify({ ocak: 'ocak-0001-aaaa', ej: [], yu: [], ejIds: [], yuIds: [] }) });
+  assert.equal(b.result.ocak.kese, undefined); assert.equal(b.game.gold, 350); assert.equal(b.game.funds.bound, 50);
+  // sıfırlamadan sonra hesap tezgâhından alınan mal kazanılmıştır
+  const c = run(zengin(run(a.game, 'tezgah.hafta', { week: 2 }).game, 2000), 'shop.egg', { id: run(a.game, 'tezgah.hafta', { week: 2 }).game.market.egg.id });
+  assert.equal(c.game.eggs[c.game.eggs.length - 1].funding, 'earned');
+  // bağlı olmayan hesap: tezgah ve kese aynen
+  assert.equal(run(start(), 'goals.claim', {}).game.funds.bound, bagliAltin);
 });

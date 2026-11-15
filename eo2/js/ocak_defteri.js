@@ -64,7 +64,7 @@
 
   /* ---------- yerelden deftere ---------- */
   async function govde(eko, E, bagli) {
-    const O = { ocak: S.ocakId, ej: [], yu: [], ejIds: [], yuIds: [] }, gonderilen = { ej: {}, yu: {} }; let gerek = !bagli;
+    const O = { ocak: S.ocakId, ej: [], yu: [], ejIds: [], yuIds: [] }, gonderilen = { ej: {}, yu: {} }; let gerek = !bagli || !eko.game.ocak.kese;   // kese: çift başlangıç kesesi henüz sıfırlanmadıysa bir tur gönderilir
     for (const [alan, k] of [['dragons', 'ej'], ['eggs', 'yu']]) {
       const sunucuda = new Set(bagli ? (eko.game[alan] || []).filter(r => r.yerel).map(r => String(r.yerelId)) : []), yerel = yerelKok(S[alan]);
       O[k + 'Ids'] = yerel.map(r => r.id);
