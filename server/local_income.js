@@ -256,6 +256,15 @@ function reduce(type, S, a, ctx) {
     case 'goal.reach': {
       const g = api.GOALS.find(x => x.id === a.id);
       if (!g) fail('unknown_goal', 400);
+      // 2.0'a bağlı ocak: hedefin koşulu yerel oyunda gerçekleşir (istemci beyanı), ödülü sunucu HESAP BAŞINA BİR KEZ yazar.
+      // Ayrı liste tutulur (S.ocak.hedef): S.goals bağlı ocakta sunucunun kendi durumundan "görüldü" diye dolar, ödeme kaydı değildir.
+      if (S.ocak && typeof S.ocak === 'object') {
+        const L = S.ocak.hedef = Array.isArray(S.ocak.hedef) ? S.ocak.hedef : [];
+        if (L.includes(g.id)) return { goal: g.id, already: true, gold: 0 };
+        L.push(g.id);
+        const source = sources.goalSource(S, g.id); // politika aynı: hedef ödülü takas edilemez (bound / unknown)
+        return { goal: g.id, gold: g.r, source, credit: income(S, g.r, source) };
+      }
       S.goals = Array.isArray(S.goals) ? S.goals : [];
       if (S.goals.includes(g.id)) return { goal: g.id, already: true, gold: 0 }; // hesap başına bir kez (DÜŞÜK-1)
       S.goals.push(g.id);

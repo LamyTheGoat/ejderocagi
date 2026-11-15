@@ -61,7 +61,7 @@ function sync(S, a, { api, now }) {
   let b;
   try { b = JSON.parse(a.body); } catch (_) { fail('ocak_body_invalid', 400); }
   if (!plain(b)) fail('ocak_body_invalid', 400);
-  const allowed = ['ocak', 'ej', 'yu', 'ejIds', 'yuIds', 'birak', 'yem'];
+  const allowed = ['ocak', 'ej', 'yu', 'ejIds', 'yuIds', 'birak', 'yem', 'hedefler'];
   for (const k of Object.keys(b)) if (!allowed.includes(k)) fail('ocak_body_invalid', 400); // altın, kaynak, fiyat gibi alan yok
   if (typeof b.ocak !== 'string' || !/^[a-z0-9-]{8,40}$/.test(b.ocak)) fail('ocak_body_invalid', 400);
   const list = (v, max) => { if (v == null) return []; if (!Array.isArray(v) || v.length > max) fail('ocak_body_invalid', 400); return v; };
@@ -84,6 +84,12 @@ function sync(S, a, { api, now }) {
     S.funds.bound -= n; S.gold -= n;
     S.ocak.kese = { at: Number.isSafeInteger(now) ? now : null, dusulen: n };
     out.kese = n;
+  }
+  // Hedef defteri: yerel oyunun bu güne dek KENDİ ödediği hedefler bir kez bildirilir ve "ödendi" sayılır (altın yazılmaz);
+  // sonrasında ödül yalnız goal.reach ile, hesap başına bir kez yazılır. Liste kurulduktan sonra bu alan yok sayılır.
+  if (b.hedefler != null) {
+    if (!Array.isArray(b.hedefler) || b.hedefler.length > 60 || b.hedefler.some(x => typeof x !== 'string' || x.length > 40)) fail('ocak_body_invalid', 400);
+    if (!Array.isArray(S.ocak.hedef)) { const var_ = new Set((api.GOALS || []).map(g => g.id)); S.ocak.hedef = [...new Set(b.hedefler.filter(x => var_.has(x)))]; }
   }
   const taban = new Set(Array.isArray(S.ocak.taban) ? S.ocak.taban : []);
   const key = v => String(v);

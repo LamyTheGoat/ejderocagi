@@ -22,13 +22,14 @@
 | Ocak sahnesi cilası | bitti | Yeni çizim üretilemedi (Midjourney bakiyesi); gece görünüşü doğrulanmadı |
 | Ocağın sunucu defterine içe aktarılması, Bedesten köprüsü | bitti | Karar: içe aktar (2026-11-16). Aynalar istemci beyanı; altın içe aktarılmadı |
 | Hesap tezgâhı: sunucu pazar stoğu Gece Çarşısı'nda (ejderha, yumurta) | bitti | Kazanılmış altınla alınan mal Bedesten'de satılabilir. Çift başlangıç kesesi bağlanınca sıfırlanır (karar 2026-11-16); tezgâh arena kazancıyla açılır. Kazanılmış alım tarayıcıda değil, birim testinde doğrulandı |
+| Hedef ödülleri sunucuda (`goal.reach`, hesap başına bir kez) | bitti | Koşul yerel oyunda gerçekleşir (istemci beyanı). Aynı hesapta yeniden kurulan ocakta alınmış ödül yeniden yazılmaz. Kariyer hedefleri hâlâ yerelde |
 | Kor Örsü ve kuşam yükseltme | bekliyor | Bkz. 2.3 |
 | Çok oyunculu zindan (ortak boss) | bekliyor | Bkz. 2.2 |
 
 ## 2. Sıradaki büyük işler (öncelik sırasıyla)
 
 ### 2.1 Ocağın sunucu defterine geçmesi · ilk adım bitti
-> 2026-11-16: içe aktarma yapıldı; sunucu tezgâhı 2.0 pazarına bağlandı (`eo2/js/tezgah.js`, `tezgah.hafta`). Sıradaki: hafta sonu ve hedef kazançları.
+> 2026-11-16: içe aktarma yapıldı; sunucu tezgâhı 2.0 pazarına bağlandı (`eo2/js/tezgah.js`, `tezgah.hafta`). Hedef ödülleri sunucuya taşındı (`eo2/js/hedef.js`). Hafta sonunun kendisinde hedef dışında altın geliri yok (yalnız bakım gideri); kalan gelirler olay, kariyer, sipariş ve sosyal akışlardır ve sunucunun olayı kendisinin üretmesini ister (plan S8).
 > Karar (2026-11-16): 2.0'a bağlanan hesapta sunucunun bağlı başlangıç altını (yerel başlangıç kesesinin eşi) bir kez sıfırlanır (`S.ocak.kese`); gösterge değişmez. Açık kararlar: kazanılmış ejderhanın yerel antrenmanı satış kopyasına yansısın mı; misafir hesabının kurtarılması (X ile bağlama).
 
 Hafta sonu geliri, hedef ödülleri, pazar, sipariş, müzayede, saray ve olay kazançlarının sunucuya taşınması tek ön koşula bağlı:
@@ -77,7 +78,7 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 - Kervan Tavlası tahtası düz kahverengi dikdörtgen; öteki masaların dokusuyla aynı ayarda değil.
 - Midjourney bakiyesi bitti. Bekleyen çizimler: Ocak için bostan, odunluk, yalak, korkuluk, ahşap çit, kapı direği, çim dokusu; Kıraathane için masa sahnesi ve tavla tahtası; Topçu sahnesinin büyütülmüş hâli (şimdiki 1536 piksel).
 - Motor istekleri (Ocak ajanından): zemin kabartması çime uygulanmasın, mini haritada açılabilir kare katmanı, pano açıkken kamera kayması, zemin lekeleri için tek doku atlası (çizim çağrısı 296'dan yüzün altına iner).
-- Tam tur denetiminde dövüş sırasında sunucudan bir 400 yanıtı düşüyor; nedeni incelenmedi.
+- Tam tur denetiminde ara sıra (2026-11-16: altı koşuda bir) sunucudan bir 400 yanıtı düşüyor ve o koşuda tur sonu altını düşük çıkıyor; nedeni bulunamadı. `check_oyun.mjs` artık yanıtın yolunu, komut türünü ve hata kodunu yazıyor.
 - Eski "ocak" ızgara ekranı (`ekranlar.js`) kodda duruyor; erişilmiyor, silinmeli.
 - Bildirimler ekranlarda sol altta; Kıraathane'de oyuncu panelinin üstüne biniyor.
 - Mini harita: master'daki gibi çizilmiş harita, pusula ve yakınlaştırma yok.

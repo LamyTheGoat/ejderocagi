@@ -82,3 +82,24 @@ test('çift başlangıç kesesi: ocak bağlanınca bağlı altın bir kez sıfı
   // bağlı olmayan hesap: tezgah ve kese aynen
   assert.equal(run(start(), 'goals.claim', {}).game.funds.bound, bagliAltin);
 });
+
+test('hedef ödülü bağlı ocakta: sunucu hesap başına bir kez yazar, takas edilemez; yerelde ödenmiş hedefler bir kez bildirilir ve ödenmez', () => {
+  const body = ek => JSON.stringify(Object.assign({ ocak: 'ocak-0001-aaaa', ej: [], yu: [], ejIds: [], yuIds: [] }, ek));
+  assert.throws(() => run(start(), 'ocak.sync', { body: body({ hedefler: 'win1' }) }), /ocak_body_invalid/);
+  const g = run(start(), 'ocak.sync', { body: body({ hedefler: ['train', 'yok-boyle-hedef', 'train'] }) }).game;
+  assert.deepEqual(g.ocak.hedef, ['train']); assert.equal(g.gold, 0);
+  // bildirilmiş hedef ödenmez; yeni hedef bir kez ödenir
+  const t = run(g, 'goal.reach', { id: 'train' });
+  assert.equal(t.result.already, true); assert.equal(t.game.gold, 0);
+  const w = run(g, 'goal.reach', { id: 'win1' });
+  assert.equal(w.result.gold, 50); assert.equal(w.game.gold, 50); assert.equal(w.game.funds.earned, 0); assert.notEqual(w.result.source, 'earned');
+  const w2 = run(w.game, 'goal.reach', { id: 'win1' });
+  assert.equal(w2.result.already, true); assert.equal(w2.game.gold, 50);
+  // liste kurulduktan sonra yeniden bildirim listeyi değiştirmez (ödenmemiş hedef "ödendi" yapılamaz, ödenmiş silinemez)
+  const s = run(w.game, 'ocak.sync', { body: body({ hedefler: [] }) }).game;
+  assert.deepEqual(s.ocak.hedef, ['train', 'win1']);
+  // başka ocak kimliğiyle (yeniden kurulan ocak) aynı hesapta ödül yeniden yazılmaz
+  const yeniOcak = run(w.game, 'ocak.sync', { body: JSON.stringify({ ocak: 'ocak-0002-bbbb', ej: [], yu: [], ejIds: [], yuIds: [] }) }).game;
+  assert.equal(run(yeniOcak, 'goal.reach', { id: 'win1' }).result.already, true);
+  assert.throws(() => run(g, 'goal.reach', { id: 'olmayan' }), /unknown_goal/);
+});

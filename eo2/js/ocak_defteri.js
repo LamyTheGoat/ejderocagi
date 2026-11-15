@@ -72,6 +72,7 @@
       for (const r of yerel) { const d = sade(r), h = ozet(JSON.stringify(d));
         if ((!bagli || !sunucuda.has(String(r.id)) || E.h[k][r.id] !== h) && O[k].length < PARTI) { O[k].push({ id: r.id, d }); gonderilen[k][r.id] = h; gerek = true; } }
     }
+    if (bagli && !Array.isArray(eko.game.ocak.hedef)) { const kuyruk = S.hedefKuyruk || []; O.hedefler = (S.goals || []).filter(id => !kuyruk.includes(id)); gerek = true; }   // yerelde ödenmiş hedefler bir kez bildirilir (js/hedef.js)
     const simdi = Date.now(), birak = E.birak.filter(b => !b.yol && (b.sonra || 0) <= simdi).map(b => b.id);
     if (birak.length) { O.birak = birak; gerek = true; }
     /* kazanılmış yem: ilanda tutulan dışında kalanı kilere teslim al */

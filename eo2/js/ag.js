@@ -73,9 +73,12 @@
     const simdi = eko.gold - A.base, fark = simdi - A.srv;
     if (fark && !harcaniyor) { S.gold += fark; A.srv = simdi; kaydetCiz(); }
     /* Yerel harcama sunucu payına uzandıysa (yerel kısım eksiye düştü) farkı sunucudan düş. İstemci yalnız azaltır. */
-    const yerel = S.gold - A.srv;
-    if (yerel < 0 && A.srv > 0 && !harcaniyor && durum === 'cevrimici') {
-      const tutar = Math.min(-yerel, A.srv); harcaniyor = true;
+    /* Takas edilemeyen altın (hedef ödülü gibi bağlı gelir) sunucu kesesinde bekletilmez, yerel keseye teslim alınır:
+       hesapta yalnız kazanılmış altın kalır, hesap tezgâhından alınan mal satılabilir olur. Gösterge değişmez. */
+    const yerel = S.gold - A.srv, f = eko.funds || {}, teslim = K ? Math.min((f.bound || 0) + (f.unknown || 0), Math.max(0, A.srv)) : 0;
+    const acik = yerel < 0 && A.srv > 0 ? Math.min(-yerel, A.srv) : 0;
+    if ((acik > 0 || teslim > 0) && !harcaniyor && durum === 'cevrimici') {
+      const tutar = Math.max(acik, teslim); harcaniyor = true;
       komut('gold.local', { amount: -tutar, reason: 'other' }).then(() => { A.srv -= tutar; }).catch(() => {}).finally(() => { harcaniyor = false; kaydetCiz(); esitle(); });
     }
   }
