@@ -66,3 +66,13 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2:not(.gelistirici) #btnCam,                                    /* K23: tek kamera */
 .ui2:not(.gelistirici) .menu-d[data-m="kamera"] { display: none !important; }
 #loading .yeniden { margin-top: 1.2em; font-size: 1.05em; }
+
+/* ---------- Sohbet kutusu → Günlük (çok oyunculu sohbet açılana kadar) ----------
+   Mesajlar henüz kimseye gitmiyor; sahte kanal sekmeleri, yazı alanı ve "Yerel" çipi gösterilmez.
+   Kutu, yakındaki kişilerin sözlerini ve olayları gösteren bir günlük olarak kalır. ?gelistirici ile eski hâli görünür. */
+.ui2:not(.gelistirici) #chatTabs,
+.ui2:not(.gelistirici) #chatForm,
+.ui2:not(.gelistirici) #liveChip { display: none !important; }
+.ui2:not(.gelistirici) #chatLog .ch { display: none; }
+.ui2:not(.gelistirici) #chat { height: auto; }
+.ui2:not(.gelistirici) #chatLog { max-height: 8.6em; }
