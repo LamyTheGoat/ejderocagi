@@ -49,6 +49,7 @@
   EO2.audio = {
     start, isOn: () => on,
     toggle() { on = !on; if (master) master.gain.setTargetAtTime(on ? vol : 0, now(), 0.08); return on; },
+    duraklat(v) { if (master) master.gain.setTargetAtTime(v ? 0 : (on ? vol : 0), now(), 0.12); },      // sekme arka plandayken susar
     night(v) { nightV = v; if (!ok()) return; const t = now(); if (v) { tone('sine', 220, 110, t, 1.2, 0.07); [660, 880, 990, 1320].forEach((f, i) => tone('triangle', f, f, t + 0.25 + i * 0.13, 0.5, 0.035, i / 2 - 0.75)); } else [523, 659, 784].forEach((f, i) => tone('triangle', f, f, t + i * 0.09, 0.4, 0.04)); },
     step() { if (!ok() || st.battle) return; const t = now(); burst(t, 0.05, 900 + Math.random() * 500, 1.2, 0.05); burst(t, 0.03, 180, 0.8, 0.07, 'lowpass'); },
     ui() { if (ok()) { const t = now(); tone('triangle', 880, 1320, t, 0.09, 0.045); } },

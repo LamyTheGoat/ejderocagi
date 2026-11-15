@@ -60,3 +60,9 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 #actions button[data-panel="arena"] .ic svg, .ui2 #actions button[data-panel="topcu"] .ic svg, .ui2 #actions button[data-panel="pazar"] .ic svg, .ui2 #actionsDaha .ic svg { display: none; }
 .ui2 #actionsDaha .ic { background: center / 100% 100% no-repeat url(../assets/ik/mdl-daha.webp); }
 .ui2 #actions.acik #actionsDaha .ic { box-shadow: 0 0 0 2px #ffe9a8, 0 0 1em rgba(255, 214, 120, .6), 0 .22em .5em rgba(4, 6, 16, .55); }
+
+/* ---------- Yer tutucular (çıkışta görünmez; ?gelistirici ile geri gelir) ---------- */
+.ui2:not(.gelistirici) #btnBell,                                   /* bildirim sistemi yok: boş zil gösterilmez */
+.ui2:not(.gelistirici) #btnCam,                                    /* K23: tek kamera */
+.ui2:not(.gelistirici) .menu-d[data-m="kamera"] { display: none !important; }
+#loading .yeniden { margin-top: 1.2em; font-size: 1.05em; }
