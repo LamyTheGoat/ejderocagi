@@ -23,6 +23,7 @@
 | Ocağın sunucu defterine içe aktarılması, Bedesten köprüsü | bitti | Karar: içe aktar (2026-11-16). Aynalar istemci beyanı; altın içe aktarılmadı |
 | Hesap tezgâhı: sunucu pazar stoğu Gece Çarşısı'nda (ejderha, yumurta) | bitti | Kazanılmış altınla alınan mal Bedesten'de satılabilir. Çift başlangıç kesesi bağlanınca sıfırlanır (karar 2026-11-16); tezgâh arena kazancıyla açılır. Kazanılmış alım tarayıcıda değil, birim testinde doğrulandı |
 | Hedef ödülleri sunucuda (`goal.reach`, hesap başına bir kez) | bitti | Koşul yerel oyunda gerçekleşir (istemci beyanı). Aynı hesapta yeniden kurulan ocakta alınmış ödül yeniden yazılmaz. (kullanıcı kararı 2026-11-16: bir kez kalır) Kariyer hedefleri hâlâ yerelde |
+| Sipariş teslimi ve müzayede satışı, kazanılmış ejderha için sunucuda (`order.deliver`, `auction.sell`) | bitti | Salon sunucunun teklif sırasını sahneler. Tarayıcıda yalnız sahte sunucu yanıtıyla denendi; gerçek kazanılmış ejderhayla uçtan uca denenmedi. Yerel kökenli ejderhada akış yerel kalır |
 | Kor Örsü ve kuşam yükseltme | bekliyor | Bkz. 2.3 |
 | Çok oyunculu zindan (ortak boss) | bekliyor | Bkz. 2.2 |
 
@@ -87,6 +88,15 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 - Mavi-altın hat: ekranlar ayrı ayrı iyi, ama pencere çerçevesi, düğme ve sekme ölçüleri tek bir bileşen dosyasında toplanmadı
   (`cam.css` 1200 satır, üstüne altı ek dosya). Öneri: çıkıştan önce bir "bileşen sayfası" (düğme, sekme, pano, rozet, pencere)
   çıkarıp sapmaları tek geçişte gidermek.
+
+## 4b. Kararlar (2026-11-16, kullanıcı karar yetkisini devretti: "kendin karar ver")
+
+- **Kıraathane ve yarış sunucuya şimdi taşınmaz.** Bahis ve giriş ücreti yerel keseden konuyor; sunucu sonucu yeniden oynatsa bile ortaya konan mal istemci beyanı olur ve kazanç takas edilebilir altına dönüşür. İkisi de kese birleşmesiyle (plan S11) birlikte taşınır.
+- **Kazanılmış ejderhanın yerel antrenmanı satış kopyasına yansımaz.** Alıcı, ejderhanın satıcıya geldiği andaki hâlini alır; aksi istemci beyanını satılan mala taşırdı.
+- **Misafir hesabının kurtarılması çıkıştan önce yapılır** (X ile bağlama). Sunucuda artık kazanılmış altın ve varlık duruyor; çerez giderse erişim kalmıyor.
+- **Kor Örsü eski sayılarla taşınır** (yükseltme olasılıkları, taş bedelleri); yalnız yuvalar ve görünüm yeni sete uyarlanır. Chibi ajanının set teslimini bekler.
+- **Hedef ödülü hesap başına bir kez** (kullanıcı kararı).
+- Karar verilemeyen: Midjourney bakiyesi (ödeme kullanıcıda).
 
 ## 5. Bilinen riskler
 

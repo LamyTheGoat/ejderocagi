@@ -103,3 +103,20 @@ test('hedef ödülü bağlı ocakta: sunucu hesap başına bir kez yazar, takas 
   assert.equal(run(yeniOcak, 'goal.reach', { id: 'win1' }).result.already, true);
   assert.throws(() => run(g, 'goal.reach', { id: 'olmayan' }), /unknown_goal/);
 });
+
+test('bağlı ocakta haftalık kural yerel haftaya bakar: müzayede satışı bildirilen hafta ilerleyince yeniden açılır; stok sezon içi haftayla üretilir', () => {
+  let g = bagla(start());
+  const ekle = (g, n) => { const d = JSON.parse(JSON.stringify(g.dragons[0])); Object.assign(d, { id: 900 + n, assetId: 'acct:dragon:k' + n, funding: 'earned', stage: 'yetiskin' }); delete d.yerel; g.dragons.push(d); return d.assetId; };
+  g = run(g, 'tezgah.hafta', { week: 3 }).game;
+  const a1 = ekle(g, 1), a2 = ekle(g, 2);
+  let satildi = null;
+  for (let i = 0; i < 12 && !satildi; i++) { const r = run(g, 'auction.sell', { assetId: a1 }, env('z' + i)); if (r.result.sold) satildi = r; }
+  assert.ok(satildi, 'on iki zarda en az bir satış beklenir');
+  assert.equal(satildi.game.funds.earned, satildi.result.got);
+  assert.throws(() => run(satildi.game, 'auction.sell', { assetId: a2 }), /auction_weekly_limit/);
+  const sonraki = run(satildi.game, 'tezgah.hafta', { week: 4 }).game;
+  assert.doesNotThrow(() => run(sonraki, 'auction.sell', { assetId: a2 }));
+  // mutlak hafta 23 = ikinci sezonun 3. haftası: stok üretilir, sunucu haftası değişmez, üçüncü ejderha (8. haftadan sonra) yoktur
+  const s2 = run(sonraki, 'tezgah.hafta', { week: 23 });
+  assert.equal(s2.result.tezgah.yenilendi, true); assert.equal(s2.game.market.dragons.length, 2); assert.equal(s2.game.week, sonraki.week);
+});

@@ -27,6 +27,33 @@
   window.aucRender = salon;
   const eskiSay = window.aucSay; window.aucSay = function (id, t) { eskiSay(id, t); if (EO2.audio) EO2.audio.pop(); };
 
+  /* ---------- hesabın defterindeki (kazanılmış) ejderhanın satışı ----------
+     Artırmayı sunucu oynar (auction.sell: aynı kural, sunucunun zarı), bedeli hesaba sunucu yazar. Salon, sunucunun teklif
+     sırasını aynen sahneler: alıcılar ve teklifler sunucunun sonucudur, yerel zar atılmaz. Yerel kökenli ejderhada akış eskisidir. */
+  let mesgul = false;
+  const RED = { auction_weekly_limit: 'Bu hafta bir ejderhanı zaten açık artırmaya çıkardın.', dragon_busy: 'Bu ejderha şu an ilanda ya da takasta; önce onu geri çek.', market_reserved_asset: 'Bu ejderha Bedesten ilanında; önce ilanı kaldır.', trade_reserved_asset: 'Bu ejderha bir takasta bekliyor.' };
+  async function hesapSatis(d) {
+    if (mesgul) return; if (!EO2.ag || !EO2.ag.cevrimici()) { toast('Bu ejderha hesabının defterinde; satış için bağlantı gerekiyor.', 'kotu'); return; }
+    mesgul = true; EO2.ag.tut(true); let r;
+    try { r = (await EO2.ag.komut('auction.sell', { assetId: d.assetId })).result; }
+    catch (e) { EO2.ag.tut(false); toast(RED[e && e.code] || (e && e.status ? 'Satış gerçekleşmedi.' : 'Bağlantı yok; satış yapılmadı.'), 'kotu'); if (e && e.code === 'auction_weekly_limit') { auction().sold = true; G.redraw(); } return; }
+    finally { mesgul = false; }
+    if (r.sold) EO2.ocakDefteri.cikti(d.assetId);
+    aucOpen(null, d); const A = AUC, sim = r.auction;
+    A.bidders = sim.bidders.map(b => Object.assign({}, BIDDERS.find(B => B.id === b.id), { max: b.max, out: false }));
+    A.v = sim.v; A.step = sim.step; A.price = Math.round(sim.v * .4 / 5) * 5; A.senaryo = sim.log.slice(); A.hesap = { sold: r.sold, got: r.got };
+    salon();
+  }
+  const npc0 = aucNpcTurn; aucNpcTurn = function () { const A = AUC; if (!A || !A.senaryo) return npc0(); if (A.over) return;                   // eslint-disable-line no-global-assign
+    const e = A.senaryo.shift(); if (!e) { for (const B of A.bidders) if (B.id !== A.leader && !B.out) { B.out = true; aucSay(B.id, 'Çekildim.'); } aucRender(); return aucHammer(); }
+    const B = A.bidders.find(x => x.id === e[0]); A.price = e[1]; A.leader = B.id; B.last = A.price; A.count = 0;
+    aucRender(); aucSay(B.id, '<b>' + A.price + '!</b> ' + pick(B.says)); if (typeof SFX !== 'undefined') SFX.play('chatter');
+    A.timer = setTimeout(aucNpcTurn, window.__fastFx ? 10 : 520); };
+  const kapat0 = aucClose; aucClose = function () { const A = AUC; if (!A || A.over || !A.hesap) return kapat0();                               // eslint-disable-line no-global-assign
+    const altin = S.gold; kapat0(); S.gold = altin;                                             // bedeli sunucu yazdı: yerel kese değişmez, pay şimdi göstergeye yansır
+    if (A.leader) A.result = esc(A.sellD.name) + ' ' + A.price + ' altın karşılığında satıldı. Komisyondan sonra hesabına <b>' + A.hesap.got + ' altın</b> yazıldı.';
+    try { saveGame(); } catch (_) { } EO2.ag.tut(false); aucRender(); };
+
   /* ---------- salonun ön odası: üç lot kaidede ---------- */
   G.screen('muzayede', { k: 'Her hafta üç nadir lot', t: 'Mermer Salon', cls: 'mz', bg: 'a:muzayede', draw(body) { const A = auction(); if (!(sel >= 0 && sel < A.lots.length)) sel = 0; const L = A.lots[sel];
     const mine = S.dragons.filter(d => canAct(d) || d.stage === 'yavru'), full = L.kind === 'dragon' && freeSlots() < 1;
@@ -35,7 +62,7 @@
       '<div class="mz-sat"><span class="ust">Ejderhanı açık artırmaya çıkar</span>' + (A.sold ? '<p>Bu hafta bir ejderhanı zaten çıkardın.</p>' : mine.length > 1 ? '<div class="kadro">' + mine.map(d => '<button type="button" class="madalyon ejm" data-sat="' + d.id + '" title="Tahmini ' + Math.round(value(d)) + ' altın"><img alt="" src="' + G.img(d) + '" style="background:radial-gradient(circle at 50% 40%, color-mix(in srgb, ' + G.ELC[d.el] + ' 55%, #151a2c), #151a2c 80%)"><b>' + Math.round(value(d)) + '</b><span>' + esc(d.name) + '</span></button>').join('') + '</div><p>Teklifler toplanır, %10 komisyon kesilir.</p>' : '<p>Satmak için en az iki ejderhan olmalı.</p>') + '</div>';
     on(body, '[data-lot]', b => { sel = +b.dataset.lot; render(); });
     on(body, '[data-gir]', b => { const x = auction().lots[+b.dataset.gir]; if (!x || x.done) return; aucOpen(x, null); });
-    on(body, '[data-sat]', async b => { const d = byId(+b.dataset.sat); if (!d || auction().sold) return; const ok = await G.pen({ k: 'Müzayede', t: esc(d.name) + ' salona çıksın mı?', face: G.img(d), body: '<p>Alıcılar teklif verirse ' + esc(d.name) + ' satılır ve ocaktan ayrılır; bu geri alınmaz. Satıştan %10 komisyon kesilir. Tahmini değeri ' + Math.round(value(d)) + ' altın.</p>', btns: [{ t: 'Vazgeç', v: false }, { t: 'Salona çıkar', cls: 'kor', v: true }] }); if (ok) aucOpen(null, d); });
+    on(body, '[data-sat]', async b => { const d = byId(+b.dataset.sat); if (!d || auction().sold) return; const ok = await G.pen({ k: 'Müzayede', t: esc(d.name) + ' salona çıksın mı?', face: G.img(d), body: '<p>Alıcılar teklif verirse ' + esc(d.name) + ' satılır ve ocaktan ayrılır; bu geri alınmaz. Satıştan %10 komisyon kesilir. Tahmini değeri ' + Math.round(value(d)) + ' altın.</p>', btns: [{ t: 'Vazgeç', v: false }, { t: 'Salona çıkar', cls: 'kor', v: true }] }); if (!ok) return; if (EO2.ocakDefteri && EO2.ocakDefteri.sunucuKokenli(d)) hesapSatis(d); else aucOpen(null, d); });
   } });
   const NAV = [['pazar', 'Gece Çarşısı'], ['muzayede', 'Mermer Salon']]; G.navOf = Object.assign(G.navOf || {}, { pazar: NAV, muzayede: NAV });
 })();

@@ -143,13 +143,15 @@ function sync(S, a, { api, now }) {
 // shop.egg komutlarıyla, sunucu kesesinden yapılır (fiyat ve stok kuralı js/core.js: marketDragon, marketEgg, refreshMarket).
 // 2.0 sunucuda week.end çalıştırmadığı için stok kendiliğinden yenilenmez: yerel hafta ilerleyince istemci yalnız HAFTA
 // NUMARASINI bildirir, stoğu sunucu kendi kural koduyla ve kendi zarıyla üretir. Bildirilen hafta yalnız ileri gider;
-// aynı hafta ikinci kez stok yenilemez. Sunucunun kendi hafta sayacı (S.week) değişmez.
+// aynı hafta ikinci kez stok yenilemez. Sunucunun kendi hafta sayacı (S.week) değişmez. `week` MUTLAK haftadır
+// ((sezon - 1) × 20 + hafta): sezon değişince yerel hafta 1'e döner ama anahtar ilerlemeyi sürdürür; stok sezon içi
+// haftayla üretilir (core.js marketDragon haftaya bakar). Aynı sayaç bağlı ocakta "haftada bir" kurallarının da haftasıdır.
 function restock(S, a, { api }) {
   if (!S.ocak || typeof S.ocak !== 'object') fail('ocak_not_bound', 409);
   const week = a.week, last = Number.isSafeInteger(S.ocak.hafta) ? S.ocak.hafta : 0;
   if (week <= last) return { tezgah: { hafta: last, yenilendi: false } };
   const keep = S.week;
-  try { S.week = week; api.refreshMarket(); } finally { S.week = keep; }
+  try { S.week = ((week - 1) % 20) + 1; api.refreshMarket(); } finally { S.week = keep; }
   S.ocak.hafta = week;
   return { tezgah: { hafta: week, yenilendi: true, ejderha: S.market.dragons.length, yumurta: S.market.egg ? 1 : 0 } };
 }

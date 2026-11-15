@@ -57,7 +57,7 @@
   }
 
   /* Gösterge: sunucudaki arena payını yerel keseye yansıt. `S.ag` kayıtla birlikte saklanır. */
-  let harcaniyor = false;
+  let harcaniyor = false, tutuluyor = false;   // tutuluyor: bir sahne (müzayede tokmağı) bitene dek sunucu payı göstergeye yansıtılmaz
   function esitle() {
     if (!eko || !eko.game || typeof S === 'undefined' || !S || !EO2.game || !EO2.game.live) return;      // sunucu ocağı kurulmadan (game.start) taban alınmaz: başlangıç kesesi pay sayılmasın
     let A = S.ag;
@@ -71,6 +71,7 @@
     const K = eko.game.ocak && eko.game.ocak.kese;
     if (K && A.dus == null) { A.base -= K.dusulen; A.dus = K.dusulen; }
     const simdi = eko.gold - A.base, fark = simdi - A.srv;
+    if (tutuluyor) return;
     if (fark && !harcaniyor) { S.gold += fark; A.srv = simdi; kaydetCiz(); }
     /* Yerel harcama sunucu payına uzandıysa (yerel kısım eksiye düştü) farkı sunucudan düş. İstemci yalnız azaltır. */
     /* Takas edilemeyen altın (hedef ödülü gibi bağlı gelir) sunucu kesesinde bekletilmez, yerel keseye teslim alınır:
@@ -151,6 +152,7 @@
     yenile, komut,                                        // komut(type, args) → { result, economy }
     pay: () => (typeof S !== 'undefined' && S && S.ag ? { sunucu: S.ag.srv || 0, yerel: S.gold - (S.ag.srv || 0) } : { sunucu: 0, yerel: typeof S !== 'undefined' && S ? S.gold : 0 }),
     esitle, rng, arenaBitir,
+    tut(v) { tutuluyor = !!v; if (!tutuluyor) esitle(); },   // true: gösterge beklesin; false: bekleyen payı yansıt
   };
   baglan();
   dinle('durum', d => { if (d === 'cevrimici') esitle(); });

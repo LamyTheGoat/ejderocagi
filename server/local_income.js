@@ -159,7 +159,8 @@ const vmExpose = new vm.Script(`({
 const absWeek = S => ((Number.isSafeInteger(S.seasonNo) && S.seasonNo > 0 ? S.seasonNo : 1) - 1) * 20 + (Number.isSafeInteger(S.week) ? S.week : 1);
 // Oyun kuralı (yerel auction.js ile aynı): haftada bir kendi ejderhanı müzayedeye çıkarırsın. Hile önlemi değildir.
 function weekly(S, key) {
-  const w = absWeek(S);
+  // 2.0'a bağlı ocakta sunucunun kendi haftası ilerlemez: istemcinin bildirdiği yerel (mutlak) hafta esas alınır (tezgah.hafta).
+  const w = S.ocak && Number.isSafeInteger(S.ocak.hafta) ? S.ocak.hafta : absWeek(S);
   S.srvWeekly = S.srvWeekly && typeof S.srvWeekly === 'object' && S.srvWeekly.week === w ? S.srvWeekly : { week: w };
   if (!count(S.srvWeekly[key])) S.srvWeekly[key] = 0;
   return S.srvWeekly;

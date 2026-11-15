@@ -133,7 +133,8 @@
   setInterval(() => { if (AG.cevrimici() && G.live && !document.hidden && !calisiyor) AG.yenile().catch(() => {}); }, 20000);
   EO2.ocakDefteri = {
     esle,                                                                    // Promise: bir eşleme turu (gerekmiyorsa hiçbir şey yapmaz)
-    sunucuKokenli: r => !!(r && r.srv && r.assetId),                         // bu satırın gerçeği sunucuda mı (kazanılmış varlık)
+    sunucuKokenli: r => !!(r && r.srv && r.assetId),
+    cikti(assetId) { const E = kayit(); E.var = E.var.filter(id => id !== assetId); E.birak = E.birak.filter(b => b.id !== assetId); },   // varlık bir sunucu komutuyla defterden çıktı (sipariş, müzayede): ayrıca bırakma bildirilmez                         // bu satırın gerçeği sunucuda mı (kazanılmış varlık)
     teklif(assetId) { const E = kayit(); if (!E.birak.some(b => b.id === assetId)) E.birak.push({ id: assetId, yol: 'teklif' }); zamanla(200); },
     durum: () => { const E = (typeof S !== 'undefined' && S && S.ocakEs) || {}; return { ocak: typeof S !== 'undefined' && S ? S.ocakId || null : null, hesap: E.acct || null, bekleyenBirakma: (E.birak || []).length, sunucuKokenli: (E.var || []).length }; },
   };

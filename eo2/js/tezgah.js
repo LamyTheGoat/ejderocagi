@@ -22,9 +22,10 @@
   /* ---------- hafta bildirimi ---------- */
   async function hafta() {
     if (mesgul || Date.now() < bekle || !AG.cevrimici() || !G.live || typeof S === 'undefined' || !S || S.over) return;
-    const eko = AG.kese(); if (!bagli(eko) || (eko.game.ocak.hafta || 0) >= S.week) return;
+    const mutlak = ((S.seasonNo || 1) - 1) * 20 + S.week;                       // sezonlar boyunca ilerleyen hafta
+    const eko = AG.kese(); if (!bagli(eko) || (eko.game.ocak.hafta || 0) >= mutlak) return;
     mesgul = true;
-    try { await AG.komut('tezgah.hafta', { week: S.week }); if (G.ekran && G.ekran() === 'pazar') ciz(); }
+    try { await AG.komut('tezgah.hafta', { week: mutlak }); if (G.ekran && G.ekran() === 'pazar') ciz(); }
     catch (e) { bekle = Date.now() + (e && e.status && e.status < 500 ? 60000 : 8000); }
     finally { mesgul = false; }
   }
