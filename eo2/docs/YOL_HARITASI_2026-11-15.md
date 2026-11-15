@@ -20,12 +20,15 @@
 | Topçu ve Zindan sahnesi, zindan çizgi romanları, Topçu PvP odaları | bitti | Volkanik Kaldera, Batık Donanma ve Ağır zorluk baştan sona oynatılmadı; ödüller yerel kayıtta |
 | Ayarlar, kayıt aktarma, oyuncu adı, ilk hafta rehberi, müzik | bitti | Oyuncu adı sunucuya gitmiyor; parçalar dinlenerek denetlenmedi |
 | Ocak sahnesi cilası | bitti | Yeni çizim üretilemedi (Midjourney bakiyesi); gece görünüşü doğrulanmadı |
+| Ocağın sunucu defterine içe aktarılması, Bedesten köprüsü | bitti | Karar: içe aktar (2026-11-16). Aynalar istemci beyanı; altın içe aktarılmadı |
 | Kor Örsü ve kuşam yükseltme | bekliyor | Bkz. 2.3 |
 | Çok oyunculu zindan (ortak boss) | bekliyor | Bkz. 2.2 |
 
 ## 2. Sıradaki büyük işler (öncelik sırasıyla)
 
-### 2.1 Ocağın sunucu defterine geçmesi · **Karar**
+### 2.1 Ocağın sunucu defterine geçmesi · ilk adım bitti
+> 2026-11-16: içe aktarma yapıldı. Sıradaki: Bedesten'e 2.0'dan mal girişi (sunucu tezgâhının 2.0 pazarına bağlanması), sonra hafta sonu ve hedef kazançları. Açık kararlar: kazanılmış ejderhanın yerel antrenmanı satış kopyasına yansısın mı; misafir hesabının kurtarılması (X ile bağlama).
+
 Hafta sonu geliri, hedef ödülleri, pazar, sipariş, müzayede, saray ve olay kazançlarının sunucuya taşınması tek ön koşula bağlı:
 2.0'daki ejderha ve yumurtaların sunucu defterinde tutulması. Aynı adım şunları da çözer: Bedesten'den alınan ejderhanın Ahır'da
 görünmesi, locadan teklif satışı, `gold.local` komutunun kapanması.
