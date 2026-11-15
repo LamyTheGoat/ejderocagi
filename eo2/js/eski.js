@@ -13,9 +13,7 @@
   G.eskiCss = css; css();
   const EXTRA = ':host{position:fixed;inset:0;z-index:72;display:block;font-family:"Alegreya Sans",system-ui,sans-serif;color:#f4ead6;animation:es-gel .3s}@keyframes es-gel{from{opacity:0}}#modal-root{position:absolute;inset:0}.scrim{position:absolute;inset:0;display:grid;place-items:center;background:rgba(4,4,10,.9)}.scrim>.modal{width:100%;height:100%;max-width:none;max-height:none;margin:0;border-radius:0;box-sizing:border-box}' +
     /* Saray podyum gösterisi: sahne ekranın tamamını kaplar; büyük ekranda yazılar ve düğmeler orantılı büyür */
-    '.carem.saraym{position:absolute;inset:0;height:auto;overflow-y:auto}@media (min-width:1400px) and (min-height:760px){.carem.saraym{zoom:1.18}}' +
-    /* Kıraathane: masa oyunları oyunun kendi çizimiyle, kahvehane sahnesinin üstünde */
-    '.kirwrap [data-soc-lobby]{display:none}#modal-root .scrim>.modal.kirwrap{width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;margin:0!important;border-radius:0!important;border:0!important}.modal.kirwrap .kir-wrap{max-width:1100px;margin:0 auto}.modal.kirwrap{overflow:auto;padding:64px 28px 28px;background:linear-gradient(rgba(10,10,18,.62),rgba(10,10,18,.8)),url(assets/bg/kiraathane.webp) center/cover}.kir-eo2{position:absolute;left:18px;top:14px;z-index:5}@media (min-width:1400px) and (min-height:760px){.modal.kirwrap .kir-wrap{zoom:1.25}}';
+    '.carem.saraym{position:absolute;inset:0;height:auto;overflow-y:auto}@media (min-width:1400px) and (min-height:760px){.carem.saraym{zoom:1.18}}';
   let host = null, root = null, acts = null, onClose = null;
   const E = window.EO2_ESKI = {
     open(a, kapaninca) { acts = a; onClose = kapaninca || null; G.mesgul = true; },

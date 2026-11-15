@@ -36,9 +36,11 @@
         '<ol class="yol" style="--dolu:' + dolu + '%">' + yol + '</ol>' +
         (isB ? (next ? '<button type="button" class="gbtn altin buyuk" data-lang="1" ' + (S.gold < next.fiyat || S.un < next.un ? 'disabled' : '') + '>' + next.ad + ' öğren<small>' + next.fiyat + ' altın' + (S.un < next.un ? ' · ' + next.un + ' ün gerekir' : '') + '</small></button>' : '<p class="soz">Bütün dersleri tamamladın.</p>')
           : '<button type="button" class="gbtn ' + (used ? '' : 'altin') + ' buyuk" data-eve="' + sel + '" ' + (used ? 'disabled' : '') + '>' + (used ? 'Bu akşam doldu' : partner ? 'Birlikte bir akşam' : 'Akşamı onunla geçir') + '<small>' + (used ? 'Haftaya yine gel' : 'Haftada bir akşam') + '</small></button>') + '</div>' +
+      '<button type="button" class="gbtn han-masalar" data-masalar>Kıraathane masaları<small>Kor 21 · Kervan Tavlası · Ejder Pokeri</small></button>' +
       '<div class="kadro">' + keys.map(k => { const n = k === 'bilge' ? 'bilge' : SOC[k].npc, v = k === 'bilge' ? ['', 'I', 'II', 'III'][L] : rel(k); return '<button type="button" class="madalyon' + (S.partner === k ? ' sevgili' : '') + '" data-kisi="' + k + '" aria-pressed="' + (k === sel) + '" title="' + (k === 'bilge' ? 'Bilge Ejder' : SOC[k].ad) + '"><img alt="" src="' + G.npcImg(n) + '">' + (v !== '' ? '<b>' + v + '</b>' : '') + '<span>' + (k === 'bilge' ? 'Bilge' : SOC[k].ad.replace('Usta ', '')) + '</span></button>'; }).join('') + '</div>';
     on(body, '[data-kisi]', b => { sel = b.dataset.kisi; render(); });
     on(body, '[data-eve]', b => evening(b.dataset.eve));
+    on(body, '[data-masalar]', () => G.open('kiraathane'));
     on(body, '[data-lang]', b => { const n = LANG[langLv() + 1]; if (!n || S.gold < n.fiyat || S.un < n.un) return; S.gold -= n.fiyat; S.lang = langLv() + 1; chron('Bilge Ejder\'den ' + n.ad + ' öğrendin.'); toast('<b>' + n.ad + '</b> öğrenildi. ' + n.d, 'goal'); if (G.fx) { G.fx.stars(b, 16); G.fx.flash('rgba(160,220,255,.35)'); } afterAction(); });
   } });
 

@@ -47,7 +47,10 @@ function kirOpp() {
 
 /* ───────────── Bahis uygulama ───────────── */
 function kirOreTotal() { const C = ensureChibi(); return Object.values(C.ores || {}).reduce((a, b) => a + (b || 0), 0); }
+/* 2.0 bahis tepsisi (eo2/js/kiraathane2.js): KIR.tepsi doluysa bahis oradan yürür ({ yeter(mult), ode(res, mult) }).
+   Boşken aşağıdaki eski dört bahis aynen çalışır. Oyun kuralları ve çarpanlar (mult) bu kancadan etkilenmez. */
 function kirCanAfford(mult) {
+  if (KIR.tepsi) return KIR.tepsi.yeter(mult);
   const C = ensureChibi();
   if (KIR.bet === 'gold') return S.gold >= 50 * mult;
   if (KIR.bet === 'ore') return kirOreTotal() >= mult;
@@ -56,6 +59,7 @@ function kirCanAfford(mult) {
 }
 /** result: 'win' | 'lose' | 'push' — kazanç/kayıp metnini döndürür. */
 function kirSettle(res, mult) {
+  if (KIR.tepsi) return KIR.tepsi.ode(res, mult);
   const C = ensureChibi();
   const opp = kirOpp();
   let txt = '';
