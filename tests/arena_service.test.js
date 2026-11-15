@@ -26,12 +26,15 @@ function client(seed = 7) {
   const base = () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; };
   math.random = base;
   const ctx = vm.createContext({ Math: math, UI: {} });
-  for (const f of ['data', 'core', 'week']) vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', f + '.js'), 'utf8'), ctx, { filename: f + '.js' });
+  for (const f of ['data', 'core', 'week', 'rival', 'lineage', 'endgame']) vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', f + '.js'), 'utf8'), ctx, { filename: f + '.js' });
   const api = vm.runInContext(`({ newGame() { newGame(); return S; }, state: () => S, genOpp, fighterFromDragon, fighterFromOpp, newFight, fightRound, autoChoose, TIERS, TOURS })`, ctx);
   api.setRandom = fn => { math.random = fn || base; };
+  // endgame.js startKuleFloor'un rakibe uyguladığı kat tılsımı (istemci tarafı)
+  api.kuleTilsim = (floor, e) => { const mut = vm.runInContext('TOWER_MUTATORS', ctx)[(floor - 1) % 5]; if (mut.atkBoost) e.atk += mut.atkBoost; if (mut.defPen) e.def = Math.max(0, e.def - mut.defPen); if (mut.critBoost) e.crit += mut.critBoost; };
   return api;
 }
 const P_KEYS = ['name', 'el', 'mood', 'cards', 'gu', 'ce', 'da', 'ze', 'atk', 'def', 'crit', 'dodge', 'nefesB', 'maxHp', 'hp', 'sta', 'bond', 'saves', 'cesur', 'temkinli', 'demir', 'vahsi', 'bondUsed', 'heart', 'tired'];
+const E_KEYS = [...P_KEYS, 'aiProfile'];
 const pick = (o, keys) => Object.fromEntries(keys.filter(k => o[k] !== undefined).map(k => [k, o[k]]));
 // Kurulum: yerel dövüşçü ve yerel ilan. `boost` oyuncuyu güçlendirir (zafer senaryosu).
 function setup(c, { tier = 'koy', boost = 0, mode = 'tier', extra = {} } = {}) {
@@ -39,7 +42,7 @@ function setup(c, { tier = 'koy', boost = 0, mode = 'tier', extra = {} } = {}) {
   for (const k of ['gu', 'ce', 'da', 'ze']) d.st[k] += boost;
   const opp = mode === 'tour' ? c.genOpp(null, c.TOURS[10].rounds[0], c.TOURS[10].gear) : c.genOpp(tier);
   const F = c.newFight(c.fighterFromDragon(d), c.fighterFromOpp(opp));
-  const spec = Object.assign({ mode, week: S.week, season: 1, goldB: 0, p: pick(F.p, P_KEYS), opp: JSON.parse(JSON.stringify(opp)) },
+  const spec = Object.assign({ mode, week: S.week, season: 1, goldB: 0, p: pick(F.p, P_KEYS), e: pick(F.e, E_KEYS), opp: JSON.parse(JSON.stringify(opp)) },
     mode === 'tour' ? { tour: 'kupa', round: 0 } : { tier, bet: 0 }, extra);
   return { S, d, opp, F, spec };
 }
@@ -105,10 +108,13 @@ test('arena: ödül kalemleri sunucu tablosuna uymalı (şişirilmiş ilan, uydu
   assert.throws(bad({ bet: 5000 }), /arena_reward_invalid/);
   assert.throws(bad({ goldB: 5000 }), /arena_reward_invalid/);
   assert.throws(bad({ opp: { ...spec.opp, st: { gu: 1, ce: 1, da: 1, ze: 1 } } }), /arena_opp_invalid/);
+  assert.throws(bad({ e: { ...spec.e, maxHp: 1, hp: 1 } }), /arena_opp_invalid/);          // ilan doğru, savaşçı zayıflatılmış
+  assert.throws(bad({ e: { ...spec.e, gu: spec.e.gu - 5 } }), /arena_opp_invalid/);
+  assert.throws(bad({ e: undefined }), /arena_fighter_invalid/);
   assert.throws(bad({ tier: 'saray' }), /arena_tier_invalid/);
   assert.throws(bad({ opp: { ...spec.opp, story: 'belt', odul: 400 } }), /arena_reward_invalid/); // şampiyon maçı köy kademesinde olmaz
   assert.throws(bad({ p: { ...spec.p, kazan: true } }), /arena_fighter_invalid/);
-  assert.throws(bad({ mode: 'kule' }), /arena_mode_invalid/);
+  assert.throws(bad({ mode: 'zindan' }), /arena_mode_invalid/);
 });
 
 test('arena: bahis kâğıdı ve ekipman bonusu yalnız zaferde, sabit tutarla ödenir', () => {
@@ -153,4 +159,73 @@ test('arena: yeni dövüş açmak yarım kalanı ödülsüz düşürür; depo ü
     assert.equal(s1.economy.gold, gold0 + b.opp.odul); assert.equal(s2.economy.gold, s1.economy.gold);
     assert.equal((await store.readEconomy(acc)).gold, gold0 + b.opp.odul);
   } finally { store.close(); fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+// ---------- ikinci dilim: Gök Kulesi, çukur teslim cezası, hikâye ödülü ----------
+function setupOzel(c, { boost = 0, opp, spec }) {
+  const S = c.newGame(), d = S.dragons[0];
+  for (const k of ['gu', 'ce', 'da', 'ze']) d.st[k] += boost;
+  const o = opp(c), F = c.newFight(c.fighterFromDragon(d), c.fighterFromOpp(o));
+  if (spec.mode === 'kule') c.kuleTilsim(spec.floor, F.e);
+  return { F, opp: o, spec: Object.assign({ week: S.week, season: 1, p: pick(F.p, P_KEYS), e: pick(F.e, E_KEYS), opp: JSON.parse(JSON.stringify(o)) }, spec) };
+}
+const kuleOpp = floor => c => Object.assign(c.genOpp('ates', Math.round(28 + floor * 5.5), Math.min(3, Math.floor(floor / 3))), { name: floor + '. Kat Muhafızı', trainer: 'Kadim Kule' });
+
+test('kule: kat ödülü sunucu formülünden (35 + kat × 18, gladyatör ×1.35); dövüş yeniden oynatılır, kat tılsımı rakibe uygulanır', () => {
+  for (const [floor, divan, beklenen] of [[2, null, 71], [5, 'gladyator', 169]]) {
+    const c = client(40 + floor), a = setupOzel(c, { boost: 120, opp: kuleOpp(floor), spec: Object.assign({ mode: 'kule', floor }, divan ? { divan } : {}) });
+    const g0 = start(), o = run(g0, 'arena.open', { spec: JSON.stringify(a.spec) });
+    assert.equal(o.result.arena.reward.odul, beklenen);
+    const ham = c.fighterFromOpp(a.opp);                    // kat 2: Korlu Zemin (+6 saldırı), kat 5: Keskin Göz (+18 kritik)
+    if (floor === 2) assert.equal(o.result.arena.e.atk, ham.atk + 6); else assert.equal(o.result.arena.e.crit, ham.crit + 18);
+    // tılsımı uygulanmamış (zayıf) rakip reddedilir
+    assert.throws(() => run(g0, 'arena.open', { spec: JSON.stringify({ ...a.spec, e: pick(c.newFight({ maxHp: 1 }, ham).e, E_KEYS) }) }), /arena_opp_invalid/);
+    const acts = play(c, a.F, o.result.arena);
+    const s = run(o.game, 'arena.settle', { fightId: o.result.arena.fightId, acts: acts.join(',') });
+    assert.equal(s.result.arena.won, true); assert.equal(s.result.arena.rounds, a.F.round); assert.equal(s.result.arena.final.e.hp, Math.max(0, a.F.e.hp));
+    assert.equal(s.game.gold, g0.gold + beklenen); assert.equal(s.result.arena.floor, floor);
+  }
+  const c = client(77), a = setupOzel(c, { opp: kuleOpp(3), spec: { mode: 'kule', floor: 3 } });
+  const bad = patch => () => run(start(), 'arena.open', { spec: JSON.stringify({ ...a.spec, ...patch }) });
+  assert.throws(bad({ floor: 60 }), /arena_opp_invalid/);       // 3. katın muhafızıyla 60. katın ödülü istenemez
+  assert.throws(bad({ floor: 0 }), /arena_tower_invalid/);
+  assert.throws(bad({ divan: 'altin_cagi' }), /arena_tower_invalid/);
+
+});
+
+test('çukur: teslim cezası (60) sunucu kesesinden düşer; kese yetmezse düşebildiği kadar; başka kademede ceza yok', () => {
+  const cukur = c => c.genOpp('cukur');
+  const c = client(13), a = setupOzel(c, { opp: cukur, spec: { mode: 'tier', tier: 'cukur', bet: 0, goldB: 0 } });
+  const g0 = start(), o = run(g0, 'arena.open', { spec: JSON.stringify(a.spec) });
+  const s = run(o.game, 'arena.settle', { fightId: o.result.arena.fightId, acts: 'teslim' });
+  assert.equal(s.result.arena.penalty, 60); assert.equal(s.game.gold, g0.gold - 60);
+  assert.equal(s.game.funds.bound + s.game.funds.unknown + s.game.funds.earned, s.game.gold);
+  // kese 25 altınsa yalnız 25 düşer (kalan 35'i istemci yerel keseden keser)
+  const yoksul = run(o.game, 'gold.local', { amount: -(o.game.gold - 25), reason: 'other' }).game; assert.equal(yoksul.gold, 25);
+  const s2 = run(yoksul, 'arena.settle', { fightId: o.result.arena.fightId, acts: 'teslim' });
+  assert.equal(s2.result.arena.penalty, 25); assert.equal(s2.game.gold, 0);
+  // köy arenasında teslim: ceza yok
+  const k = setupOzel(client(14), { opp: c2 => c2.genOpp('koy'), spec: { mode: 'tier', tier: 'koy', bet: 0, goldB: 0 } });
+  const ok = run(g0, 'arena.open', { spec: JSON.stringify(k.spec) }), sk = run(ok.game, 'arena.settle', { fightId: ok.result.arena.fightId, acts: 'teslim' });
+  assert.equal(sk.result.arena.penalty, 0); assert.equal(sk.game.gold, g0.gold);
+});
+
+test('hikâye ödülü: yalnız sunucunun doğruladığı Kanlı Gece zaferinden sonra, bir kez, sabit 100 altın', () => {
+  const g0 = start();
+  assert.throws(() => run(g0, 'arena.story', { id: 'efsane' }), /arena_story_unavailable/);     // zafer yokken istenemez
+  assert.throws(() => run(g0, 'arena.story', { id: 'hazine' }), /arena_story_unknown/);
+  assert.throws(() => cmd('arena.story', { id: 'efsane', gold: 500 }), /invalid_arguments/);
+  const kanli = c => Object.assign(c.genOpp('cukur', (55 + 2.4) * 1.12, 16), { story: 'kanli', odul: 650, name: 'Kemikkıran', trainer: 'Çukur Ağası Rüstem' });
+  // yenilgi hak vermez
+  const c0 = client(51), l = setupOzel(c0, { opp: kanli, spec: { mode: 'tier', tier: 'cukur', bet: 0, goldB: 0 } });
+  const lo = run(g0, 'arena.open', { spec: JSON.stringify(l.spec) }), ls = run(lo.game, 'arena.settle', { fightId: lo.result.arena.fightId, acts: 'teslim' });
+  assert.throws(() => run(ls.game, 'arena.story', { id: 'efsane' }), /arena_story_unavailable/);
+  // zafer: 650 + sonra 100, ikinci istek reddedilir
+  const c = client(52), w = setupOzel(c, { boost: 150, opp: kanli, spec: { mode: 'tier', tier: 'cukur', bet: 0, goldB: 0 } });
+  const o = run(g0, 'arena.open', { spec: JSON.stringify(w.spec) }), acts = play(c, w.F, o.result.arena);
+  const s = run(o.game, 'arena.settle', { fightId: o.result.arena.fightId, acts: acts.join(',') });
+  assert.equal(s.result.arena.won, true); assert.equal(s.game.gold, g0.gold + 650);
+  const h = run(s.game, 'arena.story', { id: 'efsane' });
+  assert.equal(h.result.arenaStory.gold, 100); assert.equal(h.game.gold, g0.gold + 750); assert.equal(h.game.funds.earned, (g0.funds.earned || 0) + 750);
+  assert.throws(() => run(h.game, 'arena.story', { id: 'efsane' }), /arena_story_unavailable/);
 });

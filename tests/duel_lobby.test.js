@@ -52,6 +52,14 @@ test('lobi: kuyruk iki oyuncuyu eşleştirir; dövüş baştan sona oynanır, so
   server.onMessage(a, { type: 'duel_lobby', action: 'queue' });
   assert.equal(durum(c, '@alpha'), 'queue'); assert.equal(a.last('duel_room_start'), undefined);
   server.onMessage(b, { type: 'duel_lobby', action: 'queue' });
+  // rakip bulundu: iki taraf onaylamadan oda açılmaz
+  const ma = a.last('duel_match_found'), mb = b.last('duel_match_found');
+  assert.ok(ma && mb && ma.matchId === mb.matchId); assert.equal(ma.opponent.handle, '@beta'); assert.equal(mb.opponent.dragon.name, 'Kor');
+  assert.equal(durum(c, '@alpha'), 'found'); assert.equal(a.last('duel_room_start'), undefined);
+  server.onMessage(c, { type: 'duel_lobby', action: 'ready', matchId: ma.matchId, accept: true }); assert.equal(c.last('duel_error').code, 'match_gone');   // başkasının eşleşmesi onaylanamaz
+  server.onMessage(a, { type: 'duel_lobby', action: 'ready', matchId: ma.matchId, accept: true });
+  assert.equal(a.last('duel_room_start'), undefined); assert.equal(b.last('duel_match_ready').handle, '@alpha');
+  server.onMessage(b, { type: 'duel_lobby', action: 'ready', matchId: ma.matchId, accept: true });
   const ra = a.last('duel_room_start'), rb = b.last('duel_room_start');
   assert.ok(ra && rb && ra.roomId === rb.roomId); assert.equal(ra.via, 'queue'); assert.equal(c.last('duel_room_start'), undefined);
   assert.equal(durum(c, '@alpha'), 'fight'); assert.equal(durum(c, '@gamma'), 'idle');
@@ -81,4 +89,31 @@ test('lobi: sancak (açık oda) ilk katılanla başlar; kapalı ya da kendi odas
   assert.equal(a.last('duel_room_state').fight.winner, 'p'); assert.equal(a.all('duel_settlement').length, 0);
   c.destroyed = true; clients.delete(c); server.onDisconnect(c);
   assert.deepEqual(a.last('duel_lobby_state').players.map(p => p.handle).sort(), ['@alpha', '@beta']);
+});
+
+test('lobi: bulunan eşleşmede vazgeçen kuyruktan düşer, onaylayan kuyrukta kalır; süre dolunca onaylamayan düşer; kuyruktan çıkan eşleşmez', async () => {
+  const clients = new Set(), world = { players: {} };
+  const server = createDragonDuelServer({ crypto, WS_CLIENTS: clients, WORLD: world, encodeWsFrame: JSON.stringify, readyMs: 40 });
+  const soket = handle => { const s = { playerInfo: { handle, authenticated: true }, destroyed: false, messages: [], write(f) { this.messages.push(JSON.parse(f)); }, last(type) { return this.messages.filter(m => m.type === type).at(-1); } }; clients.add(s); return s; };
+  const a = soket('@alpha'), b = soket('@beta'), c = soket('@gamma');
+  for (const s of [a, b, c]) server.onMessage(s, { type: 'duel_lobby', action: 'enter', star: star('Kor', 'ates'), duelFighter: fighter('Kor', 'ates') });
+  const q = s => server.onMessage(s, { type: 'duel_lobby', action: 'queue' });
+  // kuyruktan çıkan eşleşmez
+  q(a); server.onMessage(a, { type: 'duel_lobby', action: 'unqueue' }); q(b);
+  assert.equal(b.last('duel_match_found'), undefined); assert.equal(durum(b, '@beta'), 'queue');
+  // vazgeçme: a vazgeçer → a kuyruktan düşer, b kuyrukta kalır
+  q(a); const m1 = a.last('duel_match_found'); assert.ok(m1);
+  server.onMessage(b, { type: 'duel_lobby', action: 'ready', matchId: m1.matchId, accept: true });
+  server.onMessage(a, { type: 'duel_lobby', action: 'ready', matchId: m1.matchId, accept: false });
+  assert.equal(a.last('duel_match_cancelled').requeued, false); assert.equal(b.last('duel_match_cancelled').requeued, true); assert.equal(b.last('duel_match_cancelled').reason, 'declined');
+  assert.equal(durum(c, '@alpha'), 'idle'); assert.equal(durum(c, '@beta'), 'queue'); assert.equal(a.last('duel_room_start'), undefined);
+  // süre: c kuyruğa girer, b onaylar, c yanıtlamaz → c düşer, b kalır
+  q(c); const m2 = c.last('duel_match_found'); assert.ok(m2 && m2.matchId !== m1.matchId);
+  server.onMessage(b, { type: 'duel_lobby', action: 'ready', matchId: m2.matchId, accept: true });
+  await new Promise(r => setTimeout(r, 120));
+  assert.equal(c.last('duel_match_cancelled').reason, 'timeout'); assert.equal(c.last('duel_match_cancelled').requeued, false);
+  assert.equal(durum(a, '@beta'), 'queue'); assert.equal(durum(a, '@gamma'), 'idle'); assert.equal(b.last('duel_room_start'), undefined);
+  // lobiden ayrılan (ekrandan çıkan) oyuncunun eşleşmesi düşer
+  q(c); const m3 = c.last('duel_match_found'); server.onMessage(c, { type: 'duel_lobby', action: 'leave' });
+  assert.equal(b.last('duel_match_cancelled').matchId, m3.matchId); assert.equal(b.last('duel_match_cancelled').reason, 'left');
 });

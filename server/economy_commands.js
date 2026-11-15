@@ -77,7 +77,7 @@ const SHAPES = Object.freeze({
   'dragon.die': ['assetId'], 'auction.sell': ['assetId'], 'offer.sell': ['assetId'], 'order.deliver': ['assetId', 'spec'],
   'topcu.clear': ['mode'], 'topcu.spin': ['wheel'], 'goal.reach': ['id'],
   'gold.local': ['amount', 'reason'], 'gold.import': ['amount'],
-  'arena.open': ['spec'], 'arena.settle': ['acts', 'fightId'],
+  'arena.open': ['spec'], 'arena.settle': ['acts', 'fightId'], 'arena.story': ['id'],
 });
 // Borç varken reddedilen harcama komutları (D4). Ayrıca her `spend` aynı kapıdan geçer.
 const DEBT_BLOCKED = new Set(['building.buy', 'land.clear', 'shop.food', 'shop.item', 'shop.dragon', 'shop.egg',

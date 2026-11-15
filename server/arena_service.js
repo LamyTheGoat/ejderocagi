@@ -16,18 +16,23 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const debt = require('./economy_debt');
+const sources = require('./economy_sources');
 
 function fail(code, status = 409) { throw Object.assign(new Error(code), { code, status }); }
 const clone = v => JSON.parse(JSON.stringify(v));
 const load = name => new vm.Script(fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8'), { filename: name + '.js' });
-const rules = ['data', 'core', 'week'].map(load);
+// Dövüşü etkileyen kural dosyaları 2.0 sayfasındakiyle AYNI olmalıdır, yoksa yeniden oynatma sapar:
+//   rival   : rakip yapay zekâsı (aiChoose → rivalUtilityChoose) ve rakip savaşçı sarmalayıcısı (aiProfile, uyum payı)
+//   lineage : melez kartlar (CARDS eklemeleri, doCard sarmalayıcısı)
+//   endgame : Gök Kulesi kat tılsımları (TOWER_MUTATORS)
+const rules = ['data', 'core', 'week', 'rival', 'lineage', 'endgame'].map(load);
 const expose = new vm.Script(`({
   load(value) { S = value; },
-  TIERS, TOURS, ARCH, STATS, SEASON, CARDS, ITEMS, EL_AD, NEFES_COST,
+  TIERS, TOURS, ARCH, STATS, SEASON, CARDS, ITEMS, EL_AD, NEFES_COST, TOWER_MUTATORS, RIVAL_AI_PROFILES,
   fighterFromOpp, newFight, fightRound,
 })`, { filename: 'server_arena_expose.js' });
 
-const TYPES = new Set(['arena.open', 'arena.settle']);
+const TYPES = new Set(['arena.open', 'arena.settle', 'arena.story']);
 const ACTION = /^(pence|savun|teslim|nefes|kukre|card:[a-z_]{1,30})$/;
 const SEED = /^[a-f0-9]{32}$/;
 // js/arenastory.js CHAMP0: şampiyon maçlarının sabit ödülü ve kademesi (kural dosyası DOM'a bağlı olduğundan burada yinelenir).
@@ -37,6 +42,23 @@ const BETS = Object.freeze([0, 180]);
 // js/core.js genOpp: ilan ödülüne eklenen hafta payı.
 const weekBonus = (tier, w) => Math.round(w * (tier === 'cukur' ? 8 : tier === 'sehir' ? 5 : 2));
 const seasonBonus = n => (n - 1) * 8; // js/season.js
+// Gök Kulesi (js/endgame.js): kat muhafızının seviyesi (genTowerOpp) ve kat ödülü (finishKuleFight). Gladyatör fermanı ×1.35.
+const towerLevel = floor => Math.round(28 + floor * 5.5);
+const towerGold = (floor, gladyator) => Math.round((35 + floor * 18) * (gladyator ? 1.35 : 1));
+// Yeraltı Çukuru'nda teslim cezası (js/week.js fightOutcome: "Çukur teslim olanı cezalandırır: -60 altın").
+const PIT_SURRENDER = 60;
+// Arena hikâyesi ödülleri: yalnız sunucunun KENDİ doğruladığı bir zaferin ardından, bir kez istenebilir.
+// efsane = js/arenastory.js as_efsane "Sırrını sakla, ödülünü al" (+100), Kanlı Gece şampiyonu yenildikten sonra.
+const STORY = Object.freeze({ efsane: { after: 'kanli', gold: 100 } });
+// Kat tılsımının RAKİBE etkisi (endgame.js startKuleFloor). Nefes ve başlangıç nefesi satırları newFight'tan önce
+// yazıldığı için oyunda da etkisizdir; burada da uygulanmaz (kural aynen korunur).
+function mutate(api, floor, e) {
+  const mut = api.TOWER_MUTATORS[(floor - 1) % api.TOWER_MUTATORS.length];
+  if (mut.atkBoost) e.atk = (e.atk || 0) + mut.atkBoost;
+  if (mut.defPen) e.def = Math.max(0, (e.def || 0) - mut.defPen);
+  if (mut.critBoost) e.crit = (e.crit || 0) + mut.critBoost;
+  return e;
+}
 
 // Tohumlu RNG (sfc32). İstemcideki eşi: eo2/js/ag.js `rng`. İki taraf aynı sayıları üretmek zorundadır.
 function rng(seed) {
@@ -67,19 +89,32 @@ const plain = v => v && typeof v === 'object' && !Array.isArray(v);
 const P_NUM = { gu: [0, 5000], ce: [0, 5000], da: [0, 5000], ze: [0, 5000], atk: [0, 5000], def: [0, 5000], crit: [-100, 500], dodge: [-100, 500],
   nefesB: [0, 1000], maxHp: [1, 100000], hp: [1, 100000], sta: [0, 100], bond: [0, 100], saves: [0, 2] };
 const P_BOOL = ['cesur', 'temkinli', 'demir', 'vahsi', 'bondUsed', 'heart', 'tired'];
-function cleanPlayer(raw, api) {
+function cleanPlayer(raw, api, side = 'p') {
   if (!plain(raw)) fail('arena_fighter_invalid', 400);
-  const allowed = new Set(['name', 'el', 'mood', 'cards', ...Object.keys(P_NUM), ...P_BOOL]);
+  const allowed = new Set(['name', 'el', 'mood', 'cards', ...Object.keys(P_NUM), ...P_BOOL, ...(side === 'e' ? ['aiProfile'] : [])]);
   for (const k of Object.keys(raw)) if (!allowed.has(k)) fail('arena_fighter_invalid', 400);
-  const f = { side: 'p', name: str(raw.name, 60, 'arena_fighter_invalid'), el: str(raw.el, 12, 'arena_fighter_invalid') };
+  const f = { side, name: str(raw.name, 60, 'arena_fighter_invalid'), el: str(raw.el, 12, 'arena_fighter_invalid') };
   if (!Object.hasOwn(api.EL_AD, f.el)) fail('arena_fighter_invalid', 400);
-  for (const [k, [lo, hi]] of Object.entries(P_NUM)) f[k] = num(raw[k], lo, hi);
+  for (const [k, [lo, hi]] of Object.entries(P_NUM)) f[k] = num(k === 'saves' ? raw[k] ?? 0 : raw[k], lo, hi);
   if (f.hp > f.maxHp) fail('arena_fighter_invalid', 400);
   for (const k of P_BOOL) f[k] = raw[k] === true;
   f.mood = typeof raw.mood === 'string' ? str(raw.mood, 20, 'arena_fighter_invalid') : num(raw.mood ?? 2, -10, 10);
   if (!Array.isArray(raw.cards) || raw.cards.length > 3 || raw.cards.some(k => typeof k !== 'string' || !Object.hasOwn(api.CARDS, k)) || new Set(raw.cards).size !== raw.cards.length) fail('arena_fighter_invalid', 400);
   f.cards = [...raw.cards];
+  if (side === 'e') f.aiProfile = typeof raw.aiProfile === 'string' && Object.hasOwn(api.RIVAL_AI_PROFILES, raw.aiProfile) ? raw.aiProfile : 'taktik';
   return f;
+}
+// Rakip savaşçı: istemcinin dövüş başındaki hâli (oyunun kendi sarmalayıcıları uygulanmış: rakip ocak uyum payı, kat
+// tılsımı). Sunucu aynı ilandan KENDİ türettiği tabandan zayıf bir rakibi kabul etmez; güçlü olabilir (uyum payı).
+const E_FLOOR = ['gu', 'ce', 'da', 'ze', 'atk', 'def', 'crit', 'dodge', 'nefesB', 'maxHp'];
+function cleanEnemy(raw, api, opp, floor) {
+  const e = cleanPlayer(raw, api, 'e');
+  const base = baseEnemy(api, opp, floor);
+  for (const k of E_FLOOR) if (e[k] < base[k] - 1e-9) fail('arena_opp_invalid', 400);
+  if (e.hp < base.maxHp - 1e-9 || (base.demir && !e.demir)) fail('arena_opp_invalid', 400);
+  if (e.cards.length < base.cards.length || base.cards.some(k => !e.cards.includes(k))) fail('arena_opp_invalid', 400);
+  if (e.cesur || e.temkinli !== !!base.temkinli || e.vahsi || e.heart || e.bond || !e.bondUsed) fail('arena_opp_invalid', 400);
+  return e;
 }
 
 // Rakip ilanı: js/core.js genOpp biçimi. Dövüşü etkileyen alanlar ve yapay zekânın okuduğu ad/terbiyeci/arketip alınır.
@@ -99,6 +134,7 @@ function cleanOpp(raw, api) {
   // Görünüş genleri (boy ve pigment dövüş değerini etkiler: core.js lookFx). Küçük, düz bir nesne olmalı.
   if (raw.gx != null) { if (!plain(raw.gx) || JSON.stringify(raw.gx).length > 600) fail('arena_opp_invalid', 400); o.gx = clone(raw.gx); }
   if (raw.genes != null) { if (!plain(raw.genes) || JSON.stringify(raw.genes).length > 1500) fail('arena_opp_invalid', 400); o.genes = clone(raw.genes); }
+  if (raw.utilityWeights != null) { if (!plain(raw.utilityWeights) || Object.values(raw.utilityWeights).some(v => typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 5) || Object.keys(raw.utilityWeights).length > 8) fail('arena_opp_invalid', 400); o.utilityWeights = clone(raw.utilityWeights); }
   if (!o.gx && !o.genes) fail('arena_opp_invalid', 400); // eksikse kural kodu rastgele görünüş üretir; ilanlarda hep vardır
   if (raw.story != null) { if (!Object.hasOwn(CHAMPS, raw.story)) fail('arena_opp_invalid', 400); o.story = raw.story; }
   if (raw.odul != null) o.odul = int(raw.odul, 0, 100000, 'arena_reward_invalid');
@@ -112,16 +148,17 @@ function floorSum(api, level) {
   return Math.floor(level * minArch * 0.92) - 4;
 }
 
-// spec: { mode:'tier'|'tour', tier, tour, round, week, season, goldB, bet, p, opp }
+// spec: { mode:'tier'|'tour'|'kule', tier, tour, round, floor, divan, week, season, goldB, bet, p, opp }
 function open(S, a, { api: econ }) {
   let spec;
   try { spec = JSON.parse(a.spec); } catch (_) { fail('arena_spec_invalid', 400); }
   if (!plain(spec)) fail('arena_spec_invalid', 400);
-  const allowed = ['mode', 'tier', 'tour', 'round', 'week', 'season', 'goldB', 'bet', 'p', 'opp'];
+  const allowed = ['mode', 'tier', 'tour', 'round', 'floor', 'divan', 'week', 'season', 'goldB', 'bet', 'p', 'e', 'opp'];
   for (const k of Object.keys(spec)) if (!allowed.includes(k)) fail('arena_spec_invalid', 400); // 'gold', 'won', 'reward' gibi alanlar yok
   const api = runtime(1, 1);
   const week = int(spec.week, 1, api.SEASON, 'arena_spec_invalid'), season = int(spec.season ?? 1, 1, 9999, 'arena_spec_invalid');
   const p = cleanPlayer(spec.p, api), opp = cleanOpp(spec.opp, api);
+  api.load({ week, seasonNo: season });
   // Ekipmanın altın bonusu (week.js fightOutcome: eq.gold). Üst sınır: her yuvada en yüksek bonuslu eşya.
   const bySlot = {}; for (const it of Object.values(api.ITEMS)) if (it.gold) bySlot[it.slot] = Math.max(bySlot[it.slot] || 0, it.gold);
   const goldB = int(spec.goldB ?? 0, 0, Object.values(bySlot).reduce((t, v) => t + v, 0), 'arena_reward_invalid');
@@ -152,23 +189,34 @@ function open(S, a, { api: econ }) {
     if (statSum(api, opp) < floorSum(api, tour.rounds[round] * 0.5)) fail('arena_opp_invalid', 400);
     reward.odul = tour.odul[round]; // week.js TOURS
     delete opp.odul;
+  } else if (spec.mode === 'kule') {
+    // Gök Kulesi: ödül kat numarasından (sunucu formülü); muhafız o katın seviyesinden zayıf olamaz. Kat sırası ve
+    // Divan fermanı yerel kayıttadır: kat arttıkça muhafız da güçlendiği için ödül ile zorluk birlikte büyür.
+    const floor = int(spec.floor, 1, 999, 'arena_tower_invalid');
+    if (spec.divan != null && spec.divan !== 'gladyator') fail('arena_tower_invalid', 400);
+    live.floor = floor; live.divan = spec.divan || null;
+    if (statSum(api, opp) < floorSum(api, towerLevel(floor))) fail('arena_opp_invalid', 400);
+    reward.odul = towerGold(floor, spec.divan === 'gladyator');
+    delete opp.odul;
   } else fail('arena_mode_invalid', 400);
   // Tohum: komutun sunucu rastgeleliğinden (economy_commands makeRuntime); istemci seçemez.
   const hex = () => Math.floor(econ.rand() * 4294967296).toString(16).padStart(8, '0');
   live.id = 'af_' + hex() + hex(); live.seed = hex() + hex() + hex() + hex();
-  Object.assign(live, { p, opp, reward });
+  const e = cleanEnemy(spec.e, api, opp, live.floor);
+  Object.assign(live, { p, e, opp, reward });
   S.arenaLive = live; // hesap başına tek açık dövüş; yenisi eskisinin üzerine yazar (yarım kalan dövüş ödülsüz düşer)
-  return { arena: { fightId: live.id, seed: live.seed, mode: live.mode, reward: { ...reward }, p: clone(p), e: enemy(runtime(week, season), opp) } };
+  return { arena: { fightId: live.id, seed: live.seed, mode: live.mode, reward: { ...reward }, p: clone(p), e: clone(e) } };
 }
-// Rakip savaşçı, kural dosyasının kendi dönüşümüyle (fighterFromOpp) kurulur; istemci aynı sayıları kullanır.
-function enemy(api, opp) { const f = clone(api.newFight({ maxHp: 1 }, api.fighterFromOpp(clone(opp))).e); delete f.ref; return f; }
+// İlandan sunucunun türettiği taban rakip (fighterFromOpp + kat tılsımı). Yalnız doğrulama için.
+function baseEnemy(api, opp, floor) { const f = clone(api.newFight({ maxHp: 1 }, api.fighterFromOpp(clone(opp))).e); delete f.ref; return floor ? mutate(api, floor, f) : f; }
 
 // Hamle listesini aynı kural koduyla baştan oynatır. Döner: bitmiş dövüş özeti.
 function replay(live, acts) {
   if (!Array.isArray(acts) || !acts.length || acts.length > 31 || acts.some(x => typeof x !== 'string' || !ACTION.test(x))) fail('arena_log_invalid', 400);
   const api = runtime(live.week, live.season, rng(live.seed));
-  const F = api.newFight(clone(live.p), api.fighterFromOpp(clone(live.opp)));
-  Object.assign(F.p, clone(live.p), { used: [] }); // newFight canı ve nefesi sıfırlar; maç öncesi destekli hâl geri konur
+  const F = api.newFight(clone(live.p), clone(live.e));
+  // newFight canı ve nefesi sıfırlar; dövüş başındaki hâller geri konur. `ref` rakip ilanıdır (yapay zekâ arketip ve terbiyeciyi okur).
+  Object.assign(F.p, clone(live.p), { used: [] }); Object.assign(F.e, clone(live.e), { used: [], ref: clone(live.opp) });
   for (const x of acts) {
     if (F.over) fail('arena_log_invalid', 400);
     if (x === 'kukre' && F.p.sta < 15) fail('arena_illegal_action', 400);
@@ -189,13 +237,33 @@ function settle(S, a) {
   const gold = parts.odul + parts.goldB + parts.bet;
   delete S.arenaLive;
   const credit = gold > 0 ? debt.receive(S, gold, 'earned') : { paidDebt: 0, credited: 0 };
-  return { arena: { fightId: live.id, mode: live.mode, tier: live.tier || null, tour: live.tour || null, round: live.round ?? null, ...out, gold, parts, source: 'earned', credit } };
+  // Çukurda teslim cezası sunucu kesesinden düşer. Kese yetmiyorsa ya da borç varsa düşebildiği kadarı düşer;
+  // kalanı istemci yerel keseden keser (dönen `penalty` sunucunun kestiği tutardır).
+  let penalty = 0;
+  if (live.mode === 'tier' && live.tier === 'cukur' && out.surrender && !(S.debt > 0)) {
+    penalty = Math.min(PIT_SURRENDER, Math.max(0, S.gold));
+    if (penalty > 0) sources.spend(S, penalty);
+  }
+  // Hikâye hakkı: Kanlı Gece şampiyonu sunucunun doğruladığı bir dövüşte yenildiyse "efsane" ödülü bir kez istenebilir.
+  if (out.won && live.opp.story) { S.arenaHak = S.arenaHak && typeof S.arenaHak === 'object' ? S.arenaHak : {}; S.arenaHak[live.opp.story] = live.id; }
+  return { arena: { fightId: live.id, mode: live.mode, tier: live.tier || null, tour: live.tour || null, round: live.round ?? null, floor: live.floor ?? null, ...out, gold, parts, penalty, source: 'earned', credit } };
+}
+
+// arena.story { id }: tutar sunucu tablosundan; koşul sunucunun kendi kaydı (S.arenaHak). İstemci yalnız hangi ödülü
+// istediğini söyler; hak yoksa ya da kullanılmışsa reddedilir.
+function story(S, a) {
+  if (typeof a.id !== 'string' || !Object.hasOwn(STORY, a.id)) fail('arena_story_unknown', 400);
+  const rule = STORY[a.id], hak = S.arenaHak && S.arenaHak[rule.after];
+  if (!hak) fail('arena_story_unavailable', 409);
+  delete S.arenaHak[rule.after];
+  return { arenaStory: { id: a.id, after: hak, gold: rule.gold, source: 'earned', credit: debt.receive(S, rule.gold, 'earned') } };
 }
 
 function reduce(type, S, a, ctx) {
+  if (type === 'arena.story') return story(S, a);
   if (type === 'arena.open') return open(S, a, ctx);
   if (type === 'arena.settle') return settle(S, a);
   return null;
 }
 
-module.exports = { TYPES, reduce, replay, rng, CHAMPS, BETS };
+module.exports = { TYPES, reduce, replay, rng, CHAMPS, BETS, STORY, PIT_SURRENDER, towerGold, towerLevel };

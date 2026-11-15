@@ -19,6 +19,10 @@ function createDragonDuelServer(deps) {
   // katılır ya da birini davet eder. Lobi maçları dostça (vitrin) odadır: kayıt yok, ÖDÜL YOK.
   const lobby = new Map();      // handle → { handle, star, fighter, queued, room, since }
   const LOBBY_MAX = 300;
+  // Kuyruk eşleşmesi önce iki tarafa sorulur ("rakip bulundu"): ikisi de onaylarsa oda açılır. Süre dolarsa ya da biri
+  // vazgeçerse eşleşme düşer; vazgeçen kuyruktan çıkar, onaylayan kuyrukta kalır (görev bulucu davranışı).
+  const found = new Map();      // matchId → { id, a, b, ok:Set, timer }
+  const READY_MS = Number(deps.readyMs) > 0 ? Number(deps.readyMs) : 12_000;
   const INVITE_TTL = 30_000;
   const DISCONNECT_GRACE = 30_000;
   const ROOM_TTL = 3 * 60_000;
@@ -353,7 +357,8 @@ function createDragonDuelServer(deps) {
   }
 
   // ---------- Er Meydanı lobisi ----------
-  const lobbyStatus = L => (liveRoomFor(L.handle) ? 'fight' : L.queued ? 'queue' : L.room ? 'room' : 'idle');
+  const foundFor = handle => [...found.values()].find(m => m.a === handle || m.b === handle) || null;
+  const lobbyStatus = L => (liveRoomFor(L.handle) ? 'fight' : foundFor(L.handle) ? 'found' : L.queued ? 'queue' : L.room ? 'room' : 'idle');
   const power = f => Math.round((f.gu + f.ce + f.da + f.ze) / 4);
   function lobbyView(forHandle) {
     const list = [...lobby.values()].filter(L => socketFor(L.handle));
@@ -364,10 +369,27 @@ function createDragonDuelServer(deps) {
     };
   }
   function lobbyBroadcast() { for (const L of lobby.values()) send(socketFor(L.handle), lobbyView(L.handle)); }
-  function lobbyDrop(handle) { if (lobby.delete(handle)) lobbyBroadcast(); }
+  function lobbyDrop(handle) { const m = foundFor(handle); if (m) cancelFound(m, handle, 'left'); if (lobby.delete(handle)) lobbyBroadcast(); }
+  function cancelFound(m, by, reason) {
+    if (!found.delete(m.id)) return;
+    clearTimeout(m.timer);
+    for (const h of [m.a, m.b]) {
+      const L = lobby.get(h), stays = L && (by ? h !== by : m.ok.has(h));     // onaylayan kuyrukta kalır
+      if (L) L.queued = !!stays;
+      send(socketFor(h), { type: 'duel_match_cancelled', matchId: m.id, reason, by: by || null, requeued: !!stays });
+    }
+    lobbyMatch(); lobbyBroadcast();
+  }
   function lobbyMatch() {
     const waiting = [...lobby.values()].filter(L => L.queued && socketFor(L.handle) && !liveRoomFor(L.handle)).sort((a, b) => a.queuedAt - b.queuedAt);
-    while (waiting.length >= 2) { const a = waiting.shift(), b = waiting.shift(); if (!startShowRoom(a.handle, b.handle, 'queue')) { a.queued = b.queued = false; } }
+    const free = waiting.filter(L => !foundFor(L.handle));
+    while (free.length >= 2) {
+      const a = free.shift(), b = free.shift(), id = 'mf_' + crypto.randomBytes(8).toString('hex');
+      const m = { id, a: a.handle, b: b.handle, ok: new Set(), timer: null };
+      m.timer = setTimeout(() => cancelFound(m, null, 'timeout'), READY_MS); if (m.timer.unref) m.timer.unref();
+      found.set(id, m);
+      for (const [me, opp] of [[a, b], [b, a]]) send(socketFor(me.handle), { type: 'duel_match_found', matchId: id, readyMs: READY_MS, opponent: { handle: opp.handle, dragon: copy(opp.star), power: power(opp.fighter) } });
+    }
   }
   function lobbyMessage(socket, msg) {
     if (!isAuthed(socket)) return sendError(socket, 'Er Meydanı için oyuncu oturumu gerekir.');
@@ -387,6 +409,17 @@ function createDragonDuelServer(deps) {
     const L = lobby.get(handle);
     if (!L) return sendError(socket, 'Önce Er Meydanı\'na gir.', { code: 'lobby_required' });
     if (action === 'leave') return lobbyDrop(handle);
+    if (action === 'ready') {
+      const m = found.get(String(msg.matchId || ''));
+      if (!m || (m.a !== handle && m.b !== handle)) return sendError(socket, 'Bu eşleşme artık geçerli değil.', { code: 'match_gone' });
+      if (!msg.accept) return cancelFound(m, handle, 'declined');
+      m.ok.add(handle);
+      if (m.ok.size < 2) return send(socketFor(m.a === handle ? m.b : m.a), { type: 'duel_match_ready', matchId: m.id, handle });
+      found.delete(m.id); clearTimeout(m.timer);
+      if (!startShowRoom(m.a, m.b, 'queue')) { for (const h of [m.a, m.b]) { const X = lobby.get(h); if (X) X.queued = false; } lobbyBroadcast(); }
+      return;
+    }
+    if (foundFor(handle)) return sendError(socket, 'Önce bulunan eşleşmeyi yanıtla.', { code: 'match_pending' });
     if (action === 'state') return send(socket, lobbyView(handle));
     if (liveRoomFor(handle)) return sendError(socket, 'Zaten devam eden bir düellodasın.', { code: 'duel_busy' });
     if (action === 'queue') { L.queued = true; L.room = false; L.queuedAt = Date.now(); lobbyMatch(); return lobbyBroadcast(); }
