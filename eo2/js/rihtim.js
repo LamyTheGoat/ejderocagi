@@ -11,7 +11,7 @@
   const ICON = EO2.icons || {};
   /* [panel kimliği, ad, yer tutucu simge, açılacak ekran (yoksa panel yönlendirmesi)] */
   const KISA = ['ocak', 'ejderhalar', 'arena', 'gorevler'];
-  const TEPSI = [['topcu', 'Topçu', 'triple', 'topcu'], ['pazar', 'Çarşı', 'pin', 'pazar'], ['uretim', 'Üretim', 'anvil'], ['envanter', 'Envanter', 'bag'], ['sosyal', 'Han', 'people'], ['menu', 'Menü', 'gear']];
+  const TEPSI = [['topcu', 'Topçu', 'triple', 'topcu'], ['pazar', 'Çarşı', 'pin', 'pazar'], ['envanter', 'Envanter', 'bag'], ['sosyal', 'Han', 'people'], ['menu', 'Menü', 'gear']];
   const YENI = { arena: ['Arena', 'swords', 'arena'] };
 
   function ac(id, ekran) {
@@ -33,6 +33,10 @@
   const kisa = KISA.map(id => YENI[id] ? dugme(id, ...YENI[id]) : dugme(id));
   const daha = document.createElement('button'); daha.type = 'button'; daha.id = 'actionsDaha'; daha.setAttribute('aria-haspopup', 'menu'); daha.setAttribute('aria-expanded', 'false'); daha.setAttribute('aria-controls', 'actionsMore');
   daha.innerHTML = '<span class="ic">' + (ICON.grid || '') + '</span><span>Daha</span>';
+  /* Üretim (Kor Örsü) 2.0'da henüz kurulmadı: yer tutucu düğme gösterilmez */
+  /* dar ekranda dünyada Haftayı Bitir düğmesi yok: tepsiye eklenir (yalnız telefonda görünür, bkz. cila.css) */
+  const hafta = document.createElement('button'); hafta.type = 'button'; hafta.id = 'actionsHafta'; hafta.setAttribute('role', 'menuitem');
+  hafta.innerHTML = '<span class="ic">' + (ICON.moon || '') + '</span><span>Haftayı Bitir</span>'; hafta.addEventListener('click', () => { if (EO2.game && EO2.game.endWeek) EO2.game.endWeek(); }); tepsi.appendChild(hafta);
   bar.replaceChildren(...kisa, daha, tepsi); bar.classList.add('kisa');
 
   function kapat() { if (tepsi.hidden) return; bar.classList.remove('acik'); daha.setAttribute('aria-expanded', 'false'); setTimeout(() => { if (!bar.classList.contains('acik')) tepsi.hidden = true; }, 180); }
