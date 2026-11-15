@@ -28,7 +28,7 @@
   G.pen = function (o) { return new Promise(res => { pens++; const w = el('div', 'pen-perde'), p = el('div', 'pen' + (o.wide ? ' genis' : '')); p.setAttribute('role', 'dialog'); p.setAttribute('aria-modal', 'true');
     p.innerHTML = '<header>' + (o.face ? '<img class="yuz" alt="" src="' + o.face + '">' : '') + (o.k ? '<small>' + o.k + '</small>' : '') + '<h2>' + o.t + '</h2></header><div class="pen-b kay">' + (o.body || '') + '</div><div class="pen-f' + (o.dikey ? ' dikey' : '') + '"></div>';
     const f = p.querySelector('.pen-f'), done = v => { pens--; w.remove(); res(v); };
-    for (const b of (o.btns || [{ t: 'Tamam', cls: 'altin', v: true }])) { const x = el('button', 'gbtn ' + (b.cls || ''), b.t + (b.sub ? '<small>' + b.sub + '</small>' : '')); x.type = 'button'; if (b.off) { x.disabled = true; x.title = b.off; }
+    for (const b of (o.btns || [{ t: 'Tamam', cls: 'altin', v: true }])) { const x = el('button', 'gbtn ' + (b.cls || ''), b.t + (b.sub ? '<small>' + b.sub + '</small>' : '')); x.type = 'button'; if (b.off) { x.disabled = true; x.title = b.off; if (!b.sub) x.insertAdjacentHTML('beforeend', '<small>' + esc(b.off) + '</small>'); }      // kilidin nedeni dokunmatikte de okunur
       x.addEventListener('click', () => { if (EO2.audio) EO2.audio.ui(); if (b.fn) { const r = b.fn(p, done); if (r === false) return; if (r && r.keep) return; } done(b.v === undefined ? true : b.v); }); f.appendChild(x); }
     w.appendChild(p); app.appendChild(w); if (o.on) o.on(p, done); const first = f.querySelector('.gbtn:not([disabled])'); if (first) first.focus(); }); };
 
@@ -58,12 +58,14 @@
   const SCREENS = {}; let cur = null;
   G.screen = (id, def) => { SCREENS[id] = def; };
   G.open = function (id, arg) { if (!G.live || !SCREENS[id]) return; cur = { id, arg }; const d = SCREENS[id]; $id('scrK').textContent = d.k; $id('scrT').textContent = d.t; $id('scrB').className = 'scr-b ' + (d.cls || ''); const nav = (G.navOf || {})[id], nv = $id('scrNav'); nv.hidden = !nav; nv.innerHTML = nav ? nav.map(n => '<button type="button" role="tab" data-go="' + n[0] + '" aria-selected="' + (n[0] === id) + '">' + n[1] + '</button>').join('') : ''; nv.querySelectorAll('button').forEach(b => b.addEventListener('click', () => G.open(b.dataset.go))); scr.style.setProperty('--sahne', d.bg ? 'url("' + G.bgUrl(d.bg) + '")' : ''); if (d.enter) d.enter(arg); draw();
-    scr.classList.add('acik'); scr.setAttribute('aria-hidden', 'false'); app.classList.add('ekranda'); if (EO2.api) EO2.api.closePanel(); if (EO2.audio) EO2.audio.whoosh && EO2.audio.whoosh(); };
-  G.close = function () { if (!cur) return; cur = null; scr.classList.remove('acik'); scr.setAttribute('aria-hidden', 'true'); app.classList.remove('ekranda'); hud(); };
+    scr.classList.add('acik'); scr.setAttribute('aria-hidden', 'false'); app.classList.add('ekranda'); if (EO2.api) EO2.api.closePanel(); if (EO2.audio) EO2.audio.whoosh && EO2.audio.whoosh(); if (EO2.rehber) EO2.rehber.ekran(id); };
+  G.close = function () { if (!cur) return; cur = null; scr.classList.remove('acik'); scr.setAttribute('aria-hidden', 'true'); app.classList.remove('ekranda'); hud(); if (EO2.rehber) EO2.rehber.ekran(null); };
+  G.ekran = () => cur ? cur.id : null;      // açık ekranın kimliği (müzik ve rehber buna bakar)
   function draw() { if (!cur) return; $id('scrGold').textContent = S.gold; $id('scrUn').textContent = S.un; $id('scrWeek').innerHTML = S.week >= SEASON ? 'Sezonu Bitir' : 'Haftayı Bitir'; SCREENS[cur.id].draw($id('scrB'), cur.arg); }
   G.redraw = function () { if (!G.live) return; draw(); hud(); };
   EO2_BUS.render = G.redraw;
-  $id('scrBack').addEventListener('click', G.close); $id('scrWeek').addEventListener('click', () => G.endWeek());
+  $id('scrBack').addEventListener('click', () => G.close());      // çağrı anındaki G.close: başka dosya sarmışsa (kiraathane2.js) o da çalışır
+  $id('scrWeek').addEventListener('click', () => G.endWeek());
   EO2.blocked = () => !G.live || !!cur || pens > 0 || !!G.mesgul;
   G.sakin = () => pens === 0 && !G.mesgul && !G.busy;   // açık pencere, sahne ya da hafta geçişi yok: ekran güvenle tazelenebilir
   addEventListener('keydown', e => { if (e.key === 'Escape' && cur && !pens) { e.stopPropagation(); G.close(); } }, true);
@@ -73,12 +75,42 @@
   function hud() { if (!G.live) return; const chips = document.querySelectorAll('#hud .tc .chip'), se = seasonOf();
     chips[0].innerHTML = '<span class="coin"></span>' + fmt(S.gold); chips[1].lastChild.textContent = fmt(S.un);
     chips[2].innerHTML = '<b>Hafta ' + S.week + '</b>/ ' + SEASON + '<small>' + se.ad + '</small>';
-    const pr = document.querySelector('#profile > span'); pr.innerHTML = '<b>Terbiyeci</b><span>' + S.dragons.length + ' / ' + capacity() + ' ejder</span>';
-    const ul = document.querySelector('.quests ul'), gs = activeGoals(3);
-    ul.innerHTML = gs.length ? gs.map(g => '<li>' + g.t + '<span class="au">+' + g.r + '</span></li>').join('') : '<li class="bos">Bütün hedefler tamam.</li>';
+    const pr = document.querySelector('#profile > span'); pr.innerHTML = '<b>' + esc(G.ad()) + '</b><span>' + S.dragons.length + ' / ' + capacity() + ' ejder</span>';
+    const ul = document.querySelector('.quests ul'), gs = activeGoals(3);      // hedefe dokununca rehber ilgili yere götürür (js/rehber.js)
+    ul.innerHTML = gs.length ? gs.map(g => '<li data-hedef="' + g.id + '" role="button" tabindex="0" title="Oraya git">' + g.t + '<span class="au">+' + g.r + '</span></li>').join('') : '<li class="bos">Bütün hedefler tamam.</li>';
+    if (EO2.rehber) EO2.rehber.tazele();
     const b = $id('btnWeek'); if (b) { b.textContent = S.week >= SEASON ? 'Sezonu Bitir' : 'Haftayı Bitir'; b.dataset.hafta = 'Hafta ' + S.week + ' / ' + SEASON; } document.getElementById('profile').style.setProperty('--sezon', Math.round(S.week / SEASON * 100) + '%'); if (EO2.api && EO2.api.player) EO2.api.setPlate(EO2.api.player); }
   G.hud = hud;
   G.plate = () => G.live ? 'Hafta ' + S.week : '';     // oyuncunun isim plakası: seviye yok (K5); şimdilik sezon haftası
+
+  /* ---------- oyuncu adı ----------
+     Yerel kayıtta S.terbiyeci alanında durur (eski kayıtlarda yoksa "Terbiyeci"). İsim plakasında, profilde ve menüde görünür.
+     Sunucuya yazılmaz: sunucudaki kimlik (oturum handle'ı) ayrı bir iştir. */
+  const AD_ONERI = ['Aybars', 'Elçin', 'Toygar', 'Umay', 'Börte', 'Alpagu', 'Asena', 'Kayra', 'İlbey', 'Tomris', 'Çağrı', 'Selcen', 'Bengü', 'Göktuğ', 'Ayşan', 'Demir', 'Tuğrul', 'Gökçen', 'Bars', 'Sungur', 'Almıla', 'Kutay', 'Yağmur', 'Oğuz'];
+  const adDuz = s => s.toLocaleLowerCase('tr').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/[ıî]/g, 'i').replace(/ö/g, 'o').replace(/ş/g, 's').replace(/[üû]/g, 'u').replace(/â/g, 'a');
+  /* basit uygunsuz ad süzgeci: kısa kökler yalnız tam sözcük olarak (Işık gibi adlar takılmasın), uzunlar içinde geçerse */
+  const AD_YASAK_SOZ = ['sik', 'am', 'got', 'pic', 'aq', 'amk', 'mal', 'gm', 'mod'], AD_YASAK_IC = ['orospu', 'yarak', 'yarrak', 'sikik', 'sikim', 'siktir', 'amcik', 'amina', 'gotveren', 'pezevenk', 'gavat', 'ibne', 'kahpe', 'serefsiz', 'pust', 'fuck', 'shit', 'bitch', 'hitler', 'nazi', 'admin', 'moderator', 'yonetici', 'gamemaster', 'sistem', 'destek'];
+  G.adDenetle = function (ham) { const v = String(ham == null ? '' : ham).replace(/\s+/g, ' ').trim();
+    if (v.length < 2) return { hata: 'Ad en az iki harf olmalı.' }; if (v.length > 16) return { hata: 'Ad en çok on altı harf olabilir.' };
+    if (!/^[A-Za-zÇĞİÖŞÜçğıöşüÂÎÛâîû ]+$/.test(v)) return { hata: 'Yalnız harf ve boşluk kullan.' };
+    const d = adDuz(v), soz = d.split(' '), bitisik = d.replace(/ /g, '');
+    if (soz.some(w => AD_YASAK_SOZ.includes(w)) || AD_YASAK_IC.some(k => bitisik.includes(k))) return { hata: 'Bu ad kullanılamıyor. Başka bir ad dene.' };
+    return { ad: v }; };
+  G.ad = () => (typeof S !== 'undefined' && S && typeof S.terbiyeci === 'string' && S.terbiyeci) || 'Terbiyeci';
+  function adUygula() { const A = EO2.api; if (A && A.player) { A.player.name = G.ad(); if (A.setPlate) A.setPlate(A.player); } }
+  G.adUygula = adUygula;
+  const adOner = simdiki => { let v; do v = AD_ONERI[Math.floor(Math.random() * AD_ONERI.length)]; while (v === simdiki); return v; };
+  const adAlani = (deger, baslik) => '<div class="ad-sor"><label for="adGir">' + baslik + '</label><div class="ad-kutu"><input id="adGir" maxlength="16" autocomplete="off" autocapitalize="words" spellcheck="false" value="' + esc(deger) + '"><button type="button" class="ad-zar" aria-label="Başka bir ad öner" title="Başka bir ad öner"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.6 6.4A8 8 0 1 0 20 12h-2.2a5.8 5.8 0 1 1-1.7-4.1L13 11h7V4z" fill="currentColor"/></svg></button></div><p class="ad-hata" role="alert" hidden></p><small>2 ile 16 harf arası. Sonra menüden değiştirebilirsin.</small></div>';
+  function adBagla(p) { const inp = p.querySelector('#adGir'), zar = p.querySelector('.ad-zar'), hata = p.querySelector('.ad-hata'); if (!inp) return;
+    inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); const b = p.querySelector('.pen-f .gbtn.altin'); if (b) b.click(); } });
+    inp.addEventListener('input', () => { hata.hidden = true; });
+    zar.addEventListener('click', () => { inp.value = adOner(inp.value); hata.hidden = true; if (EO2.audio) EO2.audio.pop(); }); }
+  function adOnay(p) { const inp = p.querySelector('#adGir'), hata = p.querySelector('.ad-hata'), r = G.adDenetle(inp.value);
+    if (r.hata) { hata.textContent = r.hata; hata.hidden = false; const k = p.querySelector('.ad-kutu'); k.classList.remove('salla'); void k.offsetWidth; k.classList.add('salla'); inp.focus(); return false; }
+    S.terbiyeci = r.ad; saveGame(); adUygula(); hud(); return true; }
+  /* menüden ad değiştirme */
+  G.adSor = async function () { const v = await G.pen({ k: 'Terbiyeci', t: 'Adını değiştir', body: adAlani(G.ad() === 'Terbiyeci' && !S.terbiyeci ? adOner() : G.ad(), 'Ocağın kapısındaki ad'), on: adBagla, btns: [{ t: 'Vazgeç', v: false }, { t: 'Kaydet', cls: 'altin', v: true, fn: p => adOnay(p) }] });
+    if (v) { toast('Adın artık <b>' + esc(G.ad()) + '</b>.'); G.redraw(); } return v; };
 
   /* ---------- hafta sonu ---------- */
   const strip = s => String(s == null ? '' : s).replace(/<[^>]*>/g, '');
@@ -133,19 +165,23 @@
   /* ---------- giriş ekranı ---------- */
   let giris = null;
   function title() { if (giris) giris.remove(); const sv = loadGame(), ok = sv && (!sv.over || sv.ending !== 'iflas');
-    giris = el('div', 'giris', '<div class="giris-ic"><img src="assets/logo.webp" alt="Ejder Ocağı"><p>Dedenden kalan harabe bir ocak. Yaşlı bir ateş ejderhası. Soğumaya yüz tutmuş bir yumurta.<br>Yirmi hafta sonra Kızıl Taç başlıyor.</p><div class="dugmeler"></div><div class="not">Kayıt bu tarayıcıda durur; eski oyunun kayıtlarıyla aynıdır.</div></div>');
+    giris = el('div', 'giris', '<div class="giris-ic"><img src="assets/logo.webp" alt="Ejder Ocağı"><p>Dedenden kalan harabe bir ocak. Yaşlı bir ateş ejderhası. Soğumaya yüz tutmuş bir yumurta.<br>Yirmi hafta sonra Kızıl Taç başlıyor.</p><div class="dugmeler"></div><div class="not">Kayıt bu tarayıcıda durur. Menüden dosyaya yedekleyebilirsin.</div></div>');
     const box = giris.querySelector('.dugmeler'), add = (t, sub, cls, fn) => { const b = el('button', 'gbtn buyuk ' + cls, t + (sub ? '<small>' + sub + '</small>' : '')); b.type = 'button'; b.addEventListener('click', fn); box.appendChild(b); return b; };
     if (ok) add('Ocağa dön', sv.over ? (sv.seasonNo || 1) + '. sezon bitti' : 'Hafta ' + sv.week + ' · ' + (sv.dragons || []).length + ' ejderha · ' + sv.gold + ' altın', 'altin', () => { S = sv; if (typeof careerRepair === 'function') careerRepair(); if (typeof registerAllHeirlooms === 'function') registerAllHeirlooms(); UI.sel = S.dragons[0] ? S.dragons[0].id : null; enter(false); });
     add('Yeni ocak kur', '', ok ? '' : 'altin', async () => { if (ok && !sv.over) { const v = await G.pen({ k: 'Yeni ocak', t: 'Kayıtlı ocağın silinsin mi?', body: '<p>Yeni bir ocak kurarsan bu yuvadaki kayıt (Hafta ' + sv.week + ') üzerine yazılır.</p>', btns: [{ t: 'Vazgeç', v: false }, { t: 'Yeni ocak kur', cls: 'kor', v: true }] }); if (!v) return; }
-      newGame(); UI.sel = S.dragons[0].id; saveGame(); enter(true); });
+      if (ok && EO2.kayit) EO2.kayit.yedekle('yeni ocak');      // üzerine yazılan kayıt bir kez geri alınabilsin
+      newGame(); UI.sel = S.dragons[0].id; saveGame(); if (EO2.rehber) EO2.rehber.sifirla(); enter(true); });
     app.appendChild(giris); const f = box.querySelector('.gbtn'); if (f) f.focus(); }
-  async function enter(fresh) { G.live = true; giris.classList.add('gitti'); if (EO2.audio) EO2.audio.start && EO2.audio.start(); hud(); if (EO2.api) EO2.api.titleCard('Merkez Meydan', 'Ejder Ocağı');
-    if (fresh) await G.pen({ k: 'Mektup', t: 'Torunuma,', face: G.npcImg('dede'), body: '<div class="mektup"><p>Bu mektubu okuyorsan ocak artık senin. Çatılar akıyor, kuluçka ocağı yıllardır soğuk, demirci bile yolu unuttu. Ama Kor hâlâ burada. Yaşlandı, inatlaştı, ama yüreği hâlâ kızgın bir kor.</p><p>Bir de yumurta bırakıyorum. Nereden geldiğini sorma. Onu ısıt; ne çıkacağını ben de bilmiyorum.</p><p>Kızıl Taç\'ı bir kez de bu ocak alsın isterdim. Yirmi haftan var.</p><p class="imza">Deden</p></div>', btns: [{ t: 'Ocağa gir', cls: 'altin buyuk' }] });
-    if (S.over) G.son(); }
+  async function enter(fresh) { G.live = true; giris.classList.add('gitti'); if (EO2.audio) EO2.audio.start && EO2.audio.start(); adUygula(); hud(); if (EO2.api) EO2.api.titleCard('Merkez Meydan', 'Ejder Ocağı');
+    if (fresh) await G.pen({ k: 'Mektup', t: 'Torunuma,', face: G.npcImg('dede'), body: '<div class="mektup"><p>Bu mektubu okuyorsan ocak artık senin. Çatılar akıyor, kuluçka ocağı yıllardır soğuk, demirci bile yolu unuttu. Ama Kor hâlâ burada. Yaşlandı, inatlaştı, ama yüreği hâlâ kızgın bir kor.</p><p>Bir de yumurta bırakıyorum. Nereden geldiğini sorma. Onu ısıt; ne çıkacağını ben de bilmiyorum.</p><p>Kızıl Taç\'ı bir kez de bu ocak alsın isterdim. Yirmi haftan var.</p><p class="imza">Deden</p></div>' + adAlani(adOner(), 'Ocağın kapısına hangi adı yazalım?'), on: p => { adBagla(p); const f = p.querySelector('.pen-f'); f.classList.add('adli'); f.insertBefore(p.querySelector('.ad-sor'), f.firstChild); }, btns: [{ t: 'Ocağa gir', cls: 'altin buyuk', fn: p => adOnay(p) }] });
+    if (S.over) return G.son();
+    if (EO2.rehber) EO2.rehber.basla(fresh); }
 
   /* ---------- dünyaya bağlama ---------- */
   function wire() { const A = EO2.api; if (!A) return setTimeout(wire, 60);
     const q = document.querySelector('.quests'), b = el('button', 'gbtn altin', 'Haftayı Bitir'); b.id = 'btnWeek'; b.type = 'button'; b.addEventListener('click', () => G.endWeek()); q.appendChild(b);
+    const hedefAc = e => { const li = e.target.closest('li[data-hedef]'); if (!li || (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ')) return; if (e.type === 'keydown') { e.preventDefault(); e.stopPropagation(); } if (EO2.audio) EO2.audio.ui(); if (EO2.rehber) EO2.rehber.git(li.dataset.hedef); };
+    q.addEventListener('click', hedefAc); q.addEventListener('keydown', hedefAc);
     EO2.hooks.panel = id => { if (!G.live) return true; if (id === 'ejderhalar' || id === 'bahce') { G.open('ejderhalar'); return true; } if (id === 'ocak') { G.open('ocak'); return true; } if (id === 'arena') { G.open('arena'); return true; } if (id === 'pazar' || id === 'uretim') { G.open('pazar'); return true; } if (id === 'kuzey') { G.open('sefer'); return true; } if (id === 'sosyal' || id === 'han') { G.open('han'); return true; } if (id === 'gorevler') { G.open('defter'); return true; } if (id === 'envanter') { G.open('canta'); return true; } if (id === 'menu') { G.open('menu'); return true; } return false; };
     EO2.hooks.act = act => { if (!G.live) return true; if (act.startsWith('pet:')) { G.open('ejderhalar'); return true; } return false; };
     const P = A.PANELS, rows = a => '<ul class="rows">' + a.map(r => '<li><div><b>' + r[0] + '</b>' + (r[1] ? '<span>' + r[1] + '</span>' : '') + '</div></li>').join('') + '</ul>';

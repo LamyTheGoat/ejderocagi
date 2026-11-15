@@ -11,7 +11,9 @@ function render() { if (EO2_BUS.render) EO2_BUS.render(); }
 function toast(html, kind) { if (EO2_BUS.toast) EO2_BUS.toast(html, kind); }
 const SFX = { on: true, play(k) { if (EO2_BUS.sfx) EO2_BUS.sfx(k); }, toggle() {}, setVol() {}, getVol: () => 1, preload() {}, setBase() {} };
 const FX = new Proxy({}, { get: () => () => {} });
-const BGM = new Proxy({}, { get: () => () => {} });
+/* Müzik: 2.0'da parçaları eo2/js/audio.js çalar (sahneye göre). Eski kurallar yalnız geçici hava ister (bağ sahnesi, veda);
+   o istek oraya iletilir, eski BGM'nin öteki çağrıları boş kalır. */
+const BGM = new Proxy({ mood(m) { const a = window.EO2 && window.EO2.audio; if (a && a.hal) a.hal(m); } }, { get: (t, k) => t[k] || (() => {}) });
 /* $ ve $$: eski çizim katmanı bir gölge kökte barındırılıyorsa (eski.js) önce orada aranır */
 const $ = s => (window.EO2_GOLGE && window.EO2_GOLGE.querySelector(s)) || document.querySelector(s), $$ = s => window.EO2_GOLGE ? [...window.EO2_GOLGE.querySelectorAll(s)] : [...document.querySelectorAll(s)];
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
