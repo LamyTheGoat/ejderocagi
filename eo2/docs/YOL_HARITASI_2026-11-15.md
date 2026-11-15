@@ -17,9 +17,9 @@
 | Er Meydanı (ejderha düellosu PvP, ödülsüz) | bitti | Bağlantı kopması tarayıcıda denenmedi |
 | Bedesten ve Ocak Sandığı | bitti | Kuşam ve yumurta ilanı gerçek veriyle denenmedi |
 | Kıraathane 2.0 ve bahis tepsisi | bitti | Yerel rakibe karşı; oyuncular arası masa yok |
-| Topçu ve Zindan sahnesi, zindan çizgi romanları, Topçu PvP odaları | sürüyor | |
-| Ayarlar, kayıt aktarma, oyuncu adı, ilk hafta rehberi, müzik | sürüyor | |
-| Ocak sahnesi cilası | sürüyor | |
+| Topçu ve Zindan sahnesi, zindan çizgi romanları, Topçu PvP odaları | bitti | Volkanik Kaldera, Batık Donanma ve Ağır zorluk baştan sona oynatılmadı; ödüller yerel kayıtta |
+| Ayarlar, kayıt aktarma, oyuncu adı, ilk hafta rehberi, müzik | bitti | Oyuncu adı sunucuya gitmiyor; parçalar dinlenerek denetlenmedi |
+| Ocak sahnesi cilası | bitti | Yeni çizim üretilemedi (Midjourney bakiyesi); gece görünüşü doğrulanmadı |
 | Kor Örsü ve kuşam yükseltme | bekliyor | Bkz. 2.3 |
 | Çok oyunculu zindan (ortak boss) | bekliyor | Bkz. 2.2 |
 
@@ -70,7 +70,9 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 ## 4. Cila isteyen görsel eksikler (gözle görülen)
 
 - Kervan Tavlası tahtası düz kahverengi dikdörtgen; öteki masaların dokusuyla aynı ayarda değil.
-- Kıraathane ve Ocak için yeni çizim üretilemedi (Midjourney bakiyesi bitti); bakiye yüklenince üretilecekler ilgili raporlarda listeli.
+- Midjourney bakiyesi bitti. Bekleyen çizimler: Ocak için bostan, odunluk, yalak, korkuluk, ahşap çit, kapı direği, çim dokusu; Kıraathane için masa sahnesi ve tavla tahtası; Topçu sahnesinin büyütülmüş hâli (şimdiki 1536 piksel).
+- Motor istekleri (Ocak ajanından): zemin kabartması çime uygulanmasın, mini haritada açılabilir kare katmanı, pano açıkken kamera kayması, zemin lekeleri için tek doku atlası (çizim çağrısı 296'dan yüzün altına iner).
+- Tam tur denetiminde dövüş sırasında sunucudan bir 400 yanıtı düşüyor; nedeni incelenmedi.
 - Eski "ocak" ızgara ekranı (`ekranlar.js`) kodda duruyor; erişilmiyor, silinmeli.
 - Bildirimler ekranlarda sol altta; Kıraathane'de oyuncu panelinin üstüne biniyor.
 - Mini harita: master'daki gibi çizilmiş harita, pusula ve yakınlaştırma yok.
