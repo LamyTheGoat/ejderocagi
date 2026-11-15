@@ -64,7 +64,7 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 
 ## 3. Çıkıştan önce şart olan küçük ve orta işler
 
-1. **İlk yük:** açılışta 500'den fazla istek, 70'ten fazla ayrı betik, sıkıştırma yok. Betikleri tek pakete topla, bölüm çizimlerini
+1. **İlk yük:** açılışta 500'den fazla istek, 70'ten fazla ayrı betik. Sıkıştırma eklendi (2026-11-16: betik ve stiller brotli/gzip ile 2973 KB'tan 897 KB'a iniyor). **Asıl yük görsellerde:** giriş ekranına kadar yaklaşık 21 MB iniyor; bölüm çizimlerinin girilince yüklenmesi en büyük kazanç. Betikleri tek pakete topla, bölüm çizimlerini
    girilince yükle, sunucuda gzip/brotli ve uzun önbellek başlığı. Yükleme perdesine ilerleme çubuğu.
 2. **Kayıt yedeği:** kayıt yalnız tarayıcıda. Misafir hesabına sunucu yedeği (2.1 ile birlikte çözülür); o zamana kadar dışa/içe aktarma.
 3. **Ürün kimliği:** paylaşım görseli (og:image), sürüm numarası, künye, gizlilik ve kullanım koşulları sayfası, yazı tiplerinin kendi
@@ -79,7 +79,7 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 - Kervan Tavlası tahtası düz kahverengi dikdörtgen; öteki masaların dokusuyla aynı ayarda değil.
 - Midjourney bakiyesi bitti. Bekleyen çizimler: Ocak için bostan, odunluk, yalak, korkuluk, ahşap çit, kapı direği, çim dokusu; Kıraathane için masa sahnesi ve tavla tahtası; Topçu sahnesinin büyütülmüş hâli (şimdiki 1536 piksel).
 - Motor istekleri (Ocak ajanından): zemin kabartması çime uygulanmasın, mini haritada açılabilir kare katmanı, pano açıkken kamera kayması, zemin lekeleri için tek doku atlası (çizim çağrısı 296'dan yüzün altına iner).
-- Tam tur denetiminde ara sıra (2026-11-16: altı koşuda bir) sunucudan bir 400 yanıtı düşüyor ve o koşuda tur sonu altını düşük çıkıyor; nedeni bulunamadı. `check_oyun.mjs` artık yanıtın yolunu, komut türünü ve hata kodunu yazıyor.
+- Tam tur denetiminde ara sıra (2026-11-16: on altı koşuda bir; ardışık on koşuda yinelenmedi) sunucudan bir 400 yanıtı düşüyor ve o koşuda tur sonu altını düşük çıkıyor; nedeni bulunamadı. `check_oyun.mjs` artık yanıtın yolunu, komut türünü ve hata kodunu yazıyor.
 - Eski "ocak" ızgara ekranı (`ekranlar.js`) kodda duruyor; erişilmiyor, silinmeli.
 - Bildirimler ekranlarda sol altta; Kıraathane'de oyuncu panelinin üstüne biniyor.
 - Mini harita: master'daki gibi çizilmiş harita, pusula ve yakınlaştırma yok.

@@ -47,6 +47,7 @@ const DB_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const DB_FILE = path.join(DB_DIR, 'world.json');
 const ECONOMY = createEconomyStore();
 const GUEST_SESSIONS = createGuestSessions(ECONOMY, PUBLIC_URL, process.env.NODE_ENV === 'production');
+const zlib = require('node:zlib');
 const publicFile = createPublicFiles(__dirname, [DB_DIR]);
 
 const MIME_TYPES = {
@@ -1355,21 +1356,48 @@ async function handleHttp(req, res) {
           ? 'public, max-age=3600'
           : 'no-cache';
 
-      if (req.headers['if-none-match'] === etag) {
-        res.writeHead(304, { 'Cache-Control': cacheControl, 'ETag': etag });
+      // Metin dosyaları sıkıştırılarak verilir (2.0 açılışta 70'ten fazla betik ve stil yüklüyor). Sıkıştırılmış gövde
+      // bellekte tutulur; dosya değişince (boyut ya da tarih) ETag değişir ve yeniden üretilir. Görseller zaten sıkışıktır.
+      const kodlama = SIKISIR.has(ext) && stat.size >= 1024 ? sikistirmaSec(req.headers['accept-encoding']) : null;
+      const etiket = kodlama ? etag.slice(0, -1) + '-' + kodlama + '"' : etag;
+      const ortak = { 'Cache-Control': cacheControl, 'ETag': etiket, ...(SIKISIR.has(ext) ? { 'Vary': 'Accept-Encoding' } : {}) };
+
+      if (req.headers['if-none-match'] === etiket) {
+        res.writeHead(304, ortak);
         return res.end();
+      }
+
+      if (kodlama) {
+        const govde = sikistir(fullPath, etiket, kodlama);
+        res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream', 'Content-Encoding': kodlama, 'Content-Length': govde.length, ...ortak });
+        return res.end(req.method === 'HEAD' ? undefined : govde);
       }
 
       res.writeHead(200, {
         'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
-        'Cache-Control': cacheControl,
-        'ETag': etag,
+        ...ortak,
       });
       return fs.createReadStream(fullPath).pipe(res);
     }
   }
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('404 Bulunamadı');
+}
+
+// Statik metin dosyalarının sıkıştırılması (brotli, yoksa gzip). Anahtar: yol + ETag; en çok 800 gövde tutulur.
+const SIKISIR = new Set(['.js', '.css', '.html', '.json', '.svg', '.txt', '.md']);
+const sikisik = new Map();
+function sikistirmaSec(kabul) { const k = String(kabul || ''); return /\bbr\b/.test(k) ? 'br' : /\bgzip\b/.test(k) ? 'gzip' : null; }
+function sikistir(dosya, etiket, kodlama) {
+  const anahtar = dosya + '|' + etiket;
+  let govde = sikisik.get(anahtar);
+  if (!govde) {
+    const ham = fs.readFileSync(dosya);
+    govde = kodlama === 'br' ? zlib.brotliCompressSync(ham, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 } }) : zlib.gzipSync(ham, { level: 6 });
+    if (sikisik.size >= 800) sikisik.delete(sikisik.keys().next().value);
+    sikisik.set(anahtar, govde);
+  }
+  return govde;
 }
 
 const server = http.createServer((req, res) => {
