@@ -56,7 +56,7 @@ const expose = new vm.Script(`({
   load(value) { S = value; }, state() { return S; },
   BUILD, ITEMS, FOODS, CHIBI_ITEMS, CHIBI_STONES, CHIBI_ORES, CHIBI_SHARDS,
   countB, freeSlots, kuluckaFree, hasB, canClear, clearCost, checkGoals,
-  smithPrice, sellBack, eggPrice, equippedBy, value, linReg,
+  smithPrice, sellBack, eggPrice, equippedBy, value, linReg, refreshMarket,
   getChibiItemCraftRecipe, getChibiRepairCost, syncChibiSlotPlus, hatchEgg, perk,
 })`);
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -79,7 +79,7 @@ const SHAPES = Object.freeze({
   'topcu.clear': ['mode'], 'topcu.spin': ['wheel'], 'goal.reach': ['id'],
   'gold.local': ['amount', 'reason'], 'gold.import': ['amount'],
   'arena.open': ['spec'], 'arena.settle': ['acts', 'fightId'], 'arena.story': ['id'],
-  'ocak.sync': ['body'],
+  'ocak.sync': ['body'], 'tezgah.hafta': ['week'],
 });
 // Borç varken reddedilen harcama komutları (D4). Ayrıca her `spend` aynı kapıdan geçer.
 const DEBT_BLOCKED = new Set(['building.buy', 'land.clear', 'shop.food', 'shop.item', 'shop.dragon', 'shop.egg',
@@ -98,6 +98,7 @@ function validateCommand(input) {
     else if (key === 'tile') { if (!Number.isSafeInteger(value) || value < 0) fail('invalid_arguments'); }
     else if (key === 'id') { if (!(typeof value === 'string' || Number.isSafeInteger(value))) fail('invalid_arguments'); }
     else if (key === 'amount') { if (!Number.isSafeInteger(value) || Math.abs(value) > 1_000_000 || (value === 0 && input.type !== 'gold.import')) fail('invalid_arguments'); }
+    else if (key === 'week') { if (!Number.isSafeInteger(value) || value < 1 || value > 100000) fail('invalid_arguments'); }
     else if (input.type === 'ocak.sync' && key === 'body') { if (typeof value !== 'string' || !value || value.length > 400_000) fail('invalid_arguments'); }
     else if (input.type === 'arena.open' && key === 'spec') { if (typeof value !== 'string' || !value || value.length > 6000) fail('invalid_arguments'); }
     else if (input.type === 'arena.settle' && key === 'acts') { if (typeof value !== 'string' || !value || value.length > 1200) fail('invalid_arguments'); }
@@ -177,7 +178,7 @@ function reduceCommand(previous, command, { accountId, seed, now }) {
     }
     case 'shop.dragon': {
       const dragon = S.market.dragons.find(d => d.id === a.id);
-      if (!dragon || api.freeSlots() < 1) fail('dragon_unavailable', 409);
+      if (!dragon || (!S.ocak && api.freeSlots() < 1)) fail('dragon_unavailable', 409); // 2.0'a bağlı ocakta in sayısı yerel ocaktadır; yer denetimi istemcide
       spend(dragon.price); S.market.dragons = S.market.dragons.filter(d => d !== dragon);
       dragon.funding = paidSource(); S.milestoneSources.acq = sources.combine([S.milestoneSources.acq || 'earned', dragon.funding]);
       delete dragon.price; dragon.id = S.nid++; S.dragons.push(dragon); S.st.acq++; break;

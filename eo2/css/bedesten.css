@@ -222,3 +222,7 @@
   .ui2 .sd-oda > .bd-vitrin { inset: -.3em; }
   .ui2 #scr:has(.scr-b.bd) #scrNav button, .ui2 #scr:has(.scr-b.sd) #scrNav button { padding-left: .55em; padding-right: .55em; }
 }
+
+/* ---------- Hesap tezgâhı mührü (js/tezgah.js): Gece Çarşısı'nda sunucu stoğundan gelen mal ---------- */
+.ui2 .mal2 .tz-muhur { position: absolute; top: .45em; left: .45em; z-index: 1; padding: .18em .6em .2em; border-radius: 1em; font: 700 .68em/1.2 var(--f-ui); font-style: normal; letter-spacing: .02em; color: #fff6d6; background: linear-gradient(180deg, #33437e, #141a3a); box-shadow: inset 0 0 0 1.5px #d9b96a, 0 .15em .4em rgba(4, 6, 16, .5); }
+.ui2 .mal2 .tz-muhur.satilir { color: #3a2604; background: linear-gradient(180deg, #fff3c4, #e9bc55); box-shadow: inset 0 0 0 1.5px #fffbe6, 0 0 .7em rgba(255, 214, 120, .55), 0 .15em .4em rgba(4, 6, 16, .5); }

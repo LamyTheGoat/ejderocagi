@@ -22,7 +22,7 @@
 function fail(code, status = 409) { throw Object.assign(new Error(code), { code, status }); }
 const clone = v => JSON.parse(JSON.stringify(v));
 const plain = v => v && typeof v === 'object' && !Array.isArray(v);
-const TYPES = new Set(['ocak.sync']);
+const TYPES = new Set(['ocak.sync', 'tezgah.hafta']);
 const LIMIT = Object.freeze({ dragons: 80, eggs: 60, dragonJson: 9000, eggJson: 5000, release: 200 });
 const STAGES = ['yavru', 'genc', 'yetiskin'];
 const STATS = ['gu', 'ce', 'da', 'ze'];
@@ -123,5 +123,20 @@ function sync(S, a, { api, now }) {
   return { ocak: out };
 }
 
-function reduce(type, S, a, ctx) { return type === 'ocak.sync' ? sync(S, a, ctx) : null; }
+// Hesap tezgâhı · sunucudaki pazar stoğu (S.market) 2.0'ın Gece Çarşısı'nda ayrı mal olarak görünür; alım shop.dragon ve
+// shop.egg komutlarıyla, sunucu kesesinden yapılır (fiyat ve stok kuralı js/core.js: marketDragon, marketEgg, refreshMarket).
+// 2.0 sunucuda week.end çalıştırmadığı için stok kendiliğinden yenilenmez: yerel hafta ilerleyince istemci yalnız HAFTA
+// NUMARASINI bildirir, stoğu sunucu kendi kural koduyla ve kendi zarıyla üretir. Bildirilen hafta yalnız ileri gider;
+// aynı hafta ikinci kez stok yenilemez. Sunucunun kendi hafta sayacı (S.week) değişmez.
+function restock(S, a, { api }) {
+  if (!S.ocak || typeof S.ocak !== 'object') fail('ocak_not_bound', 409);
+  const week = a.week, last = Number.isSafeInteger(S.ocak.hafta) ? S.ocak.hafta : 0;
+  if (week <= last) return { tezgah: { hafta: last, yenilendi: false } };
+  const keep = S.week;
+  try { S.week = week; api.refreshMarket(); } finally { S.week = keep; }
+  S.ocak.hafta = week;
+  return { tezgah: { hafta: week, yenilendi: true, ejderha: S.market.dragons.length, yumurta: S.market.egg ? 1 : 0 } };
+}
+
+function reduce(type, S, a, ctx) { return type === 'ocak.sync' ? sync(S, a, ctx) : type === 'tezgah.hafta' ? restock(S, a, ctx) : null; }
 module.exports = { TYPES, reduce, LIMIT };
