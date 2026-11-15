@@ -41,6 +41,9 @@
   tepsi.addEventListener('click', e => { if (e.target.closest('button')) kapat(); });
   document.addEventListener('pointerdown', e => { if (!bar.contains(e.target)) kapat(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') kapat(); });
+  /* Çarşı ekranları tek sekme takımında: NPC tezgâhları, oyuncular arası Bedesten, müzayede, sipariş ve sandık */
+  if (EO2.game) { const CARSI = [['pazar', 'Gece Çarşısı'], ['bedesten', 'Bedesten'], ['muzayede', 'Mermer Salon'], ['siparis', 'Sipariş Panosu'], ['sandik', 'Ocak Sandığı']];
+    EO2.game.navOf = Object.assign(EO2.game.navOf || {}, { pazar: CARSI, bedesten: CARSI, muzayede: CARSI, siparis: CARSI, sandik: CARSI }); }
   EO2.rihtim = { ac: acTepsi, kapat };
   }
 })();
