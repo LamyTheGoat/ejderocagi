@@ -54,7 +54,7 @@ const EO2_PAGE = require('./server/eo2_page').createEo2Page(__dirname, PUBLIC_UR
 const SOSYAL = require('./server/social_service').createSocial({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS });
 // Ortak PvE altyapısı: örnek odaları ve görev bulucu (server/ortak_odalar.js). Oynanış türleri ORTAK.kaydet ile eklenir; bugün kayıtlı tür yok.
 const ORTAK = require('./server/ortak_odalar').createOrtakOdalar({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo });
-setInterval(() => { try { ORTAK.supur(); } catch (e) { console.error('[ortak] süpürme', e.message); } }, 15000).unref();
+setInterval(() => { try { ORTAK.supur(); } catch (e) { console.error('[ortak] süpürme', e.message); } }, 3000).unref();   // ortak savaşta adım süreleri (server/zindan_ortak.js) bu turda denetlenir
 // Kıraathane · oyuncuya karşı masa (server/kiraathane_pvp.js): bahis takas emanetindedir; oyun sürerken o takas oyunculara kilitlidir.
 const KIR_KILIT = new Set();
 const KIR_PVP = require('./server/kiraathane_pvp').createKiraathanePvp({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo, kilitli: KIR_KILIT });

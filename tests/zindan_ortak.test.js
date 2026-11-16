@@ -8,7 +8,7 @@ function kur() {
   const soketler = new Set(), kutu = new Map(); let zaman = 1000;
   const send = (s, m) => { if (!kutu.has(s)) kutu.set(s, []); kutu.get(s).push(m); };
   const O = createOrtakOdalar({ send, sockets: () => soketler, kimlik: s => s.k, now: () => zaman });
-  O.kaydet('zindan', createZindanOrtak().tanim);
+  O.kaydet('zindan', createZindanOrtak({ now: () => zaman }).tanim);
   const baglan = id => { const s = { k: { accountId: id, handle: '@' + id } }; soketler.add(s); return s; };
   const son = (s, tur) => (kutu.get(s) || []).filter(m => m.type === tur).pop();
   const eylem = async (s, e) => { zaman += 200; O.onMessage(s, { type: 'ortak_eylem', eylem: e }); await bekle(); };
@@ -67,4 +67,33 @@ test('konum ve atış yoldaşlara iletilir, sayılar sınırlanır; kampta ve d�
   await eylem(a, { t: 'ates', x: 31, y: 10, aci: 45, guc: 7, yon: 1, ruz: 1.5, mod: { trident: 1, hile: 1 } });
   assert.deepEqual(olay(b, 'ates'), { t: 'ates', kim: 'a', x: 31, y: 10, aci: 45, yon: 1, guc: 1, ruz: 1.5, mod: { trident: true } });
   await eylem(a, { t: 'dustu' }); await eylem(a, { t: 'ates', x: 1, y: 1, aci: 1, guc: 0.5, yon: 1 }); assert.equal(olay(b, 'ates').x, 31, 'düşen oyuncunun atışı iletilmez');
+});
+
+test('ortak sıra: önce oyuncular sırayla, sonra yaşayan düşmanlar; rüzgâr ve hedef sunucudan; düşen ve kopan atlanır, donan beklenmez', async () => {
+  const { O, baglan, son, eylem, olay, ileri } = kur(), a = baglan('a'), b = baglan('b');
+  O.onMessage(a, { type: 'ortak_kur', tur: 'zindan', anahtar: 'zumrut-normal' }); O.onMessage(b, { type: 'ortak_katil', kod: son(a, 'ortak_oda').oda.kod });
+  O.onMessage(b, { type: 'ortak_hazir' }); O.onMessage(a, { type: 'ortak_baslat' }); await bekle();
+  await eylem(a, { t: 'hazir' }); await eylem(b, { t: 'hazir' });
+  let s = son(a, 'ortak_olay').durum.sav; assert.equal(s.adim, 0); assert.equal(s.tip, 'giris');
+  await eylem(a, { t: 'tur_bitti', adim: 0 }); assert.equal(son(a, 'ortak_olay').durum.sav.adim, 0, 'herkes hazır olmadan sıra başlamaz');
+  await eylem(b, { t: 'tur_bitti', adim: 0 });
+  let o = olay(b, 'sira'); assert.equal(o.adim, 1); assert.equal(o.tur, 1); assert.equal(o.tip, 'oyuncu'); assert.equal(o.kim, 'a'); assert.ok(Math.abs(o.ruzgar) <= 2.3);
+  assert.deepEqual(olay(a, 'sira'), o, 'iki oyuncu aynı sırayı ve aynı rüzgârı görür');
+  await eylem(b, { t: 'tur_bitti', adim: 0 }); assert.equal(son(a, 'ortak_olay').durum.sav.adim, 1, 'eski adımın bildirimi sayılmaz');
+  await eylem(a, { t: 'tur_bitti', adim: 1, ex: [14.3, 7, 49.7, 56.8], x: 30, y: 9 }); assert.deepEqual(olay(b, 'tur_bitti'), { t: 'tur_bitti', kim: 'a', adim: 1, x: 30, y: 9 });
+  await eylem(b, { t: 'tur_bitti', adim: 1 }); o = olay(a, 'sira'); assert.equal(o.adim, 2); assert.equal(o.kim, 'b'); assert.deepEqual(o.ex, [14.3, 7, 49.7, 56.8], 'düşman yerleri sıranın sahibinden gelir');
+  // b bitirir, a donmuş: gecikme süresi dolunca beklenmez
+  await eylem(b, { t: 'tur_bitti', adim: 2 }); assert.equal(son(a, 'ortak_olay').durum.sav.adim, 2); ileri(7000); O.supur(); await bekle(8);
+  o = olay(a, 'sira'); assert.equal(o.adim, 3); assert.equal(o.tip, 'dusman'); assert.equal(o.i, 0); assert.ok(['a', 'b'].includes(o.hedef)); assert.ok(o.tohum > 0);
+  // ikinci düşman ölü: atlanır
+  await eylem(a, { t: 'hasar', i: 1, h: 5000 }); await eylem(a, { t: 'tur_bitti', adim: 3 }); await eylem(b, { t: 'tur_bitti', adim: 3 });
+  o = olay(a, 'sira'); assert.equal(o.adim, 4); assert.equal(o.i, 2, 'ölen düşmanın sırası atlanır');
+  await eylem(a, { t: 'tur_bitti', adim: 4 }); await eylem(b, { t: 'tur_bitti', adim: 4 }); assert.equal(olay(a, 'sira').i, 3);
+  await eylem(a, { t: 'tur_bitti', adim: 5 }); await eylem(b, { t: 'tur_bitti', adim: 5 });
+  o = olay(a, 'sira'); assert.equal(o.tur, 2); assert.equal(o.kim, 'a');
+  // a düşer: sırası hemen b'ye geçer; sonraki turda a atlanır
+  await eylem(a, { t: 'dustu' }); o = olay(b, 'sira'); assert.equal(o.kim, 'b'); assert.equal(o.adim, 7);
+  await eylem(b, { t: 'tur_bitti', adim: 7 }); o = olay(b, 'sira'); assert.equal(o.tip, 'dusman'); assert.equal(o.hedef, 'b', 'düşman yalnız ayaktakini hedef alır');
+  // kimse bitirmezse adım süresi dolunca ilerlenir
+  ileri(17000); O.supur(); await bekle(8); assert.equal(olay(b, 'sira').adim, 9);
 });

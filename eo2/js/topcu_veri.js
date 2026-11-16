@@ -65,7 +65,7 @@
       zayif: b => [{ x: b.x - u(14), y: b.y + u(182), r: u(40), ad: 'Miğfer camı ×2' }],
       hamle: () => 'capa', hamleler: { capa: { ad: 'Çapa Darbesi ve Borda Topu', soz: 'Borda topu, ateş!' } },
       uygula(b, p, h, dm) { A.sars(0.8); const tutuk = b.tutuk > 0; if (tutuk) { b.tutuk--; A.yazi(b.x, b.y + b.h + 1, 'Top kolu tutukluk yaptı', { kucuk: 1, col: '#7fe8d8' }); }
-        if (tutuk || A.M.ist.tur % 2 === 1) { A.halka(b.x - u(95), b.y, u(250) / 2.4, A.EL.buz); A.nisanliAt(b, b.x - u(65), b.y + u(135), p.x, p.y + u(30), Math.round(170 * dm), 'buz', 52, { sure: 1.5 }); }
+        if (tutuk || A.tur() % 2 === 1) { A.halka(b.x - u(95), b.y, u(250) / 2.4, A.EL.buz); A.nisanliAt(b, b.x - u(65), b.y + u(135), p.x, p.y + u(30), Math.round(170 * dm), 'buz', 52, { sure: 1.5 }); }
         else { A.nisanliAt(b, b.x - u(65), b.y + u(145), p.x - u(24), p.y + u(30), Math.round(165 * dm), 'buz', 48, { sure: 1.5 }); A.nisanliAt(b, b.x - u(65), b.y + u(145), p.x + u(26), p.y + u(30), Math.round(165 * dm), 'firtina', 48, { sure: 1.65 }); } } },
 
     /* --- Yılan Kraliçe Şahmeran: tacı zayıf nokta; %62'de Kızıl Taç Öfkesi (300 kalkan), %28'de Yılan Kıyameti --- */
@@ -75,13 +75,13 @@
       laflar: ['Gözlerin tacımı mı arıyor? Vurabilirsen vur!', 'Camasb da böyle cesur bakardı. Sonunu bilirsin.', 'Bin yıllık zehrim, senin bir nefeslik ateşin.'],
       fazlar: [{ faz: 2, oran: 0.62, kalkan: 300, ad: 'Kızıl Taç Öfkesi', soz: 'Kızıl tacım uyandı!' }, { faz: 3, oran: 0.28, kiyamet: 2, ad: 'Yılan Kıyameti', soz: 'Sırça Saray üstüne çöksün!' }],
       vurus: vurus(o), zayif: zayif({ tac: o.tac, tacAd: 'Altın taç' }),
-      hamle: b => { const h = b.faz >= 3 ? ['tufan', 'tas', 'isin'] : b.faz >= 2 ? ['isin', 'tufan', 'tas'] : ['isin', 'tufan', 'yagmur']; return h[A.M.ist.tur % h.length]; },
+      hamle: b => { const h = b.faz >= 3 ? ['tufan', 'tas', 'isin'] : b.faz >= 2 ? ['isin', 'tufan', 'tas'] : ['isin', 'tufan', 'yagmur']; return h[A.tur() % h.length]; },
       hamleler: { isin: { ad: 'Çifte Engerek Ölüm Işını', soz: 'Engereklerim, ısırın!' }, tufan: { ad: 'Zümrüt Asit Tufanı', soz: 'Asit gölü yükselsin!' }, tas: { ad: 'Sırça Taşlaştırma Bakışı', soz: 'Gözlerime bak ve taş kesil!' }, yagmur: { ad: 'Kehribar Sütun Yağmuru', soz: 'Tavan başına yıkılsın!' } },
-      uygula(b, p, h, dm) { const [ax, ay] = agiz(b, 85, 195);
-        if (h === 'isin') { A.sars(0.7); A.isin(ax, ay + u(25), p.x, p.y + u(52), A.EL.venom); A.isin(ax, ay - u(20), p.x, p.y + u(28), [255, 215, 106]); iki(b, p, 85, 195, -20, 22, Math.round(185 * dm), 'venom', 'venom', 48); }
-        else if (h === 'tufan') { A.sars(0.7); A.halka(b.x - u(95), b.y + u(120), u(260) / 2.4, A.EL.venom); iki(b, p, 85, 185, -26, 26, Math.round(175 * dm), 'venom', 'venom', 52); }
-        else if (h === 'tas') { A.sars(0.6); A.isin(ax, ay + u(15), p.x, p.y + u(46), [255, 215, 106]); if (p.shield > 0) A.yazi(p.x, p.y + 3, 'Taşlaştırma engellendi', { kucuk: 1, col: '#ffe08a' }); else { p.sta = Math.max(25, p.sta - 35); A.yazi(p.x, p.y + 3, 'Taşlaştırma: −35 nefes', { col: '#b8e08a' }); } A.nisanliAt(b, ax, b.y + u(185), p.x, p.y + u(30), Math.round(175 * dm), 'venom', 48); }
-        else { A.sars(0.7); A.isin(ax, ay + u(40), p.x, p.y + u(42), [255, 215, 106]); A.meteor(b, p, 2, Math.round(185 * dm), 'toprak', 54); A.nisanliAt(b, ax, b.y + u(220), p.x, p.y + u(30), Math.round(190 * dm), 'toprak', 52); } } }; })(),
+      uygula(b, p, h, dm) { const [gx, gy] = b.D.agiz || [85, 195], [ax, ay] = agiz(b, gx, gy);   // agiz: merminin çıktığı nokta (yeni çizimde yay)
+        if (h === 'isin') { A.sars(0.7); A.isin(ax, ay + u(25), p.x, p.y + u(52), A.EL.venom); A.isin(ax, ay - u(20), p.x, p.y + u(28), [255, 215, 106]); iki(b, p, gx, gy, -20, 22, Math.round(185 * dm), 'venom', 'venom', 48); }
+        else if (h === 'tufan') { A.sars(0.7); A.halka(b.x - u(95), b.y + u(120), u(260) / 2.4, A.EL.venom); iki(b, p, gx, gy - 10, -26, 26, Math.round(175 * dm), 'venom', 'venom', 52); }
+        else if (h === 'tas') { A.sars(0.6); A.isin(ax, ay + u(15), p.x, p.y + u(46), [255, 215, 106]); if (p.shield > 0) A.yazi(p.x, p.y + 3, 'Taşlaştırma engellendi', { kucuk: 1, col: '#ffe08a' }); else { p.sta = Math.max(25, p.sta - 35); A.yazi(p.x, p.y + 3, 'Taşlaştırma: −35 nefes', { col: '#b8e08a' }); } A.nisanliAt(b, ax, b.y + u(gy - 10), p.x, p.y + u(30), Math.round(175 * dm), 'venom', 48); }
+        else { A.sars(0.7); A.isin(ax, ay + u(40), p.x, p.y + u(42), [255, 215, 106]); A.meteor(b, p, 2, Math.round(185 * dm), 'toprak', 54); A.nisanliAt(b, ax, b.y + u(gy + 25), p.x, p.y + u(30), Math.round(190 * dm), 'toprak', 52); } } }; })(),
 
     /* --- Başkomutan Kalgarot: göğsündeki kor kalp ve boynuzu zayıf nokta; %62'de Kanat Kasırgası (300 kalkan), %28'de Kıyamet Çekirdeği --- */
     kalgarot: (() => { const o = { kalp: true, tac: [42, 315, 66], tacAd: 'Boynuz kritiği', govde: [185, 140], kutu: [165, 385] }; return {
@@ -90,7 +90,7 @@
       laflar: ['Hah! Görmek istediğim öfke bu. Gel bakalım!', 'Kül Yutan\'ın sağ koluna mı kafa tutuyorsun?', 'Otuz yıldır bu kalderadan sağ çıkan olmadı.'],
       fazlar: [{ faz: 2, oran: 0.62, kalkan: 300, ad: 'Kanat Kasırgası', soz: 'Kanatlarım kalderayı süpürsün!' }, { faz: 3, oran: 0.28, kiyamet: 2, ad: 'Kıyamet Çekirdeği', soz: 'Çekirdeğim tutuştu. Kaçacak yer yok!' }],
       vurus: vurus(o), zayif: zayif({ kalp: true, tac: o.tac, tacAd: 'Boynuz' }),
-      hamle: b => { const h = b.faz >= 3 ? ['kuyruk', 'zincir', 'nova'] : b.faz >= 2 ? ['kuyruk', 'dalis', 'zincir'] : ['dalis', 'kuyruk', 'zincir']; return h[A.M.ist.tur % h.length]; },
+      hamle: b => { const h = b.faz >= 3 ? ['kuyruk', 'zincir', 'nova'] : b.faz >= 2 ? ['kuyruk', 'dalis', 'zincir'] : ['dalis', 'kuyruk', 'zincir']; return h[A.tur() % h.length]; },
       hamleler: { dalis: { ad: 'Meteor Dalışı', soz: 'Gök başına yıkılsın!' }, kuyruk: { ad: 'Obsidiyen Kuyruk Depremi', soz: 'Yer yarılsın!' }, zincir: { ad: 'Kor Zincir Kasırgası', soz: 'Otuz yıllık zincirlerim, savrulun!' }, nova: { ad: 'Süpernova Kıyamet Çekirdeği', soz: 'Mavi kor her şeyi yutsun!' } },
       uygula(b, p, h, dm) { const f = b.face || -1;
         if (h === 'dalis') { A.sars(0.9); A.halka(b.x + f * u(110), b.y + u(180), u(240) / 2.4, A.EL.magma); A.meteor(b, p, b.faz >= 3 ? 3 : 2, Math.round(185 * dm), 'magma', 58); A.nisanliAt(b, b.x + f * u(110), b.y + u(280), p.x, p.y + u(30), Math.round(205 * dm), 'magma', 62); }
@@ -119,7 +119,7 @@
       zayif: b => { const D = B.BOSS.abra, z = []; if (b.dalis < 0.5) z.push({ x: D.bas(b).x, y: D.bas(b).y, r: u(92), ad: b.sersemTur > 0 ? 'Baş ×2' : 'Baş ×1,4' }); if (b.kuyruk > 0.5) { const k = D.kuyrukYer(b); z.push({ x: k.x, y: k.ust - 1.4, r: 1.1, ad: 'Kuyruk' }); } return z; },
       oyuncuSirasi(b) { if (b.kuyrukTur > 0) { b.kuyrukTur--; } else if (b.faz < 3 && b.sersemTur <= 0) b.kuyrukHedef = 0; },
       siraBasi(b) { if (b.direnc > 0) b.direnc--; if (b.kesinSaldir) { b.kesinSaldir = false; b.sersemTur = 0; b.sersem = 0; return false; } if (b.sersemTur > 0) { b.sersemTur--; b.kesinSaldir = true; b.direnc = 2; A.yazi(b.x, b.y + 9, 'Abra sersem: sırası geçti', { col: '#7fe8d8', crit: 1 }); return true; } return false; },
-      hamle: b => { if (b.cikacak) { b.cikacak = false; return 'cikis'; } const h = b.faz >= 3 ? ['tsunami', 'simsek', 'dalis'] : b.faz >= 2 ? ['dalis', 'simsek', 'tsunami'] : ['tsunami', 'dalis', 'simsek']; return h[A.M.ist.tur % h.length]; },
+      hamle: b => { if (b.cikacak) { b.cikacak = false; return 'cikis'; } const h = b.faz >= 3 ? ['tsunami', 'simsek', 'dalis'] : b.faz >= 2 ? ['dalis', 'simsek', 'tsunami'] : ['tsunami', 'dalis', 'simsek']; return h[A.tur() % h.length]; },
       hamleler: { tsunami: { ad: 'Kuyruk Şamarı ve Tsunami', soz: 'Güverteden süpürüleceksin!' }, dalis: { ad: 'Abisal Dalış', soz: 'Güvertenin altından fışkıracağım!' }, simsek: { ad: 'Yıldırımlı Çene', soz: 'Kadırganın güvertesini parçalayacağım!' }, cikis: { ad: 'Gayzer Fışkırması', soz: 'Suların dibinden kopup geldim!' } },
       uygula(b, p, h, dm) { const M = A.M, ax = b.x - 2.4, ay = b.y + 7.4, su = Y_(1238), at = (dx, d, el, pat, sure) => A.nisanliAt(b, ax, ay, p.x + u(dx), p.y + u(30), Math.round(d * dm), el, pat, { sure });
         if (h === 'tsunami') { A.sars(0.9); M.dalga.push({ x0: b.x - u(80), x: b.x, yol: u(1650), sure: 1.25, t: 0, dmg: Math.round(165 * dm) }); if (b.faz < 3) { b.kuyrukHedef = 1; b.kuyrukTur = 1; } at(-18, 180, 'buz', 52, 1.55); at(24, 175, 'firtina', 48, 1.4); A.ses('splash'); }
@@ -128,6 +128,14 @@
         else { A.sars(0.9); A.isin(ax, ay, p.x, p.y + u(38), [200, 160, 255], 0.7); at(-16, 190, 'firtina', 54, 1.6); at(22, 180, 'buz', 48, 1.4); } },
       cizArka(b, x, V) { const im = A.img(I('abra/abra_tail_fin_v2.webp')); if (!im || b.kuyruk <= 0.02 || b.dead) return; const D = B.BOSS.abra, k = D.kuyrukYer(b), h = 6.2 * V.sc, w = h * im.naturalWidth / im.naturalHeight; x.drawImage(im, V.X(k.x) - w / 2, V.Y(k.ust), w, h); } },
   });
+  /* Şahmeran V3.1 (kullanıcı onayı 2026-11-16): yeni savaş çizimi, kareli canlandırma (tools/sahmeran_v3.mjs sayfayı üretir; ölçüler onun çıktısıdır).
+     Kurallar (can, fazlar, hamleler, hasarlar) eski Şahmeran'ın aynısıdır; yalnız çizim, tacın yeri ve merminin çıktığı nokta (yay) değişir.
+     Klipler: bekleme 18 kare · yay germe 8 · bırakma 6 · toparlanma 6 · Mâr tıslaması 9 (vurulunca; vuruluş ve ölüm klibi yok). Çizim sola bakar. */
+  B.BOSS.sahmeran_v3 = (() => { const o = { tac: [-17, 328, 60], tacAd: 'Taç kritiği', govde: [175, 122], kutu: [145, 360] }, sayfa = 'assets/sahmeran_v3.webp', yuz = 'assets/sahmeran_v3_yuz.webp';
+    return Object.assign({}, B.BOSS.sahmeran, { spr: { idle: sayfa, yuz }, yuz, yuzK: [0.5, 0.5, 1], durum: null, yon: -1, agiz: [160, 223], vurus: vurus(o), zayif: zayif({ tac: o.tac, tacAd: 'Altın taç' }),
+      sayfa: { src: sayfa, cw: 465, ch: 339, sutun: 8, px: 197, py: 322, kare(b, t) { const son = (i0, n, oran) => i0 + Math.max(0, Math.min(n - 1, Math.floor(oran * n)));
+        if (b.anim === 'atk') { const g = 2.4 - b.animT; return g < 1.2 ? son(18, 8, g / 1.2) : g < 1.55 ? son(26, 6, (g - 1.2) / 0.35) : son(32, 6, (g - 1.55) / 0.85); }
+        if (b.anim === 'hit') return son(38, 9, (0.5 - b.animT) / 0.5); return Math.floor(t * 7.5) % 18; } } }); })();
   for (const k in B.BOSS) { const D = B.BOSS[k]; if (D.ek) D.ek.forEach((e, i) => { D.spr['ek' + i] = e; }); }
 
   /* ---------- deniz ve dalga çizimi (Batık Donanma) ---------- */

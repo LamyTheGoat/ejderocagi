@@ -2,11 +2,17 @@
 // Ortak zindan seferi (Ejder Ocağı 2.0, 2026-11-16): ortak oda altyapısının (server/ortak_odalar.js) "zindan" türü.
 // İlk zindan: Zümrüt Saray. Bir ile dört terbiyeci aynı örneğe girer. Akış sunucudadır:
 //   bekleme (sefer kampı) → herkes hazır → aşama savaşı → çark (herkes kendi çarkını çevirir) → bekleme → … → son aşama → çark → bitti
-// SAVAŞ MODELİ: "ortak düşman canı". Her oyuncu savaşı kendi ekranında oynar (js/battle.js); düşmanların canı ise TEKTİR ve
-// burada durur. Oyuncu bir düşmana vurunca hasarı bildirir, sunucu candan düşer ve herkese yayar; öteki oyuncuların ekranında
-// o düşmanın canı da iner. Bütün düşmanlar ölünce aşama herkes için aynı anda biter. Düşen oyuncu (Anka külü de tükendiyse)
-// seyirci kalır; ayakta kimse kalmazsa aşama başarısız olur ve kampa dönülür, aynı aşama yeniden denenir.
-// Böylece ağda yalnız hasar ve can bildirimleri dolaşır; konum ve mermi eşlemesi gerekmez, bağlantı gecikmesi oynanışı bozmaz.
+// SAVAŞ MODELİ: TEK ORTAK SAVAŞ (kullanıcı, 2026-11-16: "her şeyi ortak yap, senkronize online oyun istiyorum").
+//   - Düşmanların canı tektir ve burada durur; bir oyuncunun hasarı herkesin ekranında düşer.
+//   - SIRA tektir ve burada durur: her turda önce ayaktaki oyuncular sırayla oynar, sonra yaşayan düşmanlar sırayla saldırır.
+//     Sıra kimdeyse herkesin ekranında o oynar. Rüzgârı sunucu üretir: herkes aynı rüzgârı görür.
+//   - Düşman hamlesi için sunucu hedefi (ayaktaki bir oyuncu) ve bir rastgelelik tohumu seçer; bütün ekranlar aynı hamleyi
+//     aynı hedefe, aynı saçılmayla oynatır. Hasarı her oyuncu yalnız kendi topçusu için hesaplar ve canını bildirir.
+//   - Bir adım, ayaktaki bağlı oyuncuların hepsi "bu adım bende bitti" deyince ilerler; adımın sahibi bitirdikten sonra
+//     ötekiler en çok GECIKME_MS beklenir, hiç kimse bitirmezse adımın süresi dolunca ilerlenir (kopan ya da donan beklenmez).
+//   - Adımın sahibi düşmanların yerini de bildirir; sonraki adımda herkes o yerlere eşitlenir (ekranlar arası kayma birikmez).
+// Düşen oyuncu (Anka külü de tükendiyse) seyirci kalır ve sırası atlanır; ayakta kimse kalmazsa aşama başarısız olur,
+// kampa dönülür, aynı aşama yeniden denenir.
 // ÖDÜL burada YAZILMAZ: aşama ve zindan ödülleri ile çark, tek oyunculu seferdeki kurallarla istemcide işlenir (js/topcu.js odulYaz;
 // miktar ve olasılıklar değişmedi). Sunucu yalnız "aşama temizlendi" ve "sefer bitti" gerçeğini söyler.
 // Düşman canları burada tanımlıdır (istemci canı buradan alır): sayılar tek oyunculu Sırça Saray seferindeki aynı düşmanların canlarıdır.
@@ -19,9 +25,11 @@
 //   { t: 'konum', x, y, aci, yon }          savaşta: topçumun yeri ve nişanı (yoldaşların ekranında görünür)
 //   { t: 'ates', x, y, aci, guc, yon, ruz, mod }  savaşta: ateş ettim (yoldaşların ekranında merminin uçuşu; hasar ayrıca 'hasar' ile gelir)
 //   { t: 'dustu' }               savaşta: düştüm (Anka külü tükendi)
+//   { t: 'tur_bitti', adim, ex, x, y }  savaşta: bu adım benim ekranımda bitti (ex: düşmanların yeri, x-y: topçumun yeri)
 //   { t: 'cark' }                çarkta: çarkımı çevirdim, hazırım
 // OLAYLAR (ortak_olay.olaylar): asama_basla { asama, dusman } · hasar { kim, i, h, hp } · can { kim, hp, max } · dustu { kim } ·
-//   asama_bitti { zafer, asama, son } · kampa_don { asama } · hazir { kim, v } · cark { kim }
+//   asama_bitti { zafer, asama, son } · kampa_don { asama } · hazir { kim, v } · cark { kim } ·
+//   sira { adim, tur, tip: 'oyuncu' | 'dusman', kim, i, hedef, tohum, ruzgar, ex } · tur_bitti { kim, adim, x, y }
 const ZORLUK = { normal: 0.75, zor: 1.0 };
 const ZINDANLAR = {
   zumrut: { ad: 'Zümrüt Saray', asama: [
@@ -34,23 +42,38 @@ const ZINDANLAR = {
 const HASAR_UST = 6000;   // tek bildirimde kabul edilen en büyük hasar (hata ve bozuk veri süzgeci; denge kuralı değildir)
 const hata = kod => Object.assign(new Error(kod), { kod });
 const sinir = (v, a, b) => Math.round(Math.max(a, Math.min(b, Number.isFinite(+v) ? +v : 0)) * 100) / 100;
-const MODLAR = ['trident', 'plus1', 'plus2', 'powUlt', 'heavy', 'crater'];
+const MODLAR = ['trident', 'plus1', 'plus2', 'powUlt', 'heavy', 'crater', 'teleport'];
+const SURE = { giris: 15000, oyuncu: 50000, dusman: 16000 }, GECIKME_MS = 6000;   // bağlantı koruması: oyun kuralı değil, donan ekranı beklememek için
 const partiCarpan = n => 1 + 0.5 * (Math.max(1, n) - 1);
 
-function createZindanOrtak() {
+function createZindanOrtak(secenek) {
+  const now = (secenek && secenek.now) || Date.now, rast = (secenek && secenek.rast) || Math.random;
   const bagli = oda => oda.uyeler.filter(u => u.bagli).map(u => u.id);
   const uye = (d, id) => d.uye[id] || (d.uye[id] = { hazir: false, hayatta: true, hasar: 0, cark: false, hp: 0, max: 0 });
   function asamaBasla(d, oda, olaylar) { const A = ZINDANLAR[d.zindan].asama[d.asama], k = ZORLUK[d.zorluk] * partiCarpan(bagli(oda).length);
     d.faz = 'savas'; d.tur++; d.dusman = A.dusman.map(q => { const hp = Math.round(q.hp * k); return { hp, max: hp, boss: !!q.boss }; });
     for (const id in d.uye) Object.assign(d.uye[id], { hazir: false, hayatta: true, cark: false, hp: 0, max: 0 });
+    d.sav = { adim: 0, tur: 0, tip: 'giris', kim: null, i: -1, hedef: null, tohum: 0, ruzgar: 0, t0: now(), tb: 0, bitti: {}, kuyruk: [], ex: null };
     olaylar.push({ t: 'asama_basla', asama: d.asama, dusman: d.dusman.map(q => q.max) }); }
+  const ayakta = (d, oda) => bagli(oda).filter(id => d.uye[id] && d.uye[id].hayatta);
+  /* sıradaki adım: turun kuyruğu boşsa yeni tur kurulur (önce oyuncular, sonra düşmanlar); düşen oyuncu ve ölen düşman atlanır */
+  function ilerle(d, oda, olaylar) { const s = d.sav, canli = ayakta(d, oda); if (!canli.length) return;
+    for (let k = 0; k < 60; k++) {
+      if (!s.kuyruk.length) { s.tur++; s.kuyruk = canli.map(id => ({ p: id })).concat(d.dusman.map((q, i) => ({ e: i }))); }
+      const n = s.kuyruk.shift();
+      if (n.p) { if (!canli.includes(n.p)) continue; Object.assign(s, { tip: 'oyuncu', kim: n.p, i: -1, hedef: null, tohum: 0, ruzgar: Math.round((rast() * 4.6 - 2.3) * 10) / 10 }); }
+      else { if (!(d.dusman[n.e].hp > 0)) continue; Object.assign(s, { tip: 'dusman', kim: null, i: n.e, hedef: canli[Math.floor(rast() * canli.length) % canli.length], tohum: 1 + Math.floor(rast() * 2147483646) }); }
+      s.adim++; s.t0 = now(); s.tb = 0; s.bitti = {};
+      olaylar.push({ t: 'sira', adim: s.adim, tur: s.tur, tip: s.tip, kim: s.kim, i: s.i, hedef: s.hedef, tohum: s.tohum, ruzgar: s.ruzgar, ex: s.ex }); return; } }
   /* kuralların tek yeri: her eylemden ve süpürmeden sonra çağrılır (bağlantısı kopan ya da ayrılan üye beklenmez) */
   function degerlendir(d, oda) { const olaylar = [], aktif = bagli(oda), son = d.asama === ZINDANLAR[d.zindan].asama.length - 1; if (!aktif.length) return { olaylar };
     for (const id of aktif) uye(d, id);
     if (d.faz === 'bekleme') { if (aktif.every(id => d.uye[id].hazir)) asamaBasla(d, oda, olaylar); }
     else if (d.faz === 'savas') {
       if (d.dusman.every(q => q.hp <= 0)) { d.faz = 'cark'; for (const id in d.uye) d.uye[id].cark = false; olaylar.push({ t: 'asama_bitti', zafer: true, asama: d.asama, son }); }
-      else if (!aktif.some(id => d.uye[id].hayatta)) { d.faz = 'bekleme'; d.deneme++; for (const id in d.uye) Object.assign(d.uye[id], { hazir: false, hayatta: true }); olaylar.push({ t: 'asama_bitti', zafer: false, asama: d.asama, son }); } }
+      else if (!aktif.some(id => d.uye[id].hayatta)) { d.faz = 'bekleme'; d.deneme++; for (const id in d.uye) Object.assign(d.uye[id], { hazir: false, hayatta: true }); olaylar.push({ t: 'asama_bitti', zafer: false, asama: d.asama, son }); }
+      else if (d.sav) { const s = d.sav, canli = ayakta(d, oda), t = now();
+        if ((s.tip === 'oyuncu' && !canli.includes(s.kim)) || canli.every(id => s.bitti[id]) || (s.tb && t - s.tb >= GECIKME_MS) || t - s.t0 >= SURE[s.tip]) ilerle(d, oda, olaylar); } }
     else if (d.faz === 'cark') { if (aktif.every(id => d.uye[id].cark)) {
       if (son) { d.faz = 'bitti'; return { olaylar, bitti: { kazanan: true, zindan: d.zindan, zorluk: d.zorluk } }; }
       d.asama++; d.faz = 'bekleme'; d.deneme = 0; for (const id in d.uye) d.uye[id].hazir = false; olaylar.push({ t: 'kampa_don', asama: d.asama }); } }
@@ -71,6 +94,10 @@ function createZindanOrtak() {
         const o = { t: e.t, kim: kim.id, x: sinir(e.x, 0, 64), y: sinir(e.y, -10, 40), aci: sinir(e.aci, -10, 70), yon: e.yon === -1 ? -1 : 1 };
         if (e.t === 'ates') { o.guc = sinir(e.guc, 0, 1); o.ruz = sinir(e.ruz, -6, 6); o.mod = {}; for (const k of MODLAR) if (e.mod && e.mod[k]) o.mod[k] = true; }
         olaylar.push(o); return { olaylar }; }
+      else if (e.t === 'tur_bitti') { const s = d.sav; if (d.faz !== 'savas' || !s || e.adim !== s.adim) return { olaylar };   // eski adımın bildirimi sessizce düşer
+        s.bitti[kim.id] = true; const sahip = s.tip === 'oyuncu' ? s.kim === kim.id : s.tip === 'dusman' ? s.hedef === kim.id : true;
+        if (sahip) { s.tb = s.tb || now(); if (Array.isArray(e.ex)) s.ex = e.ex.slice(0, d.dusman.length).map(x => sinir(x, 0, 64)); }
+        olaylar.push({ t: 'tur_bitti', kim: kim.id, adim: s.adim, x: sinir(e.x, 0, 64), y: sinir(e.y, -10, 40) }); }
       else if (e.t === 'dustu') { if (d.faz !== 'savas') return { olaylar }; u.hayatta = false; u.hp = 0; olaylar.push({ t: 'dustu', kim: kim.id }); }
       else if (e.t === 'cark') { if (d.faz !== 'cark') throw hata('faz_uygun_degil'); u.cark = true; olaylar.push({ t: 'cark', kim: kim.id }); }
       else throw hata('eylem_gecersiz');
@@ -81,4 +108,4 @@ function createZindanOrtak() {
   return { tanim, ZINDANLAR, ZORLUK, partiCarpan };
 }
 
-module.exports = { createZindanOrtak, ZINDANLAR, ZORLUK, partiCarpan, HASAR_UST };
+module.exports = { createZindanOrtak, ZINDANLAR, ZORLUK, partiCarpan, HASAR_UST, SURE, GECIKME_MS };

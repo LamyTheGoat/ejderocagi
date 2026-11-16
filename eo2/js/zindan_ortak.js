@@ -2,11 +2,13 @@
    Sunucu tarafı: server/zindan_ortak.js (ortak oda altyapısının "zindan" türü). Bir ile dört terbiyeci aynı sefere girer.
    AKIŞ: Topçu ekranı → Zümrüt Saray seferi (özel sefer kur, kodla katıl, partiyle kur, yoldaş ara) → Sefer Kampı (js/bolumler/sefer-kampi.js)
      → herkes Zümrüt Kapı'da "hazırım" der → aşama savaşı → çark (herkes kendi çarkını çevirir) → kampa dönüş → … → Şahmeran → büyük çark → sefer sonu.
-   SAVAŞ: herkes kendi ekranında oynar; düşmanların canı ortaktır (sunucuda). Vurduğun hasar yoldaşlarının ekranında da düşer, onlarınki seninkinde.
+   SAVAŞ: TEK ORTAK SAVAŞ. Sıra, rüzgâr, düşmanların canı, yeri ve hamleleri herkeste aynıdır (sunucu söyler: 'sira' olayı).
+     Her turda önce oyuncular sırayla oynar, sonra düşmanlar sırayla saldırır; sıra kimdeyse herkesin ekranında o oynar.
      Düşen oyuncu seyirci kalır; herkes düşerse kampa dönülür ve aynı aşama yeniden denenir.
    ÖDÜL: tek oyunculu seferle aynı kurallar ve aynı fonksiyonlar (js/topcu.js: odulYaz, kucukCark, buyukCark). Yeni miktar ya da olasılık yoktur.
    Aşamalar (kullanıcı kararı): 1) Zümrüt Saray Köprüsü, iki yandan gelen yılanlar. 2) Şahmeran'ın defilesi: dümdüz, kırılmaz zemin; boss sağ uçta yükseltide.
-   Çizimler eldeki Sırça Saray çizimleridir; yeni arena çizimleri gelince yalnız ASAMA tablosu değişir. */
+   Şahmeran'ın çizimi V3.1'dir (kullanıcı onayı 2026-11-16; js/topcu_veri.js BOSS.sahmeran_v3). Arka planlar ve yılanlar eldeki Sırça Saray
+   çizimleridir: yenileri (kaynak/zumrut-saray) konsept kalitesinde, üretim hâli gelince yalnız ASAMA tablosu değişir. */
 (function () {
   'use strict';
   const EO2 = window.EO2, G = EO2 && EO2.game, AG = EO2 && EO2.ag, OR = EO2 && EO2.ortak, B = EO2 && EO2.battle, T = EO2 && EO2.topcu, V = EO2 && EO2.topcuVeri, app = document.getElementById('app');
@@ -21,7 +23,7 @@
     { ad: 'Zümrüt Saray Köprüsü', alt: 'Yılanlar iki yandan geliyor', bg: ZS.asama[1].bg, f: kopru, x0: 1700, mobSinir: [260, 3140], ipucu: 'Yılanlar iki yandan gelir. Fareyi çevirdiğin yana döner, o yana ateş edersin. Önce yaklaşanı vur.',
       moblar: [{ tip: 'cobra', ad: 'Bronz Engerek Muhafızı', x: 760 }, { tip: 'viper', ad: 'Uçan Sırça Engereği', x: 380, yuk: 590 }, { tip: 'cobra', ad: 'Bronz Engerek Muhafızı', x: 2640 }, { tip: 'viper', ad: 'Uçan Sırça Engereği', x: 3020, yuk: 590 }] },
     { ad: 'Şahmeran\'ın Defilesi', alt: 'Yılan Kraliçe yükseltide bekliyor', bg: ZS.asama[3].bg, f: defile, x0: 460, kirilmaz: true, ipucu: 'Zemin kırılmaz. Altın tacı zayıf noktasıdır. Her tur yerdeki halkadan çık, sonra ateş et.',
-      moblar: [{ tip: 'cobra', ad: 'Sırça Taht Muhafızı', x: 1560 }, { tip: 'cobra', ad: 'Sırça Taht Muhafızı', x: 2080 }], boss: { tip: 'sahmeran', ad: 'Yılan Kraliçe Şahmeran', unvan: 'Zümrüt Saray\'ın ebedi hükümdarı', x: 2760 } },
+      moblar: [{ tip: 'cobra', ad: 'Sırça Taht Muhafızı', x: 1560 }, { tip: 'cobra', ad: 'Sırça Taht Muhafızı', x: 2080 }], boss: { tip: 'sahmeran_v3', ad: 'Yılan Kraliçe Şahmeran', unvan: 'Zümrüt Saray\'ın ebedi hükümdarı', x: 2760 } },
   ];
   const D = () => OR.durum(), oda = () => D().oda, od = () => D().ortak, ben = () => D().ben, benim = () => !!(oda() && oda().tur === 'zindan');
   const seferde = () => benim() && oda().durum === 'oyunda' && !!od();
@@ -32,19 +34,22 @@
   /* ---------- savaş ---------- */
   function cfgKur(d) { const A = ASAMA[d.asama], zr = V.ZORLUK[d.zorluk], n = oda().uyeler.filter(u => u.bagli).length, o = T.oyuncuDeger(true); if (n > 1) o.dmg = Math.round(o.dmg / 1.40);   // 1,40 yoldaşsız sefer çarpanıdır (js/topcu.js); grupla girilince uygulanmaz
     const can = j => d.dusman[j] ? d.dusman[j].max : 1, moblar = A.moblar.map((m, j) => Object.assign({}, m, { hp: can(j) })), boss = A.boss ? Object.assign({}, A.boss, { hp: can(A.moblar.length) }) : null;
-    return { kimlik: 'ortak-' + oda().id + '-' + d.tur, kip: 'zindan', baslik: A.ad, alt: 'Aşama ' + (d.asama + 1) + ' / ' + d.n + ' · ' + zr.ad + (n > 1 ? ' · ' + n + ' terbiyeci' : ''), arazi: V.arazi(ZS.tema, ZS.tema, A.f, 31 + d.asama * 7), bg: A.bg, ortam: ZS.ortam, x0: A.x0, kirilmaz: !!A.kirilmaz,
+    return { kimlik: 'ortak-' + oda().id + '-' + d.tur, kip: 'zindan', baslik: A.ad, alt: 'Aşama ' + (d.asama + 1) + ' / ' + d.n + ' · ' + zr.ad + (n > 1 ? ' · ' + n + ' terbiyeci' : ''), arazi: V.arazi(ZS.tema, ZS.tema, A.f, 31 + d.asama * 7), bg: A.bg, ortam: ZS.ortam, x0: A.x0 + [0, -150, 150, -300][Math.max(0, oda().uyeler.findIndex(u => u.id === ben())) % 4], kirilmaz: !!A.kirilmaz, ortak: true,
       ozel: A.mobSinir ? { mobSinir: A.mobSinir } : undefined, oyuncu: o, zorluk: zr, moblar, boss, asama: { ad: ZAD, n: d.n, i: d.asama }, ipucu: A.ipucu, cikis: savasAyril, sis: 'rgba(4,14,20,.55)' }; }
   async function savasAyril() { const M = B.state(); if (!M || M.over || M.dur) return; M.dur = true;
     const v = await G.pen({ k: 'Sefer', t: 'Seferden ayrılacak mısın?', body: '<p>Ayrılırsan grubun sensiz sürdürür; bu sefere geri dönemezsin. O ana kadar aldığın ganimet sende kalır.</p>', btns: [{ t: 'Savaşa dön', v: false }, { t: 'Ayrıl', cls: 'kor', v: true }] });
     if (M !== B.state()) return; M.dur = false; if (v) B.kapat(); }
   B.dinle((olay, v) => { if (!Z.savas || !seferde() || od().faz !== 'savas') return;
     if (olay === 'dusman_hasar' && v.i > 0 && v.h > 0) OR.eylem({ t: 'hasar', i: v.i - 1, h: v.h });
+    else if (olay === 'adim_bitti') { const s = od().sav; if (s && v.adim < s.adim) siraUygula(s); else OR.eylem({ t: 'tur_bitti', adim: v.adim, ex: v.ex, x: v.x, y: v.y }); }   // bu ekran geride kaldıysa sunucudaki adıma atlar
     else if (olay === 'ates' && v.kim === 0) { const M = B.state(); OR.eylem({ t: 'ates', x: v.x, y: v.y, aci: v.aci, guc: v.guc, yon: v.yon, ruz: M ? M.wind : 0, mod: v.mod || {} }); }
     else if (olay === 'konum') { const t = Date.now(); if (t - (Z.konumT || 0) > 240) { Z.konumT = t; OR.eylem({ t: 'konum', x: v.x, y: v.y, aci: v.aci, yon: v.yon }); } }
     else if (olay === 'can' && v.kim === 0) { const t = Date.now(); if (t - Z.canT > 350 || v.hp <= 0) { Z.canT = t; OR.eylem({ t: 'can', hp: Math.round(v.hp), max: Math.round(v.max) }); } } });
+  const kimden = id => (id === ben() ? 'ben' : id);
+  function siraUygula(s) { if (!Z.savas || !s || !s.adim) return; B.ortakSira({ adim: s.adim, tur: s.tur, kim: s.kim ? kimden(s.kim) : null, i: s.i, hedef: kimden(s.hedef), tohum: s.tohum, ruzgar: s.ruzgar, ex: s.ex }); }
   /* yoldaşların topçuları bu ekranda da durur (js/battle.js yoldasKoy); motor savaşı kurana dek beklenir */
   function yoldaslariKur(deneme) { const M = B.state(); if (!Z.savas || !benim()) return; if (!M || !M.on || !M.ben) { if ((deneme || 0) < 40) setTimeout(() => yoldaslariKur((deneme || 0) + 1), 150); return; }
-    for (const u of oda().uyeler) { if (u.id === ben() || !u.bagli) continue; const c = EO2.meydanAg && [...EO2.meydanAg.kisiler.values()].find(x => x.handle === u.h); B.yoldasKoy(u.id, { ad: u.ad, set: (c && c.set) || 'temel' }); } }
+    for (const u of oda().uyeler) { if (u.id === ben() || !u.bagli) continue; const c = EO2.meydanAg && [...EO2.meydanAg.kisiler.values()].find(x => x.handle === u.h); B.yoldasKoy(u.id, { ad: u.ad, set: (c && c.set) || 'temel', x: M.ben.x + ([0, -150, 150, -300][Math.max(0, oda().uyeler.indexOf(u)) % 4] - [0, -150, 150, -300][Math.max(0, oda().uyeler.findIndex(q => q.id === ben())) % 4]) / B.api.PX }); } }
   async function asamaBaslat() { const d = od(); if (!d || d.faz !== 'savas' || Z.savas) return; Z.savas = true; Z.savasBitti = false; Z.sonAsama = null; seyirKapat(); G.close(); document.querySelectorAll('.pen-perde').forEach(w => w.remove());
     const cfg = cfgKur(d), bek = B.ac(cfg); yoldaslariKur();
     setTimeout(() => { const M = B.state(); if (M && Z.savas) OR.eylem({ t: 'konum', x: M.ben.x, y: M.ben.y, aci: Math.round(M.ben.angle), yon: M.ben.face }); }, 700);
@@ -108,6 +113,8 @@
       else if (o.t === 'konum' && o.kim !== ben() && Z.savas) B.yoldasKoy(o.kim, o);
       else if (o.t === 'ates' && o.kim !== ben() && Z.savas) B.yoldasAtes(o.kim, o);
       else if (o.t === 'can' && o.kim !== ben() && Z.savas) B.yoldasKoy(o.kim, { hp: o.hp, max: o.max });
+      else if (o.t === 'sira' && Z.savas) siraUygula(o);
+      else if (o.t === 'tur_bitti' && o.kim !== ben() && Z.savas) { B.yoldasKoy(o.kim, { x: o.x, y: o.y }); if (od().sav && od().sav.kim === o.kim && od().sav.adim === o.adim) B.ortakPas(o.kim); }
       else if (o.t === 'dustu' && o.kim !== ben()) { if (Z.savas) B.yoldasKoy(o.kim, { dustu: true }); G.toast(esc_(uyeAd(o.kim)) + ' düştü.'); }
       else if (o.t === 'asama_bitti') asamaBitti(o);
       else if (o.t === 'kampa_don') { ses('chime'); kampaGit(); G.toast('Sıradaki aşama: <b>' + esc_(ASAMA[o.asama].ad) + '</b>. Hazır olan kapıya.', 'goal'); }
@@ -131,7 +138,7 @@
 
   /* ---------- ekran: sefer kurma ve toplanma ---------- */
   function lobi() { const k = D().kuyruk, kil = T.kilitli(), parti = EO2.parti && EO2.parti.durum().parti, lider = parti && parti.lider === (AG.kimlik() || {}).handle;
-    return '<div class="zn-lobi"><div class="zn-kart"><img class="zn-yuz" alt="" src="' + ZS.yuz + '"><small>Ortak sefer · 1 ile 4 terbiyeci</small><h2>' + ZAD + '</h2><p>Şahmeran\'ın sarayına grupça girilir. İki aşama var: <b>Zümrüt Saray Köprüsü</b> ve <b>Şahmeran\'ın Defilesi</b>. Düşmanların canı ortaktır: herkes kendi topuyla vurur, can hepinizin önünde iner.</p><p>Aşamalar arasında <b>Sefer Kampı</b>\'na dönersiniz. Her aşamadan sonra herkes kendi çarkını çevirir; ganimet kişiye özeldir.</p>' +
+    return '<div class="zn-lobi"><div class="zn-kart"><img class="zn-yuz" alt="" src="' + ZS.yuz + '"><small>Ortak sefer · 1 ile 4 terbiyeci</small><h2>' + ZAD + '</h2><p>Şahmeran\'ın sarayına grupça girilir. İki aşama var: <b>Zümrüt Saray Köprüsü</b> ve <b>Şahmeran\'ın Defilesi</b>. Hepiniz aynı savaştasınız: sırayla atarsınız, düşman kime saldırırsa herkes onu görür.</p><p>Aşamalar arasında <b>Sefer Kampı</b>\'na dönersiniz. Her aşamadan sonra herkes kendi çarkını çevirir; ganimet kişiye özeldir.</p>' +
         '<div class="zn-zorluk" role="group" aria-label="Zorluk">' + Object.keys(V.ZORLUK).map(z => '<button type="button" class="gbtn kucuk" data-zor="' + z + '" aria-pressed="' + (Z.zorluk === z) + '">' + V.ZORLUK[z].ad + '</button>').join('') + '</div></div>' +
       '<div class="zn-secenek">' + (kil ? '<p class="zn-muhur">Mühürlü: sefere yalnız omuz ejderi olan çıkar.</p><button type="button" class="gbtn" data-zn="kilit">Nasıl açılır?</button>' :
         '<button type="button" class="gbtn altin buyuk" data-zn="kur">Sefer kur<small>kodu dostuna ver ya da çağır; tek başına da çıkılır</small></button>' +

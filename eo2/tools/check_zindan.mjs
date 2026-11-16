@@ -42,6 +42,11 @@ try {
   await B.locator('#seferSerit [data-sf="hazir"]').click();
   log.savas = await bekle(A, savasta, 30000) && await bekle(B, savasta, 30000);
   log.dusman = await A.evaluate(() => EO2.battle.state().act.filter(a => a.takim === 1).map(a => a.max)); await A.waitForTimeout(1200); await cek(A, 'zindan_3_kopru');
+  // ortak sıra: ilk sıra seferi kuranda; iki ekranda da aynı kişi oynuyor, rüzgâr aynı
+  const sirada = ad => 'EO2.battle.state() && EO2.battle.state().aktif && EO2.battle.state().faz === "nisan" && (' + (ad === 'ben' ? 'EO2.battle.state().aktif === EO2.battle.state().ben' : 'EO2.battle.state().aktif.yoldas && EO2.battle.state().aktif.ad === "' + ad + '"') + ')';
+  log.siraA = await bekle(A, sirada('ben'), 20000) && await bekle(B, sirada('Aylin'), 20000);
+  log.ruzgar = [await A.evaluate(() => EO2.battle.state().wind), await B.evaluate(() => EO2.battle.state().wind)];
+  log.kimYazisi = await B.evaluate(() => document.getElementById('tpKim').textContent);
   // yoldaşın topçusu iki ekranda da durur; A yürür ve ateş eder: B'nin ekranında A'nın topçusu yer değiştirir, mermisi uçar
   const yoldasVar = 'EO2.battle.state() && EO2.battle.state().act.filter(a => a.yoldas).length === 1';
   log.yoldasTopcu = await bekle(A, yoldasVar) && await bekle(B, yoldasVar);
@@ -50,11 +55,23 @@ try {
   await A.evaluate(() => { const M = EO2.battle.state(); EO2.ortak.eylem({ t: 'ates', x: M.ben.x, y: M.ben.y, aci: 55, guc: 0.6, yon: 1, ruz: M.wind, mod: {} }); });
   log.yoldasAtes = await bekle(B, 'EO2.battle.state().hayalet && EO2.battle.state().hayalet.length > 0', 8000);
   log.yoldasYer = await B.evaluate(x => Math.abs(EO2.battle.state().act.find(a => a.yoldas).x - x) < 0.05, ax); await B.waitForTimeout(350); await cek(B, 'zindan_3b_yoldas_atis');
-  log.kendiSirasiBozulmadi = await B.evaluate(() => EO2.battle.state().faz !== 'ucus' || EO2.battle.state().shots.length > 0);
+  log.atisSirayiUcusaGecirdi = await B.evaluate(() => ["ucus", "durul", "bekle"].includes(EO2.battle.state().faz));
   // A birinci düşmana vurur: B'nin ekranında da canı iner
   await A.evaluate(() => { const M = EO2.battle.state(); EO2.battle.api.hasarMob(M.act[1], 300); });
   log.ortakCan = await bekle(B, 'EO2.battle.state() && EO2.battle.state().act[1].hp <= EO2.battle.state().act[1].max - 300');
   log.yoldasCercevesi = await B.evaluate(() => !document.getElementById('seferYoldas').hidden && /Aylin/.test(document.getElementById('seferYoldas').textContent));
+  // A sırasını geçer: sıra B'ye gelir (A'nın ekranında "Bora nişan alıyor"); B geçer: düşman sırası iki ekranda aynı düşmanla, aynı hedefe oynar
+  await A.evaluate(() => { EO2.battle.pas(); });
+  log.siraB = await bekle(B, sirada('ben'), 20000) && await bekle(A, sirada('Bora'), 20000);
+  log.ruzgar2 = [await A.evaluate(() => EO2.battle.state().wind), await B.evaluate(() => EO2.battle.state().wind)];
+  await B.evaluate(() => { EO2.battle.pas(); });
+  const dusmanda = 'EO2.battle.state() && EO2.battle.state().aktif && EO2.battle.state().aktif.takim === 1';
+  log.dusmanSirasi = await bekle(A, dusmanda, 20000) && await bekle(B, dusmanda, 20000);
+  log.dusmanAyni = [await A.evaluate(() => { const M = EO2.battle.state(); return M.act.indexOf(M.aktif) + ':' + (M.hedefT === M.ben ? 'Aylin' : M.hedefT.ad); }), await B.evaluate(() => { const M = EO2.battle.state(); return M.act.indexOf(M.aktif) + ':' + (M.hedefT === M.ben ? 'Bora' : M.hedefT.ad); })];
+  // bir tur dönsün: sıra yeniden A'ya gelince düşmanların yeri iki ekranda aynı olmalı
+  log.turDondu = await bekle(A, sirada('ben') + ' && EO2.battle.state().tur === 2', 90000) && await bekle(B, sirada('Aylin') + ' && EO2.battle.state().tur === 2', 30000);
+  const yerler = () => EO2.battle.state().act.filter(a => a.takim === 1).map(a => Math.round(a.x * 10) / 10);
+  log.dusmanYer = [await A.evaluate(yerler), await B.evaluate(yerler)]; await cek(B, 'zindan_3c_ortak_sira');
   // ikisi sırayla bütün düşmanları indirir
   await A.evaluate(() => { const M = EO2.battle.state(); EO2.battle.api.hasarMob(M.act[1], 9999); EO2.battle.api.hasarMob(M.act[2], 9999); });
   await B.evaluate(() => { const M = EO2.battle.state(); EO2.battle.api.hasarMob(M.act[3], 9999); EO2.battle.api.hasarMob(M.act[4], 9999); });
@@ -66,6 +83,9 @@ try {
   await A.locator('#seferSerit [data-sf="hazir"]').click(); await B.evaluate(() => EO2.api.runAct('zindan:hazir'));
   log.savas2 = await bekle(A, savasta + ' && EO2.battle.state().boss', 30000) && await bekle(B, savasta + ' && EO2.battle.state().boss', 30000);
   log.kirilmaz = await A.evaluate(() => EO2.battle.state().cfg.kirilmaz === true); await A.waitForTimeout(1200); await cek(A, 'zindan_5_defile');
+  // Şahmeran V3.1 çizimi yüklü mü; taç işareti ve saldırı karesi (ekran görüntüsü için)
+  log.sahmeranCizim = await A.evaluate(() => { const b = EO2.battle.state().boss, im = EO2.battle.api.img(b.D.sayfa && b.D.sayfa.src); return !!(im && im.naturalWidth === 3720); });
+  if (ekran) { await A.evaluate(() => { const b = EO2.battle.state().boss; b.acik = 0.35; b.anim = 'atk'; b.animT = 1.3; }); await A.waitForTimeout(120); await cek(A, 'zindan_5b_sahmeran'); await A.evaluate(() => { const b = EO2.battle.state().boss; b.acik = 0; }); }
   for (let i = 0; i < 6; i++) { await B.evaluate(() => { const M = EO2.battle.state(); if (M && M.boss && !M.boss.dead) EO2.battle.api.hasarBoss(M.boss, 2000, true); }); await B.waitForTimeout(250); }
   log.asama2 = await bekle(A, faz('cark')) && await bekle(B, faz('cark'));
   await cark(A, true); await cark(B, true);
@@ -75,7 +95,7 @@ try {
   log.altinToplam = await A.evaluate(() => S.gold) - altin0;
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && log.gordu && log.kod && log.davet && log.hazirGorundu && log.kamp && log.kamptaGordu && log.serit && log.tekHazirBaslamadi && log.savas && JSON.stringify(log.dusman) === '[855,900,855,900]' && log.yoldasTopcu && log.yoldasAd === 'Aylin' && log.yoldasAtes && log.yoldasYer && log.kendiSirasiBozulmadi && log.ortakCan && log.yoldasCercevesi
-  && log.asama1 && log.kampaDonus && log.altinAsama >= 150 && log.savas2 && log.kirilmaz && log.asama2 && log.sonPen && log.cikti && log.altinToplam >= 400;
+const ok = !hata.length && log.gordu && log.kod && log.davet && log.hazirGorundu && log.kamp && log.kamptaGordu && log.serit && log.tekHazirBaslamadi && log.savas && JSON.stringify(log.dusman) === '[855,900,855,900]' && log.yoldasTopcu && log.yoldasAd === 'Aylin' && log.yoldasAtes && log.yoldasYer && log.ortakCan && log.siraA && log.ruzgar[0] === log.ruzgar[1] && log.siraB && log.ruzgar2[0] === log.ruzgar2[1] && log.dusmanSirasi && log.dusmanAyni[0] === log.dusmanAyni[1] && log.turDondu && JSON.stringify(log.dusmanYer[0]) === JSON.stringify(log.dusmanYer[1]) && log.yoldasCercevesi
+  && log.asama1 && log.kampaDonus && log.altinAsama >= 150 && log.savas2 && log.kirilmaz && log.sahmeranCizim && log.asama2 && log.sonPen && log.cikti && log.altinToplam >= 400;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

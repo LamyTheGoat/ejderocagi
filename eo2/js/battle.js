@@ -237,16 +237,20 @@
     M.bekle = (dalga - 1) * 0.18 + 0.05; a.mods = {}; M.faz = 'ucus'; M.pt = 0; if (a.takim === 0) { M.ist.tur++; M.ist.kombo = 0; } hud(true);
     if (!uzak) yay('ates', { kim: a.takim, x: a.x, y: a.y, aci: Math.round(base), guc: power, yon: face, el: a.el, hasar: dmg, mod: md0, tur: M.tur });
   }
+  /* ortak savaşta (cfg.ortak) düşman hamlelerinin rastgeleliği sunucunun verdiği tohumdan gelir: bütün ekranlarda aynı saçılma */
+  const R = () => { if (!M || !M.cfg.ortak || !M.tohum) return Math.random(); let t = (M.tohum = (M.tohum + 0x6D2B79F5) | 0); t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const hedefT = () => (M.cfg.ortak && M.hedefT && !M.hedefT.dustuKesin ? M.hedefT : M.ben), turNo = () => (M.cfg.ortak ? M.tur : M.ist.tur);
   /* düşman ve boss mermisi: hedefe düşecek biçimde atılır; eski oyundaki saçılma (±47,5 piksel + rüzgâr×12) aynı */
   function nisanliAt(by, sx, sy, tx, ty, dmg, el, patlama, o) {
-    o = o || {}; const sac = o.kesin ? 0 : u((Math.random() - 0.5) * 95 + M.wind * 12), Tt = o.sure || 1.2, w = M.wind * RUZ, dx = tx + sac - sx, dy = ty - sy;
+    o = o || {}; const sac = o.kesin ? 0 : u((R() - 0.5) * 95 + M.wind * 12), Tt = o.sure || 1.2, w = M.wind * RUZ, dx = tx + sac - sx, dy = ty - sy;
     M.shots.push(Object.assign({ x: sx, y: sy, vx: dx / Tt - 0.5 * w * Tt, vy: dy / Tt + 0.5 * G * Tt, by, takim: 1, col: EL[el] || EL.venom, el, dmg, patlama: patlama || 44, r: (patlama || 44) / 54 * 1.3, t: 0, trail: [], ruz: 1, dusman: true }, o)); ses('fire');
   }
-  function meteor(b, p, n, dmg, el, patlama) { for (let i = 0; i < n; i++) { const tx = clamp(p.x + u((i - (n - 1) * 0.5) * 105 + (Math.random() - 0.5) * 36), 3, FW - 3), sx = tx + u(b.x > p.x ? 260 : -260), sy = Math.min(FH + 2, p.y + u(680 + i * 55)); nisanliAt(b, sx, sy, tx, p.y + u(24), dmg, el, patlama, { sure: 1.0 + i * 0.14, kesin: true, gok: true }); } }
+  function meteor(b, p, n, dmg, el, patlama) { for (let i = 0; i < n; i++) { const tx = clamp(p.x + u((i - (n - 1) * 0.5) * 105 + (R() - 0.5) * 36), 3, FW - 3), sx = tx + u(b.x > p.x ? 260 : -260), sy = Math.min(FH + 2, p.y + u(680 + i * 55)); nisanliAt(b, sx, sy, tx, p.y + u(24), dmg, el, patlama, { sure: 1.0 + i * 0.14, kesin: true, gok: true }); } }
 
   /* hasar: oyuncuya (eski detonateProjectile / tehlike bölgesi) */
   function hasarTopcu(a, dmg, o) {
-    o = o || {}; if (a.dead) return 0; if (a.shield > 0 && !o.delici) { dmg = Math.round(dmg * (o.kalkanK || 0.40)); a.shield--; yazi(a.x, a.y + 3.1, 'Kalkan sönümledi', { kucuk: 1, col: '#ffe08a' }); }
+    o = o || {}; if (a.dead || a.yoldas) return 0;   // yoldaşın canını kendi ekranı hesaplar ve bildirir
+    if (a.shield > 0 && !o.delici) { dmg = Math.round(dmg * (o.kalkanK || 0.40)); a.shield--; yazi(a.x, a.y + 3.1, 'Kalkan sönümledi', { kucuk: 1, col: '#ffe08a' }); }
     dmg = Math.max(1, Math.round(dmg)); a.hp = Math.max(0, a.hp - dmg); a.rage = Math.min(100, a.rage + 18); a.hurtT = 0.55; M.shake = Math.max(M.shake, 0.5);
     if (o.it) { a.vy = 3 + o.it * 2; a.fall = true; a.kx = o.yon * (1 + o.it * 2.2); }
     yazi(a.x, a.y + 2.3, dmg, { crit: !!o.crit, col: a.ben ? '#ff9a8a' : null }); ses('hit'); if (a.ben || a.kontrol !== 'uzak') yay('can', { kim: a.takim, hp: a.hp, max: a.max }); return dmg;
@@ -317,6 +321,7 @@
   const dusmanKaldi = () => M.act.some(a => a.takim === 1 && !a.dead);
   function siradaki() {
     if (M.over) return; if (!dusmanKaldi()) return bitir(true); const onceki = M.aktif;
+    if (M.cfg.ortak) { M.aktif = null; M.faz = 'bekle'; M.pt = 0; M.charging = false; M.charge = 0; hud(true); return yay('adim_bitti', { adim: M.adim || 0, ex: M.act.filter(a => a.takim === 1).map(a => Math.round(a.x * 100) / 100), x: M.ben.x, y: M.ben.y }); }   // ortak savaş: sıradakini sunucu söyler (ortakSira)
     for (let k = 0; k <= M.sira.length; k++) { M.si = (M.si + 1) % M.sira.length; const a = M.sira[M.si]; if (M.si === 0) { if (M.aktif) M.tur++; } if (a === M.ben || !a.dead) { if (onceki === M.ben && a !== M.ben && M.cfg.ozel && M.cfg.ozel.dusmanBasi) M.cfg.ozel.dusmanBasi(API); return baslat(a); } }
   }
   function baslat(a) {
@@ -325,39 +330,43 @@
       if (a.hp <= 0 || a.dead) { if (a.revive > 0) { a.revive--; a.dead = false; a.hp = Math.round(a.max * 0.65); a.shield = 1; if (a.y < 0.5 || a.dustu) { a.x = X_(M.cfg.x0 || 460); a.dustu = false; } a.y = Math.max(a.y, yerY(a.x)); a.fall = true; a.vy = 0; yazi(a.x, a.y + 3, 'Anka Külü: dirildin', { col: '#ffe08a', crit: 1 }); toz(a.x, a.y + 1, 30, [255, 215, 106]); halka(a.x, a.y + 1, 1.1, [255, 215, 106]); ses('chime'); yay('can', { kim: 0, hp: a.hp, max: a.max }); } else return bitir(false); }
       for (const k in a.cd) if (a.cd[k] > 0) a.cd[k]--;
       if (M.lav.length) { for (const l of M.lav) { if (M.boss && !M.boss.dead && Math.abs(M.boss.x - l.x) <= l.r + u(120)) hasarBoss(M.boss, l.dmg, true, 'Lav havuzu yakıyor'); for (const e of M.act) if (e.tur === 'mob' && !e.dead && Math.abs(e.x - l.x) <= l.r + u(36)) hasarMob(e, l.dmg, { not: 'Lav yanığı', col: '#ffb060' }); l.tur--; } M.lav = M.lav.filter(l => l.tur > 0); if (!dusmanKaldi()) return bitir(true); }
-      M.bolge = []; if (M.boss && !M.boss.dead) { const D = M.boss.D; M.bolge.push({ x: a.x, y: a.y, r: u(130), dmg: D.bolge || 210, el: D.el || 'venom' }); }
+      M.bolge = M.cfg.ortak ? M.bolge.filter(z => z.kim !== a) : []; if (M.boss && !M.boss.dead) { const D = M.boss.D; M.bolge.push({ x: a.x, y: a.y, r: u(130), dmg: D.bolge || 210, el: D.el || 'venom', kim: a }); }
       if (M.boss && M.boss.D.oyuncuSirasi) M.boss.D.oyuncuSirasi(M.boss, API);
-      M.timer = 25; yeniRuzgar(M.ruzgarSirasi ? M.ruzgarSirasi(M.siraNo) : null); a.sta = a.staMax; a.capa = 0;
+      M.timer = 25; yeniRuzgar(M.cfg.ortak ? M.ruzgarGelen : M.ruzgarSirasi ? M.ruzgarSirasi(M.siraNo) : null); a.sta = a.staMax; a.capa = 0;
       pankart('Senin sıran', M.bolge.length ? 'Halkadan çık, sonra ateş et' : 'Tur ' + M.tur, 'me'); ses('turn'); yay('sira', { kim: 0, tur: M.tur, ruzgar: M.wind });
+    } else if (a.yoldas) {   // ortak savaş: sıra bir yoldaşta; o kendi ekranında oynar, burada yeri, nişanı ve atışı görünür
+      M.timer = 25; yeniRuzgar(M.ruzgarGelen); M.bolge = M.bolge.filter(z => z.kim !== a); if (M.boss && !M.boss.dead) { const D = M.boss.D; M.bolge.push({ x: a.x, y: a.y, r: u(130), dmg: D.bolge || 210, el: D.el || 'venom', kim: a }); }
+      pankart(a.ad + ' nişan alıyor', 'Tur ' + M.tur, ''); ses('turn');
     } else if (a.tur === 'topcu') { M.timer = 25; if (M.ruzgarSirasi) yeniRuzgar(M.ruzgarSirasi(M.siraNo)); pankart(a.kontrol === 'uzak' ? 'Rakibin sırası' : a.ad + ' nişan alıyor', 'Tur ' + M.tur, ''); ses('turn'); yay('sira', { kim: 1, tur: M.tur, ruzgar: M.wind }); }
     else if (a.tur === 'mob') mobSira(a); else bossSira(a);
     hud(true);
   }
   /* eski performSingleEnemyTurnAction: yerdekiler oyuncuya 46 piksel yaklaşır (ayazda 24), 135 hasarlık nişanlı atış */
-  function mobSira(e) { const p = M.ben, ayaz = e.chill > 0; if (e.chill > 0) e.chill--; M.faz = 'oyun';
-    sonra(0.55, () => { if (e.dead || M.over) return siradaki(); e.face = p.x < e.x ? -1 : 1; if (!e.ucan && !e.D.sabit) { const lim = M.cfg.ozel && M.cfg.ozel.mobSinir || [820, 3050]; e.x = clamp(e.x + e.face * u(ayaz ? 24 : 46), X_(lim[0]), X_(lim[1])); }
-      e.anim = 'atk'; e.animT = 0.9; e.lunge = 0.35; if (e.D.soz && Math.random() < 0.3) balon(e, e.D.soz, null, 1.6);
-      sonra(0.4, () => { if (e.dead || M.over) return siradaki(); const dm = Math.round(135 * M.cfg.zorluk.dmg * (ayaz ? 0.85 : 1)); nisanliAt(e, e.x + e.face * u(35), e.y + u(58) + (e.ucan ? e.h * 0.2 : 0), p.x + u(Math.random() * 44 - 22), p.y + u(26), dm, e.el, 42, e.D.atis); M.faz = 'ucus'; M.pt = 0; M.bekle = 0; }); });
+  function mobSira(e) { const p = hedefT(), ayaz = e.chill > 0, ad = M.adim; if (e.chill > 0) e.chill--; M.faz = 'oyun';
+    sonra(0.55, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki(); e.face = p.x < e.x ? -1 : 1; if (!e.ucan && !e.D.sabit) { const lim = M.cfg.ozel && M.cfg.ozel.mobSinir || [820, 3050]; e.x = clamp(e.x + e.face * u(ayaz ? 24 : 46), X_(lim[0]), X_(lim[1])); }
+      e.anim = 'atk'; e.animT = 0.9; e.lunge = 0.35; if (e.D.soz && R() < 0.3) balon(e, e.D.soz, null, 1.6);
+      sonra(0.4, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki(); const dm = Math.round(135 * M.cfg.zorluk.dmg * (ayaz ? 0.85 : 1)); nisanliAt(e, e.x + e.face * u(35), e.y + u(58) + (e.ucan ? e.h * 0.2 : 0), p.x + u(R() * 44 - 22), p.y + u(26), dm, e.el, 42, e.D.atis); M.faz = 'ucus'; M.pt = 0; M.bekle = 0; }); });
   }
   /* eski performSingleBossTurnAction: sersemse pas; laf atma turu; değilse hazırlık, tehlike bölgesi, saldırı */
-  function bossSira(b) { const p = M.ben, D = b.D; M.faz = 'oyun'; b.face = p.x < b.x ? -1 : 1;
-    if (D.siraBasi && D.siraBasi(b, API)) return sonra(1.0, siradaki);
-    if (b.sersem > 0) { b.sersem--; yazi(b.x, b.y + b.h + 1, 'Sersemledi, sırası geçti', { col: '#ffe08a' }); return sonra(1.0, siradaki); }
-    const laf = b.sonLaf !== M.ist.tur && D.laflar && (b.lafZorla || M.ist.tur === 2 || (!D.lafsiz && M.ist.tur >= 1 && Math.random() < 0.35));
-    if (laf) { b.lafZorla = false; b.sonLaf = M.ist.tur; b.acik = 0.35; p.rage = Math.min(100, p.rage + 25); p.sta = Math.min(p.staMax, p.sta + 25); const soz = D.laflar[(b.lafN = (b.lafN || 0) + 1) % D.laflar.length];
-      balon(b, soz, b.ad + ' laf atıyor', 4.4); const L = $('tpLaf'); L.hidden = false; L.querySelector('p').textContent = 'Nasıl karşılık verirsin?'; M.lafT = 4.4; hud(true); return; }
-    const dm = M.cfg.zorluk.dmg * (b.chill > 0 ? 0.85 : 1); if (b.chill > 0) b.chill--;
+  function bossSira(b) { const hd = hedefT(), ben = M.ben, D = b.D, ad = M.adim, tn = turNo(), sn = fn => () => { if (M.adim === ad) fn(); }; M.faz = 'oyun'; b.face = hd.x < b.x ? -1 : 1;
+    if (D.siraBasi && D.siraBasi(b, API)) return sonra(1.0, sn(siradaki));
+    if (b.sersem > 0) { b.sersem--; yazi(b.x, b.y + b.h + 1, 'Sersemledi, sırası geçti', { col: '#ffe08a' }); return sonra(1.0, sn(siradaki)); }
+    const laf = b.sonLaf !== tn && D.laflar && (b.lafZorla || tn === 2 || (!D.lafsiz && tn >= 1 && R() < 0.35));
+    let p = ben;   // laf atma herkese: karşılığı her oyuncu kendi ekranında verir
+    if (laf) { b.lafZorla = false; b.sonLaf = tn; b.acik = 0.35; p.rage = Math.min(100, p.rage + 25); p.sta = Math.min(p.staMax, p.sta + 25); const soz = D.laflar[(b.lafN = (b.lafN || 0) + 1) % D.laflar.length];
+      balon(b, soz, b.ad + ' laf atıyor', 4.4); const L = $('tpLaf'); L.hidden = false; L.querySelector('p').textContent = 'Nasıl karşılık verirsin?'; M.lafT = 4.4; M.lafAdim = ad; hud(true); return; }
+    p = hd; const dm = M.cfg.zorluk.dmg * (b.chill > 0 ? 0.85 : 1); if (b.chill > 0) b.chill--;
     const hamle = D.hamle(b, API), H = D.hamleler[hamle] || {}; b.anim = 'atk'; b.animT = 2.4; balon(b, H.soz || '', H.ad || 'Saldırı', 2.2); ses('whoosh');
-    sonra(1.35, () => { if (b.dead || M.over) return siradaki();
-      const z = M.bolge.shift(); if (z) { const kacti = Math.abs(p.x - z.x) > z.r, col = EL[z.el] || EL.venom; M.isin.push({ x1: b.x + b.face * 1.5, y1: b.y + b.h * 0.7, x2: z.x, y2: z.y + 0.2, col, t: 0.55, max: 0.55 }); carve(M.T, z.x, z.y, u(68)); toz(z.x, z.y + 0.3, 30, col); halka(z.x, z.y + 0.3, z.r, col); M.shake = Math.max(M.shake, 0.8); ses('boom', 0.7);
-        if (kacti) yazi(p.x, p.y + 2.8, 'Tehlikeden kaçtın', { col: '#8ff0a4', crit: 1 }); else hasarTopcu(p, z.dmg * dm, { kalkanK: 0.35, crit: 1, it: 0.6, yon: Math.sign(p.x - b.x || -1) }); }
+    sonra(1.35, () => { if (M.adim !== ad) return; if (b.dead || M.over) return siradaki();
+      const zl = M.cfg.ortak ? M.bolge.splice(0) : M.bolge.splice(0, 1); for (const z of zl) { if (z.kim && z.kim !== ben && z.kim.dead) continue; const p = z.kim || ben, kacti = Math.abs(p.x - z.x) > z.r, col = EL[z.el] || EL.venom; M.isin.push({ x1: b.x + b.face * 1.5, y1: b.y + b.h * 0.7, x2: z.x, y2: z.y + 0.2, col, t: 0.55, max: 0.55 }); carve(M.T, z.x, z.y, u(68)); toz(z.x, z.y + 0.3, 30, col); halka(z.x, z.y + 0.3, z.r, col); M.shake = Math.max(M.shake, 0.8); ses('boom', 0.7);
+        if (kacti) yazi(p.x, p.y + 2.8, p === ben ? 'Tehlikeden kaçtın' : 'Tehlikeden kaçtı', { col: '#8ff0a4', crit: 1 }); else hasarTopcu(p, z.dmg * dm, { kalkanK: 0.35, crit: 1, it: 0.6, yon: Math.sign(p.x - b.x || -1) }); }
       b.lunge = 0.5; D.uygula(b, p, hamle, dm, API); M.faz = 'ucus'; M.pt = 0; M.bekle = 0.6; });
   }
   function lafCevap(k) { if (!M || M.lafT == null) return; const p = M.ben, b = M.boss; M.lafT = null; $('tpLaf').hidden = true; $('tpBalon').hidden = true; M.balon = null;
     if (k === 'rage') { p.rage = Math.min(100, p.rage + 20); yazi(p.x, p.y + 2.8, 'Cesur karşılık: +20 öfke', { col: '#ffb060', crit: 1 }); }
     else if (k === 'focus') { b.acik = 0.50; yazi(p.x, p.y + 2.8, 'Keskin nişan: zayıf noktaya +%50', { col: '#ffe08a', crit: 1 }); }
     else if (k === 'shield') { p.shield = Math.min(3, p.shield + 1); p.sta = Math.min(p.staMax, p.sta + 25); yazi(p.x, p.y + 2.8, 'Siper: +1 kalkan', { col: '#9fe0ff', crit: 1 }); }
-    if (k) ses('chime'); hud(true); sonra(0.6, siradaki); }
+    if (k) ses('chime'); hud(true); const ad = M.adim; sonra(0.6, () => { if (M.adim === ad) siradaki(); }); }
   function bitir(zafer, terk) { if (M.over) return; M.over = true; M.faz = 'bitti'; M.lafT = null; $('tpLaf').hidden = true; hud(true); yay('mac_bitti', { zafer, terk: !!terk, ist: M.ist });
     if (terk) return M.bitir({ zafer: false, terk: true, ist: M.ist });
     pankart(zafer ? 'Zafer' : 'Yenildin', '', zafer ? 'big' : 'big kayip'); ses('win', zafer); const m = M; setTimeout(() => { m.bitir({ zafer, terk: false, ist: m.ist, can: m.ben.hp, max: m.ben.max }); }, window.__fastFx ? 60 : 1500); }
@@ -373,7 +382,7 @@
     if (M.ipucuT > 0) { M.ipucuT -= dt; if (M.ipucuT <= 0) $('tpBilgi').hidden = true; }
     if (M.balon) { M.balon.t -= dt; if (M.balon.t <= 0) { M.balon = null; $('tpBalon').hidden = true; } }
     if (M.faz === 'nisan' && me && me.tur === 'topcu' && !M.over) {
-      M.timer -= dt; if (M.timer <= 0 && me.kontrol === 'uzak') M.timer = 0; else if (M.timer <= 0) { M.charging = false; M.charge = 0; me.mods = {}; yay('pas', { kim: me.takim }); siradaki(); return; }
+      M.timer -= dt; if (M.timer <= 0 && (me.kontrol === 'uzak' || me.yoldas)) M.timer = 0; else if (M.timer <= 0) { M.charging = false; M.charge = 0; me.mods = {}; yay('pas', { kim: me.takim }); siradaki(); return; }
       if (me.kontrol === 'yerel') {
         const mv = (K_.right ? 1 : 0) - (K_.left ? 1 : 0); me.moving = false;
         if (mv && !M.charging && me.sta > 0.5 && !me.fall) { me.face = mv; const nx = clamp(me.x + mv * 2.3 * dt, 1.7, FW - 1.7); if (!solid(M.T, nx, me.y + 0.75)) { const gy = groundBelow(M.T, nx, me.y + 0.7); if (gy !== null && gy - me.y < 0.7) { me.sta = Math.max(0, me.sta - 22 * dt); me.x = nx; if (me.y - gy > 0.9) me.fall = true; else me.y = gy; me.moving = true; me.ph += dt * 1.9; } else if (gy === null) { me.x = nx; me.fall = true; } } }
@@ -386,7 +395,7 @@
         if (!M.plan && M.pt > 0.9) M.plan = aiPlan(me);
         if (M.plan) { const p = M.plan; p.t += dt; const d = p.ang - me.angle; if (Math.abs(d) > 0.6 && p.t < 1.6) me.angle += Math.sign(d) * Math.min(Math.abs(d), 42 * dt); else { M.charging = true; M.charge = Math.min(p.p, M.charge + dt / 1.5); if (M.charge >= p.p - 0.001) { M.charging = false; M.charge = 0; ates(me, p.p); } } }
       }   // 'uzak': komutlar EO2.battle.uzak() ile gelir
-    } else if (M.faz === 'ucus') { stepShots(dt); if (!M.shots.length && M.pt > 0.3 + (M.bekle || 0)) { M.faz = 'durul'; M.pt = 0; } }
+    } else if (M.faz === 'ucus') { stepShots(dt); if (!M.shots.length && !(M.hayalet && M.hayalet.length) && M.pt > 0.3 + (M.bekle || 0)) { M.faz = 'durul'; M.pt = 0; } }
     else if (M.faz === 'durul' && M.pt > 0.9 && !M.act.some(a => a.fall) && !M.dalga.length) siradaki();
     // dalgalar (Abra): güverte boyunca yürür, oyuncuya çarpınca hasar verir ve iter; çapa itmeyi dörtte bire indirir
     for (let i = M.dalga.length - 1; i >= 0; i--) { const d = M.dalga[i]; d.t += dt; d.x = d.x0 - d.yol * (d.t / d.sure); const p = M.ben; if (!d.vurdu && !p.dead && d.x <= p.x + 0.6) { d.vurdu = true; const it = p.capa ? 0.25 : 1; hasarTopcu(p, d.dmg, { it: 0.5 * it, yon: -1 }); p.kx = -(2.5 + 3 * it) * it; if (p.capa) yazi(p.x, p.y + 3.2, 'Çapa tuttu', { kucuk: 1, col: '#7fe8d8' }); ses('splash'); } if (d.t >= d.sure) M.dalga.splice(i, 1); }
@@ -397,22 +406,22 @@
       if (a.fall) { a.vy -= G * dt; a.y += a.vy * dt; if (a.kx) { const nx = clamp(a.x + a.kx * dt, 1.7, FW - 1.7); if (!solid(M.T, nx, a.y + 0.6)) a.x = nx; a.kx *= Math.pow(0.05, dt); }
         const gy = groundBelow(M.T, a.x, a.y + 0.5); if (a.vy <= 0 && gy !== null && a.y <= gy) { a.y = gy; a.fall = false; a.vy = 0; a.kx = 0; for (let i = 0; i < 5; i++) M.parts.push({ k: 'smoke', x: a.x + (Math.random() - 0.5) * 0.6, y: a.y + 0.1, vx: (Math.random() - 0.5) * 2, vy: 0.5, life: 0.5, max: 0.5, s: 0.25 }); }
         if (a.ben && M.deniz != null && a.y < M.deniz - 1.2) { const kayip = Math.round(a.max * 0.2); a.hp = Math.max(0, a.hp - kayip); a.x = X_(M.cfg.x0 || 460); a.y = yerY(a.x) + 2.5; a.vy = 0; a.kx = 0; a.hurtT = 0.55; yazi(a.x, a.y + 2.6, 'Denize düştün: −' + kayip, { col: '#9fe0ff', crit: 1 }); ses('splash'); yay('can', { kim: 0, hp: a.hp, max: a.max }); }
-        else if (a.kontrol === 'uzak' && a.y < -4) { a.fall = false; a.y = -4; a.vy = 0; }      // uzak rakibin düşüşüne kendi ucu karar verir
+        else if ((a.kontrol === 'uzak' || a.yoldas) && a.y < -4) { a.fall = false; a.y = -4; a.vy = 0; }      // uzak rakibin düşüşüne kendi ucu karar verir
         else if (a.y < (M.deniz != null ? M.deniz - 1.2 : -4)) { a.hp = 0; a.dead = true; a.dustu = true; a.fall = false; yazi(a.x, Math.max(2.5, (M.deniz || 0) + 1.5), M.deniz != null ? 'Denize düştü' : 'Düştü', { crit: 1 }); if (M.deniz != null) ses('splash'); yay('can', { kim: a.takim, hp: 0, max: a.max }); } }
       else if (!a.dead) { const gy = groundBelow(M.T, a.x, a.y + 0.4); if (gy === null || a.y - gy > 0.25) a.fall = true; else a.y = gy; }
-      if (a.hp <= 0 && !a.dead && !a.fall && a.kontrol !== 'uzak') a.dead = true; }      // uzak rakibin öldüğüne sunucu sonucu karar verir
+      if (a.hp <= 0 && !a.dead && !a.fall && a.kontrol !== 'uzak' && !a.yoldas) a.dead = true; }      // uzak rakibin öldüğüne sunucu sonucu karar verir
     for (let i = M.parts.length - 1; i >= 0; i--) { const p = M.parts[i]; p.life -= dt; if (p.life <= 0) { M.parts.splice(i, 1); continue; } p.x += p.vx * dt; p.y += p.vy * dt; if (p.k === 'chunk' || p.k === 'ember') p.vy -= G * 0.8 * dt; else if (p.k === 'smoke') { p.vx *= Math.pow(0.2, dt); p.x += M.wind * 0.25 * dt; } }
     for (let i = M.nums.length - 1; i >= 0; i--) { M.nums[i].t += dt; if (M.nums[i].t > 1.5) M.nums.splice(i, 1); }
     for (let i = M.isin.length - 1; i >= 0; i--) { M.isin[i].t -= dt; if (M.isin[i].t <= 0) M.isin.splice(i, 1); }
     // kamera
     const c = M.cam, ben = M.ben; let tx, ty, tz;
-    if (M.shots.length) { const s = M.shots[0]; tx = s.x + s.vx * 0.3; ty = Math.max(7, s.y * 0.55 + 4.5); tz = 0.62; }
+    if (M.shots.length || (M.hayalet && M.hayalet.length)) { const s = M.shots[0] || M.hayalet[0]; tx = s.x + s.vx * 0.3; ty = Math.max(7, s.y * 0.55 + 4.5); tz = 0.62; }
     else if (M.faz === 'durul' || M.faz === 'bitti') { tx = M.hitX === undefined ? (me || ben).x : M.hitX; ty = (M.hitY === undefined ? (me || ben).y : M.hitY) + 2.0; tz = 0.9; }
     else if (M.faz === 'giris') { const b = M.boss; tx = b ? lerp(b.x, 32, ss(0.9, 1.7, M.pt)) : 32; ty = b ? b.y + b.h * 0.5 : 11; tz = b ? 0.62 : 0.5; }
     else if (me && me.tur === 'boss') { tx = lerp(me.x, ben.x, 0.3); ty = me.y + me.h * 0.5; tz = 0.6; }
     else if (me && me.tur === 'mob') { tx = me.x; ty = me.y + 2; tz = 0.85; }
     else if (me) { const gor = M.view ? M.view.W / M.view.sc / Math.max(0.5, c.z) : 22; tx = me.x + me.face * Math.min(M.charging ? 7.5 : 5, gor * (M.charging ? 0.3 : 0.22)); ty = me.y + 2.0; tz = M.charging ? 0.84 : 1; } else { tx = 32; ty = 11; tz = 0.5; }
-    const k = Math.min(1, dt * (M.shots.length ? 5 : 2.4)); c.x = lerp(c.x, tx, k); c.y = lerp(c.y, ty, k); c.z = lerp(c.z, tz, Math.min(1, dt * 2));
+    const k = Math.min(1, dt * (M.shots.length || (M.hayalet && M.hayalet.length) ? 5 : 2.4)); c.x = lerp(c.x, tx, k); c.y = lerp(c.y, ty, k); c.z = lerp(c.z, tz, Math.min(1, dt * 2));
     hud(false); if (((M.tick = M.tick + 1) % 6) === 1) harita();
   }
   function harita() { const cv = $('tpHarita'), x = cv.getContext('2d'), W = cv.width, H = cv.height, X = v => v / FW * W, Y = v => H - 6 - v / 20 * (H - 14); x.clearRect(0, 0, W, H);
@@ -430,7 +439,7 @@
       set('hk', h.tur === 'boss' ? Math.round(h.kalkan) : h.shield || 0, v => { $('tpHKalkan').hidden = !v; $('tpHKalkan').textContent = 'Kalkan ' + v; }); set('hf', h.tur === 'boss' && h.D.fazlar ? h.faz : 0, v => { $('tpHFaz').hidden = !v; if (v) $('tpHFaz').textContent = 'Faz ' + v + ' / ' + (h.D.fazlar.length + 1); }); }
     set('tm', Math.max(0, Math.ceil(M.timer)), v => { $('tpSure').textContent = v; $('tpSure').classList.toggle('az', v <= 5); }); set('rd', M.tur, v => { $('tpTur').textContent = 'Tur ' + v; });
     const benim = M.aktif === me && M.faz === 'nisan' && !M.over;
-    set('who', M.over ? 'Bitti' : !M.aktif ? 'Hazırlan' : M.aktif === me ? 'Senin sıran' : M.aktif.tur === 'topcu' ? 'Rakibin sırası' : M.aktif.ad, v => { $('tpKim').textContent = v; }); set('mine', benim, v => { $('tpSavas').classList.toggle('benim', v); });
+    set('who', M.over ? 'Bitti' : !M.aktif ? (M.cfg.ortak && M.adim ? 'Sıra geçiyor' : 'Hazırlan') : M.aktif === me ? 'Senin sıran' : M.aktif.yoldas ? M.aktif.ad + ' oynuyor' : M.aktif.tur === 'topcu' ? 'Rakibin sırası' : M.aktif.ad, v => { $('tpKim').textContent = v; }); set('mine', benim, v => { $('tpSavas').classList.toggle('benim', v); });
     set('ang', Math.round(me.angle) * me.face, v => { $('tpAci').textContent = Math.abs(v) + '°'; const r = Math.abs(v) * Math.PI / 180 * (v < 0 && Math.round(me.angle) < 0 ? -1 : 1), a = Math.round(me.angle) * Math.PI / 180; $('tpIbre').setAttribute('x2', (50 + Math.cos(a) * 38 * me.face).toFixed(1)); $('tpIbre').setAttribute('y2', (56 - Math.sin(a) * 38).toFixed(1)); void r; });
     set('pw', Math.round((M.aktif === me ? M.charge : 0) * 100), v => { $('tpGuc').style.width = v + '%'; }); set('lp', Math.round(me.lastPower * 100), v => { $('tpSon').style.left = v + '%'; $('tpSon').hidden = v < 0; });
     let anahtar = benim ? '1' : '0'; for (const k of BECERI_SIRA) anahtar += (me.mods[k] ? 'a' : '-') + (me.cd[k] || 0) + (BECERI[k].ofke ? (me.rage >= 100 ? 'r' : 'x') : me.sta >= BECERI[k].m ? 'y' : 'n');
@@ -461,12 +470,14 @@
       const pole = (wx, im) => { const gy = groundBelow(T, wx, FH - 1) || topH(wx), w = 1.7 * sc, h = 4.6 * sc; x.drawImage(im, X(wx) - w * 0.2, Y(gy) - h + 4, w, h); }; pole(6.4, poles[0]); pole(57.2, poles[1]);
       for (const wx of [3.9, 60.2]) { const ty = topH(wx + (wx < 30 ? 0.6 : -0.6)) - 0.3; x.fillStyle = 'rgba(255,255,255,.55)'; x.fillRect(X(wx) - 0.35 * sc, Y(ty), 0.7 * sc, H); x.fillStyle = 'rgba(255,255,255,.9)'; for (let i = 0; i < 9; i++) { const yy = ((M.time * 9 + i * 2.3) % 20); x.fillRect(X(wx) - 0.3 * sc + (i % 3) * 0.2 * sc, Y(ty - yy), 0.09 * sc, 1.1 * sc); } }
       for (const p of talimProps) { const gy = groundBelow(T, p.x, FH - 1); if (gy === null || gy < topH(p.x) - 2.2) continue; x.drawImage(p.im, X(p.x) - p.w * sc / 2, Y(gy) - p.h * sc + 0.12 * sc, p.w * sc, p.h * sc); p.gy = gy; } }
-    const spr = (a) => { const D = a.D, S = D.spr; let key = a.anim === 'atk' && S.atk ? S.atk : a.anim === 'hit' && S.hit ? S.hit : (D.durum && D.durum(a)) || (S.idle2 && Math.floor(M.time * 1.6) % 2 ? S.idle2 : S.idle); const im = imgs[key] || imgs[S.idle]; if (!im) return;
-      const h = a.h * sc * (D.buyut && D.buyut[key] || 1), w = h * im.naturalWidth / im.naturalHeight, bob = a.ucan ? Math.sin(M.time * 2.2 + a.x) * 0.18 * sc : Math.sin(M.time * 1.3 + a.x) * 0.012 * h, f = (a.face || -1) * (D.yon || 1), lg = a.lunge > 0 ? Math.sin(a.lunge / 0.5 * Math.PI) * 0.5 * sc * (a.face || -1) : 0, dal = D.dal ? D.dal(a) : 0;
+    /* D.sayfa: kare sayfalı canlandırma (ör. Şahmeran V3.1): { src, cw, ch, sutun, px, py, kare(a, t) }; px-py hücredeki ayak noktası, boy = a.h */
+    const spr = (a) => { const D = a.D, S = D.spr, P = D.sayfa; let key = P ? P.src : a.anim === 'atk' && S.atk ? S.atk : a.anim === 'hit' && S.hit ? S.hit : (D.durum && D.durum(a)) || (S.idle2 && Math.floor(M.time * 1.6) % 2 ? S.idle2 : S.idle); const im = imgs[key] || imgs[S.idle]; if (!im) return;
+      const kr = P ? P.kare(a, M.time) : 0, kk = P ? a.h * sc / P.py : 0, sr = P ? [(kr % P.sutun) * P.cw, Math.floor(kr / P.sutun) * P.ch, P.cw, P.ch] : [0, 0, im.naturalWidth, im.naturalHeight];
+      const h = P ? P.ch * kk : a.h * sc * (D.buyut && D.buyut[key] || 1), w = P ? P.cw * kk : h * im.naturalWidth / im.naturalHeight, ox = P ? -P.px * kk : -w * (D.cx || 0.5), oy = P ? -P.py * kk : -h * (D.taban || 0.97), bob = a.ucan ? Math.sin(M.time * 2.2 + a.x) * 0.18 * sc : (P ? 0 : Math.sin(M.time * 1.3 + a.x) * 0.012 * h), f = (a.face || -1) * (D.yon || 1), lg = a.lunge > 0 ? Math.sin(a.lunge / 0.5 * Math.PI) * 0.5 * sc * (a.face || -1) : 0, dal = D.dal ? D.dal(a) : 0;
       x.save(); x.translate(X(a.x) + lg + (a.hurtT > 0.3 ? (Math.random() - 0.5) * 0.14 * sc : 0), Y(a.y) + bob + dal * sc); if (a.dead) { x.globalAlpha = Math.max(0, 1 - a.olu / 0.9); x.translate(0, a.olu * 0.9 * sc); } x.scale(f, 1);
       if (!a.ucan && !D.suda && !a.dead) { x.fillStyle = 'rgba(4,6,20,.35)'; x.beginPath(); x.ellipse(0, 2, w * 0.36, 0.2 * sc, 0, 0, 6.3); x.fill(); }
-      x.drawImage(im, -w * (D.cx || 0.5), -h * (D.taban || 0.97), w, h);
-      if (a.hurtT > 0.36) { x.globalCompositeOperation = 'lighter'; x.globalAlpha = (a.hurtT - 0.36) / 0.14 * 0.75; x.drawImage(im, -w * (D.cx || 0.5), -h * (D.taban || 0.97), w, h); x.globalCompositeOperation = 'source-over'; } x.restore();
+      x.drawImage(im, sr[0], sr[1], sr[2], sr[3], ox, oy, w, h);
+      if (a.hurtT > 0.36) { x.globalCompositeOperation = 'lighter'; x.globalAlpha = (a.hurtT - 0.36) / 0.14 * 0.75; x.drawImage(im, sr[0], sr[1], sr[2], sr[3], ox, oy, w, h); x.globalCompositeOperation = 'source-over'; } x.restore();
       if (a.tur === 'boss' && a.kalkan > 0 && !a.dead) { x.strokeStyle = 'rgba(255,224,138,' + (0.5 + 0.2 * Math.sin(M.time * 3)) + ')'; x.lineWidth = 0.08 * sc; x.setLineDash([0.5 * sc, 0.28 * sc]); x.lineDashOffset = -M.time * sc * 0.6; x.beginPath(); x.ellipse(X(a.x), Y(a.y + a.h * 0.5), a.h * 0.42 * sc, a.h * 0.56 * sc, 0, 0, 6.3); x.stroke(); x.setLineDash([]); } };
     if (M.boss && M.boss.D.arkada && (!M.boss.dead || M.boss.olu < 0.9)) { spr(M.boss); if (M.boss.D.cizArka) M.boss.D.cizArka(M.boss, x, M.view, API); }
     if (M.cfg.ozel && M.cfg.ozel.cizArka) M.cfg.ozel.cizArka(x, M.view, API);
@@ -562,26 +573,43 @@
       a = mkTopcu({ takim: 0, kontrol: 'yoldas', yoldas: true, ad: String(o.ad || 'Yoldaş').slice(0, 16), set, x: x0, face: M.ben.face, col: EL[o.el] || EL.ates, revive: 0 }); a.y = yerY(a.x); M.yoldas[id] = a; M.act.push(a); }
     if (typeof o.x === 'number') { a.moving = Math.abs(o.x - a.x) > 0.02; a.x = clamp(o.x, 1.7, FW - 1.7); a.y = typeof o.y === 'number' ? o.y : yerY(a.x); a.fall = false; a.vy = 0; }
     if (typeof o.aci === 'number') a.angle = clamp(o.aci, -10, 70); if (o.yon === 1 || o.yon === -1) a.face = o.yon;
-    if (typeof o.max === 'number' && o.max > 0) { a.max = o.max; a.hp = a.shown = clamp(o.hp || 0, 0, o.max); }
-    if (o.dustu) { a.dead = true; a.hp = 0; } else if (o.dustu === false) a.dead = false; return a; }
+    if (typeof o.max === 'number' && o.max > 0) { const yeni = clamp(o.hp || 0, 0, o.max), fark = a.canBilindi ? Math.round(a.hp - yeni) : 0; a.max = o.max; a.hp = yeni; if (!a.canBilindi) a.shown = yeni; a.canBilindi = true;
+      if (fark >= 1) { a.hurtT = 0.55; yazi(a.x, a.y + 2.3, fark, { col: '#ff9a8a' }); } else if (fark <= -1) yazi(a.x, a.y + 2.7, '+' + (-fark), { col: '#8ff0a4' });
+      if (yeni > 0 && a.dead && !a.dustuKesin) { a.dead = false; toz(a.x, a.y + 1, 20, [255, 215, 106]); } else if (yeni <= 0 && !a.dead) a.dead = true; }
+    if (o.dustu) { a.dead = true; a.dustuKesin = true; a.hp = 0; } else if (o.dustu === false) { a.dead = false; a.dustuKesin = false; } return a; }
   function yoldasAtes(id, c) { const a = M && M.on && M.yoldas && M.yoldas[id]; if (!a || a.dead || M.over) return false; yoldasKoy(id, c); M.hayalet = M.hayalet || [];
     const md = c.mod || {}, pow = !!md.powUlt, dalga = pow ? 3 : 1 + (md.plus1 ? 1 : 0) + (md.plus2 ? 2 : 0), sac = md.trident ? [-6, 0, 6] : [0], sp = 8.5 + clamp(+c.guc || 0, 0, 1) * 19.5, base = a.angle, face = a.face, r = (md.crater ? 88 : 54) * (pow ? 1.35 : 1) / 54 * 1.5;
-    const salla = () => { if (!M || !M.on || M.over) return; const mz = muzzleOf(a); for (const d of sac) { const ang = (base + d) * Math.PI / 180; M.hayalet.push({ x: mz[0], y: mz[1], vx: Math.cos(ang) * sp * face, vy: Math.sin(ang) * sp, col: a.col, r, t: 0, trail: [], ruz: 1, wind: +c.ruz || 0, pow }); }
+    const salla = () => { if (!M || !M.on || M.over) return; const mz = muzzleOf(a); for (const d of sac) { const ang = (base + d) * Math.PI / 180; M.hayalet.push({ x: mz[0], y: mz[1], vx: Math.cos(ang) * sp * face, vy: Math.sin(ang) * sp, col: a.col, r, t: 0, trail: [], ruz: 1, wind: +c.ruz || 0, pow, by: a, teleport: !!md.teleport && d === 0 && !a.isinAtti }); if (md.teleport) a.isinAtti = true; }
       a.fireT = 0; for (let i = 0; i < 8; i++) M.parts.push({ k: 'smoke', x: mz[0], y: mz[1], vx: face * (1 + Math.random() * 3) + (Math.random() - 0.5), vy: Math.random() * 1.6, life: 0.7 + Math.random() * 0.5, max: 1.2, s: 0.3 + Math.random() * 0.3 });
       M.parts.push({ k: 'flash', x: mz[0], y: mz[1], vx: 0, vy: 0, life: 0.14, max: 0.14, s: pow ? 2.2 : 1.5, col: a.col }); ses('fire'); };
-    salla(); for (let w = 1; w < dalga; w++) sonra(w * 0.18, salla); return true; }
+    a.isinAtti = false; salla(); for (let w = 1; w < dalga; w++) sonra(w * 0.18, salla);
+    if (M.cfg.ortak && M.aktif === a && M.faz === 'nisan') { M.faz = 'ucus'; M.pt = 0; M.bekle = (dalga - 1) * 0.18 + 0.05; hud(true); } return true; }
   function stepHayalet(dt) { for (let i = M.hayalet.length - 1; i >= 0; i--) { const s = M.hayalet[i]; let hit = false;
       for (let k = 0; k < 4 && !hit; k++) { const h = dt / 4; s.vx += s.wind * RUZ * s.ruz * h; s.vy -= G * h; s.x += s.vx * h; s.y += s.vy * h; s.t += h;
         if (solid(M.T, s.x, s.y)) hit = true; else if (M.deniz != null && s.y < M.deniz) hit = true;
         else for (const a of M.act) { if (a.dead || a.takim !== 1) continue; if (Math.hypot(a.x - s.x, a.y + a.h * 0.5 - s.y) < a.h * (a.tur === 'boss' ? 0.3 : 0.42)) { hit = true; break; } }
         if (s.x < -8 || s.x > FW + 8 || s.y < -6 || s.t > 12) { M.hayalet.splice(i, 1); hit = null; break; } }
       if (hit === null) continue; s.trail.push([s.x, s.y]); if (s.trail.length > 26) s.trail.shift();
-      if (hit) { M.hayalet.splice(i, 1); carve(M.T, s.x, s.y, s.r); M.shake = Math.max(M.shake, 0.3); ses('boom', 0.35);
+      if (hit && s.teleport && s.by && !s.by.dead) { M.hayalet.splice(i, 1); const by = s.by; by.x = clamp(s.x, 1.7, FW - 1.7); by.y = Math.max(s.y, yerY(by.x)); yazi(by.x, by.y + 2.6, 'Kanat Uçuşu', { col: '#ffe08a' }); toz(by.x, by.y + 0.8, 16, [255, 224, 138]); ses('chime'); continue; }
+      if (hit) { M.hayalet.splice(i, 1); M.hitX = s.x; M.hitY = s.y; carve(M.T, s.x, s.y, s.r); M.shake = Math.max(M.shake, 0.3); ses('boom', 0.35);
         M.parts.push({ k: 'flash', x: s.x, y: s.y, vx: 0, vy: 0, life: 0.2, max: 0.2, s: s.r * 1.6, col: s.col }, { k: 'ring', x: s.x, y: s.y, vx: 0, vy: 0, life: 0.45, max: 0.45, s: s.r, col: s.col }); } } }
+  /* ortak savaşın sırası sunucudan gelir (server/zindan_ortak.js 'sira' olayı):
+       ortakSira({ adim, tur, kim: 'ben' | <yoldaş kimliği> | null, i, hedef: 'ben' | <kimlik>, tohum, ruzgar, ex })
+     kim doluysa o oyuncunun sırasıdır; boşsa i numaralı düşman hedef oyuncuya saldırır. ex: düşmanların yeri (eşitleme).
+     Bir adım bu ekranda bitince 'adim_bitti' olayı yayılır; ortakPas(kimlik) sırası süren yoldaşın atış yapmadan geçtiğini bildirir. */
+  function ortakSira(o) { if (!M || !M.on || M.over || !M.cfg.ortak || !o || !(o.adim > (M.adim || 0))) return false;
+    M.adim = o.adim; if (o.tur) M.tur = o.tur; M.lafT = null; $('tpLaf').hidden = true; M.charging = false; M.charge = 0;
+    const dus = M.act.filter(a => a.takim === 1); if (Array.isArray(o.ex)) o.ex.forEach((x, j) => { const e = dus[j]; if (e && !e.dead && typeof x === 'number' && Math.abs(e.x - x) > 0.2) e.x = clamp(x, 1, FW - 1); });
+    if (o.kim) { const a = o.kim === 'ben' ? M.ben : M.yoldas && M.yoldas[o.kim]; M.ruzgarGelen = +o.ruzgar || 0; if (!a || (a.yoldas && a.dead)) { siradaki(); return true; } baslat(a); return true; }
+    const e = dus[o.i]; M.hedefT = o.hedef === 'ben' ? M.ben : (M.yoldas && M.yoldas[o.hedef]) || M.ben; M.tohum = (o.tohum | 0) || 1;
+    if (!e || e.dead) { siradaki(); return true; } M.aktif = e; M.pt = 0; M.plan = null; M.hitX = undefined; if (e.tur === 'boss') bossSira(e); else mobSira(e); hud(true); return true; }
+  function ortakPas(id) { if (!M || !M.on || M.over || !M.cfg.ortak) return; const a = M.yoldas && M.yoldas[id]; if (a && M.aktif === a && M.faz === 'nisan') siradaki(); }
+  /* sırayı atışsız geçmek (süre dolunca olanın aynısı) */
+  function pas() { if (!M || !M.on || M.over || M.faz !== 'nisan' || M.aktif !== M.ben) return false; M.charging = false; M.charge = 0; M.ben.mods = {}; yay('pas', { kim: 0 }); siradaki(); return true; }
   function ortakCan(i, hp) { if (!M || !M.on || M.over) return; const e = M.act[i]; if (e && e.takim === 1 && !e.dead && e.hp - hp >= 1) ortakHasar(i, e.hp - hp, ''); }
-  const API = { get M() { return M; }, PX, FW, X_, Y_, u, EL, rnd, clamp, sonra, halka, toz, yazi, balon, pankart, ses, nisanliAt, meteor, hasarTopcu, hasarMob, hasarBoss, carve: (x, y, r) => carve(M.T, x, y, r), yerY, img: k => imgs[k], isin: (x1, y1, x2, y2, col, sure) => M.isin.push({ x1, y1, x2, y2, col, t: sure || 0.6, max: sure || 0.6 }), sars: k => { M.shake = Math.max(M.shake, k); } };
+  const API = { get M() { return M; }, PX, FW, X_, Y_, u, EL, rnd, clamp, sonra, halka, toz, yazi, balon, pankart, ses, nisanliAt, meteor, hasarTopcu, hasarMob, hasarBoss, tur: () => turNo(), carve: (x, y, r) => carve(M.T, x, y, r), yerY, img: k => imgs[k], isin: (x1, y1, x2, y2, col, sure) => M.isin.push({ x1, y1, x2, y2, col, t: sure || 0.6, max: sure || 0.6 }), sars: k => { M.shake = Math.max(M.shake, k); } };
   const MOB = {}, BOSS = {}, PROP = {};
-  EO2.battle = { ac, kapat, uzak, sonlandir, ipucu, ortakHasar, ortakCan, yoldasKoy, yoldasAtes, dinle: fn => { dinleyen.push(fn); return () => { const i = dinleyen.indexOf(fn); if (i >= 0) dinleyen.splice(i, 1); }; }, MOB, BOSS, PROP, BECERI, api: API, active: () => !!(M && M.on), state: () => M,
+  EO2.battle = { ac, kapat, uzak, sonlandir, ipucu, ortakHasar, ortakCan, ortakSira, ortakPas, pas, yoldasKoy, yoldasAtes, dinle: fn => { dinleyen.push(fn); return () => { const i = dinleyen.indexOf(fn); if (i >= 0) dinleyen.splice(i, 1); }; }, MOB, BOSS, PROP, BECERI, api: API, active: () => !!(M && M.on), state: () => M,
     start() { if (EO2.topcu) EO2.topcu.baslat('talim'); }, stop() { kapat(); } };
   const wait = setInterval(() => { if (!EO2.api) return; clearInterval(wait); EO2.frameHooks.push(dt => { if (M && M.on && M.T) { if (!M.dur) update(dt); if (M && M.on) render(); } }); }, 80);
 })();
