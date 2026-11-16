@@ -50,6 +50,7 @@ const GUEST_SESSIONS = createGuestSessions(ECONOMY, PUBLIC_URL, process.env.NODE
 const zlib = require('node:zlib');
 const publicFile = createPublicFiles(__dirname, [DB_DIR]);
 const REPORTS = require('./server/report_log').createReportLog(DB_DIR);
+const EO2_PAGE = require('./server/eo2_page').createEo2Page(__dirname, PUBLIC_URL);
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -1374,7 +1375,8 @@ async function handleHttp(req, res) {
   if (pathname === '/eo2') { res.writeHead(302, { Location: '/eo2/' }); return res.end(); }
   if (pathname === '/eo2/' || pathname === '/eo2/index.html') {
     try {
-      const raw = fs.readFileSync(path.join(__dirname, 'eo2', 'index.html'), 'utf8').split('__PUBLIC_URL__').join(PUBLIC_URL);
+      // betik ve stil adresleri içerik damgasıyla yazılır (server/eo2_page.js); sayfanın kendisi önbelleğe alınmaz
+      const raw = EO2_PAGE().html;
       res.writeHead(200, { 'Content-Type': MIME_TYPES['.html'], 'Cache-Control': 'no-cache' });
       return res.end(raw);
     } catch (e) {
@@ -1392,7 +1394,11 @@ async function handleHttp(req, res) {
       const ext = path.extname(fullPath).toLowerCase();
       const etag = `W/"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
       const isMedia = ext === '.webp' || ext === '.png' || ext === '.jpg' || ext === '.svg' || ext === '.mp3';
-      const cacheControl = isMedia
+      // içerik damgalı adres (?v=…, 2.0 sayfası yazar) değişmezdir: dosya değişince adresi de değişir
+      const damgali = (ext === '.js' || ext === '.css') && /^[0-9a-f]{10}$/.test(parsedUrl.searchParams.get('v') || '');
+      const cacheControl = damgali
+        ? 'public, max-age=31536000, immutable'
+        : isMedia
         ? 'public, max-age=604800'
         : (ext === '.js' || ext === '.css')
           ? 'public, max-age=3600'

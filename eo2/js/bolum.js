@@ -348,6 +348,6 @@
   EO2.frameHooks.push(() => { if (!EO2.api) return; const a = EO2.api.scene(), dn = document.getElementById('world'); if (dn) dn.classList.toggle('bolum-sahne', !!B.hepsi[a]);
     for (const k in B.hepsi) if (k !== a) B.hepsi[k].kare(false); if (B.hepsi[a]) B.hepsi[a].kare(true); });
 
-  /* bölüm dosyaları: js/bolumler/liste.js → EO2.bolumListe (dosya adları, sırayla yüklenir) */
-  for (const dosya of (EO2.bolumListe || [])) { const sc = document.createElement('script'); sc.src = 'js/bolumler/' + dosya; sc.async = false; document.head.appendChild(sc); }
+  /* bölüm dosyaları: js/bolumler/liste.js → EO2.bolumListe (dosya adları, sırayla yüklenir). ?v= sürüm damgasıdır: yayında değişmez önbellek (server/eo2_page.js) */
+  for (const dosya of (EO2.bolumListe || [])) { const sc = document.createElement('script'); sc.src = 'js/bolumler/' + dosya + (window.EO2_V ? '?v=' + window.EO2_V : ''); sc.async = false; document.head.appendChild(sc); }
 })();
