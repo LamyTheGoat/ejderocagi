@@ -7,8 +7,20 @@
 
   /* ---- hata günlüğü: son 30 hata bellekte durur (sorun bildirirken okunur), oyuncuya tek sade bildirim ---- */
   const hatalar = EO2.hatalar = []; let sonUyari = 0;
+  /* ilk hatadan birkaç saniye sonra hata günlüğü sunucuya bir kez gider (/api/report, otomatik). Oyuncunun yazdığı bir şey,
+     kayıt ya da altın gitmez: yalnız hata metinleri, sürüm, sahne ve ekran ölçüsü. Sayfa başına tek bildirim; sunucuda hız sınırı var. */
+  let bildirildi = false;
+  function otomatikBildir() {
+    if (bildirildi) return; bildirildi = true;
+    setTimeout(() => { try {
+      const A = EO2.api, ilk = hatalar[0] || { mesaj: 'bilinmeyen' };
+      fetch('/api/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', keepalive: true,
+        body: JSON.stringify({ otomatik: true, metin: '[otomatik] ' + ilk.mesaj + (ilk.yer ? ' @ ' + ilk.yer : ''), surum: EO2.surum || '', sahne: A && A.scene ? A.scene() : '', ekran: innerWidth + 'x' + innerHeight + '@' + (devicePixelRatio || 1), tarayici: navigator.userAgent, hatalar: hatalar.slice(-30) }) }).catch(() => { });
+    } catch (_) { /* bildirim başarısızsa oyun etkilenmez */ } }, 4000);
+  }
   function hata(tur, mesaj, yer) {
     hatalar.push({ t: Date.now(), tur, mesaj: String(mesaj).slice(0, 300), yer: yer || '' }); if (hatalar.length > 30) hatalar.shift();
+    otomatikBildir();
     const simdi = Date.now(); if (simdi - sonUyari < 15000) return; sonUyari = simdi;
     const de = typeof window.toast === 'function' ? window.toast : null;
     if (de && EO2.game && EO2.game.live) de('Bir şey ters gitti. Kaydın yerinde; sorun sürerse sayfayı yenile.');

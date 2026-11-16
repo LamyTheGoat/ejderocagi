@@ -36,3 +36,11 @@ test('aynı hesaptan on dakikada en çok beş bildirim; süre dolunca yeniden a�
   log.add({ accountId: 'a', body: { metin: 'süre doldu' } });
   assert.equal(oku(log).length, 8);
 });
+
+test('otomatik hata bildirimi işaretlenir; işaret yalnız tam true ise geçer', () => {
+  const { log } = yeni();
+  log.add({ accountId: 'a', body: { otomatik: true, metin: '[otomatik] x is not defined @ game.js:12', hatalar: [{ t: 1, tur: 'hata', mesaj: 'x is not defined', yer: 'game.js:12' }] } });
+  log.add({ accountId: 'a', body: { otomatik: 'evet', metin: 'oyuncu yazdı' } });
+  const [k1, k2] = oku(log);
+  assert.equal(k1.otomatik, true); assert.equal(k1.hatalar[0].yer, 'game.js:12'); assert.equal(k2.otomatik, false);
+});

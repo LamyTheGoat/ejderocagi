@@ -2,6 +2,7 @@
 // Sorun bildirimleri (Ejder Ocağı 2.0 menüsü → "Sorun bildir").
 // Oyuncunun yazdığı metin ve istemcinin bellekteki hata günlüğü (EO2.hatalar) satır satır JSON olarak
 // <veri dizini>/sorunlar.jsonl dosyasına eklenir. Ekonomiye dokunmaz; kimlik şart değildir (oturum açılamadığında da bildirilebilsin).
+// `otomatik: true`: oyuncu yazmadı; istemci ilk hatasını kendiliğinden bildirdi (eo2/js/saglam.js, sayfa başına bir kez).
 // Koruma: gövde alanları kırpılır, anahtar başına on dakikada beş bildirim, dosya 20 MB'ı geçince bir kez döndürülür (.1).
 const fs = require('node:fs');
 const path = require('node:path');
@@ -24,11 +25,11 @@ function createReportLog(dir, now = () => Date.now()) {
     if (metin.length < 5) throw hata('report_too_short', 400);
     const hatalar = (Array.isArray(b.hatalar) ? b.hatalar : []).slice(-30).map(h => h && typeof h === 'object'
       ? { t: Number.isSafeInteger(h.t) ? h.t : 0, tur: kes(h.tur, 20), mesaj: kes(h.mesaj, 300), yer: kes(h.yer, 80) } : null).filter(Boolean);
-    return { metin, surum: kes(b.surum, 20), sahne: kes(b.sahne, 40), ekran: kes(b.ekran, 40), hafta: kes(b.hafta, 20), tarayici: kes(b.tarayici, 300), hatalar };
+    return { metin, otomatik: b.otomatik === true, surum: kes(b.surum, 20), sahne: kes(b.sahne, 40), ekran: kes(b.ekran, 40), hafta: kes(b.hafta, 20), tarayici: kes(b.tarayici, 300), hatalar };
   }
   function add({ accountId, ip, body }) {
     const kayit = temizle(body);
-    hiz(accountId ? 'h:' + accountId : 'ip:' + (ip || '?'));
+    hiz((kayit.otomatik ? 'o:' : '') + (accountId ? 'h:' + accountId : 'ip:' + (ip || '?')));   // otomatik bildirimler ayrı sayılır: oyuncunun kendi bildirim hakkını tüketmez
     fs.mkdirSync(dir, { recursive: true });
     try { if (fs.statSync(dosya).size > TAVAN) fs.renameSync(dosya, dosya + '.1'); } catch (_) { /* dosya henüz yok */ }
     const satir = { zaman: new Date(now()).toISOString(), hesap: accountId || null, ...kayit };
