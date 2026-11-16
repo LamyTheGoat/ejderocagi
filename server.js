@@ -51,6 +51,7 @@ const zlib = require('node:zlib');
 const publicFile = createPublicFiles(__dirname, [DB_DIR]);
 const REPORTS = require('./server/report_log').createReportLog(DB_DIR);
 const EO2_PAGE = require('./server/eo2_page').createEo2Page(__dirname, PUBLIC_URL);
+const MEYDAN = require('./server/meydan_presence').createMeydanPresence({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); } });
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -559,6 +560,7 @@ async function handleWsUpgrade(req, socket, head) {
     pending = pending.subarray(consumed);
     if (close) {
       WS_CLIENTS.delete(socket);
+      MEYDAN.onDisconnect(socket);
       socket.end();
       wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size });
       return;
@@ -574,12 +576,14 @@ async function handleWsUpgrade(req, socket, head) {
     WS_CLIENTS.delete(socket);
     DUEL_SERVER.onDisconnect(socket);
     PVP_ROOMS.onDisconnect(socket);
+    MEYDAN.onDisconnect(socket);
     wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size });
   });
   socket.on('error', () => {
     WS_CLIENTS.delete(socket);
     DUEL_SERVER.onDisconnect(socket);
     PVP_ROOMS.onDisconnect(socket);
+    MEYDAN.onDisconnect(socket);
   });
 }
 
@@ -602,6 +606,7 @@ async function handleWsMessage(socket, msg) {
   }
   if (DUEL_SERVER.onMessage(socket, msg)) return;
   if (PVP_ROOMS.onMessage(socket, msg)) return;
+  if (MEYDAN.onMessage(socket, msg)) return;   // 2.0 meydanında öteki oyuncular (server/meydan_presence.js)
 
   if (msg.type === 'hub_update' || msg.type === 'hub_actor') {
     const h = socket.playerInfo.handle;

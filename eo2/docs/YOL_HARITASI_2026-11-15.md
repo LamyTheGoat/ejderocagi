@@ -57,7 +57,7 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 - Bağımlılık: chibi ajanının set ve parça teslimi. Kıraathane taş ve cevher değerlerini şimdilik o dosyadan kopyaladı.
 
 ### 2.4 Sosyal katman
-- Meydanda öteki oyuncuların görünmesi (konum, set, ejder, jest): sunucuda presence var, 2.0'a bağlı değil.
+- Meydanda öteki oyuncuların görünmesi: **yapıldı (2026-11-16).**  + : konum, yön, set, yol arkadaşı, jest; aynı kanal (en çok 30 oyuncu) ve aynı alandakiler birbirini görür; ad sunucuda süzgeçten geçer; sohbet taşınmaz. İki tarayıcılı denetim  (duman testinde). Eksik: öteki oyuncunun gerçek kuşamı ve ejderhasının türü (şimdi set adı ve genel yol arkadaşı), oyuncuya dokununca profil.
 - Sohbet: açılmadan önce küfür süzgeci, engelle, şikâyet, hız sınırı şart. O zamana kadar kutu günlük olarak duruyor.
 - Arkadaş listesi, fısıltı, parti penceresi, profil inceleme.
 - Oyuncular arası Kıraathane masası ve takas (bağlantı noktaları hazır: `EO2.kiraathane.baglan`, `server/trade_service.js`).
