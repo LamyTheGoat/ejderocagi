@@ -31,6 +31,11 @@
     setLoad(0.9, 'Işıklar yakılıyor'); await new Promise(r => setTimeout(r, 30));
     const sets = {}; for (const n of names) sets[n] = { tex: R.texture(imgs[n]), m: A.sets[n], img: imgs[n] };
     const tDragon = R.texture(imgs.dragon);
+    /* başlangıç sahnesinin (Merkez Meydan) çizimleri inmeden perde kalkmaz: yavaş bağlantıda meydan yarım görünmesin.
+       Bölüm dosyası henüz kaydolmadıysa kısa süre beklenir; çizimler için en çok 15 saniye beklenir, sonra oyun yine açılır. */
+    if (EO2.sahneYukle) { setLoad(0.93, 'Meydan süsleniyor');
+      for (let i = 0; i < 40 && !(EO2.bolum && EO2.bolum.hepsi && EO2.bolum.hepsi.master); i++) await new Promise(r => setTimeout(r, 75));
+      if (EO2.bolum && EO2.bolum.hepsi && EO2.bolum.hepsi.master) await Promise.race([EO2.sahneYukle('master'), new Promise(r => setTimeout(r, 15000))]); }
     start(R, W, sets, tDragon, imgs);
     setLoad(1); setTimeout(() => $('loading').classList.add('gone'), 250);
   }
