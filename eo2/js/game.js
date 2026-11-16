@@ -460,7 +460,7 @@
     Object.defineProperty(EO2.api, 'npcs', { get: () => npcs }); Object.defineProperty(EO2.api, 'L', { get: () => L });
     requestAnimationFrame(t => { last = t; frame(t); });
     if (coarse) app.classList.add('touch');
-    const ipucu = () => { if (document.querySelector('#app > .giris:not(.gitti), #app .pen, #modal-root > *')) return setTimeout(ipucu, 900); toast(coarse ? 'Yön çubuğuyla ya da dokunarak yürü · E ile etkileşim' : 'WASD ya da tıklayarak yürü · Shift hızlan · E etkileşim'); }; setTimeout(ipucu, 3000);
+    const ipucu = () => { if (document.querySelector('#app > .giris:not(.gitti), #app .pen, #modal-root > *')) return setTimeout(ipucu, 900); toast(coarse ? 'Yön çubuğuyla ya da dokunarak yürü · yakınken beliren düğmeye dokun' : 'WASD ya da tıklayarak yürü · Shift hızlan · E etkileşim'); }; setTimeout(ipucu, 3000);
   }
   boot().catch(e => { console.error(e); const t = $('loadtxt'); if (t) t.textContent = 'Yüklenemedi: ' + e.message; });
 })();
