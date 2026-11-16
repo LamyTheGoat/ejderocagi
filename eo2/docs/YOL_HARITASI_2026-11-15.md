@@ -44,6 +44,7 @@ görünmesi, locadan teklif satışı, `gold.local` komutunun kapanması.
 ### 2.2 Instance tabanlı PvE: zindanlar ve kervan
 Bugün zindan tek oyunculu; eski oyundaki ortak oyun yalnız görseldi. Hedef (FF14 görev bulucu mantığı): parti kur ya da kuyruğa gir,
 eşleşince örnek açılır, boss canı sunucuda ortak.
+- **Altyapı kuruldu (2026-11-16), oynanış bekliyor:** örnek odaları, görev bulucu kuyruğu, davet, kopma ve sunucuda ortak durum `server/ortak_odalar.js` + `eo2/js/ortak.js` içinde; tür tanımı `ORTAK.kaydet` ile eklenir. Ayrıntı: `ORTAK_PVE_ALTYAPISI.md`. Kullanıcı kararı: uygulama beklesin.
 - Sunucuda `pvp_rooms` oda modelini tür alanıyla genelleştir (topçu, düello, zindan).
 - Zindan odasında boss canını ve sırayı sunucu tutsun; ödülü sunucu yazsın.
 - Parti durumunu sunucuya al (bugün yalnız istemcide).
@@ -60,7 +61,7 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 - Meydanda öteki oyuncuların görünmesi: **yapıldı (2026-11-16).** `server/meydan_presence.js` + `eo2/js/meydan_ag.js`: konum, yön, set, yol arkadaşı, jest; aynı kanal (en çok 30 oyuncu) ve aynı alandakiler birbirini görür; ad sunucuda süzgeçten geçer; sohbet taşınmaz. İki tarayıcılı denetim `tools/check_meydan.mjs` (duman testinde). Eksik: öteki oyuncunun gerçek kuşamı ve ejderhasının türü (şimdi set adı ve genel yol arkadaşı), oyuncuya dokununca profil.
 - Sohbet: **açıldı (2026-11-16)**, şart koşulan dört önlemle: sunucuda küfür süzgeci ve bağlantı ayıklama (`temizSoz`), hız sınırı (iki söz arası 1,2 sn, otuz saniyede sekiz söz), istemcide engelleme (`eo2.engel`), şikâyet (`/api/report`, son sözlerle). Tek kanal: bulunduğun alan ve kanal. Sözler saklanmaz. Süzgeç listesi kısadır; yayından önce genişletilmeli. Parti ve fısıltı yok.
 - Oyuncu kartı (2026-11-16): meydanda bir oyuncunun yanına gelince selam ver, Topçu düellosuna çağır (Er Meydanı odası kurulur, davet gider), engelle, şikâyet et.
-- Arkadaş listesi, fısıltı, parti penceresi, profil inceleme.
+- **Yapıldı (2026-11-16):** bire bir takas (`eo2/js/takas.js`, sunucu `trade_service.js`), dost listesi ve fısıltı (`server/social_service.js`, `eo2/js/dostlar.js`), oyuncu kartından ejderha ve Topçu düellosu daveti. Açık: parti penceresi, profil inceleme, çevrimdışı mesaj.
 - Oyuncular arası Kıraathane masası ve takas (bağlantı noktaları hazır: `EO2.kiraathane.baglan`, `server/trade_service.js`).
 
 ## 3. Çıkıştan önce şart olan küçük ve orta işler

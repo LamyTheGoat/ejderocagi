@@ -52,6 +52,9 @@ const publicFile = createPublicFiles(__dirname, [DB_DIR]);
 const REPORTS = require('./server/report_log').createReportLog(DB_DIR);
 const EO2_PAGE = require('./server/eo2_page').createEo2Page(__dirname, PUBLIC_URL);
 const SOSYAL = require('./server/social_service').createSocial({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS });
+// Ortak PvE altyapısı: örnek odaları ve görev bulucu (server/ortak_odalar.js). Oynanış türleri ORTAK.kaydet ile eklenir; bugün kayıtlı tür yok.
+const ORTAK = require('./server/ortak_odalar').createOrtakOdalar({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo });
+setInterval(() => { try { ORTAK.supur(); } catch (e) { console.error('[ortak] süpürme', e.message); } }, 15000).unref();
 const MEYDAN = require('./server/meydan_presence').createMeydanPresence({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, kimlik: socket => socket.playerInfo && socket.playerInfo.handle });
 
 const MIME_TYPES = {
@@ -527,6 +530,7 @@ async function handleWsUpgrade(req, socket, head) {
   await ECONOMY.publishPresence(socket.presenceId, identity);
   if(socket.destroyed){await ECONOMY.publishPresence(socket.presenceId,null);return;}
   WS_CLIENTS.add(socket);
+  ORTAK.onConnect(socket);
 
   socket.write(encodeWsFrame({
     type: 'welcome',
@@ -578,6 +582,7 @@ async function handleWsUpgrade(req, socket, head) {
     DUEL_SERVER.onDisconnect(socket);
     PVP_ROOMS.onDisconnect(socket);
     MEYDAN.onDisconnect(socket);
+    ORTAK.onDisconnect(socket);
     wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size });
   });
   socket.on('error', () => {
@@ -608,6 +613,7 @@ async function handleWsMessage(socket, msg) {
   if (DUEL_SERVER.onMessage(socket, msg)) return;
   if (PVP_ROOMS.onMessage(socket, msg)) return;
   if (MEYDAN.onMessage(socket, msg)) return;
+  if (ORTAK.onMessage(socket, msg)) return;
   if (msg.type === 'ozel') { await SOSYAL.onMessage(socket, msg); return; }   // arkadaşlar arası özel mesaj (server/social_service.js)   // 2.0 meydanında öteki oyuncular (server/meydan_presence.js)
 
   if (msg.type === 'hub_update' || msg.type === 'hub_actor') {
