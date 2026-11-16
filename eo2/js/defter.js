@@ -104,7 +104,7 @@
     if (v2 === 'aktar') { aktar(); return false; } if (v2 !== 'sil') return false;
     engel = true; if (typeof clearSave === 'function') clearSave(); else { depo.sil(anahtar()); depo.sil(anahtar() + '-bak'); } depo.sil(YEDEK); if (EO2.rehber) EO2.rehber.sifirla();
     G.close(); engel = false; G.title(); toast('Ocak silindi.'); return true; }
-  EO2.kayit = { aktar, aktarMetni, yukle, yukleMetin, coz, yedekle, yedekVar: () => !!yedekOku(), geriAl, sil, engelli: () => engel };
+  EO2.kayit = { anahtar, ham: () => depo.al(anahtar()), aktar, aktarMetni, yukle, yukleMetin, coz, yedekle, yedekVar: () => !!yedekOku(), geriAl, sil, engelli: () => engel };
 
   /* ---------- iki sekme: aynı oyun iki sekmede açılırsa kayıtlar birbirini ezer ---------- */
   let perde = null;
@@ -152,8 +152,8 @@
       '<div class="menu-sag"><img alt="Ejder Ocağı" src="assets/logo.webp"><div class="menu-kayit"><span class="ust">Kayıtlı ocak</span>' +
         '<button type="button" class="mk-ad" data-k="ad" title="Adını değiştir"><b>' + esc(G.ad()) + '</b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>' +
         '<b>Hafta ' + S.week + ' / ' + SEASON + ' · ' + se.ad + '</b><div class="cubuk"><i style="width:' + (S.week / SEASON * 100) + '%"></i></div><p>' + S.dragons.length + ' ejderha · ' + S.gold + ' altın · ' + S.un + ' ün' + (S.seasonNo > 1 ? ' · ' + S.seasonNo + '. sezon' : '') + '</p>' +
-        '<p class="soluk">Kayıt bu tarayıcıda durur' + (S.updatedAt ? '; son yazım ' + zaman(S.updatedAt) : '') + '. Yedek için dosyaya aktar.</p>' +
-        '<div class="mk-islem"><button type="button" class="gbtn kucuk" data-k="aktar">Dosyaya aktar</button><button type="button" class="gbtn kucuk" data-k="yukle">Dosyadan yükle</button></div>' +
+        '<p class="soluk">Kayıt bu tarayıcıda durur ve hesabına yedeklenir' + (S.updatedAt ? '; son yazım ' + zaman(S.updatedAt) : '') + '. Yedek için dosyaya aktar.</p>' +
+        '<div class="mk-islem"><button type="button" class="gbtn kucuk" data-k="aktar">Dosyaya aktar</button><button type="button" class="gbtn kucuk" data-k="yukle">Dosyadan yükle</button></div>' + (EO2.hesap ? EO2.hesap.menu() : '') +
         '<div class="mk-alt">' + (yedek ? '<button type="button" class="mk-bag" data-k="geri">Önceki ocağı geri al</button>' : '<span></span>') + '<button type="button" class="mk-bag sil" data-k="sil">Kaydı sil</button></div></div></div>';
     on(body, '[data-m]', async b => { const m = b.dataset.m;
       if (m === 'devam') G.close(); else if (m === 'ayarlar') G.open('ayarlar');
@@ -161,6 +161,7 @@
       else if (m === 'sorun') await sorunBildir();
       else if (m === 'nasil') await G.pen({ k: 'Kılavuz', t: 'Nasıl oynanır', wide: true, body: '<div class="kilavuz"><p><b>Hafta.</b> Her ejderhaya bir emir ver (antrenman, dinlenme, gezinti), sonra <b>Haftayı Bitir</b>. Emirler hafta sonunda işlenir; yirmi hafta bir sezondur.</p><p><b>Bakım.</b> Besle, yıka, top oyna, konuş. Bağ ve moral yükseldikçe antrenman verimi ve arenadaki direnç artar.</p><p><b>Arena.</b> Dövüş ün ve altın kazandırır. Ün yükseldikçe yeni ligler, Bahar Kupası ve Kızıl Taç açılır.</p><p><b>Ocak.</b> Araziyi aç, yapı kur: kuluçka yumurtayı çatlatır, in yer açar, yuva çiftleştirir.</p><p><b>Han.</b> Haftada bir akşamı biriyle geçir; yakınlık ayrıcalık açar. Bilge Ejder dil öğretir.</p><p><b>Pazar ve sefer.</b> Yem, yumurta, kuşam ve ejderha alınıp satılır; seferlerde yaban ejderhası yakalanır.</p></div>', btns: (EO2.rehber ? [{ t: 'İpuçlarını yeniden göster', v: 'ipucu' }] : []).concat([{ t: 'Anladım', cls: 'altin' }]) }).then(v => { if (v === 'ipucu' && EO2.rehber) { EO2.rehber.sifirla(); G.close(); EO2.rehber.basla(false); toast('İpuçları yeniden açıldı.'); } });
       else if (m === 'cik') { saveGame(); G.close(); G.title(); } });
+    on(body, '[data-h]', b => { if (EO2.hesap) EO2.hesap.tikla(b.dataset.h); });
     on(body, '[data-k]', b => { const k = b.dataset.k; if (k === 'ad') G.adSor(); else if (k === 'aktar') aktar(); else if (k === 'yukle') yukle(); else if (k === 'geri') geriAl(); else if (k === 'sil') sil(); });
   } });
 

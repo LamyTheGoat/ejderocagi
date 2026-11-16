@@ -11,6 +11,7 @@ const path = require('node:path');
 
 const { validateCommand, reduceCommand, gameEconomy, fail } = require('./economy_commands');
 
+const recovery = require('./account_recovery');
 const MAX_GOLD = 2_000_000_000;
 const SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
@@ -65,6 +66,9 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
   const readTradeRow = (table, id) => { const row = db.prepare('SELECT json FROM ' + table + ' WHERE id = ?').get(id); return row ? JSON.parse(row.json) : null; };
   const writeTradeRow = (table, id, value) => db.prepare('INSERT INTO ' + table + ' VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET json=excluded.json').run(id, JSON.stringify(value));
   db.exec('CREATE TABLE IF NOT EXISTS service_state (id TEXT PRIMARY KEY, json TEXT NOT NULL)');
+  // hesap kurtarma kodu (yalnız özeti) ve kayıt yedeği (istemcinin yerel kaydı; sunucu okumaz): server/account_recovery.js
+  db.exec(`CREATE TABLE IF NOT EXISTS account_recovery (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), code_hash TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL) STRICT;
+    CREATE TABLE IF NOT EXISTS account_saves (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), saved_at INTEGER NOT NULL, save TEXT NOT NULL) STRICT;`);
   // ENG-07 Bedesten: ilan, hesap başı rezervasyon (hold) ve makbuz. Hepsi aynı transaction'da yazılır.
   db.exec(`CREATE TABLE IF NOT EXISTS market_listings (id TEXT PRIMARY KEY, seller_id TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL, json TEXT NOT NULL) STRICT;
     CREATE INDEX IF NOT EXISTS market_open ON market_listings(status, created_at);
@@ -213,6 +217,41 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
       db.prepare('INSERT INTO sessions(token_hash, account_id, expires_at) VALUES (?, ?, ?)').run(hashToken(token), accountId, expiresAt);
       return { accountId, handle, token, expiresAt };
     });
+  }
+
+  function createRecoveryCode(accountId) {
+    return atomic(() => {
+      if (!db.prepare('SELECT 1 FROM accounts WHERE account_id = ?').get(accountId)) return null;
+      const code = recovery.makeCode();
+      db.prepare('INSERT INTO account_recovery(account_id, code_hash, created_at) VALUES (?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET code_hash = excluded.code_hash, created_at = excluded.created_at').run(accountId, recovery.hashCode(code), now());
+      return recovery.formatCode(code);
+    });
+  }
+  // kod doğruysa o hesap için YENİ bir oturum açar; eski oturumlar ve kod geçerli kalır
+  function redeemRecoveryCode(input) {
+    const code = recovery.normalizeCode(input); if (!code) return null;
+    return atomic(() => {
+      const row = db.prepare('SELECT a.account_id AS accountId, a.handle FROM account_recovery r JOIN accounts a ON a.account_id = r.account_id WHERE r.code_hash = ?').get(recovery.hashCode(code));
+      if (!row) return null;
+      const token = crypto.randomBytes(32).toString('base64url'), expiresAt = now() + SESSION_TTL_MS;
+      db.prepare('INSERT INTO sessions(token_hash, account_id, expires_at) VALUES (?, ?, ?)').run(hashToken(token), row.accountId, expiresAt);
+      return { accountId: row.accountId, handle: row.handle, token, expiresAt };
+    });
+  }
+  function putSave(accountId, text, expected) {
+    recovery.checkSave(text);
+    return atomic(() => {
+      if (!db.prepare('SELECT 1 FROM accounts WHERE account_id = ?').get(accountId)) return null;
+      const eski = db.prepare('SELECT saved_at AS savedAt FROM account_saves WHERE account_id = ?').get(accountId);
+      recovery.checkExpected(expected, eski ? eski.savedAt : null);
+      const savedAt = Math.max(now(), eski ? eski.savedAt + 1 : 0);
+      db.prepare('INSERT INTO account_saves(account_id, saved_at, save) VALUES (?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET saved_at = excluded.saved_at, save = excluded.save').run(accountId, savedAt, text);
+      return { savedAt };
+    });
+  }
+  function getSave(accountId) {
+    const row = db.prepare('SELECT saved_at AS savedAt, save FROM account_saves WHERE account_id = ?').get(accountId);
+    return row ? { savedAt: row.savedAt, save: row.save } : null;
   }
 
   function resolveSession(token) {
@@ -370,7 +409,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
 
   return Object.freeze({
     checkDuelEntry, openMatch, finalizeMatch, settleGameplay, readMatch,
-    backend: 'sqlite', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
+    backend: 'sqlite', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
     revokeSession(token) { if (typeof token === 'string') db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token)); },
     close() { db.close(); },
   });

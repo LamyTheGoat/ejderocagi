@@ -79,7 +79,7 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 | Madde | Durum | Not |
 |---|---|---|
 | 1 İlk yük | büyük ölçüde bitti | Sıkıştırma ve sahneye girişte yükleme yapıldı. Kalan: betiklerin tek dosyada toplanması (70'ten fazla istek), Merkez Meydan'ın 10 MB çizimi, chibi kareleri |
-| 2 Kayıt yedeği | bekliyor | Misafir hesabının kurtarılmasıyla birlikte |
+| 2 Kayıt yedeği ve hesap kurtarma | bitti | Yerel kayıt hesaba yedeklenir (`/api/save`, `eo2/js/hesap.js`); menüden kurtarma kodu alınır, giriş ekranında "Kurtarma kodum var" ile başka tarayıcıdan aynı hesaba ve ocağa dönülür. Başka cihazın yazdığı yedek sessizce ezilmez (oyuncu seçer). SQLite ve Firestore'da testli; iki tarayıcılı denetim `tools/check_hesap.mjs`. Sunucu yedeği okumaz, ekonomide kullanmaz |
 | 3 Ürün kimliği | bitti, iki eksikle | Yazı tipleri kendi sunucudan (`tools/yazi_indir.mjs`), sürüm `EO2.surum`, giriş ekranında künye, `gizlilik.html` ve `kosullar.html` (**taslak**: iletişim adresi ve işletenin adı kullanıcıdan bekleniyor; hukukçu görmedi), paylaşım görseli (`tools/paylasim.mjs`) |
 | 4 Telefon | kısmen | Uzun basma menüsü kapalı, dik tutuşta yatay öneri (`js/telefon.js`), tam ekran ayarlarda vardı. Gerçek telefonda ve iOS Safari'de deneme yapılmadı |
 | 5 Sorun bildir | bitti | Menü → Sorun bildir; `/api/report` veri dizinindeki `sorunlar.jsonl` dosyasına yazar (`server/report_log.js`). Okumak için yönetici ekranı yok; dosyadan okunur |
@@ -102,7 +102,7 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 
 - **Kıraathane ve yarış sunucuya şimdi taşınmaz.** Bahis ve giriş ücreti yerel keseden konuyor; sunucu sonucu yeniden oynatsa bile ortaya konan mal istemci beyanı olur ve kazanç takas edilebilir altına dönüşür. İkisi de kese birleşmesiyle (plan S11) birlikte taşınır.
 - **Kazanılmış ejderhanın yerel antrenmanı satış kopyasına yansımaz.** Alıcı, ejderhanın satıcıya geldiği andaki hâlini alır; aksi istemci beyanını satılan mala taşırdı.
-- **Misafir hesabının kurtarılması çıkıştan önce yapılır** (X ile bağlama). Sunucuda artık kazanılmış altın ve varlık duruyor; çerez giderse erişim kalmıyor.
+- **Misafir hesabının kurtarılması çıkıştan önce yapılır.** Sunucuda artık kazanılmış altın ve varlık duruyor; çerez giderse erişim kalmıyor. **Yapıldı (2026-11-16), X yerine kurtarma koduyla:** X ile bağlama üretim anahtarı ve X uygulaması ister (kullanıcıda); kurtarma kodu dış hizmete bağlı değildir ve e-posta ya da kişisel veri istemez. Kod 120 bit, depoda yalnız özeti durur, deneme IP başına on dakikada on. X ile bağlama ileride eklenebilir; ikisi birbirini dışlamaz.
 - **Kor Örsü eski sayılarla taşınır** (yükseltme olasılıkları, taş bedelleri); yalnız yuvalar ve görünüm yeni sete uyarlanır. Chibi ajanının set teslimini bekler.
 - **Hedef ödülü hesap başına bir kez** (kullanıcı kararı).
 - Karar verilemeyen: Midjourney bakiyesi (ödeme kullanıcıda).

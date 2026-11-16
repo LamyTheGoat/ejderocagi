@@ -98,3 +98,16 @@ html, body, #app.ui2 { overflow: clip; }
 /* Kıraathane: alt şerit masa kartları ve oyuncu paneliyle dolu; bildirim başlığın altında, ortada durur */
 .ui2.ekranda:has(#scrB.kr2) .bildirimler { top: max(5.4em, env(safe-area-inset-top, 0px)) !important; bottom: auto; left: 50%; transform: translateX(-50%); justify-items: center; max-width: min(30em, 80vw); }
 .ui2.ekranda:has(#scrB.kr2) .bildirim { text-align: center; }
+
+/* hesap yedeği ve kurtarma (js/hesap.js) */
+.ui2 .mk-hesap { display: grid; gap: .45em; margin-top: .7em; padding-top: .7em; border-top: 1px solid rgba(255, 226, 150, .22); }
+.ui2 .mk-hesap .hs-yazi { font: 500 .85em var(--f-ui); color: var(--soluk); }
+.ui2 .mk-hesap .hs-yazi.uyari { color: var(--varak-hi, #f6d98a); }
+.ui2 .hs-kod { margin: .2em 0 .9em; padding: .7em .6em; border-radius: .8em; text-align: center; font: 800 1.35em/1.3 ui-monospace, 'Cascadia Mono', Consolas, monospace; letter-spacing: .06em; color: #fff; background: rgba(8, 14, 40, .6); box-shadow: inset 0 0 0 1px rgba(255, 226, 150, .55); user-select: all; -webkit-user-select: all; overflow-wrap: anywhere; }
+.ui2 .hs-kutu { display: block; width: 100%; min-height: 44px; padding: .5em .8em; border-radius: .7em; border: 1px solid rgba(160, 190, 255, .35); background: rgba(8, 14, 40, .55); color: #fff; text-align: center; text-transform: uppercase; font: 700 1.1em ui-monospace, 'Cascadia Mono', Consolas, monospace; letter-spacing: .05em; user-select: text; -webkit-user-select: text; }
+.ui2 .hs-kutu:focus-visible { outline: 2px solid var(--varak, #f0c869); outline-offset: 2px; }
+.ui2 .hs-kutu::placeholder { color: var(--soluk); opacity: .6; }
+.ui2 .hs-durum { min-height: 1.3em; margin: .6em 0 0 !important; font-size: .9em; color: var(--varak-hi, #f6d98a); }
+.ui2 .giris .giris-bag { padding: 0; border: 0; background: none; font: inherit; color: #cfe0ff; text-decoration: underline; text-underline-offset: .15em; cursor: pointer; min-height: 0; }
+.ui2 .giris .giris-bag:hover, .ui2 .giris .giris-bag:focus-visible { color: #fff; }
+@media (pointer: coarse) { .ui2 .giris .giris-bag { display: inline-block; padding: .6em .3em; } }

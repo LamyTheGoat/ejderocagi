@@ -908,6 +908,36 @@ async function handleHttp(req, res) {
     }
     return sendJson(res, 200, { ok: true, accountId: identity.accountId, handle: identity.handle, expiresAt: identity.expiresAt, economyReady: true });
   }
+  // Hesap kurtarma ve kayıt yedeği (server/account_recovery.js). Kod yalnız bir kez, üretildiği yanıtta görünür.
+  if (pathname === '/api/session/recovery' && req.method === 'POST') {
+    req.resume();
+    if (!req.identity) return sendJson(res, 401, { ok: false, error: 'guest_session_required' });
+    try {
+      await ECONOMY.consumeRate('recovery-code:' + req.identity.accountId, 6, 3600000);
+      const code = await ECONOMY.createRecoveryCode(req.identity.accountId);
+      return code ? sendJson(res, 200, { ok: true, code }) : sendJson(res, 404, { ok: false, error: 'account_not_found' });
+    } catch (error) { const known = Number.isInteger(error.status); return sendJson(res, known ? error.status : 503, { ok: false, error: known ? (error.code || error.message) : 'recovery_unavailable' }); }
+  }
+  if (pathname === '/api/session/recover' && req.method === 'POST') {
+    try {
+      await ECONOMY.consumeRate('recover-ip:' + req.socket.remoteAddress, 10, 600000);   // yanlış kod denemesi: IP başına on dakikada on
+      const body = await readJsonBody(req, false, 512);
+      const identity = await ECONOMY.redeemRecoveryCode(body.code);
+      if (!identity) return sendJson(res, 404, { ok: false, error: 'recovery_code_invalid' });
+      res.setHeader('Set-Cookie', GUEST_SESSIONS.cookie(identity.token, identity.expiresAt));
+      return sendJson(res, 200, { ok: true, accountId: identity.accountId, handle: identity.handle, expiresAt: identity.expiresAt });
+    } catch (error) { const known = Number.isInteger(error.status); return sendJson(res, known ? error.status : 503, { ok: false, error: known ? (error.code || error.message) : 'recovery_unavailable' }); }
+  }
+  if (pathname === '/api/save' && (req.method === 'GET' || req.method === 'PUT' || req.method === 'POST')) {
+    if (!req.identity) { req.resume(); return sendJson(res, 401, { ok: false, error: 'guest_session_required' }); }
+    try {
+      if (req.method === 'GET') { const kayit = await ECONOMY.getSave(req.identity.accountId); return sendJson(res, 200, { ok: true, savedAt: kayit ? kayit.savedAt : null, save: kayit ? kayit.save : null }); }
+      await ECONOMY.consumeRate('save:' + req.identity.accountId, 30, 600000);
+      const body = await readJsonBody(req, false, 500_000);
+      const out = await ECONOMY.putSave(req.identity.accountId, body.save, body.expected);   // expected: istemcinin bildiği son yedek zamanı (yoksa null); verilmezse üzerine yazar
+      return out ? sendJson(res, 200, { ok: true, savedAt: out.savedAt }) : sendJson(res, 404, { ok: false, error: 'account_not_found' });
+    } catch (error) { const known = Number.isInteger(error.status); return sendJson(res, known ? error.status : 503, { ok: false, error: known ? (error.code || error.message) : 'save_unavailable' }); }
+  }
   if(req.identity && req.method==='POST' && ['/api/trade','/api/economy/command','/api/market'].includes(pathname)) await ECONOMY.consumeRate('economy:'+req.identity.accountId,120,60000);
   // ENG-09 Y-1: okuma limiti POST kovasından ayrı ('read:'); aşımda aynı 429 { error: 'rate_limited' }.
   if(req.method==='GET' && READ_RATE_PATHS.has(pathname)) {

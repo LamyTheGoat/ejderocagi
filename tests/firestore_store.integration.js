@@ -490,3 +490,32 @@ test('ENG13 Firestore: ilandaki ejderha ölemez (net ret), ilan çekilince ölü
   const e2 = await b.readEconomy(id2);
   assert.equal(sum, 4 * 950); assert.equal(e2.funds.earned, 4 * 950); assert.equal(e2.funds.bound + e2.funds.unknown + e2.funds.earned, e2.gold);
 });
+
+test('Firestore hesap kurtarma ve kayıt yedeği: kod yeni oturum açar, yenilenince eskisi düşer, yedek hesaba özeldir', { timeout: 60000 }, async t => {
+  const a = openFirestoreStore(options), b = openFirestoreStore(options);
+  t.after(async () => { await a.close(); await b.close(); });
+  const g1 = await a.createGuest(), g2 = await a.createGuest();
+  const kod = await a.createRecoveryCode(g1.accountId);
+  assert.match(kod, /^([A-HJ-NP-Z2-9]{4}-){5}[A-HJ-NP-Z2-9]{4}$/);
+  const yeni = await b.redeemRecoveryCode(kod.toLowerCase());
+  assert.equal(yeni.accountId, g1.accountId); assert.notEqual(yeni.token, g1.token);
+  assert.equal((await a.resolveSession(yeni.token)).accountId, g1.accountId);
+  assert.equal((await a.resolveSession(g1.token)).accountId, g1.accountId);
+  assert.equal(await b.redeemRecoveryCode('AAAA-AAAA-AAAA-AAAA-AAAA-AAAA'), null);
+  assert.equal(await b.redeemRecoveryCode('bozuk'), null);
+  assert.equal(await a.createRecoveryCode('yok-boyle-hesap'), null);
+  const kod2 = await b.createRecoveryCode(g1.accountId);
+  assert.equal(await a.redeemRecoveryCode(kod), null);
+  assert.equal((await a.redeemRecoveryCode(kod2)).accountId, g1.accountId);
+  assert.equal(await a.getSave(g1.accountId), null);
+  await a.putSave(g1.accountId, '{"week":3}'); await b.putSave(g1.accountId, '{"week":4}');
+  assert.equal((await a.getSave(g1.accountId)).save, '{"week":4}');
+  assert.equal(await a.getSave(g2.accountId), null);
+  await assert.rejects(() => a.putSave(g1.accountId, 42), /save_invalid/);
+  const son = (await a.getSave(g1.accountId)).savedAt;
+  await assert.rejects(() => b.putSave(g1.accountId, '{"week":9}', null), /save_conflict/);
+  const sonra = await b.putSave(g1.accountId, '{"week":5}', son);
+  assert.ok(sonra.savedAt > son);
+  await assert.rejects(() => a.putSave(g1.accountId, '{"week":9}', son), /save_conflict/);
+  assert.equal(await a.putSave('yok-boyle-hesap', '{}'), null);
+});

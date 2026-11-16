@@ -5,6 +5,7 @@ const { validateTrade, transition, guardReservation } = require('./trade_service
 const market = require('./market_service');
 const duel = require('./duel_service');
 const { validateCommand, reduceCommand, gameEconomy, fail } = require('./economy_commands');
+const recovery = require('./account_recovery');
 const SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
 
@@ -21,6 +22,38 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
     await batch.commit();
     return { accountId, handle, token, expiresAt };
   }
+  // hesap kurtarma kodu ve kayıt yedeği: server/account_recovery.js (kod özeti eo_recovery/<özet>, yedek eo_saves/<hesap>)
+  const recoveries = db.collection('eo_recovery'), saves = db.collection('eo_saves');
+  async function createRecoveryCode(accountId) {
+    const code = recovery.makeCode(), hash = recovery.hashCode(code), ref = accounts.doc(accountId);
+    const ok = await db.runTransaction(async tx => {
+      const doc = await tx.get(ref); if (!doc.exists) return false;
+      const eski = doc.data().recoveryHash; if (eski) tx.delete(recoveries.doc(eski));
+      tx.set(recoveries.doc(hash), { accountId, createdAt: now() }); tx.update(ref, { recoveryHash: hash });
+      return true;
+    });
+    return ok ? recovery.formatCode(code) : null;
+  }
+  async function redeemRecoveryCode(input) {
+    const code = recovery.normalizeCode(input); if (!code) return null;
+    const kayit = await recoveries.doc(recovery.hashCode(code)).get(); if (!kayit.exists) return null;
+    const accountId = kayit.data().accountId, hesap = await accounts.doc(accountId).get();
+    if (!hesap.exists || hesap.data().recoveryHash !== recovery.hashCode(code)) return null;
+    const token = crypto.randomBytes(32).toString('base64url'), expiresAt = now() + SESSION_TTL_MS, handle = hesap.data().handle;
+    await sessions.doc(hashToken(token)).create({ accountId, handle, expiresAt });
+    return { accountId, handle, token, expiresAt };
+  }
+  async function putSave(accountId, text, expected) {
+    recovery.checkSave(text);
+    if (!(await accounts.doc(accountId).get()).exists) return null;
+    return db.runTransaction(async tx => {
+      const ref = saves.doc(accountId), doc = await tx.get(ref), eski = doc.exists ? doc.data().savedAt : null;
+      recovery.checkExpected(expected, eski);
+      const savedAt = Math.max(now(), eski ? eski + 1 : 0); tx.set(ref, { accountId, savedAt, save: text });
+      return { savedAt };
+    });
+  }
+  async function getSave(accountId) { const doc = await saves.doc(accountId).get(); return doc.exists ? { savedAt: doc.data().savedAt, save: doc.data().save } : null; }
   async function resolveSession(token) {
     if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
     const doc = await sessions.doc(hashToken(token)).get();
@@ -271,7 +304,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
   async function readMatch(matchId) { return duel.MATCH_ID.test(matchId || '') ? matchOf(await matches.doc(matchId).get()) : null; }
   return {
     checkDuelEntry, openMatch, finalizeMatch, settleGameplay, readMatch,
-    backend: 'firestore', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
+    backend: 'firestore', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
     async revokeSession(token) { if (typeof token === 'string') await sessions.doc(hashToken(token)).delete(); },
     async close() { await db.terminate(); },
   };
