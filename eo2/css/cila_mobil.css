@@ -307,3 +307,18 @@
   #app .scr-h #scrWeek { flex: none; margin-left: 0; }
   #app .scr-h #scrNav { order: 9; flex: 1 1 100%; margin-left: 0; min-width: 0; }
 }
+
+/* dik telefon, 2026-11-16 ekran denetimi (devam) */
+@media (max-width: 620px) {
+  /* kilit kutusu: satır içi sol konumu (masaüstünde ejderhanın yanı) dik ekranda kutuyu dışarı taşırıyordu */
+  #app .ar-kilit { left: 50% !important; width: max-content; max-width: 92%; padding: 1em 1.2em; }
+  /* Kervan: bilgi sütunu rota seçicinin altına taşıyor, yola çıkma düğmesi görünmüyordu */
+  #app .scr-b.kv .kv-bilgi { top: 38%; bottom: 7.2em; gap: .35em; align-content: start; overflow-y: auto; }
+  #app .scr-b.kv .kv-bilgi h2 { font-size: 1.5em; }
+  #app .scr-b.kv .kv-bilgi > p { display: none; }
+  #app .scr-b.kv .kv-yuvalar { grid-template-columns: 1fr 1fr; gap: .4em; }
+  #app .scr-b.kv .kv-yuva { padding: .4em .5em; }
+  #app .scr-b.kv .kv-yuva small { display: none; }
+  #app .scr-b.kv .kv-akranlar { gap: .3em; }
+  #app .scr-b.kv .kv-akranlar .madalyon span { display: none; }
+}
