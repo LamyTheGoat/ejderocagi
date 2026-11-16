@@ -12,7 +12,9 @@
   const sayi = (v, a, b) => (typeof v === 'number' && isFinite(v)) ? Math.max(a, Math.min(b, v)) : null;
   const kisiler = new Map(); let api = null, sonJson = '', sonGonderim = 0, jest = null, alanim = null;
 
-  function birak(id) { const c = kisiler.get(id); if (!c) return; kisiler.delete(id); const i = api.remotes.indexOf(c); if (i >= 0) api.remotes.splice(i, 1); api.dropChar(c); }
+  /* yer rozetinde kaç oyuncu olduğu: 'Merkez Meydan · 3 oyuncu' (kendin dahil); yalnızken görünmez */
+  function say() { const el = document.getElementById('locKisi'); if (!el) return; const n = kisiler.size; el.hidden = !n; el.textContent = n ? (n + 1) + ' oyuncu' : ''; el.title = n ? 'Bu alanda seninle birlikte ' + (n + 1) + ' oyuncu var' : ''; }
+  function birak(id) { const c = kisiler.get(id); if (!c) return; kisiler.delete(id); const i = api.remotes.indexOf(c); if (i >= 0) api.remotes.splice(i, 1); api.dropChar(c); say(); }
   function hepsiniBirak() { for (const id of [...kisiler.keys()]) birak(id); }
   function isle(p) {
     if (!api || !p || typeof p.id !== 'string' || p.id.length > 12) return;
@@ -23,7 +25,7 @@
     if (!c) {
       if (kisiler.size >= 40) return;
       c = api.mkChar({ remote: true, name: ad, x, y, tx: x, ty: y, set, dir, rdir: dir, crumbs: [[x, y]], lastE: p.e && p.e.t });
-      c.area = p.a; kisiler.set(p.id, c); api.remotes.push(c); api.setPlate(c);
+      c.area = p.a; kisiler.set(p.id, c); api.remotes.push(c); api.setPlate(c); say();
     }
     if (c.name !== ad) { c.name = ad; api.setPlate(c); }
     c.area = p.a; c.tx = x; c.ty = y; c.set = set; c.rdir = dir;
