@@ -234,3 +234,7 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .ds-fis-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .4em; } .ui2 .ds-fis-gir { min-height: 40px; padding: .2em .9em; border-radius: 1.2em; border: 1px solid rgba(160, 190, 255, .4); background: rgba(8, 14, 40, .6); color: #fff; font: 500 1em var(--f-ui); user-select: text; -webkit-user-select: text; }
 .ui2 .ds-fis-durum { min-height: 1.2em; margin: 0; font-size: .88em; color: #f6d98a; }
 @media (max-width: 760px), (max-aspect-ratio: 1/1) { .ui2 .scr-b.ds { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } }
+
+/* ocak ziyareti (js/ziyaret.js): sunulan ejderhanın künyesi */
+.ui2 .zy-sunu { display: flex; align-items: center; gap: .9em; margin: 0 0 .7em; padding: .5em .8em; border-radius: 1.1em; background: rgba(6, 10, 32, .45); box-shadow: inset 0 0 0 1px rgba(255, 226, 150, .4); }
+.ui2 .zy-sunu img { width: 5.2em; height: 5.2em; object-fit: contain; flex: none; } .ui2 .zy-sunu b { display: block; font: 700 1.2em var(--f-ui); } .ui2 .zy-sunu small { font: 500 .88em var(--f-ui); color: #f6d98a; }

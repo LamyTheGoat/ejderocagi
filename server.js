@@ -59,7 +59,9 @@ setInterval(() => { try { ORTAK.supur(); } catch (e) { console.error('[ortak] s�
 const KIR_KILIT = new Set();
 const KIR_PVP = require('./server/kiraathane_pvp').createKiraathanePvp({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo, kilitli: KIR_KILIT });
 ORTAK.kaydet('kiraathane', KIR_PVP.tanim);
-const MEYDAN = require('./server/meydan_presence').createMeydanPresence({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, kimlik: socket => socket.playerInfo && socket.playerInfo.handle });
+// Ocak ziyareti ve birlikte çiftleştirme (server/ocak_ziyaret.js): misafir ev sahibinin ocağını görür; yumurta Damızlık kuralıyla ev sahibine gider.
+const ZIYARET = require('./server/ocak_ziyaret').createOcakZiyaret({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo });
+const MEYDAN = require('./server/meydan_presence').createMeydanPresence({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, kimlik: socket => socket.playerInfo && socket.playerInfo.handle, alan: ZIYARET.alan });
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -587,6 +589,7 @@ async function handleWsUpgrade(req, socket, head) {
     PVP_ROOMS.onDisconnect(socket);
     MEYDAN.onDisconnect(socket);
     ORTAK.onDisconnect(socket);
+    ZIYARET.onDisconnect(socket);
     wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size });
   });
   socket.on('error', () => {
@@ -619,6 +622,7 @@ async function handleWsMessage(socket, msg) {
   if (PVP_ROOMS.onMessage(socket, msg)) return;
   if (MEYDAN.onMessage(socket, msg)) return;
   if (ORTAK.onMessage(socket, msg)) return;
+  if (ZIYARET.onMessage(socket, msg)) return;
   if (msg.type === 'ozel') { await SOSYAL.onMessage(socket, msg); return; }   // arkadaşlar arası özel mesaj (server/social_service.js)   // 2.0 meydanında öteki oyuncular (server/meydan_presence.js)
 
   if (msg.type === 'hub_update' || msg.type === 'hub_actor') {

@@ -76,6 +76,11 @@ if (acik) {
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
     yaz('Kıraathane oyuncu masası (iki tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
 
+  // 4g) ocak ziyareti ve birlikte çiftleştirme: davet, ev sahibinin arazisi, teklif, yumurta ev sahibine, çıkış (iki tarayıcı)
+  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_ziyaret.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 240000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('ocak ziyareti ve birlikte çiftleştirme (iki tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
+
   // 5) belge sayfaları ve yazı tipleri
   { const g = await al(URL0 + 'gizlilik.html'), k = await al(URL0 + 'kosullar.html'), y = await al(URL0 + 'css/yazi.css'), pay = await al(URL0 + 'assets/paylasim.jpg');
     const adlar = (fs.readFileSync(path.join(repo, 'eo2', 'css', 'yazi.css'), 'utf8').match(/assets\/yazi\/[a-z0-9-]+\.woff2/g) || []), eksik = adlar.filter(a => !fs.existsSync(path.join(repo, 'eo2', a)));

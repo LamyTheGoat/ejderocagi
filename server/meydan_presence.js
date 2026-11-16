@@ -45,12 +45,14 @@ function temizDurum(msg) {
 }
 
 // kimlik(socket): oyuncunun sunucudaki hesap adı (@gezgin_...). Gizli değildir; düello daveti ve takas bu adla yapılır.
-function createMeydanPresence({ send, now = () => Date.now(), kimlik = () => null }) {
+// alan(socket, a): oyuncunun gerçekte hangi öbekte sayılacağı. 'ocak' herkesin kendi arazisidir; ziyaret (server/ocak_ziyaret.js)
+// misafiri ev sahibinin öbeğine koyar. İstemciye giden alan adı değişmez ('ocak'); yalnız kimin kimi gördüğü değişir.
+function createMeydanPresence({ send, now = () => Date.now(), kimlik = () => null, alan = (socket, a) => a }) {
   const kanallar = [];                       // kanal no → Set<socket>
   let sira = 0;
   const kanalBul = () => { for (let i = 0; i < kanallar.length; i++) if (kanallar[i].size < KANAL_BOYU) return i; kanallar.push(new Set()); return kanallar.length - 1; };
   const paket = m => ({ type: 'meydan', id: m.id, h: m.h, n: m.d.n, a: m.d.a, x: m.d.x, y: m.d.y, d: m.d.d, s: m.d.s, p: m.d.p, e: m.d.e });
-  const ayniAlan = (socket, alan) => { const out = []; const m = socket.meydan; if (!m) return out; for (const o of kanallar[m.kanal]) if (o !== socket && o.meydan && o.meydan.d && o.meydan.d.a === alan) out.push(o); return out; };
+  const ayniAlan = (socket, alan) => { const out = []; const m = socket.meydan; if (!m) return out; for (const o of kanallar[m.kanal]) if (o !== socket && o.meydan && o.meydan.d && o.meydan.d.g === alan) out.push(o); return out; };
 
   /* alan sohbeti: yalnız meydana katılmış oyuncu yazar; aynı kanal ve alandakiler duyar. Kalıcı değildir.
      Hız: iki söz arası en az 1,2 saniye ve otuz saniyede en çok sekiz söz; aşan söz sessizce atılır, gönderene bildirilir. */
@@ -61,7 +63,7 @@ function createMeydanPresence({ send, now = () => Date.now(), kimlik = () => nul
     const x = temizSoz(msg.x); if (!x) return true;
     m.sozler.push(t);
     const p = { type: 'meydan_soz', id: m.id, h: m.h, n: m.d.n, x };
-    for (const o of ayniAlan(socket, m.d.a)) send(o, p);
+    for (const o of ayniAlan(socket, m.d.g)) send(o, p);
     send(socket, { type: 'meydan_soz', id: m.id, h: m.h, n: m.d.n, x, ben: true });   // gönderen süzülmüş hâlini görür
     return true;
   }
@@ -73,17 +75,17 @@ function createMeydanPresence({ send, now = () => Date.now(), kimlik = () => nul
     if (m) { if (t - m.pencere >= 1000) { m.pencere = t; m.sayac = 0; } if (++m.sayac > HIZ) return true; }
     const d = temizDurum(msg); if (!d) return true;
     if (!m) { const kanal = kanalBul(); const h = kimlik(socket); m = socket.meydan = { id: 'm' + (++sira).toString(36), h: typeof h === 'string' ? h.slice(0, 41) : null, kanal, d: null, pencere: t, sayac: 1 }; kanallar[kanal].add(socket); }
-    const eskiAlan = m.d ? m.d.a : null; m.d = d;
-    if (eskiAlan !== d.a) {
+    const eskiAlan = m.d ? m.d.g : null; d.g = alan(socket, d.a); m.d = d;
+    if (eskiAlan !== d.g) {
       if (eskiAlan) for (const o of ayniAlan(socket, eskiAlan)) send(o, { type: 'meydan_cik', id: m.id });
-      send(socket, { type: 'meydan_liste', a: d.a, liste: ayniAlan(socket, d.a).map(o => paket(o.meydan)) });
+      send(socket, { type: 'meydan_liste', a: d.a, liste: ayniAlan(socket, d.g).map(o => paket(o.meydan)) });
     }
-    const p = paket(m); for (const o of ayniAlan(socket, d.a)) send(o, p);
+    const p = paket(m); for (const o of ayniAlan(socket, d.g)) send(o, p);
     return true;
   }
   function onDisconnect(socket) {
     const m = socket.meydan; if (!m) return;
-    if (m.d) for (const o of ayniAlan(socket, m.d.a)) send(o, { type: 'meydan_cik', id: m.id });
+    if (m.d) for (const o of ayniAlan(socket, m.d.g)) send(o, { type: 'meydan_cik', id: m.id });
     kanallar[m.kanal].delete(socket); socket.meydan = null;
   }
   return { onMessage, onDisconnect, sayim: () => kanallar.map(k => k.size) };

@@ -79,7 +79,7 @@
   L.circles.push(...SABIT_DAIRE);
   /* çarpışma: kapalı kareler ve yapılar geçilmez; arazi değiştikçe yenilenir. Mini harita aynı veriden çizilir:
      koyu zemin çalılık, açık yeşil açılmış kare, krem blok yapı, toprak rengi yollar, halka taş avlu, mavi nokta kuyu */
-  function carp() { L.rects.length = 0; if (typeof S === 'undefined' || !S || !S.grid) return; S.grid.forEach((t, i) => { const x = cx(i), y = cy(i); if (!t.open) L.rects.push([x - TS / 2, x + TS / 2, y - TS / 2, y + TS / 2]); else if (t.b) L.rects.push([x - TS * 0.3, x + TS * 0.3, y - TS * 0.12, y + TS * 0.3]); });
+  function carp() { L.rects.length = 0; const S = W(); if (!S || !S.grid) return; S.grid.forEach((t, i) => { const x = cx(i), y = cy(i); if (!t.open) L.rects.push([x - TS / 2, x + TS / 2, y - TS / 2, y + TS / 2]); else if (t.b) L.rects.push([x - TS * 0.3, x + TS * 0.3, y - TS * 0.12, y + TS * 0.3]); });
     const a = TS / 2 - 0.22; L.mini.green = S.grid.map((t, i) => t.open ? [cx(i) - a, cy(i) - a, cx(i) + a, cy(i) + a] : null).filter(Boolean);
     L.mini.paved = [[-1.2, 0, 1.2, YT + 0.9], [X0, YC - 1, -X0, YC + 1], [-2.3, YC - 2.3, 2.3, YC + 2.3], [-5.2, YT + 0.5, 5.2, YT + 1.9]];
     L.mini.blocks = [...S.grid.map((t, i) => t.b ? [cx(i) - 0.95, cy(i) - 0.75, cx(i) + 0.95, cy(i) + 0.75] : null).filter(Boolean), [-0.9, YC - 0.5, 0.9, YC + 1.1], [-4.4, YT + 2.2, 4.4, YT + 4.4]]; }
@@ -108,13 +108,16 @@
 
   /* ---------- ejderhaların gezinmesi ---------- */
   const gez = {};
-  function bosKare() { const o = []; S.grid.forEach((t, i) => { if (t.open && !t.b) o.push(i); }); return o.length ? o[Math.floor(Math.random() * o.length)] : -1; }
+  /* arazinin verisi: başka bir ocakta misafirken ev sahibinin tablosu (js/ziyaret.js), değilse oyuncunun kendi kaydı.
+     Misafir yalnız bakar: kare panosu açılmaz, ejderhaya dokununca eşleşme teklifi çıkar. */
+  const ziy = () => !!(EO2.ziyaret && EO2.ziyaret.tablo()), W = () => (EO2.ziyaret && EO2.ziyaret.tablo()) || (typeof S === 'undefined' ? null : S);
+  function bosKare() { const S = W(), o = []; S.grid.forEach((t, i) => { if (t.open && !t.b) o.push(i); }); return o.length ? o[Math.floor(Math.random() * o.length)] : -1; }
   /* emrin yeri: antrenman emri o yeteneğin yapısına (yoksa Talim Meydanı'na), dinlenme ine (yoksa Sıcak Kaynak'a), çift emirleri Yuva Bahçesi'ne götürür.
      Yalnız gösterimdir: emir, verim ve sonuç oyunun kendi kuralıyla hafta sonunda işlenir. */
   const IS_YAPI = { gu: 'agirlik', ce: 'parkur', da: 'kaynak', ze: 'magara' };
-  function isYeri(d) { const tk = d.task; if (!tk || !S.grid) return -1; const ks = tk.t === 'train' ? [IS_YAPI[tk.k], 'talim'] : tk.t === 'rest' ? ['in', 'kaynak'] : tk.p != null ? ['yuva'] : [];
+  function isYeri(d) { const S = W(), tk = d.task; if (!tk || !S || !S.grid) return -1; const ks = tk.t === 'train' ? [IS_YAPI[tk.k], 'talim'] : tk.t === 'rest' ? ['in', 'kaynak'] : tk.p != null ? ['yuva'] : [];
     for (const k of ks) { if (!k) continue; const yer = []; S.grid.forEach((t, i) => { if (t.b === k) yer.push(i); }); if (yer.length) return yer[Math.abs(+d.id || 0) % yer.length]; } return -1; }
-  function adim(dt) { if (typeof S === 'undefined' || !S || !S.dragons) return; const canli = S.dragons.filter(d => !d.dead).slice(0, ejSlot.length);
+  function adim(dt) { const S = W(); if (!S || !S.dragons) return; const canli = S.dragons.filter(d => !d.dead).slice(0, ejSlot.length);
     canli.forEach((d, k) => { let g = gez[d.id]; if (!g) { const i = bosKare(); g = gez[d.id] = { x: i < 0 ? 0 : cx(i) + (Math.random() - 0.5), y: i < 0 ? 3 : cy(i), tx: 0, ty: 0, bekle: 1 + Math.random() * 4, yon: 1, t: Math.random() * 9, sevin: 0 }; g.tx = g.x; g.ty = g.y; }
       g.t += dt; if (g.sevin > 0) g.sevin -= dt; const yer = isYeri(d); if (yer >= 0) { g.tx = cx(yer) + ((Math.abs(+d.id || 0) % 3) - 1) * 0.85; g.ty = cy(yer) - TS * 0.46; } g.is = yer >= 0 ? d.task.t : null;
       const dx = g.tx - g.x, dy = g.ty - g.y, m = Math.hypot(dx, dy), uyur = d.task && d.task.t === 'rest' && m <= 0.08;
@@ -124,7 +127,7 @@
     for (let k = canli.length; k < ejSlot.length; k++) { ejSlot[k].r = 0; ejSlot[k].y = -60; } for (const id in gez) if (!canli.find(d => String(d.id) === id)) delete gez[id]; }
   /* önündeki kare: terbiyecinin bir adım ötesindeki, yoksa üstünde durduğu kare */
   const YON = { up: [0, 1], down: [0, -1], left: [-1, 0], right: [1, 0] };
-  function odak() { const A = EO2.api, p = A.player, v = YON[p.dir] || [0, 1]; const on = tileAt(p.x + v[0] * 1.9, p.y + v[1] * 1.9), alt = tileAt(p.x, p.y); let i = on >= 0 && (!S.grid[on].open || S.grid[on].b) ? on : alt >= 0 ? alt : on;      // önünde çalılık ya da yapı varsa o; yoksa üstünde durduğu kare
+  function odak() { if (ziy()) { kare.i = -1; kare.r = 0; kare.y = -50; return; } const A = EO2.api, p = A.player, v = YON[p.dir] || [0, 1]; const on = tileAt(p.x + v[0] * 1.9, p.y + v[1] * 1.9), alt = tileAt(p.x, p.y); let i = on >= 0 && (!S.grid[on].open || S.grid[on].b) ? on : alt >= 0 ? alt : on;      // önünde çalılık ya da yapı varsa o; yoksa üstünde durduğu kare
     kare.i = i; if (i < 0 || document.getElementById('ocTepsi')) { kare.r = 0; kare.y = -50; return; } const t = S.grid[i]; kare.x = cx(i); kare.y = cy(i) - (t.open && !t.b ? 0 : TS * 0.45); kare.r = TS * 1.5; kare.act = 'kare:' + i; kare.z = t.b ? 2.6 : t.open ? 0.5 : 1.5;
     if (!t.open) { const ok = canClear(i); kare.label = ok ? 'Araziyi aç' : 'Çalılık'; kare.sub = ok ? clearCost() + ' altın' : 'Önce yanındaki araziyi aç'; } else if (t.b) { kare.label = BUILD[t.b].ad; const eg = t.b === 'kulucka' ? (S.eggs || []).filter(q => q.inK).length : 0, B = BUILD[t.b], cs = (B.stat || t.b === 'talim') ? (S.dragons || []).filter(d => !d.dead && d.task && d.task.t === 'train' && (!B.stat || d.task.k === B.stat)).length : 0; kare.sub = eg ? eg + ' yumurta kuluçkada' : cs ? cs + ' ejderha çalışıyor' : 'Yapıya bak'; } else { kare.label = 'Yapı kur'; kare.sub = 'Boş arazi'; } }
   EO2.frameHooks.push(() => { if (!EO2.api || EO2.api.scene() !== 'ocak' || !G.live) return; adim(Math.min(0.05, (performance.now() - (adim.son || performance.now())) / 1000)); adim.son = performance.now(); odak(); });
@@ -174,7 +177,7 @@
     DEC.forEach((d, i) => { d.n = i; if (!d.t.sn) d.t.sn = i + 1; }); DEC.sort((a, b) => (a.p[0][2] - b.p[0][2]) || (a.t.sn - b.t.sn) || (a.n - b.n));   // aynı katmanda aynı doku art arda: az çizim çağrısı
     const GOLGE = [];   // sabit eşyaların temas gölgeleri: zemin geçişinde tek seferde çizilir
     h.push({ key: 899.5, draw(R, F) { const y0 = F.camY - 2, y1 = F.camY + 75; for (const d of DEC) { if (d.y < y0 || d.y > y1) continue; R.quad(d.t, d.p[0], d.p[1], d.p[2], d.p[3], 0, 0, 1, 1, F.lit(d.x, d.y, d.a), false, 1); } } });
-    h.push({ key: 897, draw(R, F) { const y0 = F.camY - 1, y1 = F.camY + 60; for (const g of GOLGE) { if (g[1] < y0 || g[1] > y1) continue; R.quad(h.T.fx, [g[0] - g[2], g[1] - g[3], 0.0135], [g[0] + g[2], g[1] - g[3], 0.0135], [g[0] + g[2], g[1] + g[3] * 0.7, 0.0135], [g[0] - g[2], g[1] + g[3] * 0.7, 0.0135], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, g[4]]); }
+    h.push({ key: 897, draw(R, F) { const S = W(), y0 = F.camY - 1, y1 = F.camY + 60; for (const g of GOLGE) { if (g[1] < y0 || g[1] > y1) continue; R.quad(h.T.fx, [g[0] - g[2], g[1] - g[3], 0.0135], [g[0] + g[2], g[1] - g[3], 0.0135], [g[0] + g[2], g[1] + g[3] * 0.7, 0.0135], [g[0] - g[2], g[1] + g[3] * 0.7, 0.0135], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, g[4]]); }
       if (S && S.grid) S.grid.forEach((t, i) => { if (t.open) return; const x = cx(i), y = cy(i), j = (i * 7) % 5 - 2; for (const q of [[x - 0.62 + j * 0.06, y + TS * 0.3, TS * 0.56], [x + 0.66 - j * 0.05, y + TS * 0.24, TS * 0.52], [x - ((i * 3) % 5 - 2) * 0.1, y - TS * 0.18, TS * (0.74 + (i % 4) * 0.05)]]) R.quad(h.T.fx, [q[0] - q[2] * 0.46, q[1] - 0.34, 0.0135], [q[0] + q[2] * 0.46, q[1] - 0.34, 0.0135], [q[0] + q[2] * 0.46, q[1] + 0.3, 0.0135], [q[0] - q[2] * 0.46, q[1] + 0.3, 0.0135], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, 0.55]); }); } });
 
     /* dik duran öbek eşyası: dibinde temas gölgesi, kameraya yaklaşınca solar */
@@ -197,17 +200,17 @@
     const tKose = tex(cv(128, 128, (x, w, hh2) => { x.strokeStyle = '#ffe9a8'; x.lineWidth = 5; x.lineCap = 'round'; x.lineJoin = 'round'; const k = 24, m = 7; for (const [a, b, sx, sy] of [[m, m, 1, 1], [w - m, m, -1, 1], [m, hh2 - m, 1, -1], [w - m, hh2 - m, -1, -1]]) { x.beginPath(); x.moveTo(a + sx * k, b); x.lineTo(a, b); x.lineTo(a, b + sy * k); x.stroke(); } }));
     const tCali = [0, 1, 2].map(v => { const c = cali(v), t = R.texture(c); return { t, w: TS * 0.98, h: TS * 0.98 * c.height / c.width }; }), tYum = R.texture(yumurta());
     const KT = [...tYab, ...tPed, ...tBos];
-    h.push({ key: 898, draw(R, F) { if (!S || !S.grid) return;
+    h.push({ key: 898, draw(R, F) { const S = W(); if (!S || !S.grid) return;
       const a = TS / 2 - 0.02; for (const tt of KT) S.grid.forEach((t, i) => { if ((!t.open ? tYab[i % 2] : t.b ? tPed[i % 3] : tBos[i % 2]) !== tt) return; const x = cx(i), y = cy(i), f = i % 2, g = (i >> 1) % 2;
         R.quad(tt, [x - a, y - a, 0.012], [x + a, y - a, 0.012], [x + a, y + a, 0.012], [x - a, y + a, 0.012], f, g, 1 - f, 1 - g, F.lit(x, y, 1), false, 1); });
       S.grid.forEach((t, i) => { const x = cx(i), y = cy(i);
-        if (!t.open && canClear(i)) { const k = 0.34 + Math.sin(F.time * 2.4 + i) * 0.14, b = a - 0.1; R.quad(tKose, [x - b, y - b, 0.014], [x + b, y - b, 0.014], [x + b, y + b, 0.014], [x - b, y + b, 0.014], 0, 0, 1, 1, [1, 1, 1, k], false, 1); } });
+        if (!t.open && !ziy() && canClear(i)) { const k = 0.34 + Math.sin(F.time * 2.4 + i) * 0.14, b = a - 0.1; R.quad(tKose, [x - b, y - b, 0.014], [x + b, y - b, 0.014], [x + b, y + b, 0.014], [x - b, y + b, 0.014], 0, 0, 1, 1, [1, 1, 1, k], false, 1); } });
       const oi = onizle ? onizle.i : kare.i >= 0 && kare.r > 0 ? kare.i : -1; if (oi >= 0) { const x = cx(oi), y = cy(oi), k = (onizle ? 0.62 : 0.3) + Math.sin(F.time * 4) * 0.06, rr = TS * 0.6; R.quad(h.T.fx, [x - rr, y - rr, 0.017], [x + rr, y - rr, 0.017], [x + rr, y + rr, 0.017], [x - rr, y + rr, 0.017], ring[0], ring[1], ring[2], ring[3], onizle ? [0.62 * k, 0.86 * k, 1 * k, 1] : [1 * k, 0.9 * k, 0.6 * k, 1], true, 0); } } });
     /* her kare için dik duran şey: kapalı karede sık çalı öbeği (alçak, oyuncuyu örtmez), açık karede kurulu yapı; kuluçkadaki yumurtalar yapının önünde durur */
     const yeni = {}; EO2.ocakYeni = i => { yeni[i] = 1; };
     const yapiE = k => { const yeniC = h.ext('on-' + k), eskiC = !yeniC && h.ext('oc-yapi-' + k), e = yeniC || eskiC || h.ext('b-' + k); return e ? { e, yeniC, eskiC } : null; };
-    for (let i = 0; i < NX * NY; i++) { const x = cx(i), y = cy(i), it = { key: y - TS * 0.18, x, y: y - TS * 0.18, w: TS, h: 3, tall: false, cover: 1, draw(R, F) { const t = S && S.grid && S.grid[i]; if (!t) return; const a = h.nearFade(F, it.y); if (a < 0.01) return;
-        if (!t.open) { const e2 = h.ext('on-cali' + (i % 3)), e3 = h.ext('on-cali' + ((i + 1) % 3)), e4 = h.ext('on-cali' + ((i + 2) % 3)), c = h.amb(F, canClear(i) ? 1 : 0.84); c[3] = a; if (!e2) { const q = tCali[i % 3]; R.quad(q.t, [x - q.w / 2, it.y, 0], [x + q.w / 2, it.y, 0], [x + q.w / 2, it.y, q.h], [x - q.w / 2, it.y, q.h], 0, 0, 1, 1, c, false, 1); return; }
+    for (let i = 0; i < NX * NY; i++) { const x = cx(i), y = cy(i), it = { key: y - TS * 0.18, x, y: y - TS * 0.18, w: TS, h: 3, tall: false, cover: 1, draw(R, F) { const S = W(), t = S && S.grid && S.grid[i]; if (!t) return; const a = h.nearFade(F, it.y); if (a < 0.01) return;
+        if (!t.open) { const e2 = h.ext('on-cali' + (i % 3)), e3 = h.ext('on-cali' + ((i + 1) % 3)), e4 = h.ext('on-cali' + ((i + 2) % 3)), c = h.amb(F, ziy() || canClear(i) ? 1 : 0.84); c[3] = a; if (!e2) { const q = tCali[i % 3]; R.quad(q.t, [x - q.w / 2, it.y, 0], [x + q.w / 2, it.y, 0], [x + q.w / 2, it.y, q.h], [x - q.w / 2, it.y, q.h], 0, 0, 1, 1, c, false, 1); return; }
           const ciz = (e, px, py, w, m) => { const hh = w * e.h / e.w; R.quad(e.t, [px - w / 2, py, 0], [px + w / 2, py, 0], [px + w / 2, py, hh], [px - w / 2, py, hh], m, 0, 1 - m, 1, c, false, 1); };
           const j = (i * 7) % 5 - 2; if (e3) ciz(e3, x - 0.62 + j * 0.06, y + TS * 0.3, TS * 0.56, i % 2); if (e4) ciz(e4, x + 0.66 - j * 0.05, y + TS * 0.24, TS * 0.52, (i + 1) % 2); ciz(e2, x - ((i * 3) % 5 - 2) * 0.1, it.y, TS * (0.74 + (i % 4) * 0.05), (i + 1) % 2); return; }
         if (!t.b) { if (onizle && onizle.i === i && onizle.k) { const q = yapiE(onizle.k); if (q) { const e = q.e, bw = q.yeniC ? GEN2[onizle.k] || 2.8 : q.eskiC ? GEN[onizle.k] || 3.3 : Math.min(TS * 1.28, 4.6 * e.w / e.h), bh = bw * e.h / e.w, zt = q.yeniC ? 0 : q.eskiC ? 0.015 : 0.1, zz = 0.06 + Math.sin(F.time * 2.6) * 0.05, al = (0.8 + Math.sin(F.time * 2.6) * 0.08) * a, c = F.lit(x, it.y, al);
@@ -223,7 +226,7 @@
             R.quad(tYum, [ex - 0.27, it.y - 0.05, ez], [ex + 0.27, it.y - 0.05, ez], [ex + 0.27, it.y - 0.05, ez + 0.68], [ex - 0.27, it.y - 0.05, ez + 0.68], 0, 0, 1, 1, c); }); } } }; h.push(it); }
     /* ejderhalar: gerçek boylarında, nefes alır, yürürken hafifçe sallanır */
     const gorT = new Map();   // gen renkli görünüş resimlerinin dokuları
-    for (let k = 0; k < ejSlot.length; k++) { const it = { key: -99, draw(R, F) { const d = S && S.dragons ? S.dragons.filter(q => !q.dead)[k] : null, g = d && gez[d.id]; if (!g) { it.key = -99; return; } it.key = g.y; const gi = G.gorunusIm ? G.gorunusIm(d) : null; let e = null; if (gi) { e = gorT.get(gi); if (!e) { e = { t: R.texture(gi), w: gi.naturalWidth, h: gi.naturalHeight }; gorT.set(gi, e); } } else e = h.ext('dr-' + d.el + '-' + d.stage); if (!e) return;
+    for (let k = 0; k < ejSlot.length; k++) { const it = { key: -99, draw(R, F) { const S = W(), d = S && S.dragons ? S.dragons.filter(q => !q.dead)[k] : null, g = d && gez[d.id]; if (!g) { it.key = -99; return; } it.key = g.y; const gi = G.gorunusIm && d.genes ? G.gorunusIm(d) : null; let e = null; if (gi) { e = gorT.get(gi); if (!e) { e = { t: R.texture(gi), w: gi.naturalWidth, h: gi.naturalHeight }; gorT.set(gi, e); } } else e = h.ext('dr-' + d.el + '-' + d.stage); if (!e) return;
         const w = BOY[d.stage] || 3, hh = w * e.h / e.w, a = h.nearFade(F, g.y), uyur = !!g.uyur, br = 1 + Math.sin(g.t * (uyur ? 0.8 : 1.4)) * (uyur ? 0.02 : 0.012), hop = g.sevin > 0 ? Math.abs(Math.sin(g.sevin * 9)) * 0.14 * w / 4 : g.yuru ? Math.abs(Math.sin(g.t * 6)) * 0.05 : g.is === 'train' ? Math.abs(Math.sin(g.t * 4.2)) * 0.16 : 0, c = F.lit(g.x, g.y, a), ez = uyur ? 0.62 : 1, x0 = g.x - w / 2 * g.yon, x1 = g.x + w / 2 * g.yon;
         if (a < 0.01) return; R.quad(h.T.fx, [g.x - w * 0.42, g.y - w * 0.09, 0.013], [g.x + w * 0.42, g.y - w * 0.09, 0.013], [g.x + w * 0.42, g.y + w * 0.09, 0.013], [g.x - w * 0.42, g.y + w * 0.09, 0.013], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, 0.75 * a]);
         R.quad(e.t, [x0, g.y, hop], [x1, g.y, hop], [x1, g.y, hop + hh * br * ez], [x0, g.y, hop + hh * br * ez], 0, 0, 1, 1, c); } }; h.push(it); }
@@ -282,10 +285,10 @@
   addEventListener('keydown', e => { const w = document.getElementById('ocTepsi'); if (!w) return; if (e.key === 'Escape') { e.stopPropagation(); kapat(); } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Enter') && w.dataset.tur === 'yapi' && !w.contains(document.activeElement)) { const b = w.querySelector('.ocp-yapi.sec'); if (b) { e.stopPropagation(); e.preventDefault(); b.focus({ preventScroll: true }); if (e.key !== 'Enter') w.onkeydown(e); } } }, true);
 
   /* ---------- bağlantılar ---------- */
-  async function git() { if (!G.live) return; await onYukle(); carp(); if (EO2.api.scene() === 'ocak') { toast('Ocaktasın. Bir karenin önüne gel ve <b>E</b> ile dokun.'); return; } G.close(); EO2.api.go('ocak'); }
-  EO2.ocak = { git, ac, kapat, cx, cy, TS, carp, tileAt, mahalle, YC };
+  async function git() { if (!G.live) return; if (ziy()) { toast('Başka bir ocakta misafirsin. Kapıdan çıkınca kendi ocağına dönebilirsin.'); return; } await onYukle(); carp(); if (EO2.api.scene() === 'ocak') { toast('Ocaktasın. Bir karenin önüne gel ve <b>E</b> ile dokun.'); return; } G.close(); EO2.api.go('ocak'); }
+  EO2.ocak = { git, ac, kapat, cx, cy, TS, carp, tileAt, mahalle, YC, L };
   (function bagla() { if (!EO2.hooks.panel || !EO2.hooks.act) return setTimeout(bagla, 80); const p0 = EO2.hooks.panel, a0 = EO2.hooks.act, s0 = EO2.hooks.scene;
     EO2.hooks.panel = id => { if (id === 'ocak') { if (G.live) git(); return true; } return p0(id); };
-    EO2.hooks.act = act => { if (!G.live) return true; if (act.startsWith('kare:')) { ac(+act.slice(5)); return true; } if (act.startsWith('ejder:')) { const d = byId(+act.slice(6)); if (d) { UI.sel = d.id; const g = gez[d.id]; if (g) g.sevin = 1.2; if (EO2.audio) EO2.audio.chirp(); G.open('ejderhalar'); } return true; } return a0(act); };
+    EO2.hooks.act = act => { if (!G.live) return true; if (ziy() && (act.startsWith('kare:') || act.startsWith('ejder:'))) { if (act.startsWith('ejder:')) EO2.ziyaret.ejder(act.slice(6)); return true; } if (act.startsWith('kare:')) { ac(+act.slice(5)); return true; } if (act.startsWith('ejder:')) { const d = byId(+act.slice(6)); if (d) { UI.sel = d.id; const g = gez[d.id]; if (g) g.sevin = 1.2; if (EO2.audio) EO2.audio.chirp(); G.open('ejderhalar'); } return true; } return a0(act); };
     EO2.hooks.scene = id => { if (s0) s0(id); if (id === 'ocak') carp(); else kapat(); }; })();
 })();

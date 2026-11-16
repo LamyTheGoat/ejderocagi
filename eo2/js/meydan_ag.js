@@ -41,6 +41,9 @@
       btns: [{ t: 'Selam ver', cls: 'altin', sub: 'El sallarsın', v: 'selam' }, { t: 'Ejderha düellosuna çağır', sub: 'Canlı dövüş: ejderhan onunkine karşı', v: 'ejder', off: EO2.arena && EO2.arena.erCagir ? '' : 'Arena yüklenemedi' },
         { t: 'Topçu düellosuna çağır', sub: 'Dostça maç; altın ve ün yazılmaz', v: 'duello', off: EO2.topcuPvp && EO2.topcuPvp.davet ? '' : 'Er Meydanı yüklenemedi' },
         { t: 'Kıraathane masasına çağır', sub: 'Ejder Pokeri; bahsi masada koyarsınız', v: 'masa', off: EO2.masa ? '' : 'Masa yüklenemedi' },
+        ...(EO2.ziyaret ? (EO2.ziyaret.evSahibi() && EO2.ziyaret.evSahibi().h === c.handle ? [{ t: 'Bir ejderhamı eşleşmeye sun', sub: 'Yumurta ev sahibinin ocağına gider', v: 'sun' }]
+          : EO2.ziyaret.misafirMi(c.handle) ? [{ t: 'Birlikte çiftleştir', sub: 'Misafirin bir ejderhasını sunar; yumurta sana gelir', v: 'esle' }, { t: 'Misafirleri uğurla', sub: 'Ziyareti bitirir', v: 'ugurla' }]
+          : EO2.ziyaret.evSahibi() ? [] : [{ t: 'Ocağına çağır', sub: 'Arazini gezer; birlikte çiftleştirirsiniz', v: 'ocak' }]) : []),
         { t: 'Takas teklif et', sub: 'Kazanılmış mal ve altın; ikiniz de onaylayınca', v: 'takas', off: EO2.takas ? '' : 'Takas yüklenemedi' },
         ...(EO2.dostlar ? [EO2.dostlar.dostMu(c.handle) ? { t: 'Fısılda', sub: 'Dostuna özel mesaj', v: 'fis' } : { t: 'Dost ekle', sub: 'Kabul ederse fısıldaşır, her yerden çağırırsın', v: 'dost' }] : []),
         { t: eng ? 'Engeli kaldır' : 'Engelle', sub: eng ? 'Sözlerini yeniden görürsün' : 'Sözlerini ve balonlarını görmezsin', v: 'engel' }, { t: 'Şikâyet et', sub: 'Uygunsuz ad ya da söz', v: 'sikayet' }, { t: 'Kapat', v: false }] });
@@ -49,6 +52,10 @@
     else if (v === 'duello') EO2.topcuPvp.davet(c.handle, c.name);
     else if (v === 'takas') EO2.takas.teklif(c.handle, c.name);
     else if (v === 'masa') EO2.masa.cagir(c.handle, c.name);
+    else if (v === 'ocak') EO2.ziyaret.cagir(c.handle, c.name);
+    else if (v === 'sun') EO2.ziyaret.sun(false);
+    else if (v === 'esle') EO2.ziyaret.iste(c.handle);
+    else if (v === 'ugurla') EO2.ziyaret.ugurla();
     else if (v === 'dost') EO2.dostlar.ekle(c.handle, c.name);
     else if (v === 'fis') { const d = EO2.dostlar.durum().veri.dostlar.find(x => x.h === c.handle); if (d) EO2.dostlar.fisilda(d.id); }
     else if (v === 'engel') { if (eng) engelli.delete(c.handle); else engelli.add(c.handle); engelYaz(); G.toast(eng ? temiz(c.name) + ' için engel kalktı.' : temiz(c.name) + ' engellendi.'); }
@@ -105,5 +112,5 @@
     EO2.frameHooks.push(() => { for (const c of kisiler.values()) if (c.etk) { c.etk.x = c.x; c.etk.y = c.y; } });
     const act0 = EO2.hooks.act; EO2.hooks.act = act => { if (typeof act === 'string' && act.startsWith('oyuncu:')) { cagir(act.slice(7)); return true; } return act0 ? act0(act) : false; };
   })();
-  EO2.meydanAg = { kisiler, sayi: () => kisiler.size, adOf: h => { for (const c of kisiler.values()) if (c.handle === h) return c.name; return null; } };
+  EO2.meydanAg = { tazele: () => bildir(true), kisiler, sayi: () => kisiler.size, adOf: h => { for (const c of kisiler.values()) if (c.handle === h) return c.name; return null; } };
 })();

@@ -89,6 +89,7 @@
   let sonSahne = null;
   setInterval(() => { const A = EO2.api; if (!A || !A.scene || !G.live) return; const sc = A.scene(); if (sc === sonSahne) return; sonSahne = sc;
     if (simdi && simdi.tur === 'sahne') gizle();
+    if (sc === 'ocak' && EO2.ziyaret && EO2.ziyaret.evSahibi()) { goster({ id: 's-misafir', tur: 'sahne', metin: 'Misafirsin: gez, bak. Ev sahibinin yanına gel ve E ile ejderhanı eşleşmeye sun.', sn: 16 }); return; }
     if (SAHNE_IPUCU[sc] && !gor['s-' + sc] && !(G.ekran && G.ekran())) { isaretle('s-' + sc); goster({ id: 's-' + sc, tur: 'sahne', metin: SAHNE_IPUCU[sc], sn: 16 }); } else tazele(); }, 600);
 
   /* ---------- kilitli düğme: nedenini söyle ----------
