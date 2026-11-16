@@ -247,6 +247,8 @@
     if (ER.davet) { ER.davet(false); ER.davet = null; }
     const d = byId(ER.girdi) || byId(UI.arenaSel) || S.dragons[0];
     FT = { mode: 'mp', F: cevir(m.fight, rol), d, opp: rakip.dragon, rakip: rakip.handle, oda: m.roomId, rol, log: [], auto: false, busy: false, bekle: (m.submitted || []).includes(m.you), title: 'Er Meydanı · ' + rakip.handle };
+    /* öteki oyuncu meydanda görünüyorsa adı ve kuşam seti oradan alınır: dövüşte kendi avatarıyla durur */
+    { const K = EO2.meydanAg && EO2.meydanAg.kisiler, c = K ? [...K.values()].find(x => x.handle === rakip.handle) : null; FT.rakipAd = c ? c.name : rakip.handle; if (c) FT.rakipSet = c.set; if (c) FT.title = 'Er Meydanı · ' + c.name; }
     FT.log.push({ t: '<b>' + esc(rakip.handle) + '</b> ile dostça düello. ' + (m.via === 'queue' ? 'Kuyruk eşleştirdi.' : m.via === 'room' ? 'Sancak karşılık buldu.' : 'Meydan okuma kabul edildi.') + ' Ödül yok; iki taraf hamlesini seçince tur çözülür.', c: 'soluk' });
     void ben; G.close(); fightUI(); }
   function mpHamle(x) { if (FT.bekle) return; if (!EO2.ag.gonder({ type: 'duel_action', roomId: FT.oda, round: FT.F.round + 1, action: x })) { logLine({ t: 'Bağlantı yok; hamle gönderilemedi.', c: 'kotu' }); return; } FT.bekle = true; paint(); }
