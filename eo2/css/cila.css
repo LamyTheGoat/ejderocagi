@@ -293,3 +293,18 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .bildirimler.by-orta { top: 30% !important; } .ui2 .bildirimler.by-orta2 { top: 56% !important; }
 .ui2 .bildirimler.by-alt2 { top: auto !important; bottom: calc(max(1.1em, env(safe-area-inset-bottom, 0px)) + 6.6em) !important; } .ui2 .bildirimler.by-alt { top: auto !important; bottom: max(1.1em, env(safe-area-inset-bottom, 0px)) !important; }
 .ui2 .bildirimler.by-bas { top: max(.35em, env(safe-area-inset-top, 0px)) !important; width: min(22em, 46%) !important; font-size: .9em; }
+
+/* ---------- 2026-11-17 düzeltmeleri: hafta sonu, Dostlar, Çarşı ---------- */
+/* Hafta sonu: kartlar alanı küçülebilir (düğme ekranın dışına itilmez); ejderha resmi kartın üstünden taşarken kesilmez */
+.ui2 .gece { grid-template-rows: auto minmax(0, 1fr) auto; }
+.ui2 .gece-kartlar { padding-top: 3.8em; }
+.ui2 .gece-alt { padding-bottom: .2em; }
+@media (max-height: 560px) { .ui2 .gece-kartlar { padding-top: 1.9em; } }
+/* Dostlar: sol sütun içeriğine göre genişleyip kesilmez; boş liste yazısı cam kutuda durur */
+.ui2 .scr-b.ds { grid-template-columns: minmax(0, 24em) minmax(0, 1fr); }
+.ui2 .ds-sol { grid-template-columns: minmax(0, 1fr); padding: .2em; }
+.ui2 .ds-sol section { min-width: 0; } .ui2 .ds-kodum b { min-width: 0; overflow-wrap: anywhere; } .ui2 .ds-ara div { flex-wrap: wrap; } .ui2 .ds-ara input { flex: 1 1 9em; }
+.ui2 .ds-bos { align-self: flex-start; margin: 0; padding: .8em 1.2em; border-radius: 1.2em; background: var(--cam-koyu, rgba(14, 20, 48, .82)); box-shadow: var(--frame); }
+@media (max-width: 760px), (max-aspect-ratio: 1/1) { .ui2 .scr-b.ds { grid-template-columns: minmax(0, 1fr); } }
+/* Çarşı: tezgâh boşken not küçük bir kutu olarak üstte durur (boş dev pano ve satıcı düğmelerine binme yok) */
+.ui2 .pz-raf > .ah-not { align-self: start; }

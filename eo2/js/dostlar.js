@@ -42,7 +42,7 @@
     D.acik = null; ciz(); }
 
   /* ---------- ekran ---------- */
-  G.screen('dostlar', { k: 'Terbiyeciler', t: 'Dostlar', cls: 'ds', bg: 'bg-meydan', enter() { cek(); }, draw(body) {
+  G.screen('dostlar', { k: 'Terbiyeciler', t: 'Dostlar', cls: 'ds', bg: 'a:kiraathane', enter() { cek(); }, draw(body) {
     const v = D.veri, cevrim = AG.cevrimici();
     if (!cevrim) { body.innerHTML = '<div class="ar-kilit bos"><p>Dost listesi çevrimiçi çalışır. Sunucuya ulaşılınca burada görünür.</p></div>'; return; }
     if (!v) { body.innerHTML = '<div class="ar-kilit bos"><p>Dostların çağrılıyor…</p></div>'; return; }
