@@ -166,10 +166,10 @@
   async function ac(cfg) {
     if (M && M.on) kapat(true); ensureDom(); const api = EO2.api, T = buildTerrain(cfg.arazi);
     const setler = new Set(['temel']); if (cfg.oyuncu && cfg.oyuncu.set) setler.add(cfg.oyuncu.set); if (cfg.rakip && cfg.rakip.set) setler.add(cfg.rakip.set);
-    const bek = []; for (const s of setler) bek.push(load('assets/battle_' + s + '.webp')); if (cfg.bg) bek.push(load(cfg.bg));
+    const bek = []; for (const s of setler) bek.push(load('assets/battle_' + s + '.webp')); if (cfg.bg) bek.push(load(cfg.bg)); if (cfg.sahne) bek.push(load(cfg.sahne.src));
     const tipler = [...(cfg.moblar || []).map(m => MOB[m.tip]), cfg.boss ? BOSS[cfg.boss.tip] : null].filter(Boolean); for (const t of tipler) for (const k in t.spr) if (typeof t.spr[k] === 'string' && /\.webp$/.test(t.spr[k])) bek.push(load(t.spr[k])); for (const p of (cfg.props || [])) if (PROP[p.tip] && PROP[p.tip].im) bek.push(load(PROP[p.tip].im));
     await Promise.all(bek);
-    if (!cfg.bg && !talimBg) { talimBg = buildBackdrop(); talimProps = buildProps(); const art = EO2.art, E = api.W.E; poles = [art.bannerPole(E, '#213270').c, art.bannerPole(E, '#bb362f').c]; }
+    if (!cfg.bg && !cfg.sahne && !talimBg) { talimBg = buildBackdrop(); talimProps = buildProps(); const art = EO2.art, E = api.W.E; poles = [art.bannerPole(E, '#213270').c, art.bannerPole(E, '#bb362f').c]; }
     M = { on: true, cfg, T, time: 0, tur: 1, faz: 'giris', pt: 0, timer: 25, wind: 0, charge: 0, charging: false, shots: [], parts: [], nums: [], bolge: [], lav: [], isin: [], dalga: [], zaman: [], shake: 0, stop: 0, over: false, keys: {}, cam: { x: 32, y: 12, z: 0.5 },
       act: [], props: [], sira: [], si: -1, aktif: null, ist: { hasar: 0, tur: 1, kritik: 0, kombo: 0, enKombo: 0, mob: 0 }, ortam: Array.from({ length: 34 }, () => ({ x: Math.random(), y: Math.random(), s: 0.5 + Math.random() * 0.8, p: Math.random() * 6 })), tick: 0 };
     M.sonuc = new Promise(res => { M.bitir = res; }); M.deniz = cfg.deniz != null ? Y_(cfg.deniz) : null; M.cikis = cfg.cikis || null; M.ruzgarSirasi = cfg.ruzgar || null;
@@ -451,11 +451,13 @@
   function render() {
     const cv = $('tpCv'), app = $('app').getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2), W = Math.round(app.width * dpr), H = Math.round(app.height * dpr);
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-    const x = cv.getContext('2d'), n = M.cfg.bg ? 0 : (EO2.state ? EO2.state.night : 0), c = M.cam, dik = W / H < 1, sc = (W / 22) * c.z * (dik ? 1.9 : 1), viewW = W / sc, viewH = H / sc;
+    const x = cv.getContext('2d'), n = M.cfg.bg || M.cfg.sahne ? 0 : (EO2.state ? EO2.state.night : 0), c = M.cam, dik = W / H < 1, sc = (W / 22) * c.z * (dik ? 1.9 : 1), viewW = W / sc, viewH = H / sc;
     const cx = clamp(c.x, Math.min(FW / 2, viewW / 2 - 2), Math.max(FW / 2, FW - viewW / 2 + 2)) + (Math.random() - 0.5) * M.shake * 0.5, cy = clamp(c.y, viewH / 2 - 2, 40) + (Math.random() - 0.5) * M.shake * 0.5;
     const X = wx => (wx - cx) * sc + W / 2, Y = wy => H / 2 - (wy - cy) * sc + H * 0.02; M.view = { X, Y, sc, W, H };
-    x.setTransform(1, 0, 0, 1, 0, 0); const T = M.T, Tm = T.Tm, bgI = M.cfg.bg ? imgs[M.cfg.bg] : null;
-    if (bgI) { // eski oyunun sahne çizimi: ekranı kaplar, kamerayla hafifçe kayar
+    x.setTransform(1, 0, 0, 1, 0, 0); const T = M.T, Tm = T.Tm, bgI = M.cfg.bg ? imgs[M.cfg.bg] : null, sh = M.cfg.sahne, shI = sh ? imgs[sh.src] : null;
+    if (shI) { // dünyaya kilitli sahne resmi (cfg.sahne = { src, yer: resimde yürüme hattı, y: dünyada zemin, ust, alt }): resim dünya boyunca uzanır, zemin çizgisi araziyle çakışır; arazi ayrıca çizilmez
+      const kk = FW * sc / shI.naturalWidth, ih = shI.naturalHeight * kk, iy = Y(sh.y) - sh.yer * kk; x.fillStyle = sh.alt; x.fillRect(0, 0, W, H); x.fillStyle = sh.ust; x.fillRect(0, 0, W, Math.max(0, iy + 2)); x.drawImage(shI, X(0), iy, FW * sc, ih);
+    } else if (bgI) { // eski oyunun sahne çizimi: ekranı kaplar, kamerayla hafifçe kayar
       const k = Math.max(W / bgI.naturalWidth, H / bgI.naturalHeight) * 1.14, bw = bgI.naturalWidth * k, bh = bgI.naturalHeight * k, ox = (W - bw) / 2 - (cx - 32) / 32 * (bw - W) * 0.42, oy = (H - bh) / 2 + (cy - 12) * sc * 0.05;
       x.fillStyle = '#060a1c'; x.fillRect(0, 0, W, H); x.drawImage(bgI, ox, clamp(oy, H - bh, 0), bw, bh);
       const sis = x.createLinearGradient(0, H * 0.35, 0, H); sis.addColorStop(0, 'rgba(6,10,30,0)'); sis.addColorStop(1, M.cfg.sis || 'rgba(6,10,30,.55)'); x.fillStyle = sis; x.fillRect(0, 0, W, H); x.fillStyle = 'rgba(8,12,34,.18)'; x.fillRect(0, 0, W, H);
@@ -482,7 +484,7 @@
     if (M.boss && M.boss.D.arkada && (!M.boss.dead || M.boss.olu < 0.9)) { spr(M.boss); if (M.boss.D.cizArka) M.boss.D.cizArka(M.boss, x, M.view, API); }
     if (M.cfg.ozel && M.cfg.ozel.cizArka) M.cfg.ozel.cizArka(x, M.view, API);
     for (const p of M.props) { if (p.dead) continue; const im = imgs[p.im]; const gy = groundBelow(T, p.x, p.y + 1.5); if (gy != null) p.y = gy; if (im) { const h = p.h * sc, w = h * im.naturalWidth / im.naturalHeight; x.drawImage(im, X(p.x) - w / 2, Y(p.y) - h * 0.96, w, h); } else if (p.ciz) p.ciz(x, X(p.x), Y(p.y), sc, M.time); }
-    x.drawImage(T.c, X(0), Y(FH), FW * sc, FH * sc);
+    if (!shI) x.drawImage(T.c, X(0), Y(FH), FW * sc, FH * sc);
     // yerdeki işaretler: lav havuzları ve tehlike bölgesi (durağan halka; içindeki çizgiler yavaşça döner)
     for (const l of M.lav) { const g = x.createRadialGradient(X(l.x), Y(l.y), 0, X(l.x), Y(l.y), l.r * sc); g.addColorStop(0, 'rgba(255,200,90,.75)'); g.addColorStop(0.6, 'rgba(255,110,30,.45)'); g.addColorStop(1, 'rgba(255,90,20,0)'); x.fillStyle = g; x.beginPath(); x.ellipse(X(l.x), Y(l.y), l.r * sc, l.r * sc * 0.45, 0, 0, 6.3); x.fill(); }
     for (const z of M.bolge) { const col = EL[z.el] || EL.venom, gy = yerY(z.x), rc = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ','; x.fillStyle = rc + '.14)'; x.beginPath(); x.ellipse(X(z.x), Y(gy), z.r * sc, z.r * sc * 0.3, 0, 0, 6.3); x.fill(); x.strokeStyle = rc + '.95)'; x.lineWidth = Math.max(2, 0.07 * sc); x.setLineDash([0.45 * sc, 0.3 * sc]); x.lineDashOffset = -M.time * sc * 0.5; x.stroke(); x.setLineDash([]);

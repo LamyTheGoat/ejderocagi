@@ -136,6 +136,10 @@
       sayfa: { src: sayfa, cw: 465, ch: 339, sutun: 8, px: 197, py: 322, kare(b, t) { const son = (i0, n, oran) => i0 + Math.max(0, Math.min(n - 1, Math.floor(oran * n)));
         if (b.anim === 'atk') { const g = 2.4 - b.animT; return g < 1.2 ? son(18, 8, g / 1.2) : g < 1.55 ? son(26, 6, (g - 1.2) / 0.35) : son(32, 6, (g - 1.55) / 0.85); }
         if (b.anim === 'hit') return son(38, 9, (0.5 - b.animT) / 0.5); return Math.floor(t * 7.5) % 18; } } }); })();
+  /* Zümrüt Saray'ın yılanları (konsept çizim, kullanıcı onayı 2026-11-17: geçici). Kurallar yerdeki muhafızın (cobra) aynısıdır; yalnız çizim değişir.
+     Tek duruş var: saldırı ve vuruluş karesi çizilmedi. Çizim sola bakar, alt kenarı zemindir. */
+  B.MOB.zs_vurucu = Object.assign({}, B.MOB.cobra, { spr: { idle: 'assets/zumrut/yilan_vurucu.webp' }, yon: -1, taban: 1 });
+  B.MOB.zs_agir = Object.assign({}, B.MOB.cobra, { spr: { idle: 'assets/zumrut/yilan_agir.webp' }, yon: -1, taban: 1 });
   for (const k in B.BOSS) { const D = B.BOSS[k]; if (D.ek) D.ek.forEach((e, i) => { D.spr['ek' + i] = e; }); }
 
   /* ---------- deniz ve dalga çizimi (Batık Donanma) ---------- */

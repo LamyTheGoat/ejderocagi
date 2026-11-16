@@ -7,8 +7,9 @@
      Düşen oyuncu seyirci kalır; herkes düşerse kampa dönülür ve aynı aşama yeniden denenir.
    ÖDÜL: tek oyunculu seferle aynı kurallar ve aynı fonksiyonlar (js/topcu.js: odulYaz, kucukCark, buyukCark). Yeni miktar ya da olasılık yoktur.
    Aşamalar (kullanıcı kararı): 1) Zümrüt Saray Köprüsü, iki yandan gelen yılanlar. 2) Şahmeran'ın defilesi: dümdüz, kırılmaz zemin; boss sağ uçta yükseltide.
-   Şahmeran'ın çizimi V3.1'dir (kullanıcı onayı 2026-11-16; js/topcu_veri.js BOSS.sahmeran_v3). Arka planlar ve yılanlar eldeki Sırça Saray
-   çizimleridir: yenileri (kaynak/zumrut-saray) konsept kalitesinde, üretim hâli gelince yalnız ASAMA tablosu değişir. */
+   Şahmeran'ın çizimi V3.1'dir (kullanıcı onayı 2026-11-16; js/topcu_veri.js BOSS.sahmeran_v3). Köprü, defile salonu, seyirciler ve yerdeki yılanlar
+   konsept çizimlerdir (kullanıcı onayı 2026-11-17: geçici; tools/zumrut_sahne.mjs dizer). Üretim hâli gelince yalnız o araç ve ASAMA tablosu değişir.
+   Uçan engereğin yeni çizimi yok: eskisi durur. Köprü de artık kırılmaz zemin (resim çukur gösteremez). */
 (function () {
   'use strict';
   const EO2 = window.EO2, G = EO2 && EO2.game, AG = EO2 && EO2.ag, OR = EO2 && EO2.ortak, B = EO2 && EO2.battle, T = EO2 && EO2.topcu, V = EO2 && EO2.topcuVeri, app = document.getElementById('app');
@@ -20,10 +21,10 @@
   /* arazi: köprü dümdüz taş; defile dümdüz, sağ uçta boss'un yükseltisi */
   const kopru = () => 1000, defile = x => x < 2400 ? 1010 : x < 2520 ? 1010 - (x - 2400) / 120 * 105 : 905;
   const ASAMA = [
-    { ad: 'Zümrüt Saray Köprüsü', alt: 'Yılanlar iki yandan geliyor', bg: ZS.asama[1].bg, f: kopru, x0: 1700, mobSinir: [260, 3140], ipucu: 'Yılanlar iki yandan gelir. Fareyi çevirdiğin yana döner, o yana ateş edersin. Önce yaklaşanı vur.',
-      moblar: [{ tip: 'cobra', ad: 'Bronz Engerek Muhafızı', x: 760 }, { tip: 'viper', ad: 'Uçan Sırça Engereği', x: 380, yuk: 590 }, { tip: 'cobra', ad: 'Bronz Engerek Muhafızı', x: 2640 }, { tip: 'viper', ad: 'Uçan Sırça Engereği', x: 3020, yuk: 590 }] },
-    { ad: 'Şahmeran\'ın Defilesi', alt: 'Yılan Kraliçe yükseltide bekliyor', bg: ZS.asama[3].bg, f: defile, x0: 460, kirilmaz: true, ipucu: 'Zemin kırılmaz. Altın tacı zayıf noktasıdır. Her tur yerdeki halkadan çık, sonra ateş et.',
-      moblar: [{ tip: 'cobra', ad: 'Sırça Taht Muhafızı', x: 1560 }, { tip: 'cobra', ad: 'Sırça Taht Muhafızı', x: 2080 }], boss: { tip: 'sahmeran_v3', ad: 'Yılan Kraliçe Şahmeran', unvan: 'Zümrüt Saray\'ın ebedi hükümdarı', x: 2760 } },
+    { ad: 'Zümrüt Saray Köprüsü', alt: 'Yılanlar iki yandan geliyor', sahne: { src: 'assets/zumrut/kopru.webp', yer: 563, y: 1000, ust: '#6fafFd', alt: '#e8f2fb' }, f: kopru, x0: 1700, kirilmaz: true, mobSinir: [260, 3140], ipucu: 'Yılanlar iki yandan gelir. Fareyi çevirdiğin yana döner, o yana ateş edersin. Önce yaklaşanı vur.',
+      moblar: [{ tip: 'zs_vurucu', ad: 'Bronz Engerek Muhafızı', x: 760 }, { tip: 'viper', ad: 'Uçan Sırça Engereği', x: 380, yuk: 590 }, { tip: 'zs_vurucu', ad: 'Bronz Engerek Muhafızı', x: 2640 }, { tip: 'viper', ad: 'Uçan Sırça Engereği', x: 3020, yuk: 590 }] },
+    { ad: 'Şahmeran\'ın Defilesi', alt: 'Yılan Kraliçe yükseltide bekliyor', sahne: { src: 'assets/zumrut/defile.webp', yer: 683, y: 1010, ust: '#0d3327', alt: '#0a2a20' }, f: defile, x0: 460, kirilmaz: true, ipucu: 'Zemin kırılmaz. Altın tacı zayıf noktasıdır. Her tur yerdeki halkadan çık, sonra ateş et.',
+      moblar: [{ tip: 'zs_agir', ad: 'Sırça Taht Muhafızı', x: 1560 }, { tip: 'zs_agir', ad: 'Sırça Taht Muhafızı', x: 2080 }], boss: { tip: 'sahmeran_v3', ad: 'Yılan Kraliçe Şahmeran', unvan: 'Zümrüt Saray\'ın ebedi hükümdarı', x: 2760 } },
   ];
   const D = () => OR.durum(), oda = () => D().oda, od = () => D().ortak, ben = () => D().ben, benim = () => !!(oda() && oda().tur === 'zindan');
   const seferde = () => benim() && oda().durum === 'oyunda' && !!od();
@@ -34,7 +35,7 @@
   /* ---------- savaş ---------- */
   function cfgKur(d) { const A = ASAMA[d.asama], zr = V.ZORLUK[d.zorluk], n = oda().uyeler.filter(u => u.bagli).length, o = T.oyuncuDeger(true); if (n > 1) o.dmg = Math.round(o.dmg / 1.40);   // 1,40 yoldaşsız sefer çarpanıdır (js/topcu.js); grupla girilince uygulanmaz
     const can = j => d.dusman[j] ? d.dusman[j].max : 1, moblar = A.moblar.map((m, j) => Object.assign({}, m, { hp: can(j) })), boss = A.boss ? Object.assign({}, A.boss, { hp: can(A.moblar.length) }) : null;
-    return { kimlik: 'ortak-' + oda().id + '-' + d.tur, kip: 'zindan', baslik: A.ad, alt: 'Aşama ' + (d.asama + 1) + ' / ' + d.n + ' · ' + zr.ad + (n > 1 ? ' · ' + n + ' terbiyeci' : ''), arazi: V.arazi(ZS.tema, ZS.tema, A.f, 31 + d.asama * 7), bg: A.bg, ortam: ZS.ortam, x0: A.x0 + [0, -150, 150, -300][Math.max(0, oda().uyeler.findIndex(u => u.id === ben())) % 4], kirilmaz: !!A.kirilmaz, ortak: true,
+    return { kimlik: 'ortak-' + oda().id + '-' + d.tur, kip: 'zindan', baslik: A.ad, alt: 'Aşama ' + (d.asama + 1) + ' / ' + d.n + ' · ' + zr.ad + (n > 1 ? ' · ' + n + ' terbiyeci' : ''), arazi: V.arazi(ZS.tema, ZS.tema, A.f, 31 + d.asama * 7), bg: A.sahne ? null : A.bg, sahne: A.sahne ? Object.assign({}, A.sahne, { y: B.api.Y_(A.sahne.y) }) : null, ortam: ZS.ortam, x0: A.x0 + [0, -150, 150, -300][Math.max(0, oda().uyeler.findIndex(u => u.id === ben())) % 4], kirilmaz: !!A.kirilmaz, ortak: true,
       ozel: A.mobSinir ? { mobSinir: A.mobSinir } : undefined, oyuncu: o, zorluk: zr, moblar, boss, asama: { ad: ZAD, n: d.n, i: d.asama }, ipucu: A.ipucu, cikis: savasAyril, sis: 'rgba(4,14,20,.55)' }; }
   async function savasAyril() { const M = B.state(); if (!M || M.over || M.dur) return; M.dur = true;
     const v = await G.pen({ k: 'Sefer', t: 'Seferden ayrılacak mısın?', body: '<p>Ayrılırsan grubun sensiz sürdürür; bu sefere geri dönemezsin. O ana kadar aldığın ganimet sende kalır.</p>', btns: [{ t: 'Savaşa dön', v: false }, { t: 'Ayrıl', cls: 'kor', v: true }] });
