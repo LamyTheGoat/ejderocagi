@@ -1,4 +1,6 @@
 /* Ejder Ocağı 2.0 · Ortak zindan seferi (EO2.zindan) · ilk zindan: Zümrüt Saray
+   YÖNTEM (2026-11-17): bu dosya her zindan için aynıdır. Zindanın kendisi (aşamalar, sahne, zemin, düşmanlar, canlar) js/zindan_tarif.js'tedir;
+   yeni zindan yalnız oraya eklenir (eo2/docs/ZINDAN_YONTEMI.md). Aşağıdaki Zümrüt Saray notları ilk zindanın tarihçesidir.
    Sunucu tarafı: server/zindan_ortak.js (ortak oda altyapısının "zindan" türü). Bir ile dört terbiyeci aynı sefere girer.
    AKIŞ: Topçu ekranı → Zümrüt Saray seferi (özel sefer kur, kodla katıl, partiyle kur, yoldaş ara) → Sefer Kampı (js/bolumler/sefer-kampi.js)
      → herkes Zümrüt Kapı'da "hazırım" der → aşama savaşı → çark (herkes kendi çarkını çevirir) → kampa dönüş → … → Şahmeran → büyük çark → sefer sonu.
@@ -14,18 +16,16 @@
   'use strict';
   const EO2 = window.EO2, G = EO2 && EO2.game, AG = EO2 && EO2.ag, OR = EO2 && EO2.ortak, B = EO2 && EO2.battle, T = EO2 && EO2.topcu, V = EO2 && EO2.topcuVeri, app = document.getElementById('app');
   if (!G || !AG || !OR || !B || !T || !V || !V.ZINDAN.sahmeran) return;
-  const ZS = V.ZINDAN.sahmeran, ZAD = 'Zümrüt Saray';
-  const Z = { zorluk: 'normal', hata: '', savas: false, savasBitti: false, sonAsama: null, islenen: -1, seyir: false, davetAcik: false, cagri: null, canT: 0 };
+  const TARIF = window.EO2_ZINDAN || {};
+  const Z = { zindan: Object.keys(TARIF)[0], zorluk: 'normal', hata: '', savas: false, savasBitti: false, sonAsama: null, islenen: -1, seyir: false, davetAcik: false, cagri: null, canT: 0 };
   const esc_ = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const HATA = { tur_bilinmiyor: 'Sefer şu an açık değil.', zaten_odada: 'Zaten bir seferde ya da masadasın.', oda_yok: 'Bu kodla bir sefer yok.', oda_mesgul: 'O sefer yola çıkmış.', oda_dolu: 'Sefer dolu (en çok dört kişi).', yalniz_kurucu: 'Seferi kuran başlatır.', hazir_degil: 'Herkes hazır değil.', cevrimdisi: 'O terbiyeci çevrimiçi değil.', baglanti_yok: 'Sunucuya ulaşılamıyor.', faz_uygun_degil: 'Şu an yapılamaz.' };
-  /* arazi: köprü dümdüz taş; defile dümdüz, sağ uçta boss'un yükseltisi */
-  const kopru = () => 1000, defile = x => x < 2400 ? 1010 : x < 2520 ? 1010 - (x - 2400) / 120 * 105 : 905;
-  const ASAMA = [
-    { ad: 'Zümrüt Saray Köprüsü', alt: 'Yılanlar iki yandan geliyor', sahne: { src: 'assets/zumrut/kopru.webp', yer: 563, y: 1000, ust: '#6fafFd', alt: '#e8f2fb' }, f: kopru, x0: 1700, kirilmaz: true, mobSinir: [260, 3140], ipucu: 'Yılanlar iki yandan gelir. Fareyi çevirdiğin yana döner, o yana ateş edersin. Önce yaklaşanı vur.',
-      moblar: [{ tip: 'zs_vurucu', ad: 'Bronz Engerek Muhafızı', x: 760 }, { tip: 'viper', ad: 'Uçan Sırça Engereği', x: 380, yuk: 590 }, { tip: 'zs_vurucu', ad: 'Bronz Engerek Muhafızı', x: 2640 }, { tip: 'viper', ad: 'Uçan Sırça Engereği', x: 3020, yuk: 590 }] },
-    { ad: 'Şahmeran\'ın Defilesi', alt: 'Yılan Kraliçe yükseltide bekliyor', sahne: { src: 'assets/zumrut/defile.webp', yer: 683, y: 1010, ust: '#0d3327', alt: '#0a2a20' }, f: defile, x0: 460, kirilmaz: true, ipucu: 'Zemin kırılmaz. Altın tacı zayıf noktasıdır. Her tur yerdeki halkadan çık, sonra ateş et.',
-      moblar: [{ tip: 'zs_agir', ad: 'Sırça Taht Muhafızı', x: 1560 }, { tip: 'zs_agir', ad: 'Sırça Taht Muhafızı', x: 2080 }], boss: { tip: 'sahmeran_v3', ad: 'Yılan Kraliçe Şahmeran', unvan: 'Zümrüt Saray\'ın ebedi hükümdarı', x: 2760 } },
-  ];
+  /* Zindanın tarifi js/zindan_tarif.js'tedir (sunucu da aynı dosyayı okur). Buradaki kod her zindan için aynıdır:
+     hangi zindanda olduğumuz odanın anahtarından ('zumrut-normal') okunur; oda yokken sefer ekranında seçili olan geçerlidir. */
+  const zid = () => { const o = OR.durum().oda, k = o && o.tur === 'zindan' ? String(o.anahtar).split('-')[0] : Z.zindan; return TARIF[k] ? k : Object.keys(TARIF)[0]; };
+  const tarif = k => TARIF[k || zid()], zs = k => V.ZINDAN[tarif(k).odul], zad = k => tarif(k).ad;
+  const zeminF = P => x => { for (let i = 1; i < P.length; i++) if (x <= P[i][0]) { const [x0, y0] = P[i - 1], [x1, y1] = P[i]; return x1 === x0 ? y1 : y0 + (y1 - y0) * Math.max(0, x - x0) / (x1 - x0); } return P[P.length - 1][1]; };
+  const hazirAsama = {}, asamalar = k => { k = k || zid(); return hazirAsama[k] || (hazirAsama[k] = tarif(k).asama.map(A => Object.assign({}, A, { f: zeminF(A.zemin), moblar: (A.dusman || []).map(m => ({ tip: m.tip, ad: m.ad, x: m.x, yuk: m.yuk })), boss: A.boss ? { tip: A.boss.tip, ad: A.boss.ad, unvan: A.boss.unvan, x: A.boss.x } : null }))); };
   const D = () => OR.durum(), oda = () => D().oda, od = () => D().ortak, ben = () => D().ben, benim = () => !!(oda() && oda().tur === 'zindan');
   const seferde = () => benim() && oda().durum === 'oyunda' && !!od();
   const uyeAd = id => { const u = oda() && oda().uyeler.find(x => x.id === id); return u ? (id === ben() ? 'Sen' : u.ad) : 'Yoldaş'; };
@@ -33,15 +33,16 @@
   const ses = k => { const a = EO2.audio; if (a && a[k]) a[k](); };
 
   /* ---------- savaş ---------- */
-  function cfgKur(d) { const A = ASAMA[d.asama], zr = V.ZORLUK[d.zorluk], n = oda().uyeler.filter(u => u.bagli).length, o = T.oyuncuDeger(true); if (n > 1) o.dmg = Math.round(o.dmg / 1.40);   // 1,40 yoldaşsız sefer çarpanıdır (js/topcu.js); grupla girilince uygulanmaz
+  function cfgKur(d) { const A = asamalar()[d.asama], zr = V.ZORLUK[d.zorluk], n = oda().uyeler.filter(u => u.bagli).length, o = T.oyuncuDeger(true); if (n > 1) o.dmg = Math.round(o.dmg / 1.40);   // 1,40 yoldaşsız sefer çarpanıdır (js/topcu.js); grupla girilince uygulanmaz
     const can = j => d.dusman[j] ? d.dusman[j].max : 1, moblar = A.moblar.map((m, j) => Object.assign({}, m, { hp: can(j) })), boss = A.boss ? Object.assign({}, A.boss, { hp: can(A.moblar.length) }) : null;
-    return { kimlik: 'ortak-' + oda().id + '-' + d.tur, kip: 'zindan', baslik: A.ad, alt: 'Aşama ' + (d.asama + 1) + ' / ' + d.n + ' · ' + zr.ad + (n > 1 ? ' · ' + n + ' terbiyeci' : ''), arazi: V.arazi(ZS.tema, ZS.tema, A.f, 31 + d.asama * 7), bg: A.sahne ? null : A.bg, sahne: A.sahne ? Object.assign({}, A.sahne, { y: B.api.Y_(A.sahne.y) }) : null, ortam: ZS.ortam, x0: A.x0 + [0, -150, 150, -300][Math.max(0, oda().uyeler.findIndex(u => u.id === ben())) % 4], kirilmaz: !!A.kirilmaz, ortak: true,
-      ozel: A.mobSinir ? { mobSinir: A.mobSinir } : undefined, oyuncu: o, zorluk: zr, moblar, boss, asama: { ad: ZAD, n: d.n, i: d.asama }, ipucu: A.ipucu, cikis: savasAyril, sis: 'rgba(4,14,20,.55)' }; }
+    return { kimlik: 'ortak-' + oda().id + '-' + d.tur, kip: 'zindan', baslik: A.ad, alt: 'Aşama ' + (d.asama + 1) + ' / ' + d.n + ' · ' + zr.ad + (n > 1 ? ' · ' + n + ' terbiyeci' : ''), arazi: V.arazi(tarif().tema, tarif().tema, A.f, 31 + d.asama * 7), bg: A.sahne ? null : A.bg, sahne: A.sahne ? Object.assign({}, A.sahne, { y: B.api.Y_(A.sahne.y) }) : null, ortam: tarif().ortam, x0: A.x0 + [0, -150, 150, -300][Math.max(0, oda().uyeler.findIndex(u => u.id === ben())) % 4], kirilmaz: !!A.kirilmaz, ortak: true,
+      ozel: A.mobSinir ? { mobSinir: A.mobSinir } : undefined, oyuncu: o, zorluk: zr, moblar, boss, asama: { ad: zad(), n: d.n, i: d.asama }, ipucu: A.ipucu, cikis: savasAyril, sis: 'rgba(4,14,20,.55)' }; }
   async function savasAyril() { const M = B.state(); if (!M || M.over || M.dur) return; M.dur = true;
     const v = await G.pen({ k: 'Sefer', t: 'Seferden ayrılacak mısın?', body: '<p>Ayrılırsan grubun sensiz sürdürür; bu sefere geri dönemezsin. O ana kadar aldığın ganimet sende kalır.</p>', btns: [{ t: 'Savaşa dön', v: false }, { t: 'Ayrıl', cls: 'kor', v: true }] });
     if (M !== B.state()) return; M.dur = false; if (v) B.kapat(); }
   B.dinle((olay, v) => { if (!Z.savas || !seferde() || od().faz !== 'savas') return;
     if (olay === 'dusman_hasar' && v.i > 0 && v.h > 0) OR.eylem({ t: 'hasar', i: v.i - 1, h: v.h });
+    else if (olay === 'dustum') { OR.eylem({ t: 'dustu' }); G.toast('Düştün. Savaş sürüyor: yoldaşlarını izliyorsun, aşama bitince payını alırsın.'); }
     else if (olay === 'adim_bitti') { const s = od().sav; if (s && v.adim < s.adim) siraUygula(s); else OR.eylem({ t: 'tur_bitti', adim: v.adim, ex: v.ex, x: v.x, y: v.y }); }   // bu ekran geride kaldıysa sunucudaki adıma atlar
     else if (olay === 'ates' && v.kim === 0) { const M = B.state(); OR.eylem({ t: 'ates', x: v.x, y: v.y, aci: v.aci, guc: v.guc, yon: v.yon, ruz: M ? M.wind : 0, mod: v.mod || {} }); }
     else if (olay === 'konum') { const t = Date.now(); if (t - (Z.konumT || 0) > 240) { Z.konumT = t; OR.eylem({ t: 'konum', x: v.x, y: v.y, aci: v.aci, yon: v.yon }); } }
@@ -62,13 +63,13 @@
   function asamaBitti(o) { Z.sonAsama = o; if (Z.savas && !Z.savasBitti && B.active()) { const M = B.state(); if (M && !M.over) { if (o.zafer) B.sonlandir(true); else B.kapat(); } return; } sonrasi(); }
   /* aşama sonu: çark ve ödül (tek oyunculu seferle aynı fonksiyonlar), sonra kampa dönüş */
   async function sonrasi() { const o = Z.sonAsama, d = od(); if (!o || !d || Z.islenen === d.tur * 10 + (o.zafer ? 1 : 0)) return; Z.islenen = d.tur * 10 + (o.zafer ? 1 : 0); Z.sonAsama = null; Z.savas = false; seyirKapat(); if (B.active()) B.kapat(); yoldasCiz(); kampaGit();
-    if (!o.zafer) { ses('pop'); await G.pen({ k: ZAD + ' · Aşama ' + (o.asama + 1), t: 'Grup düştü', body: '<p>Ayakta kimse kalmadı. Kampta toparlanın; aynı aşama yeniden denenir.</p>', btns: [{ t: 'Kampa dön', cls: 'altin' }] }); return; }
-    T.ornekKur({ zindan: 'sahmeran', zorluk: d.zorluk });
+    if (!o.zafer) { ses('pop'); await G.pen({ k: zad() + ' · Aşama ' + (o.asama + 1), t: 'Grup düştü', body: '<p>Ayakta kimse kalmadı. Kampta toparlanın; aynı aşama yeniden denenir.</p>', btns: [{ t: 'Kampa dön', cls: 'altin' }] }); return; }
+    T.ornekKur({ zindan: tarif().odul, zorluk: d.zorluk });
     if (!o.son) { T.odulYaz('asama'); await T.cark('Aşama ' + (o.asama + 1) + ' temizlendi', '150 altın kesene girdi. Çarkı bir kez çevir.', T.kucukCark(o.asama + 1), false); }
-    else { T.odulYaz('zindan', { zindan: 'sahmeran', zorluk: d.zorluk }); await T.cark(ZS.boss + ' yenildi', 'İlk çeviriş bedava; sonrakiler 120 altın.', T.buyukCark(d.zorluk), true); }
+    else { T.odulYaz('zindan', { zindan: tarif().odul, zorluk: d.zorluk }); await T.cark(zs().boss + ' yenildi', 'İlk çeviriş bedava; sonrakiler 120 altın.', T.buyukCark(d.zorluk), true); }
     if (seferde() && od().faz === 'cark') { OR.eylem({ t: 'cark' }); if (oda().uyeler.filter(u => u.bagli).length > 1) G.toast('Yoldaşların çarkını çevirmesi bekleniyor.'); } }
   async function seferSonu(sonuc) { seyirKapat(); if (B.active()) B.kapat(); Z.savas = false; yoldasCiz(); const o = T.ornek();
-    if (sonuc && sonuc.kazanan) { ses('win'); await G.pen({ k: ZAD + ' · ' + V.ZORLUK[sonuc.zorluk || 'normal'].ad, t: 'Sefer tamamlandı', face: ZS.yuz, body: '<p>' + ZS.boss + ' yenildi. Seferden dönerken heybende şunlar var:</p>' + (o && o.ganimet.length ? T.ganimetHtml(o.ganimet) : '') + '<p class="tp-ozet"><span><small>Altın</small><b>' + (o ? o.altin : 0) + '</b></span></p>', btns: [{ t: 'Meydana dön', cls: 'altin' }] }); }
+    if (sonuc && sonuc.kazanan) { ses('win'); await G.pen({ k: zad() + ' · ' + V.ZORLUK[sonuc.zorluk || 'normal'].ad, t: 'Sefer tamamlandı', face: zs().yuz, body: '<p>' + zs().boss + ' yenildi. Seferden dönerken heybende şunlar var:</p>' + (o && o.ganimet.length ? T.ganimetHtml(o.ganimet) : '') + '<p class="tp-ozet"><span><small>Altın</small><b>' + (o ? o.altin : 0) + '</b></span></p>', btns: [{ t: 'Meydana dön', cls: 'altin' }] }); }
     T.ornekKur(null); OR.cik(); if (sahne() === 'kamp' && EO2.api.runAct) EO2.api.runAct('go:meydan'); }
 
   /* ---------- yoldaş çerçevesi (savaşta) ve seyir (düşünce) ---------- */
@@ -78,15 +79,15 @@
   const seyir = document.createElement('div'); seyir.id = 'seferSeyir'; seyir.hidden = true; app.appendChild(seyir);
   function seyirAc() { Z.seyir = true; seyirCiz(); yoldasCiz(); }
   function seyirKapat() { Z.seyir = false; seyir.hidden = true; }
-  function seyirCiz() { const d = od(); if (!Z.seyir || !seferde() || d.faz !== 'savas') { seyir.hidden = true; return; } const A = ASAMA[d.asama], adlar = [...A.moblar.map(m => m.ad), ...(A.boss ? [A.boss.ad] : [])];
+  function seyirCiz() { const d = od(); if (!Z.seyir || !seferde() || d.faz !== 'savas') { seyir.hidden = true; return; } const A = asamalar()[d.asama], adlar = [...A.moblar.map(m => m.ad), ...(A.boss ? [A.boss.ad] : [])];
     seyir.hidden = false; seyir.innerHTML = '<div class="ss-kutu cam"><small>' + esc_(A.ad) + '</small><h3>Düştün</h3><p>Yoldaşların savaşı sürdürüyor. Aşama bitince ganimetten payını alırsın.</p><div class="ss-dusman">' + d.dusman.map((q, j) => '<div class="' + (q.hp <= 0 ? 'oldu' : '') + '"><b>' + esc_(adlar[j] || 'Düşman') + '</b><i><s style="width:' + Math.round(q.hp / q.max * 100) + '%"></s></i></div>').join('') + '</div><button type="button" class="gbtn kucuk" data-ss-ayril="1">Seferden ayrıl</button></div>';
     seyir.querySelector('[data-ss-ayril]').addEventListener('click', () => ayril()); }
 
   /* ---------- sefer şeridi: kampta ve dünyada seferin durumu, hazır düğmesi ---------- */
   const serit = document.createElement('aside'); serit.id = 'seferSerit'; serit.hidden = true; serit.setAttribute('aria-label', 'Sefer'); app.appendChild(serit);
-  function seritCiz() { const goster = seferde() && !B.active() && G.live && !(G.ekran && G.ekran()); serit.hidden = !goster; if (!goster) return; const d = od(), A = ASAMA[d.asama], me = d.uye[ben()] || {};
+  function seritCiz() { const goster = seferde() && !B.active() && G.live && !(G.ekran && G.ekran()); serit.hidden = !goster; if (!goster) return; const d = od(), A = asamalar()[d.asama], me = d.uye[ben()] || {};
     const imza = JSON.stringify([d.faz, d.asama, d.deneme, d.uye, oda().uyeler.map(u => [u.id, u.bagli]), sahne() === 'kamp']); if (serit.dataset.imza === imza) return; serit.dataset.imza = imza;
-    serit.innerHTML = '<header><small>' + ZAD + ' · ' + V.ZORLUK[d.zorluk].ad + '</small><b>Aşama ' + (d.asama + 1) + ' / ' + d.n + '</b><span>' + esc_(A.ad) + (d.deneme ? ' · ' + (d.deneme + 1) + '. deneme' : '') + '</span></header>' +
+    serit.innerHTML = '<header><small>' + zad() + ' · ' + V.ZORLUK[d.zorluk].ad + '</small><b>Aşama ' + (d.asama + 1) + ' / ' + d.n + '</b><span>' + esc_(A.ad) + (d.deneme ? ' · ' + (d.deneme + 1) + '. deneme' : '') + '</span></header>' +
       '<ul>' + oda().uyeler.map(u => { const q = d.uye[u.id] || {}, iyi = d.faz === 'bekleme' ? q.hazir : d.faz === 'cark' ? q.cark : true; return '<li class="' + (iyi ? 'tamam' : '') + (u.bagli ? '' : ' kopuk') + '"><i></i>' + esc_(u.id === ben() ? 'Sen' : u.ad) + '<em>' + (!u.bagli ? 'koptu' : d.faz === 'bekleme' ? (q.hazir ? 'hazır' : 'kampta') : d.faz === 'cark' ? (q.cark ? 'tamam' : 'çarkta') : '') + '</em></li>'; }).join('') + '</ul>' +
       (d.faz === 'bekleme' ? '<button type="button" class="gbtn kucuk ' + (me.hazir ? '' : 'altin') + '" data-sf="hazir">' + (me.hazir ? 'Hazır değilim' : 'Hazırım') + '</button>' : d.faz === 'cark' ? '<p>Çarklar çevriliyor…</p>' : '') +
       (sahne() !== 'kamp' ? '<button type="button" class="gbtn kucuk" data-sf="kamp">Kampa dön</button>' : '');
@@ -94,7 +95,7 @@
   function hazir() { const d = od(); if (!seferde() || d.faz !== 'bekleme') return; const me = d.uye[ben()] || {}; OR.eylem({ t: 'hazir', v: !me.hazir }); }
   async function ayril() { if (!benim()) return; const v = await G.pen({ k: 'Sefer', t: 'Seferden ayrılacak mısın?', body: '<p>Ayrılırsan grubun sensiz sürdürür; bu sefere geri dönemezsin. O ana kadar aldığın ganimet sende kalır.</p>', btns: [{ t: 'Kal', v: false }, { t: 'Ayrıl', cls: 'kor', v: true }] }); if (v) OR.cik(); }
   async function durumPen() { const d = od(); if (!seferde()) return; ses('chirp'); if (EO2.api && EO2.api.emote) EO2.api.emote(0);
-    await G.pen({ k: 'Sefer Kampı', t: ZAD, body: '<p>Ateş sıcak, sırtın duvara dönük. <b>Aşama ' + (d.asama + 1) + ' / ' + d.n + '</b>: ' + esc_(ASAMA[d.asama].ad) + '.</p><p>' + esc_(ASAMA[d.asama].ipucu) + '</p><p class="soluk">Hazır olan Zümrüt Kapı\'ya yürür. Herkes hazır olunca mühür açılır ve aşama başlar. Aşama bitince çark çevrilir, sonra yine buraya dönülür.</p>', btns: [{ t: 'Kalk', cls: 'altin' }] }); }
+    await G.pen({ k: 'Sefer Kampı', t: zad(), body: '<p>Ateş sıcak, sırtın duvara dönük. <b>Aşama ' + (d.asama + 1) + ' / ' + d.n + '</b>: ' + esc_(asamalar()[d.asama].ad) + '.</p><p>' + esc_(asamalar()[d.asama].ipucu) + '</p><p class="soluk">Hazır olan Zümrüt Kapı\'ya yürür. Herkes hazır olunca mühür açılır ve aşama başlar. Aşama bitince çark çevrilir, sonra yine buraya dönülür.</p>', btns: [{ t: 'Kalk', cls: 'altin' }] }); }
 
   /* kamptaki sandık: bu seferde o ana dek toplanan ganimet (kişiye özel) */
   async function ganimetPen() { if (!seferde()) return; const o = T.ornek(), d = od(); ses('ui');
@@ -107,7 +108,7 @@
     if (olay === 'ayrildi') { const vardi = Z.savas || Z.seyir || sahne() === 'kamp'; seyirKapat(); if (B.active() && Z.savas) B.kapat(); Z.savas = false; yoldasCiz(); seritCiz(); T.ornekKur(null); if (vardi && sahne() === 'kamp' && EO2.api.runAct) EO2.api.runAct('go:meydan'); if (G.ekran() === 'zindan') G.redraw(); return; }
     if (!benim()) return;
     if (olay === 'oda' && Z.cagri && v.durum === 'bekliyor') { const c = Z.cagri; Z.cagri = null; for (const h of c) OR.davet(h); G.toast('Sefer davetin gitti.'); }
-    if (olay === 'basladi') { Z.hata = ''; Z.islenen = -1; T.ornekKur({ zindan: 'sahmeran', zorluk: v.durum.zorluk }); if (G.ekran()) G.close(); ses('chime'); kampaGit(); if (v.durum.faz === 'savas') setTimeout(asamaBaslat, 900); else G.toast('<b>' + ZAD + '</b> seferi başladı. Hazır olan Zümrüt Kapı\'ya yürüsün.', 'goal'); }
+    if (olay === 'basladi') { Z.hata = ''; Z.islenen = -1; T.ornekKur({ zindan: tarif().odul, zorluk: v.durum.zorluk }); if (G.ekran()) G.close(); ses('chime'); kampaGit(); if (v.durum.faz === 'savas') setTimeout(asamaBaslat, 900); else G.toast('<b>' + zad() + '</b> seferi başladı. Hazır olan Zümrüt Kapı\'ya yürüsün.', 'goal'); }
     if (olay === 'olay') for (const o of v.olaylar) {
       if (o.t === 'asama_basla') setTimeout(asamaBaslat, sahne() === 'kamp' ? 500 : 1400);
       else if (o.t === 'hasar' && o.kim !== ben() && Z.savas) B.ortakHasar(o.i + 1, o.h, uyeAd(o.kim));
@@ -118,7 +119,7 @@
       else if (o.t === 'tur_bitti' && o.kim !== ben() && Z.savas) { B.yoldasKoy(o.kim, { x: o.x, y: o.y }); if (od().sav && od().sav.kim === o.kim && od().sav.adim === o.adim) B.ortakPas(o.kim); }
       else if (o.t === 'dustu' && o.kim !== ben()) { if (Z.savas) B.yoldasKoy(o.kim, { dustu: true }); G.toast(esc_(uyeAd(o.kim)) + ' düştü.'); }
       else if (o.t === 'asama_bitti') asamaBitti(o);
-      else if (o.t === 'kampa_don') { ses('chime'); kampaGit(); G.toast('Sıradaki aşama: <b>' + esc_(ASAMA[o.asama].ad) + '</b>. Hazır olan kapıya.', 'goal'); }
+      else if (o.t === 'kampa_don') { ses('chime'); kampaGit(); G.toast('Sıradaki aşama: <b>' + esc_(asamalar()[o.asama].ad) + '</b>. Hazır olan kapıya.', 'goal'); }
       else if (o.t === 'hazir' && o.kim !== ben() && o.v && od().faz === 'bekleme') G.toast(esc_(uyeAd(o.kim)) + ' hazır.'); }   // son hazır olan aşamayı başlatır: o an bildirim çıkmaz
     if (olay === 'bitti') seferSonu(v.sonuc);
     yoldasCiz(); seyirCiz(); seritCiz(); if (G.ekran() === 'zindan') G.redraw(); });
@@ -129,42 +130,43 @@
     EO2.hooks.act = act => { if (typeof act === 'string' && act.startsWith('zindan:')) { const k = act.slice(7); if (k === 'hazir') hazir(); else if (k === 'durum') durumPen(); else if (k === 'ganimet') ganimetPen(); else if (k === 'ayril') ayril(); return true; } return a0 ? a0(act) : false; }; })();
 
   /* ---------- davet ---------- */
-  async function davetGeldi(v) { if (!v || v.tur !== 'zindan' || Z.davetAcik || !G.live || oda()) return; Z.davetAcik = true; const zr = String(v.anahtar || '').split('-')[1];
+  async function davetGeldi(v) { if (!v || v.tur !== 'zindan' || Z.davetAcik || !G.live || oda()) return; Z.davetAcik = true; const zr = String(v.anahtar || '').split('-')[1], zk = TARIF[String(v.anahtar || '').split('-')[0]] ? String(v.anahtar).split('-')[0] : Z.zindan;
     const ad = (EO2.meydanAg && EO2.meydanAg.adOf(v.from)) || v.ad || 'Bir terbiyeci';
-    const k = await G.pen({ k: 'Sefer daveti', t: ZAD, face: ZS.yuz, body: '<p><b>' + esc_(ad) + '</b> seni ' + ZAD + ' seferine çağırıyor' + (V.ZORLUK[zr] ? ' (' + V.ZORLUK[zr].ad + ')' : '') + '.</p><p>İki aşama: köprü ve Şahmeran. Aşamalar arasında kampta toplanırsınız; ganimet herkese ayrı düşer.</p>' + (T.kilitli() ? '<p class="kotu">Sefere çıkmak için omuz ejderin olmalı (Sonsuz Gençlik İksiri içmiş bir yavru).</p>' : ''), btns: [{ t: 'Şimdi değil', v: false }, { t: 'Sefere katıl', cls: 'altin', v: true, off: T.kilitli() ? 'Omuz ejderi gerek' : '' }] });
+    const k = await G.pen({ k: 'Sefer daveti', t: zad(zk), face: zs(zk).yuz, body: '<p><b>' + esc_(ad) + '</b> seni ' + zad(zk) + ' seferine çağırıyor' + (V.ZORLUK[zr] ? ' (' + V.ZORLUK[zr].ad + ')' : '') + '.</p><p>' + esc_(tarif(zk).tanitim) + ' Aşamalar arasında kampta toplanırsınız; ganimet herkese ayrı düşer.</p>' + (T.kilitli() ? '<p class="kotu">Sefere çıkmak için omuz ejderin olmalı (Sonsuz Gençlik İksiri içmiş bir yavru).</p>' : ''), btns: [{ t: 'Şimdi değil', v: false }, { t: 'Sefere katıl', cls: 'altin', v: true, off: T.kilitli() ? 'Omuz ejderi gerek' : '' }] });
     Z.davetAcik = false; if (k && OR.katil(v.kod)) G.open('zindan'); }
   function cagir(h, ad) { if (!AG.cevrimici()) return G.toast('Sunucuya ulaşılamıyor.'); if (T.kilitli()) return G.toast('Sefere çıkmak için omuz ejderin olmalı.'); const o = oda();
-    if (o && benim() && o.durum === 'bekliyor') { OR.davet(h); G.toast('Sefer davetin ' + esc_(ad || 'terbiyeciye') + ' gitti.'); } else if (o) return G.toast('Önce bulunduğun seferden ya da masadan ayrıl.'); else { Z.cagri = [h]; OR.kur('zindan', 'zumrut-' + Z.zorluk, { ozel: true }); }
+    if (o && benim() && o.durum === 'bekliyor') { OR.davet(h); G.toast('Sefer davetin ' + esc_(ad || 'terbiyeciye') + ' gitti.'); } else if (o) return G.toast('Önce bulunduğun seferden ya da masadan ayrıl.'); else { Z.cagri = [h]; OR.kur('zindan', Z.zindan + '-' + Z.zorluk, { ozel: true }); }
     G.open('zindan'); }
 
   /* ---------- ekran: sefer kurma ve toplanma ---------- */
-  function lobi() { const k = D().kuyruk, kil = T.kilitli(), parti = EO2.parti && EO2.parti.durum().parti, lider = parti && parti.lider === (AG.kimlik() || {}).handle;
-    return '<div class="zn-lobi"><div class="zn-kart"><img class="zn-yuz" alt="" src="' + ZS.yuz + '"><small>Ortak sefer · 1 ile 4 terbiyeci</small><h2>' + ZAD + '</h2><p>Şahmeran\'ın sarayına grupça girilir. İki aşama var: <b>Zümrüt Saray Köprüsü</b> ve <b>Şahmeran\'ın Defilesi</b>. Hepiniz aynı savaştasınız: sırayla atarsınız, düşman kime saldırırsa herkes onu görür.</p><p>Aşamalar arasında <b>Sefer Kampı</b>\'na dönersiniz. Her aşamadan sonra herkes kendi çarkını çevirir; ganimet kişiye özeldir.</p>' +
-        '<div class="zn-zorluk" role="group" aria-label="Zorluk">' + Object.keys(V.ZORLUK).map(z => '<button type="button" class="gbtn kucuk" data-zor="' + z + '" aria-pressed="' + (Z.zorluk === z) + '">' + V.ZORLUK[z].ad + '</button>').join('') + '</div></div>' +
+  function lobi() { const ZS1 = zs(Z.zindan), ZAD1 = zad(Z.zindan); const k = D().kuyruk, kil = T.kilitli(), parti = EO2.parti && EO2.parti.durum().parti, lider = parti && parti.lider === (AG.kimlik() || {}).handle;
+    return '<div class="zn-lobi"><div class="zn-kart"><img class="zn-yuz" alt="" src="' + ZS1.yuz + '"><small>Ortak sefer · 1 ile 4 terbiyeci</small><h2>' + esc_(ZAD1) + '</h2><p>' + esc_(tarif(Z.zindan).tanitim) + ' Hepiniz aynı savaştasınız: sırayla atarsınız, düşman kime saldırırsa herkes onu görür. Düşen arenada kalır ve izler.</p><p>Aşamalar arasında <b>Sefer Kampı</b>\'na dönersiniz. Her aşamadan sonra herkes kendi çarkını çevirir; ganimet kişiye özeldir.</p>' +
+        (Object.keys(TARIF).length > 1 ? '<div class="zn-zorluk" role="group" aria-label="Zindan">' + Object.keys(TARIF).map(z => '<button type="button" class="gbtn kucuk" data-zin="' + z + '" aria-pressed="' + (Z.zindan === z) + '">' + esc_(TARIF[z].ad) + '</button>').join('') + '</div>' : '') + '<div class="zn-zorluk" role="group" aria-label="Zorluk">' + Object.keys(V.ZORLUK).map(z => '<button type="button" class="gbtn kucuk" data-zor="' + z + '" aria-pressed="' + (Z.zorluk === z) + '">' + V.ZORLUK[z].ad + '</button>').join('') + '</div></div>' +
       '<div class="zn-secenek">' + (kil ? '<p class="zn-muhur">Mühürlü: sefere yalnız omuz ejderi olan çıkar.</p><button type="button" class="gbtn" data-zn="kilit">Nasıl açılır?</button>' :
         '<button type="button" class="gbtn altin buyuk" data-zn="kur">Sefer kur<small>kodu dostuna ver ya da çağır; tek başına da çıkılır</small></button>' +
         (parti && lider ? '<button type="button" class="gbtn buyuk" data-zn="parti">Partiyle kur<small>' + (parti.uyeler.length - 1) + ' yoldaşına davet gider</small></button>' : '') +
         (k ? '<button type="button" class="gbtn buyuk" data-zn="kuyruk-cik">Aramayı bırak<small>yoldaş aranıyor…</small></button>' : '<button type="button" class="gbtn buyuk" data-zn="kuyruk">Yoldaş ara<small>aynı seferi arayanlarla eşleşirsin</small></button>') +
         '<form class="ms-kod" data-zn-form="1"><label for="znKod">Sefer kodu</label><div><input id="znKod" name="kod" maxlength="8" placeholder="ORT-ABCD" autocomplete="off" autocapitalize="characters" spellcheck="false"><button type="submit" class="gbtn">Katıl</button></div></form>') + '</div></div>'; }
   function toplanma(o) { const kurucu = o.kurucu === ben(), bn = o.uyeler.find(u => u.id === ben()) || {}, zr = o.anahtar.split('-')[1], hazirlar = o.uyeler.every(u => u.id === o.kurucu || u.hazir);
-    return '<div class="zn-toplan"><div class="ms-kodluk"><small>Sefer kodu · ' + ZAD + ' · ' + (V.ZORLUK[zr] ? V.ZORLUK[zr].ad : '') + '</small><b>' + esc_(o.kod) + '</b></div><div class="zn-koltuklar">' + [0, 1, 2, 3].map(i => { const u = o.uyeler[i];
+    return '<div class="zn-toplan"><div class="ms-kodluk"><small>Sefer kodu · ' + zad() + ' · ' + (V.ZORLUK[zr] ? V.ZORLUK[zr].ad : '') + '</small><b>' + esc_(o.kod) + '</b></div><div class="zn-koltuklar">' + [0, 1, 2, 3].map(i => { const u = o.uyeler[i];
         return '<div class="zn-koltuk' + (u ? (u.hazir || u.id === o.kurucu ? ' hazir' : '') : ' bos') + '"><canvas width="96" height="96" aria-hidden="true" data-yuz="' + (u ? i : '') + '"></canvas><b>' + (u ? esc_(u.id === ben() ? 'Sen' : u.ad) : 'Boş yer') + '</b><em>' + (!u ? 'Yoldaş bekleniyor' : u.id === o.kurucu ? 'Seferi kurdu' : u.hazir ? 'Hazır' : 'Hazır değil') + (u && !u.bagli ? ' · koptu' : '') + '</em></div>'; }).join('') + '</div>' +
       '<div class="ms-eylem"><button type="button" class="gbtn" data-zn="cik">Seferden ayrıl</button>' + (kurucu ? '<button type="button" class="gbtn altin buyuk" data-zn="baslat" ' + (hazirlar ? '' : 'disabled') + '>Kampa çık<small>' + (o.uyeler.length === 1 ? 'tek başına' : hazirlar ? o.uyeler.length + ' terbiyeci' : 'herkes hazır olmalı') + '</small></button>' : '<button type="button" class="gbtn altin buyuk" data-zn="hazir">' + (bn.hazir ? 'Hazır değilim' : 'Hazırım') + '</button>') + '</div></div>'; }
-  G.screen('zindan', { k: 'Ortak sefer', t: ZAD, cls: 'zn', bg: 'a:topcu', enter() { Z.hata = ''; if (AG.cevrimici()) AG.gonder({ type: 'ortak_durum' }); }, draw(body) {
+  G.screen('zindan', { k: 'Ortak sefer', t: zad(), cls: 'zn', bg: 'a:topcu', enter() { Z.hata = ''; if (AG.cevrimici()) AG.gonder({ type: 'ortak_durum' }); }, draw(body) {
     if (!AG.cevrimici()) { body.innerHTML = '<div class="ar-kilit bos"><p>Ortak sefer çevrimiçi oynanır. Sunucuya ulaşılınca açılır.</p></div>'; return; }
     const o = benim() ? oda() : null;
     body.innerHTML = '<div class="zn-kok">' + (o && o.durum === 'bekliyor' ? toplanma(o) : o ? '<div class="ar-kilit bos"><p>Sefer sürüyor. Kampa dönmek için ekranı kapat.</p></div>' : lobi()) + (Z.hata ? '<p class="ms-hata" role="alert">' + esc_(Z.hata) + '</p>' : '') + '</div>';
     if (o) body.querySelectorAll('[data-yuz]').forEach(cv => { const u = o.uyeler[+cv.dataset.yuz]; if (!cv.dataset.yuz || !u) return; const c = EO2.meydanAg && [...EO2.meydanAg.kisiler.values()].find(x => x.handle === u.h); try { EO2.api.drawPortrait(cv, u.id === ben() ? EO2.api.player.set : (c && c.set) || 'temel', 0.66); } catch (_) { } });
+    body.querySelectorAll('[data-zin]').forEach(b => b.addEventListener('click', () => { Z.zindan = b.dataset.zin; ses('ui'); G.redraw(); }));
     body.querySelectorAll('[data-zor]').forEach(b => b.addEventListener('click', () => { Z.zorluk = b.dataset.zor; ses('ui'); G.redraw(); }));
     const fk = body.querySelector('[data-zn-form]'); if (fk) { const gir = fk.elements.kod; for (const ad of ['keydown', 'keyup', 'keypress']) gir.addEventListener(ad, e => e.stopPropagation()); fk.addEventListener('submit', e => { e.preventDefault(); const kod = (gir.value || '').trim(); Z.hata = kod ? '' : 'Sefer kodunu yaz.'; if (kod) OR.katil(kod); G.redraw(); }); }
     body.querySelectorAll('[data-zn]').forEach(b => b.addEventListener('click', () => { ses('ui'); const k = b.dataset.zn; Z.hata = '';
-      if (k === 'kur') OR.kur('zindan', 'zumrut-' + Z.zorluk, { ozel: true }); else if (k === 'kuyruk') OR.kuyruk('zindan', 'zumrut-' + Z.zorluk); else if (k === 'kuyruk-cik') OR.kuyrukCik();
-      else if (k === 'parti') { const p = EO2.parti.durum().parti, benH = (AG.kimlik() || {}).handle; Z.cagri = p.uyeler.filter(u => u.h !== benH && u.cevrimici).map(u => u.h); OR.kur('zindan', 'zumrut-' + Z.zorluk, { ozel: true }); }
+      if (k === 'kur') OR.kur('zindan', Z.zindan + '-' + Z.zorluk, { ozel: true }); else if (k === 'kuyruk') OR.kuyruk('zindan', Z.zindan + '-' + Z.zorluk); else if (k === 'kuyruk-cik') OR.kuyrukCik();
+      else if (k === 'parti') { const p = EO2.parti.durum().parti, benH = (AG.kimlik() || {}).handle; Z.cagri = p.uyeler.filter(u => u.h !== benH && u.cevrimici).map(u => u.h); OR.kur('zindan', Z.zindan + '-' + Z.zorluk, { ozel: true }); }
       else if (k === 'hazir') { const u = oda().uyeler.find(x => x.id === ben()); OR.hazir(!(u && u.hazir)); } else if (k === 'baslat') OR.baslat(); else if (k === 'cik') OR.cik();
       else if (k === 'kilit') { G.close(); G.open('topcu'); }
       G.redraw(); }));
   } });
   /* Topçu ekranındaki Sırça Saray künyesine giriş düğmesi */
-  setInterval(() => { const alt = document.querySelector('#scrB.tp .tp-k-alt'); if (!alt || T.secili() !== 'sahmeran' || alt.querySelector('[data-ortak-sefer]')) return; const b = document.createElement('button'); b.type = 'button'; b.className = 'gbtn'; b.dataset.ortakSefer = '1'; b.innerHTML = 'Ortak sefer<small>' + ZAD + ' · 1-4 terbiyeci</small>'; b.addEventListener('click', () => { ses('ui'); G.open('zindan'); }); alt.appendChild(b); }, 500);
-  EO2.zindan = { cagir, durum: () => Z, ASAMA, hazir, seferde };
+  setInterval(() => { const alt = document.querySelector('#scrB.tp .tp-k-alt'); const zk = Object.keys(TARIF).find(k => TARIF[k].odul === T.secili()); if (!alt || !zk || alt.querySelector('[data-ortak-sefer]')) return; const b = document.createElement('button'); b.type = 'button'; b.className = 'gbtn'; b.dataset.ortakSefer = '1'; b.innerHTML = 'Ortak sefer<small>' + esc_(TARIF[zk].ad) + ' · 1-4 terbiyeci</small>'; b.addEventListener('click', () => { ses('ui'); Z.zindan = zk; G.open('zindan'); }); alt.appendChild(b); }, 500);
+  EO2.zindan = { cagir, durum: () => Z, get ASAMA() { return asamalar(); }, tarif, hazir, seferde };
 })();

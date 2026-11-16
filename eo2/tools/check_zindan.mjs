@@ -86,6 +86,13 @@ try {
   // Şahmeran V3.1 çizimi yüklü mü; taç işareti ve saldırı karesi (ekran görüntüsü için)
   log.sahmeranCizim = await A.evaluate(() => { const b = EO2.battle.state().boss, im = EO2.battle.api.img(b.D.sayfa && b.D.sayfa.src); return !!(im && im.naturalWidth === 3720); });
   if (ekran) { await A.evaluate(() => { const b = EO2.battle.state().boss; b.acik = 0.35; b.anim = 'atk'; b.animT = 1.3; }); await A.waitForTimeout(120); await cek(A, 'zindan_5b_sahmeran'); await A.evaluate(() => { const b = EO2.battle.state().boss; b.acik = 0; }); }
+  // A düşer (Anka külü yok): savaş ekranı kapanmaz, A arenada kalıp izler; sunucu A'nın sırasını atlar; bossa laf atma kutusu hiç çıkmaz
+  log.siraA2 = await bekle(A, sirada('ben'), 30000);
+  await A.evaluate(() => { const M = EO2.battle.state(); M.ben.hp = 0; M.ben.dead = true; M.ben.revive = 0; EO2.battle.pas(); });
+  log.siraB2 = await bekle(B, sirada('ben'), 30000); await B.evaluate(() => { EO2.battle.pas(); });
+  log.dustuArenada = await bekle(A, 'EO2.battle.active() && EO2.battle.state().ben.dustuKesin === true && EO2.ortak.durum().ortak.uye[EO2.ortak.durum().ben].hayatta === false && !EO2.battle.state().over', 120000);
+  log.dusenAtlandi = await bekle(B, sirada('ben') + ' && EO2.battle.state().tur >= 3', 120000) && await A.evaluate(() => { const M = EO2.battle.state(); return M.aktif !== M.ben && document.getElementById('tpKim').textContent; });
+  log.lafYok = await A.evaluate(() => document.getElementById('tpLaf').hidden) && await B.evaluate(() => document.getElementById('tpLaf').hidden); await cek(A, 'zindan_5c_dusen_izliyor');
   for (let i = 0; i < 6; i++) { await B.evaluate(() => { const M = EO2.battle.state(); if (M && M.boss && !M.boss.dead) EO2.battle.api.hasarBoss(M.boss, 2000, true); }); await B.waitForTimeout(250); }
   log.asama2 = await bekle(A, faz('cark')) && await bekle(B, faz('cark'));
   await cark(A, true); await cark(B, true);
@@ -96,6 +103,6 @@ try {
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
 const ok = !hata.length && log.gordu && log.kod && log.davet && log.hazirGorundu && log.kamp && log.kamptaGordu && log.serit && log.tekHazirBaslamadi && log.savas && JSON.stringify(log.dusman) === '[855,900,855,900]' && log.yoldasTopcu && log.yoldasAd === 'Aylin' && log.yoldasAtes && log.yoldasYer && log.ortakCan && log.siraA && log.ruzgar[0] === log.ruzgar[1] && log.siraB && log.ruzgar2[0] === log.ruzgar2[1] && log.dusmanSirasi && log.dusmanAyni[0] === log.dusmanAyni[1] && log.turDondu && JSON.stringify(log.dusmanYer[0]) === JSON.stringify(log.dusmanYer[1]) && log.yoldasCercevesi
-  && log.asama1 && log.kampaDonus && log.altinAsama >= 150 && log.savas2 && log.kirilmaz && log.sahmeranCizim && log.asama2 && log.sonPen && log.cikti && log.altinToplam >= 400;
+  && log.asama1 && log.kampaDonus && log.altinAsama >= 150 && log.savas2 && log.kirilmaz && log.sahmeranCizim && log.siraA2 && log.siraB2 && log.dustuArenada && !!log.dusenAtlandi && log.lafYok && log.asama2 && log.sonPen && log.cikti && log.altinToplam >= 400;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

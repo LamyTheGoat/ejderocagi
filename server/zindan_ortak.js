@@ -11,7 +11,7 @@
 //   - Bir adım, ayaktaki bağlı oyuncuların hepsi "bu adım bende bitti" deyince ilerler; adımın sahibi bitirdikten sonra
 //     ötekiler en çok GECIKME_MS beklenir, hiç kimse bitirmezse adımın süresi dolunca ilerlenir (kopan ya da donan beklenmez).
 //   - Adımın sahibi düşmanların yerini de bildirir; sonraki adımda herkes o yerlere eşitlenir (ekranlar arası kayma birikmez).
-// Düşen oyuncu (Anka külü de tükendiyse) seyirci kalır ve sırası atlanır; ayakta kimse kalmazsa aşama başarısız olur,
+// Düşen oyuncu (Anka külü de tükendiyse) ARENADA KALIR, savaşı izler ve sırası atlanır (kullanıcı, 2026-11-17: oturum bitene dek kimse düşürülmez); ayakta kimse kalmazsa aşama başarısız olur,
 // kampa dönülür, aynı aşama yeniden denenir.
 // ÖDÜL burada YAZILMAZ: aşama ve zindan ödülleri ile çark, tek oyunculu seferdeki kurallarla istemcide işlenir (js/topcu.js odulYaz;
 // miktar ve olasılıklar değişmedi). Sunucu yalnız "aşama temizlendi" ve "sefer bitti" gerçeğini söyler.
@@ -31,14 +31,10 @@
 //   asama_bitti { zafer, asama, son } · kampa_don { asama } · hazir { kim, v } · cark { kim } ·
 //   sira { adim, tur, tip: 'oyuncu' | 'dusman', kim, i, hedef, tohum, ruzgar, ex } · tur_bitti { kim, adim, x, y }
 const ZORLUK = { normal: 0.75, zor: 1.0 };
-const ZINDANLAR = {
-  zumrut: { ad: 'Zümrüt Saray', asama: [
-    // Zümrüt Saray Köprüsü: iki yandan gelen yılanlar (solda iki, sağda iki)
-    { ad: 'Zümrüt Saray Köprüsü', dusman: [{ hp: 760 }, { hp: 800 }, { hp: 760 }, { hp: 800 }] },
-    // Şahmeran'ın defilesi: iki taht muhafızı ve sağ uçta yükseltide Şahmeran
-    { ad: 'Şahmeran\'ın Defilesi', dusman: [{ hp: 640 }, { hp: 640 }, { hp: 3600, boss: true }] },
-  ] },
-};
+// Zindanlar tek tarif dosyasından okunur (eo2/js/zindan_tarif.js; oyun da aynı dosyayı okur). Yeni zindan oraya eklenir; burada değişiklik gerekmez.
+const TARIF = require('../eo2/js/zindan_tarif.js');
+const tariftenKur = T => { const Z = {}; for (const k in T) Z[k] = { ad: T[k].ad, asama: T[k].asama.map(A => ({ ad: A.ad, dusman: (A.dusman || []).map(q => ({ hp: q.hp })).concat(A.boss ? [{ hp: A.boss.hp, boss: true }] : []) })) }; return Z; };
+const ZINDANLAR = tariftenKur(TARIF);
 const HASAR_UST = 6000;   // tek bildirimde kabul edilen en büyük hasar (hata ve bozuk veri süzgeci; denge kuralı değildir)
 const hata = kod => Object.assign(new Error(kod), { kod });
 const sinir = (v, a, b) => Math.round(Math.max(a, Math.min(b, Number.isFinite(+v) ? +v : 0)) * 100) / 100;
@@ -47,6 +43,7 @@ const SURE = { giris: 15000, oyuncu: 50000, dusman: 16000 }, GECIKME_MS = 6000; 
 const partiCarpan = n => 1 + 0.5 * (Math.max(1, n) - 1);
 
 function createZindanOrtak(secenek) {
+  const ZINDANLAR = secenek && secenek.tarif ? tariftenKur(secenek.tarif) : module.exports.ZINDANLAR;   // testler kendi tarifini verebilir
   const now = (secenek && secenek.now) || Date.now, rast = (secenek && secenek.rast) || Math.random;
   const bagli = oda => oda.uyeler.filter(u => u.bagli).map(u => u.id);
   const uye = (d, id) => d.uye[id] || (d.uye[id] = { hazir: false, hayatta: true, hasar: 0, cark: false, hp: 0, max: 0 });

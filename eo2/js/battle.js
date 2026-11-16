@@ -248,7 +248,7 @@
   function meteor(b, p, n, dmg, el, patlama) { for (let i = 0; i < n; i++) { const tx = clamp(p.x + u((i - (n - 1) * 0.5) * 105 + (R() - 0.5) * 36), 3, FW - 3), sx = tx + u(b.x > p.x ? 260 : -260), sy = Math.min(FH + 2, p.y + u(680 + i * 55)); nisanliAt(b, sx, sy, tx, p.y + u(24), dmg, el, patlama, { sure: 1.0 + i * 0.14, kesin: true, gok: true }); } }
 
   /* hasar: oyuncuya (eski detonateProjectile / tehlike bölgesi) */
-  function hasarTopcu(a, dmg, o) {
+  function hasarTopcu(a, dmg, o) { if (a.dustuKesin) return 0;   /* ortak savaşta düşmüş oyuncu arenada durur ama hasar almaz */
     o = o || {}; if (a.dead || a.yoldas) return 0;   // yoldaşın canını kendi ekranı hesaplar ve bildirir
     if (a.shield > 0 && !o.delici) { dmg = Math.round(dmg * (o.kalkanK || 0.40)); a.shield--; yazi(a.x, a.y + 3.1, 'Kalkan sönümledi', { kucuk: 1, col: '#ffe08a' }); }
     dmg = Math.max(1, Math.round(dmg)); a.hp = Math.max(0, a.hp - dmg); a.rage = Math.min(100, a.rage + 18); a.hurtT = 0.55; M.shake = Math.max(M.shake, 0.5);
@@ -327,7 +327,8 @@
   function baslat(a) {
     M.aktif = a; M.faz = 'nisan'; M.pt = 0; M.siraNo = (M.siraNo || 0) + (a.tur === 'topcu' ? 1 : 0); M.charge = 0; M.charging = false; M.plan = null; M.hitX = undefined;
     if (a === M.ben) {
-      if (a.hp <= 0 || a.dead) { if (a.revive > 0) { a.revive--; a.dead = false; a.hp = Math.round(a.max * 0.65); a.shield = 1; if (a.y < 0.5 || a.dustu) { a.x = X_(M.cfg.x0 || 460); a.dustu = false; } a.y = Math.max(a.y, yerY(a.x)); a.fall = true; a.vy = 0; yazi(a.x, a.y + 3, 'Anka Külü: dirildin', { col: '#ffe08a', crit: 1 }); toz(a.x, a.y + 1, 30, [255, 215, 106]); halka(a.x, a.y + 1, 1.1, [255, 215, 106]); ses('chime'); yay('can', { kim: 0, hp: a.hp, max: a.max }); } else return bitir(false); }
+      if (a.hp <= 0 || a.dead) { if (a.revive > 0) { a.revive--; a.dead = false; a.hp = Math.round(a.max * 0.65); a.shield = 1; if (a.y < 0.5 || a.dustu) { a.x = X_(M.cfg.x0 || 460); a.dustu = false; } a.y = Math.max(a.y, yerY(a.x)); a.fall = true; a.vy = 0; yazi(a.x, a.y + 3, 'Anka Külü: dirildin', { col: '#ffe08a', crit: 1 }); toz(a.x, a.y + 1, 30, [255, 215, 106]); halka(a.x, a.y + 1, 1.1, [255, 215, 106]); ses('chime'); yay('can', { kim: 0, hp: a.hp, max: a.max }); } else if (M.cfg.ortak) { a.dead = true; a.dustuKesin = true; a.hp = 0; pankart('Düştün', 'Yoldaşlarını izliyorsun', 'kayip'); yay('dustum', {}); return siradaki(); }   // ortak savaş: düşen arenada kalır, savaş sürer; sırası atlanır
+        else return bitir(false); }
       for (const k in a.cd) if (a.cd[k] > 0) a.cd[k]--;
       if (M.lav.length) { for (const l of M.lav) { if (M.boss && !M.boss.dead && Math.abs(M.boss.x - l.x) <= l.r + u(120)) hasarBoss(M.boss, l.dmg, true, 'Lav havuzu yakıyor'); for (const e of M.act) if (e.tur === 'mob' && !e.dead && Math.abs(e.x - l.x) <= l.r + u(36)) hasarMob(e, l.dmg, { not: 'Lav yanığı', col: '#ffb060' }); l.tur--; } M.lav = M.lav.filter(l => l.tur > 0); if (!dusmanKaldi()) return bitir(true); }
       M.bolge = M.cfg.ortak ? M.bolge.filter(z => z.kim !== a) : []; if (M.boss && !M.boss.dead) { const D = M.boss.D; M.bolge.push({ x: a.x, y: a.y, r: u(130), dmg: D.bolge || 210, el: D.el || 'venom', kim: a }); }
@@ -351,7 +352,7 @@
   function bossSira(b) { const hd = hedefT(), ben = M.ben, D = b.D, ad = M.adim, tn = turNo(), sn = fn => () => { if (M.adim === ad) fn(); }; M.faz = 'oyun'; b.face = hd.x < b.x ? -1 : 1;
     if (D.siraBasi && D.siraBasi(b, API)) return sonra(1.0, sn(siradaki));
     if (b.sersem > 0) { b.sersem--; yazi(b.x, b.y + b.h + 1, 'Sersemledi, sırası geçti', { col: '#ffe08a' }); return sonra(1.0, sn(siradaki)); }
-    const laf = b.sonLaf !== tn && D.laflar && (b.lafZorla || tn === 2 || (!D.lafsiz && tn >= 1 && R() < 0.35));
+    const laf = !M.cfg.ortak && b.sonLaf !== tn && D.laflar && (b.lafZorla || tn === 2 || (!D.lafsiz && tn >= 1 && R() < 0.35));
     let p = ben;   // laf atma herkese: karşılığı her oyuncu kendi ekranında verir
     if (laf) { b.lafZorla = false; b.sonLaf = tn; b.acik = 0.35; p.rage = Math.min(100, p.rage + 25); p.sta = Math.min(p.staMax, p.sta + 25); const soz = D.laflar[(b.lafN = (b.lafN || 0) + 1) % D.laflar.length];
       balon(b, soz, b.ad + ' laf atıyor', 4.4); const L = $('tpLaf'); L.hidden = false; L.querySelector('p').textContent = 'Nasıl karşılık verirsin?'; M.lafT = 4.4; M.lafAdim = ad; hud(true); return; }
@@ -439,7 +440,7 @@
       set('hk', h.tur === 'boss' ? Math.round(h.kalkan) : h.shield || 0, v => { $('tpHKalkan').hidden = !v; $('tpHKalkan').textContent = 'Kalkan ' + v; }); set('hf', h.tur === 'boss' && h.D.fazlar ? h.faz : 0, v => { $('tpHFaz').hidden = !v; if (v) $('tpHFaz').textContent = 'Faz ' + v + ' / ' + (h.D.fazlar.length + 1); }); }
     set('tm', Math.max(0, Math.ceil(M.timer)), v => { $('tpSure').textContent = v; $('tpSure').classList.toggle('az', v <= 5); }); set('rd', M.tur, v => { $('tpTur').textContent = 'Tur ' + v; });
     const benim = M.aktif === me && M.faz === 'nisan' && !M.over;
-    set('who', M.over ? 'Bitti' : !M.aktif ? (M.cfg.ortak && M.adim ? 'Sıra geçiyor' : 'Hazırlan') : M.aktif === me ? 'Senin sıran' : M.aktif.yoldas ? M.aktif.ad + ' oynuyor' : M.aktif.tur === 'topcu' ? 'Rakibin sırası' : M.aktif.ad, v => { $('tpKim').textContent = v; }); set('mine', benim, v => { $('tpSavas').classList.toggle('benim', v); });
+    set('who', M.over ? 'Bitti' : !M.aktif ? (M.cfg.ortak && M.adim ? 'Sıra geçiyor' : 'Hazırlan') : me.dustuKesin ? (M.aktif && M.aktif.yoldas ? M.aktif.ad + ' oynuyor' : 'Düştün · izliyorsun') : M.aktif === me ? 'Senin sıran' : M.aktif.yoldas ? M.aktif.ad + ' oynuyor' : M.aktif.tur === 'topcu' ? 'Rakibin sırası' : M.aktif.ad, v => { $('tpKim').textContent = v; }); set('mine', benim, v => { $('tpSavas').classList.toggle('benim', v); });
     set('ang', Math.round(me.angle) * me.face, v => { $('tpAci').textContent = Math.abs(v) + '°'; const r = Math.abs(v) * Math.PI / 180 * (v < 0 && Math.round(me.angle) < 0 ? -1 : 1), a = Math.round(me.angle) * Math.PI / 180; $('tpIbre').setAttribute('x2', (50 + Math.cos(a) * 38 * me.face).toFixed(1)); $('tpIbre').setAttribute('y2', (56 - Math.sin(a) * 38).toFixed(1)); void r; });
     set('pw', Math.round((M.aktif === me ? M.charge : 0) * 100), v => { $('tpGuc').style.width = v + '%'; }); set('lp', Math.round(me.lastPower * 100), v => { $('tpSon').style.left = v + '%'; $('tpSon').hidden = v < 0; });
     let anahtar = benim ? '1' : '0'; for (const k of BECERI_SIRA) anahtar += (me.mods[k] ? 'a' : '-') + (me.cd[k] || 0) + (BECERI[k].ofke ? (me.rage >= 100 ? 'r' : 'x') : me.sta >= BECERI[k].m ? 'y' : 'n');
