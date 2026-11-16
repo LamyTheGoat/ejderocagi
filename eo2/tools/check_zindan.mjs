@@ -41,7 +41,16 @@ try {
   await A.evaluate(() => EO2.api.runAct('zindan:hazir')); log.tekHazirBaslamadi = await A.evaluate(() => EO2.ortak.durum().ortak.faz === 'bekleme');
   await B.locator('#seferSerit [data-sf="hazir"]').click();
   log.savas = await bekle(A, savasta, 30000) && await bekle(B, savasta, 30000);
-  log.dusman = await A.evaluate(() => EO2.battle.state().act.slice(1).map(a => a.max)); await A.waitForTimeout(1200); await cek(A, 'zindan_3_kopru');
+  log.dusman = await A.evaluate(() => EO2.battle.state().act.filter(a => a.takim === 1).map(a => a.max)); await A.waitForTimeout(1200); await cek(A, 'zindan_3_kopru');
+  // yoldaşın topçusu iki ekranda da durur; A yürür ve ateş eder: B'nin ekranında A'nın topçusu yer değiştirir, mermisi uçar
+  const yoldasVar = 'EO2.battle.state() && EO2.battle.state().act.filter(a => a.yoldas).length === 1';
+  log.yoldasTopcu = await bekle(A, yoldasVar) && await bekle(B, yoldasVar);
+  log.yoldasAd = await B.evaluate(() => EO2.battle.state().act.find(a => a.yoldas).ad);
+  const ax = await A.evaluate(() => { const M = EO2.battle.state(); M.ben.x += 3; M.ben.angle = 55; return M.ben.x; });
+  await A.evaluate(() => { const M = EO2.battle.state(); EO2.ortak.eylem({ t: 'ates', x: M.ben.x, y: M.ben.y, aci: 55, guc: 0.6, yon: 1, ruz: M.wind, mod: {} }); });
+  log.yoldasAtes = await bekle(B, 'EO2.battle.state().hayalet && EO2.battle.state().hayalet.length > 0', 8000);
+  log.yoldasYer = await B.evaluate(x => Math.abs(EO2.battle.state().act.find(a => a.yoldas).x - x) < 0.05, ax); await B.waitForTimeout(350); await cek(B, 'zindan_3b_yoldas_atis');
+  log.kendiSirasiBozulmadi = await B.evaluate(() => EO2.battle.state().faz !== 'ucus' || EO2.battle.state().shots.length > 0);
   // A birinci düşmana vurur: B'nin ekranında da canı iner
   await A.evaluate(() => { const M = EO2.battle.state(); EO2.battle.api.hasarMob(M.act[1], 300); });
   log.ortakCan = await bekle(B, 'EO2.battle.state() && EO2.battle.state().act[1].hp <= EO2.battle.state().act[1].max - 300');
@@ -66,7 +75,7 @@ try {
   log.altinToplam = await A.evaluate(() => S.gold) - altin0;
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && log.gordu && log.kod && log.davet && log.hazirGorundu && log.kamp && log.kamptaGordu && log.serit && log.tekHazirBaslamadi && log.savas && JSON.stringify(log.dusman) === '[855,900,855,900]' && log.ortakCan && log.yoldasCercevesi
+const ok = !hata.length && log.gordu && log.kod && log.davet && log.hazirGorundu && log.kamp && log.kamptaGordu && log.serit && log.tekHazirBaslamadi && log.savas && JSON.stringify(log.dusman) === '[855,900,855,900]' && log.yoldasTopcu && log.yoldasAd === 'Aylin' && log.yoldasAtes && log.yoldasYer && log.kendiSirasiBozulmadi && log.ortakCan && log.yoldasCercevesi
   && log.asama1 && log.kampaDonus && log.altinAsama >= 150 && log.savas2 && log.kirilmaz && log.asama2 && log.sonPen && log.cikti && log.altinToplam >= 400;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

@@ -73,3 +73,4 @@ Hata kodları: `tur_bilinmiyor`, `anahtar_gecersiz`, `zaten_odada`, `oda_yok`, `
 Eylemler: `hazir`, `hasar { i, h }`, `can { hp, max }`, `dustu`, `cark`. Olaylar: `asama_basla`, `hasar`, `can`, `dustu`, `asama_bitti { zafer, son }`, `kampa_don`, `hazir`, `cark`.
 Yeni zindan eklemek: sunucuda `ZINDANLAR` tablosuna aşamaların düşman canlarını, istemcide `ASAMA` tablosuna aynı sırayla çizim, arazi ve düşman türlerini yaz. Düşman sırası iki yanda aynı olmalıdır (önce sıradan düşmanlar, sonra boss).
 Altyapıya eklenenler: üye ayrılınca ya da kopunca `tik` hemen çalışır (kalanlar boşuna beklemez); `odaKimligi(hesap)` (meydan varlığı `kamp` alanını odaya göre öbekler: her grubun kampı kendine özeldir).
+Yoldaşların görünmesi: `konum { x, y, aci, yon }` (saniyede en çok dört) ve `ates { x, y, aci, guc, yon, ruz, mod }` eylemleri yalnız iletilir; istemci `EO2.battle.yoldasKoy` ve `yoldasAtes` ile çizer.

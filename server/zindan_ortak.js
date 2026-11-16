@@ -16,6 +16,8 @@
 //   { t: 'hazir', v }            kampta: bu aşamaya hazırım / değilim
 //   { t: 'hasar', i, h }         savaşta: i numaralı düşmana h hasar verdim (i: aşamadaki düşman sırası)
 //   { t: 'can', hp, max }        savaşta: canım (arkadaşların çerçevesinde görünür)
+//   { t: 'konum', x, y, aci, yon }          savaşta: topçumun yeri ve nişanı (yoldaşların ekranında görünür)
+//   { t: 'ates', x, y, aci, guc, yon, ruz, mod }  savaşta: ateş ettim (yoldaşların ekranında merminin uçuşu; hasar ayrıca 'hasar' ile gelir)
 //   { t: 'dustu' }               savaşta: düştüm (Anka külü tükendi)
 //   { t: 'cark' }                çarkta: çarkımı çevirdim, hazırım
 // OLAYLAR (ortak_olay.olaylar): asama_basla { asama, dusman } · hasar { kim, i, h, hp } · can { kim, hp, max } · dustu { kim } ·
@@ -31,6 +33,8 @@ const ZINDANLAR = {
 };
 const HASAR_UST = 6000;   // tek bildirimde kabul edilen en büyük hasar (hata ve bozuk veri süzgeci; denge kuralı değildir)
 const hata = kod => Object.assign(new Error(kod), { kod });
+const sinir = (v, a, b) => Math.round(Math.max(a, Math.min(b, Number.isFinite(+v) ? +v : 0)) * 100) / 100;
+const MODLAR = ['trident', 'plus1', 'plus2', 'powUlt', 'heavy', 'crater'];
 const partiCarpan = n => 1 + 0.5 * (Math.max(1, n) - 1);
 
 function createZindanOrtak() {
@@ -63,6 +67,10 @@ function createZindanOrtak() {
         const v = Math.min(h, HASAR_UST, q.hp); q.hp -= v; u.hasar += v; if (q.boss && q.hp <= 0) for (const o of d.dusman) o.hp = 0;   // boss düşünce yanındakiler de düşer (savaş motorunun kuralı)
         olaylar.push({ t: 'hasar', kim: kim.id, i: e.i, h: v, hp: q.hp }); }
       else if (e.t === 'can') { if (d.faz !== 'savas') return { olaylar }; u.max = Math.max(1, Math.min(99999, Math.floor(+e.max) || 1)); u.hp = Math.max(0, Math.min(u.max, Math.floor(+e.hp) || 0)); olaylar.push({ t: 'can', kim: kim.id, hp: u.hp, max: u.max }); }
+      else if (e.t === 'konum' || e.t === 'ates') { if (d.faz !== 'savas' || !u.hayatta) return { olaylar };   // yoldaşların ekranında topçunun yeri, nişanı ve atışı (yalnız görüntü)
+        const o = { t: e.t, kim: kim.id, x: sinir(e.x, 0, 64), y: sinir(e.y, -10, 40), aci: sinir(e.aci, -10, 70), yon: e.yon === -1 ? -1 : 1 };
+        if (e.t === 'ates') { o.guc = sinir(e.guc, 0, 1); o.ruz = sinir(e.ruz, -6, 6); o.mod = {}; for (const k of MODLAR) if (e.mod && e.mod[k]) o.mod[k] = true; }
+        olaylar.push(o); return { olaylar }; }
       else if (e.t === 'dustu') { if (d.faz !== 'savas') return { olaylar }; u.hayatta = false; u.hp = 0; olaylar.push({ t: 'dustu', kim: kim.id }); }
       else if (e.t === 'cark') { if (d.faz !== 'cark') throw hata('faz_uygun_degil'); u.cark = true; olaylar.push({ t: 'cark', kim: kim.id }); }
       else throw hata('eylem_gecersiz');

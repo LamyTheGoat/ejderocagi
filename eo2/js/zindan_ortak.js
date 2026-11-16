@@ -39,9 +39,16 @@
     if (M !== B.state()) return; M.dur = false; if (v) B.kapat(); }
   B.dinle((olay, v) => { if (!Z.savas || !seferde() || od().faz !== 'savas') return;
     if (olay === 'dusman_hasar' && v.i > 0 && v.h > 0) OR.eylem({ t: 'hasar', i: v.i - 1, h: v.h });
+    else if (olay === 'ates' && v.kim === 0) { const M = B.state(); OR.eylem({ t: 'ates', x: v.x, y: v.y, aci: v.aci, guc: v.guc, yon: v.yon, ruz: M ? M.wind : 0, mod: v.mod || {} }); }
+    else if (olay === 'konum') { const t = Date.now(); if (t - (Z.konumT || 0) > 240) { Z.konumT = t; OR.eylem({ t: 'konum', x: v.x, y: v.y, aci: v.aci, yon: v.yon }); } }
     else if (olay === 'can' && v.kim === 0) { const t = Date.now(); if (t - Z.canT > 350 || v.hp <= 0) { Z.canT = t; OR.eylem({ t: 'can', hp: Math.round(v.hp), max: Math.round(v.max) }); } } });
+  /* yoldaşların topçuları bu ekranda da durur (js/battle.js yoldasKoy); motor savaşı kurana dek beklenir */
+  function yoldaslariKur(deneme) { const M = B.state(); if (!Z.savas || !benim()) return; if (!M || !M.on || !M.ben) { if ((deneme || 0) < 40) setTimeout(() => yoldaslariKur((deneme || 0) + 1), 150); return; }
+    for (const u of oda().uyeler) { if (u.id === ben() || !u.bagli) continue; const c = EO2.meydanAg && [...EO2.meydanAg.kisiler.values()].find(x => x.handle === u.h); B.yoldasKoy(u.id, { ad: u.ad, set: (c && c.set) || 'temel' }); } }
   async function asamaBaslat() { const d = od(); if (!d || d.faz !== 'savas' || Z.savas) return; Z.savas = true; Z.savasBitti = false; Z.sonAsama = null; seyirKapat(); G.close(); document.querySelectorAll('.pen-perde').forEach(w => w.remove());
-    const cfg = cfgKur(d), bek = B.ac(cfg); setTimeout(() => { if (B.active() && cfg.ipucu) B.ipucu(cfg.baslik, cfg.ipucu); const M = B.state(); if (M) OR.eylem({ t: 'can', hp: Math.round(M.ben.hp), max: Math.round(M.ben.max) }); yoldasCiz(); }, window.__fastFx ? 0 : 2400);
+    const cfg = cfgKur(d), bek = B.ac(cfg); yoldaslariKur();
+    setTimeout(() => { const M = B.state(); if (M && Z.savas) OR.eylem({ t: 'konum', x: M.ben.x, y: M.ben.y, aci: Math.round(M.ben.angle), yon: M.ben.face }); }, 700);
+    setTimeout(() => { if (B.active() && cfg.ipucu) B.ipucu(cfg.baslik, cfg.ipucu); const M = B.state(); if (M) OR.eylem({ t: 'can', hp: Math.round(M.ben.hp), max: Math.round(M.ben.max) }); yoldasCiz(); }, window.__fastFx ? 0 : 2400);
     const r = await bek; Z.savasBitti = true;
     if (r.terk && !Z.sonAsama) { Z.savas = false; yoldasCiz(); OR.cik(); return; }
     if (!r.zafer && !Z.sonAsama && seferde() && od().faz === 'savas') { OR.eylem({ t: 'dustu' }); B.kapat(); seyirAc(); }
@@ -98,7 +105,10 @@
     if (olay === 'olay') for (const o of v.olaylar) {
       if (o.t === 'asama_basla') setTimeout(asamaBaslat, sahne() === 'kamp' ? 500 : 1400);
       else if (o.t === 'hasar' && o.kim !== ben() && Z.savas) B.ortakHasar(o.i + 1, o.h, uyeAd(o.kim));
-      else if (o.t === 'dustu' && o.kim !== ben()) G.toast(esc_(uyeAd(o.kim)) + ' düştü.');
+      else if (o.t === 'konum' && o.kim !== ben() && Z.savas) B.yoldasKoy(o.kim, o);
+      else if (o.t === 'ates' && o.kim !== ben() && Z.savas) B.yoldasAtes(o.kim, o);
+      else if (o.t === 'can' && o.kim !== ben() && Z.savas) B.yoldasKoy(o.kim, { hp: o.hp, max: o.max });
+      else if (o.t === 'dustu' && o.kim !== ben()) { if (Z.savas) B.yoldasKoy(o.kim, { dustu: true }); G.toast(esc_(uyeAd(o.kim)) + ' düştü.'); }
       else if (o.t === 'asama_bitti') asamaBitti(o);
       else if (o.t === 'kampa_don') { ses('chime'); kampaGit(); G.toast('Sıradaki aşama: <b>' + esc_(ASAMA[o.asama].ad) + '</b>. Hazır olan kapıya.', 'goal'); }
       else if (o.t === 'hazir' && o.kim !== ben() && o.v && od().faz === 'bekleme') G.toast(esc_(uyeAd(o.kim)) + ' hazır.'); }   // son hazır olan aşamayı başlatır: o an bildirim çıkmaz
