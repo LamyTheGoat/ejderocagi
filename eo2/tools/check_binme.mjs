@@ -8,7 +8,7 @@ const url = process.env.URL || 'http://localhost:3210/', ekran = process.env.EKR
 if (ekran) fs.mkdirSync(ekran, { recursive: true });
 const BOYLAR = [[1280, 720], [1366, 768], [1100, 700], [1024, 640], [1600, 900], [1920, 1080], [844, 390], [740, 360], [390, 844], [360, 740]];
 // ölçülen parçalar: [ad, seçici]. Bir parçanın içindeki öteki parça (ör. hedeflerin içindeki hafta düğmesi) ayrı ölçülür.
-const PARCA = [['logo', '#hud .tl .logo'], ['profil', '#profile'], ['kese', '#hud .tc .chip'], ['ustsag', '#hud .tr .row > .rb, #hud .tr .row > button'], ['harita', '#hud .minimap'], ['hedefler', '.quests'], ['hafta', '#btnWeek'], ['parti', '#partiCerceve'], ['sohbet', '#chat, #chat > *'],
+const PARCA = [['logo', '#hud .tl .logo'], ['profil', '#profile'], ['kese', '#hud .tc .chip'], ['ustsag', '#hud .tr .row > .rb, #hud .tr .row > button'], ['harita', '#hud .minimap'], ['hedefler', '.quests'], ['hafta', '#btnWeek'], ['parti', '#partiCerceve'], ['sefer', '#seferSerit'], ['sohbet', '#chat, #chat > *'],
   ['jest', '#emotes'], ['eylem', '#actions'], ['bildirim', '.bildirimler .bildirim'], ['ipucu', '.rehber'], ['dokun', '#btnE'], ['kol', '#joy']];
 const b = await chromium.launch({ channel: 'msedge', headless: true, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const hata = [], binme = [], dok = {};
@@ -33,6 +33,10 @@ try {
   await B.waitForSelector('.pen:has-text("partisine çağırıyor")', { timeout: 12000 }); await B.locator('.pen .gbtn:has-text("Partiye katıl")').click();
   await A.waitForFunction('document.querySelectorAll("#partiCerceve .pt-uye").length === 2', null, { timeout: 12000 });
   await A.evaluate(() => { EO2.hooks.sohbet('/p merhaba', 'genel'); EO2.game.toast('Deneme bildirimi: arayüz ölçülüyor.'); });
+  // sefer şeridi de ölçülsün: A tek başına Zümrüt Saray seferi kurar ve kampa çıkar
+  await A.evaluate(() => { window.canEnterZindanOrTopcu = () => true; EO2.ortak.kur('zindan', 'zumrut-normal', { ozel: true }); });
+  await A.waitForFunction('EO2.ortak.durum().oda && EO2.ortak.durum().oda.tur === "zindan"', null, { timeout: 12000 }); await A.evaluate(() => EO2.ortak.baslat());
+  await A.waitForFunction('EO2.api.scene() === "kamp" && !document.getElementById("seferSerit").hidden', null, { timeout: 40000 }); await A.waitForTimeout(1500);
   for (const [w, h] of BOYLAR) for (const kucuk of [false, true]) { await A.setViewportSize({ width: w, height: h }); await A.waitForTimeout(900);
     await A.evaluate(k => { const q = document.querySelector('.quests'); if (q && q.classList.contains('kucuk') !== k) { const hh = q.querySelector('h3'); if (hh) hh.click(); } EO2.game.toast('Deneme bildirimi: arayüz ölçülüyor.'); }, kucuk); await A.waitForTimeout(500);
     const ad = w + 'x' + h + (kucuk ? '_kucuk' : ''), r = await olc(A); dok[ad] = r.out; for (const c of cakisan(r.out)) binme.push(ad + ': ' + c); for (const t of r.tasan) binme.push(ad + ': ' + t + ' ekrandan taşıyor');

@@ -83,7 +83,7 @@
     return { c, x, mask, top, Tm };
   }
   const solid = (T, wx, wy) => { const i = Math.floor(wx * MP), j = Math.floor(wy * MP); return i >= 0 && j >= 0 && i < MW && j < MH && T.mask[j * MW + i] === 1; };
-  function carve(T, cx, cy, rad) {
+  function carve(T, cx, cy, rad) { if (M && M.cfg && M.cfg.kirilmaz) return;   // kırılmaz zemin (ör. Şahmeran'ın defilesi): gülle çukur açmaz
     const r2 = rad * rad; for (let j = Math.max(0, Math.floor((cy - rad) * MP)); j <= Math.min(MH - 1, Math.ceil((cy + rad) * MP)); j++) for (let i = Math.max(0, Math.floor((cx - rad) * MP)); i <= Math.min(MW - 1, Math.ceil((cx + rad) * MP)); i++) { const dx = (i + 0.5) / MP - cx, dy = (j + 0.5) / MP - cy; if (dx * dx + dy * dy < r2) T.mask[j * MW + i] = 0; }
     const x = T.x, px = cx * TP, py = (FH - cy) * TP; x.save(); x.globalCompositeOperation = 'destination-out'; x.beginPath(); for (let a = 0; a <= 6.3; a += 0.3) { const rr = rad * TP * (0.94 + Math.sin(a * 5 + cx) * 0.06); a === 0 ? x.moveTo(px + rr, py) : x.lineTo(px + Math.cos(a) * rr, py + Math.sin(a) * rr); } x.closePath(); x.fill();
     x.globalCompositeOperation = 'source-atop'; const g = x.createRadialGradient(px, py, rad * TP * 0.9, px, py, rad * TP * 1.45); g.addColorStop(0, T.Tm.oyuk); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.beginPath(); x.arc(px, py, rad * TP * 1.45, 0, 6.3); x.fill();
@@ -251,12 +251,12 @@
     if (o.it) { a.vy = 3 + o.it * 2; a.fall = true; a.kx = o.yon * (1 + o.it * 2.2); }
     yazi(a.x, a.y + 2.3, dmg, { crit: !!o.crit, col: a.ben ? '#ff9a8a' : null }); ses('hit'); if (a.ben || a.kontrol !== 'uzak') yay('can', { kim: a.takim, hp: a.hp, max: a.max }); return dmg;
   }
-  function hasarMob(e, dmg, o) { o = o || {}; dmg = Math.max(1, Math.round(dmg)); e.hp -= dmg; e.hurtT = 0.5; e.anim = 'hit'; e.animT = 0.45; M.ist.hasar += dmg; M.ben.rage = Math.min(100, M.ben.rage + 14); yazi(e.x, e.y + e.h + 0.5, dmg, { crit: dmg >= 220 || o.crit }); if (o.not) yazi(e.x, e.y + e.h + 1.4, o.not, { kucuk: 1, col: o.col || '#ffe08a' }); ses('hit');
+  function hasarMob(e, dmg, o) { o = o || {}; dmg = Math.max(1, Math.round(dmg)); if (!M.uzakHasar) yay('dusman_hasar', { i: M.act.indexOf(e), h: Math.min(dmg, Math.max(0, e.hp)) }); e.hp -= dmg; e.hurtT = 0.5; e.anim = 'hit'; e.animT = 0.45; if (!M.uzakHasar) { M.ist.hasar += dmg; M.ben.rage = Math.min(100, M.ben.rage + 14); } yazi(e.x, e.y + e.h + 0.5, dmg, { crit: dmg >= 220 || o.crit }); if (o.not) yazi(e.x, e.y + e.h + 1.4, o.not, { kucuk: 1, col: o.col || '#ffe08a' }); ses('hit');
     if (e.hp <= 0 && !e.dead) { e.hp = 0; e.dead = true; M.ist.mob++; yazi(e.x, e.y + e.h + 1.2, 'Yıkıldı', { col: '#8ff0a4', crit: 1 }); toz(e.x, e.y + e.h / 2, 18, EL[e.el]); ses('boom', 0.3); } }
   /* eski applyDamageToBoss: kalkan hasarın yarısını emer (delici hariç), faz geçişleri can oranına göre */
   function hasarBoss(b, dmg, delici, not, crit) {
     if (!b || b.dead) return; let h = Math.round(dmg); if (!delici && b.kalkan > 0) { const em = Math.min(b.kalkan, Math.round(h * 0.5)); b.kalkan -= em; h -= em; }
-    b.hp = Math.max(0, b.hp - h); b.hurtT = 0.5; b.anim = 'hit'; b.animT = 0.5; M.ist.hasar += h; M.ben.rage = Math.min(100, M.ben.rage + 15); yazi(b.x, b.y + b.h + 0.6, h, { crit: !!crit }); if (not) yazi(b.x, b.y + b.h + 1.7, not, { kucuk: 1, col: crit ? '#ffd24a' : '#cfe0ff' }); ses('hit');
+    if (!M.uzakHasar) yay('dusman_hasar', { i: M.act.indexOf(b), h: Math.min(h, b.hp) }); b.hp = Math.max(0, b.hp - h); b.hurtT = 0.5; b.anim = 'hit'; b.animT = 0.5; if (!M.uzakHasar) { M.ist.hasar += h; M.ben.rage = Math.min(100, M.ben.rage + 15); } yazi(b.x, b.y + b.h + 0.6, h, { crit: !!crit }); if (not) yazi(b.x, b.y + b.h + 1.7, not, { kucuk: 1, col: crit ? '#ffd24a' : '#cfe0ff' }); ses('hit');
     const o = b.hp / b.max; if (b.hp > 0) { const D = b.D; if (D.fazlar) { for (const f of D.fazlar) if (b.faz === f.faz - 1 && o <= f.oran) { b.faz = f.faz; b.kalkan = f.kalkan || 0; if (f.kiyamet) b.kiyamet = f.kiyamet; if (f.yap) f.yap(b, API); M.flash = 0.4; M.shake = Math.max(M.shake, 1); ses('whoosh'); ses('boom', 0.5); pankart(f.ad, 'Faz ' + f.faz, 'hit'); if (f.soz) balon(b, f.soz, null, 3); halka(b.x, b.y + b.h * 0.5, 3.4, EL[D.el || 'venom']); break; } } }
     else { b.dead = true; for (const e of M.act) if (e.tur === 'mob' && !e.dead) { e.dead = true; e.hp = 0; } M.shake = 1.2; M.flash = 0.6; toz(b.x, b.y + b.h / 2, 40, EL[b.D.el || 'venom']); ses('boom', 1); if (b.D.veda) balon(b, b.D.veda, null, 3); }
     hud(true);
@@ -542,9 +542,17 @@
     else if (c.t === 'ruzgar') yeniRuzgar(c.deger); else return false; return true; }
   /* sunucunun bildirdiği sonuç (pvp_match_end): maç bu uçta da biter */
   function sonlandir(zafer) { if (!M || !M.on || M.over) return; if (M.rakip && zafer) { M.rakip.hp = 0; M.rakip.dead = true; } bitir(!!zafer); }
+  /* ---------- ortak sefer (js/zindan_ortak.js): düşman canı sunucuda tektir ----------
+     Giden: dinle('dusman_hasar', { i, h }) bu oyuncunun bir düşmana verdiği hasar (i: M.act sırası).
+     Gelen: ortakHasar(i, h, ad) bir yoldaşın hasarı (sayı ve ad düşmanın üstünde görünür; bu oyuncunun istatistiğine ve öfkesine yazılmaz);
+            ortakCan(i, hp) sunucudaki can (yalnız aşağı doğru eşitler). Son düşman bir yoldaşın elinden düşerse maç burada da zaferle biter. */
+  function ortakHasar(i, h, ad) { if (!M || !M.on || M.over) return false; const e = M.act[i]; h = Math.round(h); if (!e || e.takim !== 1 || e.dead || !(h > 0)) return false; M.uzakHasar = true;
+    try { if (e.tur === 'boss') hasarBoss(e, h, true, ad || 'Yoldaş'); else hasarMob(e, h, { not: ad || 'Yoldaş', col: '#9fd8ff' }); } finally { M.uzakHasar = false; }
+    hud(true); if (!dusmanKaldi()) bitir(true); return true; }
+  function ortakCan(i, hp) { if (!M || !M.on || M.over) return; const e = M.act[i]; if (e && e.takim === 1 && !e.dead && e.hp - hp >= 1) ortakHasar(i, e.hp - hp, ''); }
   const API = { get M() { return M; }, PX, FW, X_, Y_, u, EL, rnd, clamp, sonra, halka, toz, yazi, balon, pankart, ses, nisanliAt, meteor, hasarTopcu, hasarMob, hasarBoss, carve: (x, y, r) => carve(M.T, x, y, r), yerY, img: k => imgs[k], isin: (x1, y1, x2, y2, col, sure) => M.isin.push({ x1, y1, x2, y2, col, t: sure || 0.6, max: sure || 0.6 }), sars: k => { M.shake = Math.max(M.shake, k); } };
   const MOB = {}, BOSS = {}, PROP = {};
-  EO2.battle = { ac, kapat, uzak, sonlandir, ipucu, dinle: fn => { dinleyen.push(fn); return () => { const i = dinleyen.indexOf(fn); if (i >= 0) dinleyen.splice(i, 1); }; }, MOB, BOSS, PROP, BECERI, api: API, active: () => !!(M && M.on), state: () => M,
+  EO2.battle = { ac, kapat, uzak, sonlandir, ipucu, ortakHasar, ortakCan, dinle: fn => { dinleyen.push(fn); return () => { const i = dinleyen.indexOf(fn); if (i >= 0) dinleyen.splice(i, 1); }; }, MOB, BOSS, PROP, BECERI, api: API, active: () => !!(M && M.on), state: () => M,
     start() { if (EO2.topcu) EO2.topcu.baslat('talim'); }, stop() { kapat(); } };
   const wait = setInterval(() => { if (!EO2.api) return; clearInterval(wait); EO2.frameHooks.push(dt => { if (M && M.on && M.T) { if (!M.dur) update(dt); if (M && M.on) render(); } }); }, 80);
 })();

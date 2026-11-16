@@ -166,5 +166,7 @@
     if (o.sag) { cfg.yon = -1; cfg.x0 = 2390; cfg.rakip.x = 1010; }      // odadaki ikinci yuva sağda durur: iki uçta meydan aynı
     const r = await mac(cfg); if (o.sonra) await o.sonra(r); bitis(); return r; }
 
-  EO2.topcu = { baslat, pvpBaslat, odulYaz, oyuncuDeger, ornek: () => ornek, kilitli, YER, sec: k => { secili = k; G.redraw(); }, secili: () => secili };
+  /* ortak sefer (js/zindan_ortak.js) aynı ödül ve çark fonksiyonlarını kullanır; ornekKur etkin sefer kaydını açar ya da kapatır */
+  const ornekKur = o => { ornek = o ? { kimlik: 'ortak-' + Date.now(), zindan: o.zindan, zorluk: o.zorluk, asama: 0, altin: (ornek && ornek.ortak ? ornek.altin : 0), ganimet: (ornek && ornek.ortak ? ornek.ganimet : []), hasar: 0, ortak: true } : null; };
+  EO2.topcu = { baslat, pvpBaslat, odulYaz, oyuncuDeger, ornek: () => ornek, kilitli, ornekKur, cark, kucukCark, buyukCark, ganimetHtml, YER, sec: k => { secili = k; G.redraw(); }, secili: () => secili };
 })();

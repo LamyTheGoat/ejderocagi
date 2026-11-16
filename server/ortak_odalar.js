@@ -58,7 +58,7 @@ function createOrtakOdalar({ send, sockets, kimlik, crypto = require('node:crypt
     if (!o.uyeler.length) return odaKapat(o);
     if (o.kurucu === id) o.kurucu = o.uyeler[0].id;
     if (o.durum === 'oyunda' && o.uyeler.length < o.tanim.enAz) return bitir(o, { kazanan: false, neden: 'oyuncu_kalmadi', ayrilan: id });
-    odaYay(o);
+    odaYay(o); tikCalistir(o);   // kalanların beklediği koşul (herkes hazır, herkes çarkını çevirdi) ayrılanla birlikte değişmiş olabilir
   }
   function odaKapat(o) { for (const u of o.uyeler) uyelik.delete(u.id); odalar.delete(o.id); kodlar.delete(o.kod); }
   function basla(o) {
@@ -120,17 +120,19 @@ function createOrtakOdalar({ send, sockets, kimlik, crypto = require('node:crypt
   function onDisconnect(socket) {
     const k = hesapOf(socket); if (!k) return; kuyrukCik(k.accountId);
     const o = odaOf(k.accountId); if (!o) return; if (soketler(k.accountId).some(s => s !== socket)) return;
-    const u = o.uyeler.find(x => x.id === k.accountId); if (!u) return; u.bagli = false; u.kopma = now(); odaYay(o);
+    const u = o.uyeler.find(x => x.id === k.accountId); if (!u) return; u.bagli = false; u.kopma = now(); odaYay(o); tikCalistir(o);
   }
   function onConnect(socket) { const k = hesapOf(socket); if (!k) return; const o = odaOf(k.accountId); if (!o) return; const u = o.uyeler.find(x => x.id === k.accountId); if (u && !u.bagli) { u.bagli = true; u.kopma = 0; odaYay(o); } }
   function supur() { const t = now();
     for (const o of [...odalar.values()]) { for (const u of [...o.uyeler]) if (!u.bagli && t - u.kopma >= KOPMA_MS) odadanCik(o, u.id, 'koptu');
       if (odalar.has(o.id) && o.durum !== 'oyunda' && t - o.sonHareket >= BOS_ODA_MS) { for (const u of [...o.uyeler]) odadanCik(o, u.id, 'oda_kapandi'); }
       // tik kancası: süreye bağlı kurallar (ör. hamle süresi dolan oyuncu adına karar) türün kendisindedir
-      if (odalar.has(o.id) && o.durum === 'oyunda' && typeof o.tanim.tik === 'function') { o.sira = (o.sira || Promise.resolve()).then(async () => { if (o.durum !== 'oyunda') return;
-        const r = await o.tanim.tik(o.ortak, gorunum(o)); if (!r) return; yay(o, { type: 'ortak_olay', olaylar: r.olaylar || [], durum: o.ortak, kim: null }); if (r.bitti) bitir(o, r.bitti); }).catch(e => console.error('[ortak] tik', e.message)); } }
+      tikCalistir(o); }
     eslestir(); }
-  return { kaydet, onMessage, onDisconnect, onConnect, supur, sayim: () => ({ oda: odalar.size, kuyruk: kuyruk.length, turler: [...turler.keys()] }) };
+  function tikCalistir(o) { if (!odalar.has(o.id) || o.durum !== 'oyunda' || typeof o.tanim.tik !== 'function') return;
+    o.sira = (o.sira || Promise.resolve()).then(async () => { if (o.durum !== 'oyunda') return;
+      const r = await o.tanim.tik(o.ortak, gorunum(o)); if (!r) return; yay(o, { type: 'ortak_olay', olaylar: r.olaylar || [], durum: o.ortak, kim: null }); if (r.bitti) bitir(o, r.bitti); }).catch(e => console.error('[ortak] tik', e.message)); }
+  return { kaydet, onMessage, onDisconnect, onConnect, supur, odaKimligi: hesap => { const o = odaOf(hesap); return o ? o.id : null; }, sayim: () => ({ oda: odalar.size, kuyruk: kuyruk.length, turler: [...turler.keys()] }) };
 }
 
 module.exports = { createOrtakOdalar };

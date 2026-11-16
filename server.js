@@ -59,6 +59,8 @@ setInterval(() => { try { ORTAK.supur(); } catch (e) { console.error('[ortak] s�
 const KIR_KILIT = new Set();
 const KIR_PVP = require('./server/kiraathane_pvp').createKiraathanePvp({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo, kilitli: KIR_KILIT });
 ORTAK.kaydet('kiraathane', KIR_PVP.tanim);
+// Ortak zindan seferi (server/zindan_ortak.js): Zümrüt Saray; ortak düşman canı sunucuda, ödül istemcide mevcut kurallarla
+ORTAK.kaydet('zindan', require('./server/zindan_ortak').createZindanOrtak().tanim);
 // Oyuncu profili (künye) ve parti: ikisi de bellekte, ekonomiye dokunmaz (server/profil_service.js, server/parti_service.js)
 const wsYolla = (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); };
 const PROFIL = require('./server/profil_service').createProfil({ send: wsYolla, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo });
@@ -66,7 +68,9 @@ const PARTI = require('./server/parti_service').createParti({ send: wsYolla, soc
 setInterval(() => { try { PARTI.supur(); } catch (e) { console.error('[parti] süpürme', e.message); } }, 30000).unref();
 // Ocak ziyareti ve birlikte çiftleştirme (server/ocak_ziyaret.js): misafir ev sahibinin ocağını görür; yumurta Damızlık kuralıyla ev sahibine gider.
 const ZIYARET = require('./server/ocak_ziyaret').createOcakZiyaret({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo });
-const MEYDAN = require('./server/meydan_presence').createMeydanPresence({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, kimlik: socket => socket.playerInfo && socket.playerInfo.handle, alan: ZIYARET.alan });
+const MEYDAN = require('./server/meydan_presence').createMeydanPresence({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, kimlik: socket => socket.playerInfo && socket.playerInfo.handle,
+  // 'ocak' herkesin kendi arazisidir (ziyaret hariç); 'kamp' (sefer kampı) her ortak odanın kendi kampıdır
+  alan: (socket, a) => a === 'kamp' ? 'kamp:' + ((socket.playerInfo && ORTAK.odaKimligi(socket.playerInfo.accountId)) || (socket.playerInfo && socket.playerInfo.accountId) || 'yok') : ZIYARET.alan(socket, a) });
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',

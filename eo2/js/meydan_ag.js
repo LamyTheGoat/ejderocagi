@@ -41,6 +41,7 @@
       btns: [{ t: 'Selam ver', cls: 'altin', sub: 'El sallarsın', v: 'selam' }, ...(EO2.profil ? [{ t: 'Künyesine bak', sub: 'Haftası, ünü, yıldız ejderhası', v: 'profil' }] : []),
         ...(EO2.parti && !EO2.parti.uyeMi(c.handle) ? [{ t: 'Partiye çağır', sub: 'Birbirinizi her yerden görür, parti sohbetinde konuşursunuz', v: 'parti' }] : []), { t: 'Ejderha düellosuna çağır', sub: 'Canlı dövüş: ejderhan onunkine karşı', v: 'ejder', off: EO2.arena && EO2.arena.erCagir ? '' : 'Arena yüklenemedi' },
         { t: 'Topçu düellosuna çağır', sub: 'Dostça maç; altın ve ün yazılmaz', v: 'duello', off: EO2.topcuPvp && EO2.topcuPvp.davet ? '' : 'Er Meydanı yüklenemedi' },
+        ...(EO2.zindan ? [{ t: 'Zümrüt Saray seferine çağır', sub: 'Ortak zindan; aşamalar arasında kampta toplanırsınız', v: 'sefer' }] : []),
         { t: 'Kıraathane masasına çağır', sub: 'Ejder Pokeri; bahsi masada koyarsınız', v: 'masa', off: EO2.masa ? '' : 'Masa yüklenemedi' },
         ...(EO2.ziyaret ? (EO2.ziyaret.evSahibi() && EO2.ziyaret.evSahibi().h === c.handle ? [{ t: 'Bir ejderhamı eşleşmeye sun', sub: 'Yumurta ev sahibinin ocağına gider', v: 'sun' }]
           : EO2.ziyaret.misafirMi(c.handle) ? [{ t: 'Birlikte çiftleştir', sub: 'Misafirin bir ejderhasını sunar; yumurta sana gelir', v: 'esle' }, { t: 'Misafirleri uğurla', sub: 'Ziyareti bitirir', v: 'ugurla' }]
@@ -53,6 +54,7 @@
     else if (v === 'duello') EO2.topcuPvp.davet(c.handle, c.name);
     else if (v === 'takas') EO2.takas.teklif(c.handle, c.name);
     else if (v === 'masa') EO2.masa.cagir(c.handle, c.name);
+    else if (v === 'sefer') EO2.zindan.cagir(c.handle, c.name);
     else if (v === 'ocak') EO2.ziyaret.cagir(c.handle, c.name);
     else if (v === 'profil') EO2.profil.ac(c.handle, c.name);
     else if (v === 'parti') EO2.parti.davet(c.handle, c.name);

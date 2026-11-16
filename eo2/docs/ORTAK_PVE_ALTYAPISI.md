@@ -67,3 +67,9 @@ Hata kodları: `tur_bilinmiyor`, `anahtar_gecersiz`, `zaten_odada`, `oda_yok`, `
 - `tik(durum, oda)` kancası: süpürme turunda (15 sn) çağrılır; süreye bağlı işler (hamle süresi dolan oyuncu adına oynamak) burada yapılır.
 - Oyuncu sayısı `enAz` altına düşünce `bitir` sonucu `ayrilan` alanını taşır.
 - Örnek bitince herkesin hazır durumu sıfırlanır ve aynı odada yeniden hazır olunup başlatılabilir (rövanş).
+
+## İlk PvE türü: zindan (Zümrüt Saray, 2026-11-16)
+`server/zindan_ortak.js` + `eo2/js/zindan_ortak.js`. Anahtar `<zindan>-<zorluk>` (ör. `zumrut-normal`). Ortak durum: `{ zindan, zorluk, asama, n, faz: bekleme | savas | cark | bitti, tur, deneme, dusman: [{ hp, max, boss }], uye: { <hesap>: { hazir, hayatta, hasar, cark, hp, max } } }`.
+Eylemler: `hazir`, `hasar { i, h }`, `can { hp, max }`, `dustu`, `cark`. Olaylar: `asama_basla`, `hasar`, `can`, `dustu`, `asama_bitti { zafer, son }`, `kampa_don`, `hazir`, `cark`.
+Yeni zindan eklemek: sunucuda `ZINDANLAR` tablosuna aşamaların düşman canlarını, istemcide `ASAMA` tablosuna aynı sırayla çizim, arazi ve düşman türlerini yaz. Düşman sırası iki yanda aynı olmalıdır (önce sıradan düşmanlar, sonra boss).
+Altyapıya eklenenler: üye ayrılınca ya da kopunca `tik` hemen çalışır (kalanlar boşuna beklemez); `odaKimligi(hesap)` (meydan varlığı `kamp` alanını odaya göre öbekler: her grubun kampı kendine özeldir).

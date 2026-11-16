@@ -183,3 +183,37 @@
 }
 @keyframes tp-gel-alt { from { opacity: 0; transform: translateY(1em); } }
 @media (prefers-reduced-motion: reduce) { .ui2 .tp-teker { transition-duration: .3s; } #tpPankart.on { animation-duration: 1.2s; } }
+
+/* ================= Ortak sefer (js/zindan_ortak.js): Zümrüt Saray ================= */
+.ui2 .scr-b.zn { display: block; min-height: 0; padding: .6em 1em 1em; } .ui2 .zn-kok { height: 100%; min-height: 0; display: grid; align-content: center; justify-items: center; gap: .6em; }
+.ui2 .zn-lobi { display: grid; grid-template-columns: minmax(0, 28em) minmax(0, 22em); gap: 1.4em; align-items: start; }
+.ui2 .zn-kart, .ui2 .zn-toplan { position: relative; padding: 1.2em 1.5em; border-radius: 1.4em; background: var(--cam-koyu, rgba(10, 22, 30, .88)); box-shadow: var(--frame); }
+.ui2 .zn-kart small { font: 600 .8em var(--f-ui); letter-spacing: .1em; text-transform: uppercase; color: #8fe6c0; } .ui2 .zn-kart h2 { margin: .1em 0 .4em; font: 800 1.9em var(--f-ui); color: #b9f5d8; text-shadow: 0 0 .8em rgba(60, 220, 160, .35); } .ui2 .zn-kart p { margin: 0 0 .55em; font: 500 1em/1.45 var(--f-ui); max-width: 34em; }
+.ui2 .zn-yuz { float: right; width: 6.4em; height: 6.4em; margin: 0 0 .4em .8em; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px #7fe0b6, 0 0 1.4em rgba(60, 220, 160, .4); }
+.ui2 .zn-zorluk { display: flex; gap: .5em; margin-top: .4em; } .ui2 .zn-zorluk .gbtn[aria-pressed="true"] { color: #06281c; background: linear-gradient(180deg, #b9f5d8, #55c898); text-shadow: none; }
+.ui2 .zn-secenek { display: grid; gap: .7em; } .ui2 .zn-muhur { margin: 0; padding: .5em 1em; border-radius: 1em; font: 600 .95em var(--f-ui); color: #ffd9cc; background: rgba(120, 30, 20, .6); }
+.ui2 .zn-toplan { display: grid; gap: 1em; justify-items: center; min-width: min(44em, 100%); }
+.ui2 .zn-koltuklar { display: grid; grid-template-columns: repeat(4, 1fr); gap: .7em; width: 100%; }
+.ui2 .zn-koltuk { display: grid; justify-items: center; gap: .15em; padding: .7em .5em; border-radius: 1.1em; text-align: center; background: linear-gradient(180deg, rgba(22, 56, 60, .9), rgba(10, 26, 34, .95)); box-shadow: inset 0 0 0 1.5px rgba(127, 224, 182, .4); }
+.ui2 .zn-koltuk canvas { width: 4em; height: 4em; border-radius: 50%; background: radial-gradient(circle at 50% 35%, #2f8a74, #0e2a2e 78%); box-shadow: 0 0 0 1.5px #7fe0b6; } .ui2 .zn-koltuk.bos { opacity: .6; } .ui2 .zn-koltuk.bos canvas { opacity: .35; }
+.ui2 .zn-koltuk.hazir { box-shadow: inset 0 0 0 2px #9ff0b0; } .ui2 .zn-koltuk b { font: 700 1.05em var(--f-ui); } .ui2 .zn-koltuk em { font: 500 .82em var(--f-ui); font-style: normal; color: #d6efe6; }
+@media (max-width: 760px), (max-aspect-ratio: 1/1) { .ui2 .zn-lobi { grid-template-columns: 1fr; } .ui2 .zn-koltuklar { grid-template-columns: repeat(2, 1fr); } .ui2 .zn-kok { align-content: start; overflow-y: auto; } }
+@media (max-height: 500px) { .ui2 .zn-kart p { font-size: .88em; margin-bottom: .3em; } .ui2 .zn-yuz { width: 4em; height: 4em; } .ui2 .zn-koltuk canvas { width: 2.8em; height: 2.8em; } .ui2 .zn-kok { align-content: start; overflow-y: auto; } }
+/* sefer şeridi: dünyada, haritanın altında */
+#seferSerit { position: absolute; right: .8em; top: 19.2em; z-index: 6; width: 15.5em; display: grid; gap: .45em; padding: .6em .8em .7em; border-radius: 1.1em; color: #fff; background: linear-gradient(180deg, rgba(14, 44, 46, .93), rgba(8, 22, 30, .95)); box-shadow: inset 0 0 0 1.5px rgba(127, 224, 182, .55), 0 .3em .9em rgba(2, 8, 12, .55); } #seferSerit[hidden] { display: none; }
+#seferSerit header { display: grid; } #seferSerit header small { font: 600 .72em var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: #8fe6c0; } #seferSerit header b { font: 800 1.1em var(--f-ui); } #seferSerit header span { font: 500 .82em var(--f-ui); color: #d6efe6; }
+#seferSerit ul { margin: 0; padding: 0; list-style: none; display: grid; gap: .2em; } #seferSerit li { display: flex; align-items: center; gap: .45em; font: 600 .88em var(--f-ui); } #seferSerit li i { width: .7em; height: .7em; border-radius: 50%; background: rgba(255, 255, 255, .25); flex: none; } #seferSerit li.tamam i { background: #7ff0a4; box-shadow: 0 0 .5em rgba(127, 240, 164, .7); } #seferSerit li.kopuk { opacity: .55; } #seferSerit li em { margin-left: auto; font: 500 .85em var(--f-ui); font-style: normal; color: #bfe6d8; }
+#seferSerit p { margin: 0; font: 500 .85em var(--f-ui); color: #d6efe6; } #seferSerit .gbtn { width: 100%; justify-content: center; }
+/* savaşta yoldaşların canı ve düşünce seyir */
+#seferYoldas { position: absolute; left: .8em; top: 38%; z-index: 46; display: grid; gap: .35em; pointer-events: none; } #seferYoldas[hidden] { display: none; }
+.sy-yoldas { min-width: 10.5em; padding: .3em .7em .4em; border-radius: .9em; color: #fff; background: rgba(8, 22, 30, .82); box-shadow: inset 0 0 0 1px rgba(127, 224, 182, .5); } .sy-yoldas b { display: block; font: 700 .86em var(--f-ui); } .sy-yoldas small { font: 500 .72em var(--f-ui); color: #cfe6dd; }
+.sy-yoldas i, .ss-dusman i { display: block; height: .42em; margin: .15em 0; border-radius: 1em; background: rgba(255, 255, 255, .16); overflow: hidden; } .sy-yoldas s { display: block; height: 100%; background: linear-gradient(90deg, #4fd08a, #a6f5b8); transition: width .25s; } .sy-yoldas.dustu { filter: grayscale(.9) brightness(.7); } .sy-yoldas.kopuk { opacity: .55; }
+#seferSeyir { position: absolute; inset: 0; z-index: 47; display: grid; place-items: center; background: rgba(4, 10, 14, .78); } #seferSeyir[hidden] { display: none; }
+.ss-kutu { display: grid; gap: .6em; justify-items: center; width: min(30em, 92%); padding: 1.2em 1.5em; border-radius: 1.4em; text-align: center; color: #fff; } .ss-kutu small { font: 600 .8em var(--f-ui); letter-spacing: .1em; text-transform: uppercase; color: #8fe6c0; } .ss-kutu h3 { margin: 0; font: 800 1.8em var(--f-ui); color: #ffb49a; } .ss-kutu p { margin: 0; font: 500 1em/1.4 var(--f-ui); }
+.ss-dusman { display: grid; gap: .35em; width: 100%; text-align: left; } .ss-dusman b { font: 600 .88em var(--f-ui); } .ss-dusman s { display: block; height: 100%; background: linear-gradient(90deg, #e0603c, #ffb070); transition: width .25s; } .ss-dusman .oldu { opacity: .45; }
+@media (max-width: 900px), (max-height: 500px) { #seferSerit { top: auto; bottom: 84px; right: 8px; width: 150px; font-size: 12px; } #seferSerit ul { display: none; } #seferYoldas { top: 30%; font-size: 12px; } .sy-yoldas { min-width: 0; } .sy-yoldas small { display: none; } }
+@media (max-width: 620px) { #seferSerit { bottom: 150px; } }
+/* savaşta: yoldaş çerçevesi sol üst göstergenin altında durur; bildirimler savaş göstergelerinin altından başlar */
+#seferYoldas { top: 10.6em; }
+.ui2.fight .bildirimler:not([class*="by-"]) { top: 12.5em; }
+@media (max-width: 900px), (max-height: 500px) { #seferYoldas { top: 96px; } }
