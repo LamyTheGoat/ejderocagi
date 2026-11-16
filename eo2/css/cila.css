@@ -155,3 +155,33 @@ html, body, #app.ui2 { overflow: clip; }
 #app.ui2 .chip .un, #app.ui2 .res2.un i { border: 0; border-radius: 0; box-shadow: none; background: center / contain no-repeat url(../assets/ik/un.webp) !important; filter: drop-shadow(0 .1em .15em rgba(2, 4, 20, .55)); }
 #ocTepsi .ocp-yumurta i.res, #ocTepsi .ocp-yumurta.sicak i.res { border-radius: 0; background: center / contain no-repeat; box-shadow: none; filter: drop-shadow(0 .15em .25em rgba(2, 4, 20, .6)); }
 #ocTepsi .ocp-yumurta.sicak i.res { filter: drop-shadow(0 0 .5em rgba(255, 170, 80, .9)); }
+
+/* ================= dövüş kareleri (css/kare.css eski stilden ayıklanır; burada 2.0 sahnesine oturtulur) ================= */
+.ui2 .dov.fight > .rcut { position: absolute; inset: 0; z-index: 60; }
+.ui2 .dov.fight > .rcut .rccap { font-family: 'Noto Sans', 'Alegreya Sans', system-ui, sans-serif; }
+/* karelerin içindeki poz çizimi: eski stildeki genel .pose kuralı 2.0'da yok; yalnız kare içinde tanımlanır */
+.rcut .rcd .pose { display: block; width: 100%; height: auto; overflow: visible; }
+.rcut .rcd.edge .pose { width: auto; height: 100%; }
+.rcut .rcd.kid svg { width: 100%; height: auto; }
+
+/* ================= dövüş: can çubukları ve terbiyeciler (2026-11-16) =================
+   İki çubuk ortada tek şerit gibi birleşiyordu. Artık her tarafın kendi levhası var: solda oyuncu (zümrüt), sağda rakip (kızıl),
+   arada arena mührü; terbiyeciler avatarlarıyla adın yanında durur. */
+.ui2 .dov .taraf .isim { display: flex; align-items: center; gap: .55em; }
+.ui2 .dov .taraf.sag .isim { justify-content: flex-end; }
+.ui2 .dov .dov-yuz { flex: none; width: 3.3em; height: 3.3em; border-radius: 50%; background: radial-gradient(circle at 50% 35%, #33407a, #121a3c 78%); box-shadow: inset 0 0 0 2px #f0c869, 0 0 0 1.5px rgba(8, 10, 20, .85), 0 .25em .6em rgba(2, 4, 20, .6); }
+.ui2 .dov .taraf.sag .dov-yuz { transform: scaleX(-1); box-shadow: inset 0 0 0 2px #e98a6a, 0 0 0 1.5px rgba(8, 10, 20, .85), 0 .25em .6em rgba(2, 4, 20, .6); }
+.ui2 .dov .dov-ad { display: grid; gap: 0; padding: .2em 1em; border-radius: 1.4em; background: var(--cam-koyu, rgba(14, 20, 48, .82)); box-shadow: var(--frame); line-height: 1.1; }
+.ui2 .dov .taraf.sag .dov-ad { text-align: right; }
+.ui2 .dov .dov-ad b { font: 700 1.35em var(--f-ui) !important; color: #fff; }
+.ui2 .dov .dov-ad small { font: 600 .78em var(--f-ui); color: #cfd8f6; letter-spacing: .02em; }
+.ui2 .dov .taraf.sol .can { margin-right: 2.6em; } .ui2 .dov .taraf.sag .can { margin-left: 2.6em; }
+.ui2 .dov .taraf.sol .nefes { margin-right: 2.6em; } .ui2 .dov .taraf.sag .nefes { margin-left: 2.6em; }
+.ui2 .dov .taraf.sol .can { box-shadow: inset 0 0 0 1.5px #d9c27a, inset 0 0 0 3px rgba(10, 12, 22, .6), 0 0 0 1.5px rgba(8, 10, 20, .85), 0 .3em .8em rgba(4, 6, 16, .5); border-radius: .5em 1.2em 1.2em .5em; }
+.ui2 .dov .taraf.sag .can { box-shadow: inset 0 0 0 1.5px #e0a08a, inset 0 0 0 3px rgba(10, 12, 22, .6), 0 0 0 1.5px rgba(8, 10, 20, .85), 0 .3em .8em rgba(4, 6, 16, .5); border-radius: 1.2em .5em .5em 1.2em; }
+.ui2 .dov .taraf.sol .can i { background: linear-gradient(180deg, #a8f0b0, #3fc46a 45%, #1f8f48) !important; }
+.ui2 .dov .taraf.sag .can i { background: linear-gradient(180deg, #ffb49a, #e8553a 45%, #a82818) !important; }
+.ui2 .dov .taraf .can i.az { background: linear-gradient(180deg, #ffe08a, #f0a030 45%, #b86a10) !important; animation: can-az 1s ease-in-out infinite; }
+@keyframes can-az { 50% { filter: brightness(1.35); } }
+.ui2 .dov .vs { display: block !important; position: absolute; left: 50%; top: 4.9em; width: 4.2em; height: 4.2em; margin-left: -2.1em; z-index: 3; font-size: 1em; color: transparent; text-indent: -99em; overflow: hidden; background: center / 100% 100% no-repeat url(../assets/ik/mdl-arena.webp); border-radius: 50%; filter: drop-shadow(0 .2em .5em rgba(2, 4, 20, .7)); pointer-events: none; }
+@media (max-height: 560px) { .ui2 .dov .dov-yuz { width: 2.4em; height: 2.4em; } .ui2 .dov .vs { width: 3em; height: 3em; margin-left: -1.5em; top: 3.6em; } .ui2 .dov .taraf.sol .can, .ui2 .dov .taraf.sol .nefes { margin-right: 1.9em; } .ui2 .dov .taraf.sag .can, .ui2 .dov .taraf.sag .nefes { margin-left: 1.9em; } }

@@ -62,11 +62,28 @@
 
   /* ---------- dövüş sahnesi ---------- */
   const can = x => { const p = FT.F.p; if (x === 'pence' || x === 'savun' || x === 'teslim') return true; if (x === 'nefes') return p.sta >= NEFES_COST; if (x === 'kukre') return p.sta >= 15; if (x.startsWith('card:')) { const k = x.slice(5); return p.cards.includes(k) && !(p.used || []).includes(k); } return false; };
-  function fightUI() { const F = FT.F, w = el('div', 'dov'); w.id = 'dov'; w.style.setProperty('--sahne', 'url("' + (FT.mode === 'kule' ? G.bgUrl('a:kule') : G.url('img/' + (FT.tier === 'cukur' ? 'bg-pit' : FT.mode === 'tour' ? 'bg-saray' : 'bg-arena') + '.webp')) + '")');
-    w.innerHTML = '<header><small>' + esc(FT.title) + '</small><b id="dovTur"></b></header><div class="dov-saha"><div class="taraf sol" style="--el:' + G.ELC[F.p.el] + '"><div class="isim"><b>' + esc(F.p.name) + '</b><span class="etk el-' + F.p.el + '">' + EL_AD[F.p.el] + '</span></div><div class="can"><i id="hpP"></i><b id="hpPt"></b></div><div class="nefes"><i id="stP"></i></div><div class="govde"><img id="imP" alt="" src="' + G.img(FT.d) + '"><em id="dmP"></em></div></div>' +
-      '<div class="vs">VS</div><div class="taraf sag" style="--el:' + G.ELC[F.e.el] + '"><div class="isim"><span class="etk el-' + F.e.el + '">' + EL_AD[F.e.el] + '</span><b>' + esc(F.e.name) + '</b></div><div class="can"><i id="hpE"></i><b id="hpEt"></b></div><div class="nefes"><i id="stE"></i></div><div class="govde"><img id="imE" alt="" src="' + G.img(FT.opp) + '"><em id="dmE"></em></div></div></div>' +
+  /* terbiyeciler: dövüşte iki tarafın terbiyecisi avatarıyla görünür. Oyuncu kendi kuşam setiyle; öteki oyuncu (Er Meydanı)
+     bildirdiği setle; yapay rakibin terbiyecisi adından türetilen sabit bir setle (aynı rakip hep aynı görünür). */
+  const SETLER = () => Object.keys((EO2.api && EO2.api.sets) || {}).filter(k => k !== 'bare');
+  const adKarma = s => { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
+  function terbiyeci(kim) { if (kim === 'ben') return (G.ad && G.ad()) || 'Terbiyeci'; const o = FT.opp || {}; return FT.rakipAd || o.trainer || o.owner || 'Rakip terbiyeci'; }
+  function yuzCiz(kok) { const A = EO2.api; if (!A || !A.drawPortrait) return; const L = SETLER(); if (!L.length) return;
+    kok.querySelectorAll('canvas.dov-yuz').forEach(cv => { try { const ben = cv.dataset.yuz === 'ben', set = ben ? A.player.set : (FT.rakipSet && L.includes(FT.rakipSet) ? FT.rakipSet : L[adKarma(terbiyeci('rakip')) % L.length]);
+      A.drawPortrait(cv, set, 0.66); } catch (e) { cv.hidden = true; } }); }
+  function fightUI() { const F = FT.F, w = el('div', 'dov fight'); w.id = 'dov'; w.style.setProperty('--sahne', 'url("' + (FT.mode === 'kule' ? G.bgUrl('a:kule') : G.url('img/' + (FT.tier === 'cukur' ? 'bg-pit' : FT.mode === 'tour' ? 'bg-saray' : 'bg-arena') + '.webp')) + '")');
+    w.innerHTML = '<header><small>' + esc(FT.title) + '</small><b id="dovTur"></b></header><div class="dov-saha"><div class="taraf sol" style="--el:' + G.ELC[F.p.el] + '"><div class="isim"><canvas class="dov-yuz" width="96" height="96" data-yuz="ben" aria-hidden="true"></canvas><span class="dov-ad"><b>' + esc(F.p.name) + '</b><small>' + esc(terbiyeci('ben')) + '</small></span><span class="etk el-' + F.p.el + '">' + EL_AD[F.p.el] + '</span></div><div class="can"><i id="hpP"></i><b id="hpPt"></b></div><div class="nefes"><i id="stP"></i></div><div class="govde"><img id="imP" alt="" src="' + G.img(FT.d) + '"><em id="dmP"></em></div></div>' +
+      '<div class="vs">VS</div><div class="taraf sag" style="--el:' + G.ELC[F.e.el] + '"><div class="isim"><span class="etk el-' + F.e.el + '">' + EL_AD[F.e.el] + '</span><span class="dov-ad"><b>' + esc(F.e.name) + '</b><small>' + esc(terbiyeci('rakip')) + '</small></span><canvas class="dov-yuz" width="96" height="96" data-yuz="rakip" aria-hidden="true"></canvas></div><div class="can"><i id="hpE"></i><b id="hpEt"></b></div><div class="nefes"><i id="stE"></i></div><div class="govde"><img id="imE" alt="" src="' + G.img(FT.opp) + '"><em id="dmE"></em></div></div></div>' +
       '<div class="dov-kayit cam kay" id="dovLog"></div><div class="dov-eylem" id="dovAct"></div>';
-    app.appendChild(w); FT.view = { p: { hp: F.p.hp, sta: F.p.sta }, e: { hp: F.e.hp, sta: F.e.sta } }; for (const l of FT.log) logLine(l); paint(); }
+    app.appendChild(w); yuzCiz(w); FT.view = { p: { hp: F.p.hp, sta: F.p.sta }, e: { hp: F.e.hp, sta: F.e.sta } }; for (const l of FT.log) logLine(l); paint();
+    /* açılış karesi (ilk sürümdeki gibi): iki ejderha karşı karşıya, "ÇARPIŞMA!"; kare bitene dek hamle seçilmez */
+    if (FT.mode !== 'mp' && kareVar()) { FT.busy = true; paint(); kare('kalkis').then(() => { if (!FT) return; FT.busy = false; paint(); }); } }
+  /* ---------- dövüş kareleri: ilk sürümün çizgi roman ara kareleri (js/fsupport.js fightCut, fightCutPick) ----------
+     Kural değiştirmez; yalnız gösterir. Hangi hamlede kare çıkacağını eski seçici belirler (dövüş ortasında en çok üç kare,
+     bitişte zafer ya da yenilgi karesi). Hareketi azalt ayarında ve hızlı kipte kare çıkmaz. */
+  const kareVar = () => typeof fightCut === 'function' && typeof fightCutPick === 'function' && !window.__fastFx && !app.classList.contains('sakin');
+  async function kare(tur, ctx) { if (!FT || !kareVar()) return; FT.cutSeen = FT.cutSeen || {}; try { if (EO2.audio && EO2.audio.whoosh) EO2.audio.whoosh(); await fightCut(tur, ctx); } catch (e) { console.error('dövüş karesi', tur, e); } }
+  async function turKaresi(evs) { if (!FT || !kareVar()) return; let ct = null; try { ct = fightCutPick(evs, FT.F); } catch (e) { ct = null; } if (!ct) return;
+    FT.cutN = (FT.cutN || 0) + 1; FT.cutSeen = FT.cutSeen || {}; FT.cutSeen[ct] = 1; await kare(ct); }
   function logLine(l) { const box = document.getElementById('dovLog'), p = el('p', l.c || '', l.t); box.appendChild(p); while (box.children.length > 40) box.firstChild.remove(); box.scrollTop = box.scrollHeight; }
   function bars() { const F = FT.F, v = FT.view, set = (id, k) => { document.getElementById(id).style.width = Math.max(0, Math.min(100, k * 100)) + '%'; };
     set('hpP', v.p.hp / F.p.maxHp); set('hpE', v.e.hp / F.e.maxHp); set('stP', v.p.sta / 100); set('stE', v.e.sta / 100);
@@ -89,7 +106,7 @@
     else if (EO2.audio) EO2.audio.pop();
     bars(); await wait(FT.auto ? 300 : 620); }
   async function act(x) { if (!FT || FT.busy || FT.F.over || !can(x)) return; if (FT.mode === 'mp') return mpHamle(x);
-    FT.busy = true; paint(); const evs = FT.srv ? tohumla(FT.srv.rnd, () => fightRound(FT.F, x)) : fightRound(FT.F, x); if (FT.srv) FT.srv.acts.push(x); for (const ev of evs) await play(ev); FT.busy = false;
+    FT.busy = true; paint(); const evs = FT.srv ? tohumla(FT.srv.rnd, () => fightRound(FT.F, x)) : fightRound(FT.F, x); if (FT.srv) FT.srv.acts.push(x); for (const ev of evs) await play(ev); await turKaresi(evs); if (!FT) return; FT.busy = false;
     if (FT.F.over) return finish(); paint(); if (FT.auto) act(pickAuto()); }
   function closeFight() { const w = document.getElementById('dov'); if (w) w.remove(); FT = null; }
   async function died(d, why, where) { killDragon(d, why); afterAction(true); await G.pen({ k: where, t: esc(d.name) + ' aramızdan ayrıldı', face: G.img(d), body: '<p>' + esc(d.name) + ' ' + why + '. Ocak bu gece sessiz.</p>', btns: [{ t: 'Uğurla', cls: 'altin' }] }); }
