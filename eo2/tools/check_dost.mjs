@@ -35,8 +35,14 @@ try {
   await A.locator('.pen .gbtn:has-text("Kapat")').click(); await A.waitForTimeout(400);
   await A.locator('[data-d="sil"]').first().click(); await A.locator('.pen .gbtn:has-text("Çıkar")').click();
   log.cikti = await bekle(A, 'EO2.dostlar.durum().veri.dostlar.length === 0') && await bekle(B, 'EO2.dostlar.durum().veri.dostlar.length === 0');
+  // dost koduyla ekleme: A, B'nin kodunu (başında @ olmadan) Dostlar ekranına yazar; B'ye istek düşer
+  const kodB = await B.evaluate(() => EO2.ag.kimlik().handle); log.kodGorunur = await B.evaluate(k => (document.querySelector('.ds-kodum b') || {}).textContent === k, kodB);
+  await A.locator('#dsKod').fill(kodB.slice(1)); await A.locator('.ds-ara button').click();
+  log.kodlaIstek = await bekle(B, 'EO2.dostlar.durum().veri.gelen.length === 1');
+  await A.locator('#dsKod').fill('boyle_biri_yok_123'); await A.locator('.ds-ara button').click();
+  log.kodYok = await bekle(A, '[...document.querySelectorAll(".bildirim")].some(e => /bulunamadı/.test(e.textContent))');
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && log.gordu && log.istekGeldi && /Aylin/.test(log.istekAdi) && log.dostA && log.dostB && log.fisB && log.fisBen && log.fisA && log.cikti;
+const ok = !hata.length && log.gordu && log.istekGeldi && /Aylin/.test(log.istekAdi) && log.dostA && log.dostB && log.fisB && log.fisBen && log.fisA && log.cikti && log.kodGorunur && log.kodlaIstek && log.kodYok;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

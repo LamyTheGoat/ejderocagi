@@ -322,3 +322,18 @@
   #app .scr-b.kv .kv-akranlar { gap: .3em; }
   #app .scr-b.kv .kv-akranlar .madalyon span { display: none; }
 }
+
+/* ================= telefon: parçalar birbirine binmez (2026-11-16, tools/check_binme.mjs) ================= */
+@media (max-width: 900px), (max-height: 500px) {
+  /* kapalı sohbet yalnız düğmedir: sekmeler ve yazı alanı sohbet açılınca görünür */
+  #app.partide #chat:not(.open) > #chatTabs, #app.sohbet-acik #chat:not(.open) > #chatForm { display: none !important; }
+  /* parti çerçevesi: sohbet düğmesinin altında, yalnız yüzler; sohbet açıkken gizlenir */
+  #app #partiCerceve { left: 8px; bottom: auto; top: 112px; gap: 4px; } #app #partiCerceve .pt-uye { min-width: 0; padding: 2px; } #app #partiCerceve .pt-uye span { display: none; } #app #partiCerceve .pt-uye canvas { width: 36px; height: 36px; }
+  #app:has(#chat.open) #partiCerceve { display: none; }
+  /* bildirimler rehber şeridinin altından başlar; ikisi aynı yere çıkmaz */
+  #app:not(.ekranda) .bildirimler { top: 140px; }
+}
+@media (max-width: 620px) {
+  #app #partiCerceve { top: 162px; }
+  #app:not(.ekranda) .bildirimler { top: 204px; width: min(30em, 86%); }
+}

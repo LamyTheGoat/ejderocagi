@@ -261,3 +261,19 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2.partide:not(.gelistirici) #chatTabs { display: flex !important; } .ui2.partide:not(.gelistirici) #chatTabs [data-tab="bolge"] { display: none; }
 @media (max-width: 760px), (max-height: 500px) { #partiCerceve { top: auto; bottom: 9.5em; left: .4em; } #partiCerceve .pt-uye { min-width: 0; padding-right: .5em; } #partiCerceve .pt-uye span { display: none; } }
 .ui2:not(.gelistirici) #chatLog .ch.parti { display: inline; color: #8fd3ff; font-weight: 700; }
+
+/* ---------- hedefler panosu küçültülebilir (başlığa dokun) ---------- */
+.ui2 .quests h3 { cursor: pointer; user-select: none; -webkit-user-select: none; } .ui2 .quests h3:focus-visible { outline: 2px solid #a6e0ff; outline-offset: 3px; border-radius: .4em; }
+.ui2 .quests h3::after { transition: transform .18s; }
+.ui2 .quests.kucuk { padding-bottom: .5em; } .ui2 .quests.kucuk ul { display: none; } .ui2 .quests.kucuk h3 { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; } .ui2 .quests.kucuk h3::after { transform: translateY(15%) rotate(-135deg); }
+/* Dostlar: dost kodu ve kodla ekleme */
+.ui2 .ds-kod { display: grid; gap: .6em; padding: .8em 1em; border-radius: 1.2em; background: rgba(8, 14, 40, .55); box-shadow: inset 0 0 0 1px rgba(255, 226, 150, .4); margin-bottom: .8em; }
+.ui2 .ds-kod h3 { margin: 0; font: 700 .9em var(--f-ui); color: #f6d98a; } .ui2 .ds-kodum { display: flex; align-items: center; gap: .5em; flex-wrap: wrap; } .ui2 .ds-kodum b { font: 800 1.15em var(--f-ui); letter-spacing: .04em; user-select: text; -webkit-user-select: text; margin-right: auto; overflow-wrap: anywhere; }
+.ui2 .ds-ara label { display: block; margin-bottom: .3em; font: 600 .88em var(--f-ui); color: #e9ecfb; } .ui2 .ds-ara div { display: flex; gap: .4em; }
+.ui2 .ds-ara input { flex: 1; min-width: 0; min-height: 44px; padding: .2em .9em; border-radius: 1.2em; border: 1px solid rgba(160, 190, 255, .4); background: rgba(8, 14, 40, .6); color: #fff; font: 600 1em var(--f-ui); user-select: text; -webkit-user-select: text; }
+
+/* ================= arayüz parçaları birbirine binmez (denetim: tools/check_binme.mjs) ================= */
+/* pencere açıkken dünyadaki E etiketi ve ad plaketleri pencerenin üstüne çıkmaz */
+.ui2:has(> .pen-perde) #anchors .prompt, .ui2:has(> .pen-perde) #anchors .plate, .ui2:has(> .pen-perde) #anchors .bubble { visibility: hidden; }
+/* dar masaüstü: jest çubuğu sohbet kutusuyla eylem çubuğunun arasına sığmaz; eylem çubuğunun üstüne, sağa oturur */
+@media (min-width: 901px) and (max-width: 1240px) and (min-height: 501px) { .ui2 #emotes { left: auto; right: max(.9em, env(safe-area-inset-right, 0px)); bottom: calc(max(.8em, env(safe-area-inset-bottom, 0px)) + 6.6em); transform: none; } }

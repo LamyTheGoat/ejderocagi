@@ -19,6 +19,7 @@
   async function komut(body, tamam) { if (D.mesgul) return false; D.mesgul = true;
     try { D.veri = (await AG.istek('/api/social', { method: 'POST', body })).sosyal; D.hata = ''; if (tamam) G.toast(tamam); return true; }
     catch (e) { D.hata = hataYaz(e); G.toast(D.hata, 'kotu'); return false; } finally { D.mesgul = false; rozet(); ciz(); } }
+  const kodum = () => (AG.kimlik() || {}).handle || '';
   const dostMu = h => !!(D.veri && D.veri.dostlar.some(d => d.h === h));
   const ekle = (h, ad) => komut({ type: 'istek', to: h, ad: G.ad ? G.ad() : '' }, 'Dostluk isteğin ' + esc_(ad || 'terbiyeciye') + ' gitti.');
 
@@ -48,8 +49,12 @@
     const dost = d => { const n = D.okunmamis.get(d.id) || 0; return '<article class="ds-kart' + (d.cevrimici ? ' acik' : '') + '"><span class="ds-yuz"><img alt="" src="assets/ik/mdl-sosyal.webp"><i class="ds-isik" title="' + (d.cevrimici ? 'Çevrimiçi' : 'Çevrimdışı') + '"></i></span><div class="ds-ad"><b>' + esc_(d.ad) + '</b><small>' + (d.cevrimici ? 'Çevrimiçi' : 'Çevrimdışı') + '</small></div>' +
       '<div class="ds-eylem"><button type="button" class="gbtn kucuk' + (n ? ' altin' : '') + '" data-d="fis" data-id="' + d.id + '">Fısılda' + (n ? ' · ' + n : '') + '</button><button type="button" class="gbtn kucuk" data-d="ejder" data-id="' + d.id + '" ' + (d.cevrimici ? '' : 'disabled') + '>Ejderha düellosu</button><button type="button" class="gbtn kucuk" data-d="topcu" data-id="' + d.id + '" ' + (d.cevrimici ? '' : 'disabled') + '>Topçu düellosu</button><button type="button" class="gbtn kucuk" data-d="takas" data-id="' + d.id + '" ' + (d.cevrimici ? '' : 'disabled') + '>Takas</button><button type="button" class="gbtn kucuk" data-d="masa" data-id="' + d.id + '" ' + (d.cevrimici ? '' : 'disabled') + '>Kıraathane masası</button><button type="button" class="gbtn kucuk" data-d="ocak" data-id="' + d.id + '" ' + (d.cevrimici ? '' : 'disabled') + '>Ocağına çağır</button><button type="button" class="gbtn kucuk" data-d="parti" data-id="' + d.id + '" ' + (d.cevrimici ? '' : 'disabled') + '>Partiye çağır</button><button type="button" class="gbtn kucuk" data-d="profil" data-id="' + d.id + '">Künye</button><button type="button" class="ds-sil" data-d="sil" data-id="' + d.id + '" aria-label="' + esc_(d.ad) + ' dostluktan çıkar">Çıkar</button></div></article>'; };
     body.innerHTML = '<div class="ds-sol">' + (v.gelen.length ? '<section class="ds-istek"><h3>Dostluk istekleri</h3>' + v.gelen.map(g => '<div class="ds-ist"><b>' + esc_(g.ad) + '</b><span><button type="button" class="gbtn kucuk altin" data-d="kabul" data-id="' + g.id + '">Kabul et</button><button type="button" class="gbtn kucuk" data-d="red" data-id="' + g.id + '">Geri çevir</button></span></div>').join('') + '</section>' : '') +
-      '<section class="ds-bilgi"><button type="button" class="gbtn kucuk altin" data-d="kunyem" data-id="">Künyem</button><h3>Nasıl dost olunur?</h3><p>Meydanda bir terbiyecinin yanına gel, kartından <b>Dost ekle</b> de. Kabul ederse burada görünür; fısıldaşır, düelloya ve takasa çağırırsınız.</p>' + (v.giden ? '<p class="soluk">' + v.giden + ' isteğin yanıt bekliyor.</p>' : '') + (D.hata ? '<p class="kotu">' + esc_(D.hata) + '</p>' : '') + '</section></div>' +
+      '<section class="ds-kod"><h3>Dost kodun</h3><div class="ds-kodum"><b>' + esc_(kodum()) + '</b><button type="button" class="gbtn kucuk" data-d="kopyala" data-id="">Kopyala</button><button type="button" class="gbtn kucuk altin" data-d="kunyem" data-id="">Künyem</button></div>' +
+      '<form class="ds-ara" data-ds-ara="1"><label for="dsKod">Kodla ya da kullanıcı adıyla dost ekle</label><div><input id="dsKod" name="kod" maxlength="41" placeholder="@gezgin_…" autocomplete="off" autocapitalize="none" spellcheck="false"><button type="submit" class="gbtn kucuk altin">İstek yolla</button></div></form></section>' +
+      '<section class="ds-bilgi"><h3>Nasıl dost olunur?</h3><p>Meydanda bir terbiyecinin yanına gel, kartından <b>Dost ekle</b> de. Ya da dost kodunu ona ver, onunkini yukarı yaz. Kabul ederse burada görünür; fısıldaşır, düelloya ve takasa çağırırsınız.</p>' + (v.giden ? '<p class="soluk">' + v.giden + ' isteğin yanıt bekliyor.</p>' : '') + (D.hata ? '<p class="kotu">' + esc_(D.hata) + '</p>' : '') + '</section></div>' +
       '<div class="ds-liste kay">' + (v.dostlar.length ? v.dostlar.map(dost).join('') : '<p class="ds-bos">Henüz dostun yok. Meydan kalabalıklaşınca birine selam ver.</p>') + '</div>';
+    const fa = body.querySelector('[data-ds-ara]'); if (fa) { const gir = fa.elements.kod; for (const olay of ['keydown', 'keyup', 'keypress']) gir.addEventListener(olay, e => e.stopPropagation());
+      fa.addEventListener('submit', e => { e.preventDefault(); let kd = (gir.value || '').trim().replace(/\s+/g, ''); if (!kd) return; if (kd[0] !== '@') kd = '@' + kd; if (kd === kodum()) { D.hata = 'Bu senin kendi kodun.'; return ciz(); } gir.value = ''; ekle(kd, kd); }); }
     body.querySelectorAll('[data-d]').forEach(b => b.addEventListener('click', async () => { if (EO2.audio) EO2.audio.ui(); const id = b.dataset.id, k = b.dataset.d, d = dostOf(id);
       if (k === 'kabul') komut({ type: 'kabul', id }, 'Artık dostsunuz.'); else if (k === 'red') komut({ type: 'red', id });
       else if (k === 'fis') fisilda(id);
@@ -58,6 +63,7 @@
       else if (k === 'parti' && d && EO2.parti) EO2.parti.davet(d.h, d.ad);
       else if (k === 'profil' && d && EO2.profil) EO2.profil.ac(d.h, d.ad);
       else if (k === 'kunyem' && EO2.profil) EO2.profil.ac(null);
+      else if (k === 'kopyala') { const kd = kodum(); try { await navigator.clipboard.writeText(kd); G.toast('Dost kodun kopyalandı.'); } catch (_) { G.toast('Kodun: ' + esc_(kd)); } }
       else if (k === 'ejder' && d && EO2.arena) EO2.arena.erCagir(d.h, d.ad);
       else if (k === 'topcu' && d && EO2.topcuPvp) EO2.topcuPvp.davet(d.h, d.ad);
       else if (k === 'takas' && d && EO2.takas) EO2.takas.teklif(d.h, d.ad);

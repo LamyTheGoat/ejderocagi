@@ -184,6 +184,11 @@
 
   /* ---------- dünyaya bağlama ---------- */
   function wire() { const A = EO2.api; if (!A) return setTimeout(wire, 60);
+    { const q = document.querySelector('.quests'), h = q.querySelector('h3'), ANH = 'eo2.hedefKucuk'; let kucuk = false; try { kucuk = localStorage.getItem(ANH) === '1'; } catch (_) { }
+      const uygula = () => { q.classList.toggle('kucuk', kucuk); h.setAttribute('aria-expanded', String(!kucuk)); h.title = kucuk ? 'Hedefleri aç' : 'Hedefleri küçült'; };
+      h.setAttribute('role', 'button'); h.tabIndex = 0; uygula();
+      const cevir = () => { kucuk = !kucuk; try { localStorage.setItem(ANH, kucuk ? '1' : '0'); } catch (_) { } uygula(); if (EO2.audio) EO2.audio.ui(); };
+      h.addEventListener('click', cevir); h.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); cevir(); } }); }
     const q = document.querySelector('.quests'), b = el('button', 'gbtn altin', 'Haftayı Bitir'); b.id = 'btnWeek'; b.type = 'button'; b.addEventListener('click', () => G.endWeek()); q.appendChild(b);
     const hedefAc = e => { const li = e.target.closest('li[data-hedef]'); if (!li || (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ')) return; if (e.type === 'keydown') { e.preventDefault(); e.stopPropagation(); } if (EO2.audio) EO2.audio.ui(); if (EO2.rehber) EO2.rehber.git(li.dataset.hedef); };
     q.addEventListener('click', hedefAc); q.addEventListener('keydown', hedefAc);
