@@ -18,7 +18,7 @@ test('her zindan tarifi tam: yazılar, ödül kaynağı, arenalar; her arenanın
     assert.ok(new RegExp('\\b' + Z.odul + ': \\{ ad:').test(veri), k + ': odul "' + Z.odul + '" js/topcu_veri.js ZINDAN içinde yok');
     assert.ok(Array.isArray(Z.asama) && Z.asama.length >= 1, k + ': en az bir aşama');
     Z.asama.forEach((ad, i) => { const A = ARENA[ad]; assert.ok(A, k + ': "' + ad + '" arenası derlenmemiş (eo2/arenalar/' + ad + ' ve node eo2/tools/arena_derle.mjs)');
-      assert.ok(fs.existsSync(path.join(kok, A.sahne.src)), ad + ': sahne resmi yok'); assert.ok(A.en <= 64 && A.taban + A.boy <= 30 && A.ppu > 0, ad + ': ölçü');
+      assert.ok(A.katman.length >= 1); for (const k of A.katman) assert.ok(fs.existsSync(path.join(kok, decodeURIComponent(k.src))), ad + ': katman resmi yok: ' + k.src); assert.ok(A.en <= 64 && A.taban + A.boy <= 30 && A.ppu > 0, ad + ': ölçü');
       assert.ok(A.oyuncu.length >= 1 && Math.abs(A.oyuncu[0].h - 1.7) < 0.02, ad + ': mavi kutu oyuncu boyunda');
       const dus = A.dusman.concat(A.boss ? [A.boss] : []); assert.ok(dus.length >= 1);
       for (const q of dus) { assert.ok(q.x > 0 && q.x < A.en && q.h > 0.5, ad + ': ' + q.ad + ' yeri ve boyu'); assert.ok(veri.includes(q.tip + ':') || veri.includes('.' + q.tip + ' ='), ad + ': "' + q.tip + '" js/topcu_veri.js içinde tanımlı değil'); }
@@ -42,11 +42,26 @@ test('blok harita okuyucu: ölçek mavi kutudan, zemin kırılır ve kırılmaz,
   const m = new Uint8Array(512 * 240); let p = 0; for (let i = 0; i < b.maske.length; i += 2) { m.fill(b.maske[i], p, p + b.maske[i + 1]); p += b.maske[i + 1]; } assert.equal(p, 512 * 240);
   const hucre = (x, y) => m[Math.floor(y * 8) * 512 + Math.floor(x * 8)]; assert.equal(hucre(10, 10.9), 1); assert.equal(hucre(40, 10.9), 2); assert.equal(hucre(10, 11.1), 0); assert.equal(hucre(40, 6.1), 2); assert.equal(hucre(40, 5.9), 0);
   const json = { ad: 'A', alt: 'B', ipucu: 'C', tema: 'sirca', ortam: 'spor', ust: '#000', altRenk: '#000', dusman: [{ tip: 'viper', ad: 'Uçan', hp: 10, fizik: false, hayalet: true }, { tip: 'cobra', ad: 'Yerde', hp: 20 }], boss: { tip: 'sahmeran', ad: 'Boss', unvan: 'U', hp: 30 } };
-  const A = arenaKur('deneme', json, b); assert.deepEqual(A.dusman.map(q => [q.fizik, q.hayalet, q.hp]), [[false, true, 10], [true, false, 20]]); assert.equal(A.kameraBoy, 6); assert.equal(A.boss.h, 6.8);
+  const A = arenaKur('deneme', json, b, [{ src: 'x', z: -1 }]); assert.deepEqual(A.dusman.map(q => [q.fizik, q.hayalet, q.hp]), [[false, true, 10], [true, false, 20]]); assert.equal(A.kameraBoy, 6); assert.equal(A.boss.h, 6.8);
   assert.throws(() => arenaKur('deneme', Object.assign({}, json, { dusman: json.dusman.slice(1) }), b), /1 düşman sayıyor, blok haritada 2 sarı kutu/);
   assert.throws(() => arenaKur('deneme', Object.assign({}, json, { boss: null }), b), /macenta|boss/);
   const bos = Buffer.alloc(w * h * 4); assert.throws(() => blokOku({ w, h, rgba: bos }, 'bos'), /mavi oyuncu kutusu yok/);
   dolu(40, 133, 50, 150, [0, 0, 0]); dolu(40, 140, 50, 150, RENK.oyuncu); assert.throws(() => blokOku({ w, h, rgba: d }, 'buyuk'), /çok büyük/);
+});
+
+test('katman dosyaları: numara çizim sırasını, addaki "kirilir" ve "kirilmaz" zemini söyler; zemin katmanı haritaya işlenir', async () => {
+  const { katmanlariBul, blokOku, RENK } = await import('../eo2/tools/arena_derle.mjs');
+  const K = katmanlariBul(['1 ön perde.webp', 'blok.png', '0 Kırılmaz kaya.png', '-2_gokyuzu.png', 'arena.json', '0 kirilir zemin.png', 'calisma.kra', '-1 duvar.png'], 'd');
+  assert.deepEqual(K.map(k => [k.z, k.zemin, k.dosya]), [[-2, null, '-2_gokyuzu.png'], [-1, null, '-1 duvar.png'], [0, 'kirilmaz', '0 Kırılmaz kaya.png'], [0, 'kirilir', '0 kirilir zemin.png'], [1, null, '1 ön perde.webp']]);
+  assert.deepEqual(katmanlariBul(['sahne.webp', 'blok.png'], 'd').map(k => k.z), [-1], 'eski tek resimli biçim: sahne = −1');
+  assert.throws(() => katmanlariBul(['arka plan.png'], 'd'), /numarasıyla başlamalı/); assert.throws(() => katmanlariBul(['0 kirilir zemin.webp'], 'd'), /PNG olmalı/); assert.throws(() => katmanlariBul(['blok.png'], 'd'), /hiç katman/);
+  const w = 640, h = 200, bos = () => Buffer.alloc(w * h * 4), dolu = (d, x0, y0, x1, y1, c, a = 255) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const i = (y * w + x) * 4; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = a; } };
+  const blok = bos(), zemin = bos(), kaya = bos(); dolu(blok, 40, 133, 50, 150, RENK.oyuncu); dolu(blok, 500, 126, 520, 150, RENK.dusman);
+  dolu(zemin, 0, 150, 640, 200, [120, 80, 50]); dolu(zemin, 0, 140, 640, 150, [60, 150, 60], 90); dolu(kaya, 320, 150, 640, 200, [90, 90, 100]);
+  const b = blokOku({ w, h, rgba: blok }, 'd', [{ tip: 'kirilir', rgba: zemin }, { tip: 'kirilmaz', rgba: kaya }]);
+  const m = new Uint8Array(512 * 240); let p = 0; for (let i = 0; i < b.maske.length; i += 2) { m.fill(b.maske[i], p, p + b.maske[i + 1]); p += b.maske[i + 1]; }
+  const hucre = (x, y) => m[Math.floor(y * 8) * 512 + Math.floor(x * 8)];
+  assert.equal(hucre(10, 10.9), 1, 'çizilen yer kırılabilir zemin'); assert.equal(hucre(40, 10.9), 2, 'kırılmaz katman kırılırın üstüne yazar'); assert.equal(hucre(10, 11.5), 0, 'yarıdan saydam çizim (çim ucu) zemin sayılmaz');
 });
 
 test('oyun tarif dosyasını zindan kodundan önce yükler', () => {

@@ -28,7 +28,7 @@
   const maskeAc = rle => { const m = new Uint8Array(512 * 240); let p = 0; for (let i = 0; i < rle.length; i += 2) { if (rle[i]) m.fill(rle[i], p, p + rle[i + 1]); p += rle[i + 1]; } return m; };
   const hazirAsama = {}, asamalar = k => { k = k || zid(); return hazirAsama[k] || (hazirAsama[k] = tarif(k).asama.map(ad => { const A = ARENA[ad], PX = B.api.PX;
     return { ad: A.ad, alt: A.alt, ipucu: A.ipucu, tema: A.tema, ortam: A.ortam, en: A.en, kameraBoy: A.kamera ? Math.round(A.kamera.h / 1.7 * 100) / 100 : A.kameraBoy, oyuncu: A.oyuncu, maske: maskeAc(A.maske),
-      sahne: { src: A.sahne.src, ppu: A.ppu, taban: A.taban, ust: A.sahne.ust, alt: A.sahne.alt }, mobSinir: [1.2 * PX, (A.en - 1.2) * PX],
+      sahne: { katman: A.katman, ppu: A.ppu, taban: A.taban, ust: A.sahne.ust, alt: A.sahne.alt }, mobSinir: [1.2 * PX, (A.en - 1.2) * PX],
       moblar: A.dusman.map(m => Object.assign({ tip: m.tip, ad: m.ad, x: m.x * PX, h: m.h, hayalet: m.hayalet }, m.fizik ? {} : { ucan: true, yW: m.y })),
       boss: A.boss ? { tip: A.boss.tip, ad: A.boss.ad, unvan: A.boss.unvan, x: A.boss.x * PX, h: A.boss.h } : null }; })); };
   /* doğuş yeri: gruptaki sıraya göre mavi kutulardan biri; kutu yetmezse ilk kutunun çevresine dizilir (dünya birimi) */

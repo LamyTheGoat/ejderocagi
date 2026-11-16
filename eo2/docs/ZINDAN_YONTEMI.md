@@ -17,15 +17,26 @@ Kapsam: PvE zindan aşamaları ve PvP arenaları aynı yöntemle kurulur. "KARAR
 
 ## 2. Bir arena = bir klasör
 
-`eo2/arenalar/<ad>/` (ad: küçük harf, rakam, tire). İçinde üç dosya:
+`eo2/arenalar/<ad>/` (ad: küçük harf, rakam, tire). İçinde:
 
 | Dosya | Ne |
 |---|---|
-| `sahne.webp` | Arenanın çizimi, tek resim (modüller önceden bir araçla dizilir; örnek `eo2/tools/zumrut_sahne.mjs`). Boss, düşman ve oyuncu gömülmez. |
-| `blok.png` | Krita'da çizimin üstüne, çizimle **aynı boyutta** çizilen blok harita. 8 bit PNG, kenar yumuşatma kapalı. |
-| `arena.json` | Haritadan okunamayanlar: yazılar ve düşman listesi. |
+| Numaralı katman resimleri | Krita katmanlarının dışa aktarımı. Dosya adı katman numarasıyla başlar. |
+| `blok.png` | İşaret katmanı: oyuncu, düşman ve boss kutuları, kamera çerçevesi. |
+| `arena.json` | Yazılar ve düşman listesi. |
 
 Sonra `node eo2/tools/arena_derle.mjs` çalıştırılır: bütün klasörleri okur, `eo2/js/arena_veri.js` dosyasını üretir. Oyun ve sunucu yalnız o dosyayı okur. **Yeni arena için kod yazılmaz.** Bir şey eksik ya da tutarsızsa araç, çizen kişinin anlayacağı bir hatayla durur.
+
+### Katmanlar (KARAR, 2026-11-17)
+
+- Katman adı **numarayla başlar**: `-2 gokyuzu.png`, `-1 arka duvar.png`, `0 kirilmaz zemin.png`, `1 on perde.png`.
+- **Oyuncu hep 0'dadır.** 0 ve altı oyuncunun arkasında çizilir (küçük numara daha arkada); 1 ve üstü oyuncunun önünde. Aynı numaralılar ada göre sıralanır.
+- Adında **"kirilir"** geçen katman kırılabilir zemin, **"kirilmaz"** geçen kırılamaz zemindir. O katmana çizdiğin yer zemin olur; gülle kırılabilir katmanın resmini gerçekten oyar ve arkadaki katmanlar görünür.
+- Yarıdan saydam yerler zemin sayılmaz (yumuşak fırçada çarpışma çizgisi, görünen kenarın biraz içindedir). Çarpışmaması gereken süs (sarkan çim, gölge) zemin katmanına değil başka bir katmana çizilir.
+- Bütün katmanlar tuvalin tamamı olarak, **aynı boyda** dışa aktarılır (katman içeriğine göre kırpma kapalı). Zemin katmanları PNG olmalı; ötekiler PNG ya da WebP olabilir.
+- Krita'dan: Araçlar → Betikler → Katmanları Dışa Aktar (Export Layers); "katman içeriğine göre boyut ayarla" kapalı. Dosya adlarının başına ek bir şey koyuyorsa adları numarayla başlayacak biçimde düzelt.
+- Eski tek resimli biçim geçerli: `sahne.webp` = −1 numaralı katman (Zümrüt Saray böyle).
+- SEÇİM: Krita dosyasını (.kra) doğrudan okumak yerine numaralı dışa aktarım seçildi; kullanıcının önerdiği iki yoldan sağlam olanı. Klasördeki .kra dosyası yok sayılır.
 
 ### Blok harita renkleri (KARAR)
 
@@ -33,8 +44,8 @@ Palet: `eo2/docs/blok_harita_paleti.png` (görsel) ve `eo2/docs/blok_harita_pale
 
 | Renk | Hex | Anlam |
 |---|---|---|
-| Kırmızı | `#FF0000` | Kırılabilir zemin |
-| Koyu gri | `#404040` | Kırılamaz zemin |
+| Kırmızı | `#FF0000` | Görünmez kırılabilir zemin (yalnız resmi olmayan zemin için; olağan yol zemin katmanı) |
+| Koyu gri | `#404040` | Görünmez kırılamaz zemin (aynı) |
 | Mavi | `#0000FF` | Oyuncu doğuş kutusu (dolu) |
 | Sarı | `#FFFF00` | Düşman kutusu (dolu) |
 | Macenta | `#FF00FF` | Boss kutusu (dolu) |
@@ -86,8 +97,9 @@ Bugün: düşman ve boss türleri `eo2/js/topcu_veri.js` içinde tanımlı (eski
 
 ## 6. Bugünkü durum ve bilinen eksikler
 
-- Kurulu: klasör + blok harita + derleyici; Zümrüt Saray'ın iki arenası bu yolla çalışıyor (tek kişi ve grup). İki arenanın blok haritası kodla çizildi (`eo2/tools/zumrut_blok.mjs`), Krita'da elle çizilmiş bir harita henüz denenmedi.
-- Kırılabilir (kırmızı) zeminde çukur, çizimin üstünde koyu oyuk olarak görünür; canlı bir arenada denenmedi (eldeki iki arena kırılmaz).
+- Kurulu: klasör + numaralı katmanlar + işaret katmanı + derleyici; Zümrüt Saray'ın iki arenası bu yolla çalışıyor (tek kişi ve grup). İki arenanın blok haritası kodla çizildi (`eo2/tools/zumrut_blok.mjs`), Krita'da elle çizilmiş bir harita henüz denenmedi.
+- Katmanlı arena ve kırılabilir zemin katmanı kodla üretilmiş bir deneme arenasında doğrulandı (gülle zemin resmini oyuyor, kırılmaz katman duruyor, ön katman oyuncunun önünde). Oyunda duran iki arena tek resimli ve kırılmaz; Krita'dan çıkmış gerçek bir katman takımı henüz denenmedi.
+- Katmanlar PNG olarak oyuncuya gider; büyük arenalarda dosya boyu için ayrı bir küçültme adımı gerekebilir.
 - Uçan düşman yerinden kıpırdamaz (eski kural); "hayalet" ayarı okunuyor ama zeminin içinden geçen bir hareket henüz yok.
 - Eski üç zindanın (Sırça Saray'ın dört aşamalı hâli, Volkanik Kaldera, Batık Donanma) tek kişilik seferleri eski yolla duruyor. Zümrüt Saray'ı olan Sırça Saray girişi yeni sisteme gider; öteki ikisi arenaları çizilince taşınacak.
 - PvP arenaları henüz bu yükleyiciye bağlanmadı.

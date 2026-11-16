@@ -30,3 +30,12 @@ export function pngYaz(w, h, rgba) {
   const ih = Buffer.alloc(13); ih.writeUInt32BE(w, 0); ih.writeUInt32BE(h, 4); ih[8] = 8; ih[9] = 6;
   return Buffer.concat([IMZA, parcaYaz('IHDR', ih), parcaYaz('IDAT', zlib.deflateSync(ham, { level: 9 })), parcaYaz('IEND', Buffer.alloc(0))]);
 }
+/* yalnız boyut: PNG başlığı ya da WebP (VP8X, VP8L, VP8) başlığı */
+export function boyutOku(buf) {
+  if (buf.subarray(0, 8).equals(IMZA)) return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+  if (buf.toString('latin1', 0, 4) === 'RIFF' && buf.toString('latin1', 8, 12) === 'WEBP') { const t = buf.toString('latin1', 12, 16);
+    if (t === 'VP8X') return { w: 1 + buf.readUIntLE(24, 3), h: 1 + buf.readUIntLE(27, 3) };
+    if (t === 'VP8L') { const b = buf.readUInt32LE(21); return { w: 1 + (b & 0x3fff), h: 1 + ((b >> 14) & 0x3fff) }; }
+    if (t === 'VP8 ') return { w: buf.readUInt16LE(26) & 0x3fff, h: buf.readUInt16LE(28) & 0x3fff }; }
+  throw new Error('boyutu okunamayan resim (PNG ya da WebP olmalı)');
+}
