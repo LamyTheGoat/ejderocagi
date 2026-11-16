@@ -12,7 +12,8 @@
   const ORTAK = ['erguvan0', 'erguvan1', 'ys-agac0', 'ys-agac1', 'ys-cam0', 'ys-cam1', 'ys-kaya0', 'ys-kaya1', 'ys-direk', 'yapi-fener', 'yapi-yuva', 'yapi-yosun', 'cicek0', 'cicek1'];
   const yukle = src => new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
   /* görünüş seçimi js/doku.js içinde (çizgi ya da çizim). Buradaki 'boyali' deneme kullanıcı tarafından reddedildi (2026-11-11): menüde yok, yalnız EO2.meydanUslup = 'boyali' ile denenir. */
-  (async () => { while (!EO2.ext) await new Promise(r => setTimeout(r, 60));
+  let boyaliSecili = false; try { boyaliSecili = localStorage.getItem('eo2.meydan3') === 'boyali'; } catch (e) { /* gizli pencere */ }   // menüde yok: seçili değilse 2,6 MB çizim boşuna inmez
+  if (boyaliSecili) (async () => { while (!EO2.ext) await new Promise(r => setTimeout(r, 60));
     const sonuc = await Promise.all([...KENDI.map(k => yukle('assets/dunya/my-' + k + '.webp').then(im => { if (im) EO2.ext['my-' + k] = im; return !!im; })),
       ...ORTAK.map(k => yukle('assets/dunya/' + k + '.webp').then(im => { if (im) EO2.ext['my-' + k] = im; return !!im; })), yukle('assets/bg/ocak-ufuk.webp').then(im => { if (im) EO2.ext['my-ufuk'] = im; return !!im; })]);
     EO2.meydanHazir = sonuc.every(Boolean); })();                       // bir çizim bile eksikse düz meydan kalır

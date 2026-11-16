@@ -116,10 +116,12 @@
     const adlar = (() => { const k = new Set(); for (const q of NESNE) k.add(Array.isArray(q) ? q[0] : q.ad); for (const o of DUZEN) k.add(o.ad); for (const v of Object.values(SET2)) if (v[0]) k.add(v[0]); for (const v of Object.values(ISIKSIZ)) k.add(v);
       for (const A of Object.values(AILE)) for (const a of A.acilar) k.add(ad3(A, a)); for (const a of (V.cizimler || [])) k.add(a); for (const q of (V.onPlan || [])) k.add(q[0]); if (V.tavan && V.tavan.ad) k.add(V.tavan.ad);
       for (const a of Object.keys(AILE)) k.delete(a); return [...k]; })();   // aile adı (ör. ms-bank) çizim değildir; yerine açı çizimleri yüklenir
-    const hazir = EO2.doku && EO2.doku.ekle ? EO2.doku.ekle(adlar, klasor) : Promise.resolve([]);
     /* zemine serilen resimler (V.zemin.resimler): [ad, x0, y0, x1, y1] dünya dikdörtgeni; resmin altı yakın, üstü uzak kenardır.
        Döşemeyle birlikte boyanır: nesne gölge lekeleri ve ışık havuzları üstüne düşer. Palette görünmez. api.zeminResim(0) ile kapatılır (kıyas için). */
-    const ZRES = (ZM.resimler || []).slice(), zresHazir = ZRES.length && EO2.doku && EO2.doku.ekle ? EO2.doku.ekle(ZRES.map(q => q[0]), klasor) : Promise.resolve([]);
+    const ZRES = (ZM.resimler || []).slice(), ekle = a => a.length && EO2.doku && EO2.doku.ekle ? EO2.doku.ekle(a, klasor) : Promise.resolve([]);
+    /* çizimler ilk istendiğinde yüklenir: sahneye girilirken (EO2.sahneYukle) ya da sahne kurulurken. Başlangıç sahnesi (master) hemen yükler. */
+    let yukP = null; const yukleCiz = () => yukP || (yukP = Promise.all([ekle(adlar), ekle(ZRES.map(q => q[0]))]));
+    if (id === 'master') yukleCiz();
     const dokuOf = ad => { const t = ic.dokular[ad]; if (t) return t; const im = ad && ic.K && ic.K.im[ad]; if (!im || !ic.R0) return null; return ic.dokular[ad] = Object.assign(ic.R0.texture(im), { oran: im.naturalHeight / im.naturalWidth, gen: im.naturalWidth }); };
     /* ışıma ve gölge dokuları çizimin kendisinden üretilir:
          ışıma (p): çok parlak kehribar (fener camı, pencere) ve çok parlak camgöbeği (su) pikselleri ayrılır, bulanıklaştırılır; toplamalı çizilir.
@@ -222,7 +224,7 @@
       ic.R0 = R0; ic.K = EO2.doku; ic.dokular = {}; ic.fx = h.T.fx; ic.golgeUv = h.uv('shadow'); ic.dip = dipDokular(R0);
       { const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d'); x.fillStyle = 'rgb(58,40,84)'; x.beginPath(); x.ellipse(128, 64, 126, 62, 0, 0, 6.3); x.fill(); ic.elips = R0.texture(c); }
       ic.yenile = () => { for (const y of yer) y.t = R0.texture(zeminCiz(y.q[0], y.q[1], y.q[2], y.q[3], y.q[4], y.q[5])); }; ic.yenile();
-      Promise.all([hazir, zresHazir]).then(() => { if (ic.yenile) ic.yenile(); });   // çizimler sahneden sonra yüklendiyse gölgeler yeniden boyanır
+      yukleCiz().then(() => { if (ic.yenile) ic.yenile(); });   // çizimler sahneden sonra yüklendiyse gölgeler yeniden boyanır
       h.push({ key: 960, draw(R) { for (const y of yer) { const q = y.q; R.quad(y.t, [q[0], q[1], 0.006], [q[2], q[1], 0.006], [q[2], q[3], 0.006], [q[0], q[3], 0.006], 0, 0, 1, 1, BIRR, false, 1); } } });
       for (const o of DUZEN) for (const it of nesneItler(o)) h.push(it);
       /* tavan düzlemi (V.tavan: { ad, z, x0, x1, y0, y1, karo, isik }): yatay, döşenen doku; kamera tavanın üstüne çıkınca (dikey ekran) çizilmez. Doku dünyaya bağlıdır, kamera yürüyünce kaymaz. */
@@ -326,7 +328,7 @@
     /* büyütme oranı: çizimin ekranda tuttuğu piksel / kaynak pikseli. yakin: oyuncu nesnenin yanındayken, bas: oyuncu başlangıç yerindeyken. 1'in üstü bulanıklaşır. */
     const buyutme = (o, en) => { const t = dokuOf(cizimAd(o)); if (!t || !t.gen) return null; const k = (en || 1920) / MW, Z = (o.y - PY + D0) * CT + KH * ST; return { kaynak: t.gen, yakin: enOf(o) * OLC(REF.oyuncu[1]) * k / t.gen, bas: Z > 0.1 ? enOf(o) * (ODAK / Z) * k / t.gen : 0 }; };
     const bulaniklik = en => DUZEN.filter(o => !o.sil).map(o => { const b = buyutme(o, en); return b && { ad: cizimAd(o), x: r3(o.x), y: r3(o.y), kaynak: b.kaynak, yakin: +b.yakin.toFixed(2), bas: +b.bas.toFixed(2) }; }).filter(b => b && b.yakin > 1.15).sort((a, b) => b.yakin - a.yakin);
-    const api = { id, ad: V.ad || id, s, PX, OLC, hazir, bulaniklik, kamera: { TH, KH, D0, ODAK, UFUK, ad: kamAd }, kare, editor,
+    const api = { id, ad: V.ad || id, s, PX, OLC, get hazir() { return yukleCiz(); }, yukle: yukleCiz, bulaniklik, kamera: { TH, KH, D0, ODAK, UFUK, ad: kamAd }, kare, editor,
       duzen: () => DUZEN.filter(o => !o.sil), cizimler: () => adlar.slice(),
       kilavuz: v => { s.kilavuz = v ? 1 : 0; kaydet(); },
       zeminResim: v => { s.zeminResim = v ? 1 : 0; kaydet(); if (ic.yenile) ic.yenile(); },

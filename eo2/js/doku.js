@@ -56,11 +56,36 @@
   K.zemin = {}; for (const ad of ['tas', 'tas2', 'tas3', 'tas4', 'tas5', 'cim', 'ahsap', 'kum', 'toprak']) yukle('assets/zemin/' + ad + '.webp').then(im => { if (im) K.zemin[ad] = im; });
   /* bölüm çizimleri: bölüm motoru (js/bolum.js) kendi çizimlerini adlarıyla ister; yüklü olan yeniden yüklenmez */
   K.ekle = (adlar, klasor) => Promise.all((adlar || []).filter(ad => ad && !K.im[ad]).map(ad => yukle((klasor || 'assets/dunya/an/') + ad + '.webp').then(im => { if (im) K.im[ad] = im; return [ad, !!im]; })));
-  K.yuklendi = Promise.all(Object.keys(OLCU).map(ad => yukle('assets/dunya/an/' + ad + '.webp').then(im => { if (im) { K.im[ad] = im; const g = isikOf(im, OLCU[ad]); if (g) K.isik[ad] = g; if (OLCU[ad].kab) K.kab[ad] = kabartmaOf(im); } return !!im; }))).then(r => {
-    K.hazir = r.some(Boolean); K.tam = r.every(Boolean); K.eksik = Object.keys(OLCU).filter((ad, i) => !r[i]);
-    if (!secim) EO2.meydanUslup = K.hazir ? 'cizim' : 'duz';
-    /* renk süzgeci: sahnenin üstünde, arayüzün altında; ortası sıcak altın, kenarı mor gölge (referanstaki akşamüstü ışığı) */
-    const cv = document.getElementById('world'); if (cv && EO2.meydanUslup === 'cizim' && !document.getElementById('isikSuzgeci')) { const d = document.createElement('div'); d.id = 'isikSuzgeci'; d.setAttribute('aria-hidden', 'true'); cv.insertAdjacentElement('afterend', d); } });
-  if (secim) EO2.meydanUslup = secim;
+  /* YÜKLEME: çizimler açılışta topluca inmez (2026-11-16; açılışta 45 MB görsel iniyordu). Başlangıç sahnesi (master Merkez Meydan)
+     kendi çizimlerini bölüm motorundan ister; buradaki çizimler sahneye girilirken yüklenir (EO2.sahneYukle, game.js goScene bekler):
+       ORTAK  eski meydanın yapı ve eşyaları; bölüm olmayan her sahne bunları ortak doku olarak kullanır (world.js h.tx, h.D)
+       GRUP   sahnenin kendi iç mekân çizimleri
+       geri kalanı (pl-, pa-, pl3-) yalnız Pilot Meydan'dadır (geliştirici haritası): o sahneye girilirken hepsi yüklenir.
+     K.hazir = ORTAK yüklendi demektir: world.js çizim dokularına ancak o zaman geçer; yarısı çizim yarısı çizgi sahne kurulmaz.
+     K.acik  = çizim dünyası seçili (ışık ve zemin dokusu için; yüklemeyi beklemez). */
+  const ORTAK = ['han', 'han-yan', 'bedesten', 'bedesten-yan', 'kapi', 'arena', 'arena-yan', 'ev-a', 'ev-a-yan', 'ev-b', 'ev-b-yan', 'bahce', 'alcak', 'sur-b', 'sur-d', 'cinar', 'erguvan0', 'erguvan1', 'erguvan2', 'erguvan3', 'erguvan4', 'selvi', 'bahce-agac0', 'bahce-agac1',
+    'fener', 'bank', 'saksi0', 'saksi1', 'saksi2', 'saksi3', 'tezgah0', 'tezgah1', 'tezgah2', 'fici', 'sandik', 'direk', 'mangal'];
+  const GRUP = { han: ['ic-han-arka', 'ic-han-yan', 'hali-yolluk', 'hali-kilim', 'ic-masa', 'ic-sayac'], pazar: ['ic-pazar-arka', 'ic-pazar-yan', 'hali-yolluk', 'ic-sergi0', 'ic-sergi1', 'ic-sergi2', 'ic-sergi3', 'ic-sayac'], arena: ['ic-arena-arka', 'ic-arena-yan', 'ic-hedef', 'ic-toprafi'] };
+  const bekleyen = {}, sonuc = {};
+  const al = ad => bekleyen[ad] || (bekleyen[ad] = yukle('assets/dunya/an/' + ad + '.webp').then(im => { if (im) { K.im[ad] = im; const g = isikOf(im, OLCU[ad]); if (g) K.isik[ad] = g; if (OLCU[ad].kab) K.kab[ad] = kabartmaOf(im); } return sonuc[ad] = !!im; }));
+  let ortakP = null, tumP = null;
+  K.ortak = () => ortakP || (ortakP = Promise.all(ORTAK.map(al)).then(r => { K.hazir = r.some(Boolean); }));
+  K.tumu = () => tumP || (tumP = Promise.all([K.ortak(), ...Object.keys(OLCU).map(al)]).then(() => { const A = Object.keys(OLCU); K.tam = A.every(ad => sonuc[ad]); K.eksik = A.filter(ad => !sonuc[ad]); }));
+  K.yuklendi = Promise.resolve();   // eski ad (pilot.js ayarlarını bununla uygular); çizimlerin tamamı için K.tumu()
+  /* sahneye girmeden önce gereken çizimler. Başka dosyalar kendi yükleyicisini EO2.sahneOnce[kimlik] ile kaydeder (ocak25.js). Hiç reddetmez. */
+  EO2.sahneOnce = EO2.sahneOnce || {};
+  EO2.sahneYukle = id => { const b = EO2.bolum && EO2.bolum.hepsi && EO2.bolum.hepsi[id], is = [];
+    if (b) { if (b.yukle) is.push(b.yukle()); }
+    else if (EO2.meydanUslup === 'cizim') is.push(id === 'pilot' ? K.tumu() : Promise.all([K.ortak(), ...(GRUP[id] || []).map(al)]));
+    if (EO2.sahneOnce[id]) is.push(EO2.sahneOnce[id]());
+    return Promise.all(is).then(() => { }, () => { }); };
+  /* boşta ön yükleme: bağlantı uygunsa (veri tasarrufu kapalı, hücresel ya da yavaş değil) öteki sahnelerin çizimleri sırayla, arka planda iner; geçişler beklemez */
+  K.onYukle = async () => { const c = navigator.connection; if (c && (c.saveData || c.type === 'cellular' || /(^|-)[23]g$/.test(c.effectiveType || ''))) return;
+    const sira = [...Object.keys(GRUP), 'bahce', 'ocak', ...Object.keys((EO2.bolum && EO2.bolum.hepsi) || {}).filter(k => k !== 'deneme')];
+    for (const id of sira) { await EO2.sahneYukle(id); await new Promise(r => setTimeout(r, 400)); } };
+  setTimeout(function bekle() { if (!EO2.api || document.querySelector('#app > .giris:not(.gitti)')) return setTimeout(bekle, 3000); K.onYukle(); }, 12000);
+  EO2.meydanUslup = secim || 'cizim'; K.acik = EO2.meydanUslup === 'cizim';
+  /* renk süzgeci: sahnenin üstünde, arayüzün altında; ortası sıcak altın, kenarı mor gölge (referanstaki akşamüstü ışığı) */
+  { const cv = document.getElementById('world'); if (cv && K.acik && !document.getElementById('isikSuzgeci')) { const d = document.createElement('div'); d.id = 'isikSuzgeci'; d.setAttribute('aria-hidden', 'true'); cv.insertAdjacentElement('afterend', d); } }
   EO2.meydanSec = u => { EO2.meydanUslup = u; try { localStorage.setItem('eo2.meydan3', u); } catch (e) { /* gizli pencere */ } };
 })();

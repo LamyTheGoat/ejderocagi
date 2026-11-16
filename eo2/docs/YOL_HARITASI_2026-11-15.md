@@ -64,7 +64,7 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 
 ## 3. Çıkıştan önce şart olan küçük ve orta işler
 
-1. **İlk yük:** açılışta 500'den fazla istek, 70'ten fazla ayrı betik. Sıkıştırma eklendi (2026-11-16: betik ve stiller brotli/gzip ile 2973 KB'tan 897 KB'a iniyor). **Asıl yük görsellerde:** giriş ekranına kadar yaklaşık 21 MB iniyor; bölüm çizimlerinin girilince yüklenmesi en büyük kazanç. Betikleri tek pakete topla, bölüm çizimlerini
+1. **İlk yük:** açılışta 500'den fazla istek, 70'ten fazla ayrı betik. Sıkıştırma eklendi (2026-11-16: betik ve stiller brotli/gzip ile 2973 KB'tan 897 KB'a iniyor). **Görseller (2026-11-16):** önceki 21 MB ölçümü eksikti (tarayıcı sayacı 250 istekte kesiyordu); açılışta gerçekte yaklaşık 50 MB görsel iniyordu. Artık yalnız başlangıç sahnesinin çizimleri iner (yaklaşık 20 MB: Merkez Meydan 10 MB, chibi kareleri 6,4 MB, zemin 1,6 MB); öteki sahnelerin çizimleri sahneye girilirken yüklenir (`EO2.sahneYukle`, perde yükleme bitene dek kapalı), bağlantı uygunsa boşta arka planda iner. Reddedilen boyalı meydan ve Pilot Meydan çizimleri oyuncuya hiç inmez. Kalan: Merkez Meydan'ın 10 MB'ı ve chibi kareleri (chibi ajanının alanı). Betikleri tek pakete topla, bölüm çizimlerini
    girilince yükle, sunucuda gzip/brotli ve uzun önbellek başlığı. Yükleme perdesine ilerleme çubuğu.
 2. **Kayıt yedeği:** kayıt yalnız tarayıcıda. Misafir hesabına sunucu yedeği (2.1 ile birlikte çözülür); o zamana kadar dışa/içe aktarma.
 3. **Ürün kimliği:** paylaşım görseli (og:image), sürüm numarası, künye, gizlilik ve kullanım koşulları sayfası, yazı tiplerinin kendi

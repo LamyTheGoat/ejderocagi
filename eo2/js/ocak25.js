@@ -37,7 +37,7 @@
       yukle('assets/bg/ocak-ufuk.webp').then(im => { if (im) EO2.ext['oc-ufuk'] = im; })]);
     /* yol dokusu: toprağın karşıtlığı azaltılmış kopyası. Motor zemin kabartmasını döşeme dokusundan çıkarıp bütün zemine uygular; ham dokuda taş izleri çime de çıkıyordu. */
     const tp = EO2.ext['zm-toprak']; if (tp && EO2.doku && EO2.doku.zemin) { EO2.doku.zemin['oc-yol'] = cv(1024, 1024, (x, w) => { x.drawImage(tp, 0, 0, w, w); x.fillStyle = 'rgba(206,172,122,.62)'; x.fillRect(0, 0, w, w); }); L.zemin = ['oc-yol', 'cim', 5.2, 9.5]; } })());
-  onYukle();
+  (EO2.sahneOnce = EO2.sahneOnce || {}).ocak = onYukle;   // çizimler açılışta değil, Ocak'a girilirken yüklenir (game.js goScene bekler)
 
   /* ---------- sahne tanımı ---------- */
   const YB = YT + 4.7;   // arka çit dedenin evinin arkasındadır; evin önü (tarh, odunluk, oturma köşesi) arazinin devamıdır

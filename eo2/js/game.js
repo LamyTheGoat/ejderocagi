@@ -276,7 +276,7 @@
       const fogC = [lerp(0.80, 0.33, n), lerp(0.89, 0.25, n), lerp(0.97, 0.44, n), LT.fog === undefined ? 0.86 : LT.fog];
       R.setFog(fogC, [30, 105]);
       /* çizim dünyasında gündüz "altın saat"tir: ortam ışığı sıcak, pencereler ve fenerler gündüz de hafifçe yanar (ik); gece değerleri aynı */
-      const ciz = EO2.meydanUslup === 'cizim' && EO2.doku && EO2.doku.hazir, IA = EO2.isikAyar || { ik: 0.24, sicak: 1 }, ik = ciz && !L.indoor ? IA.ik : 0, nI = Math.max(n, ik), sk = IA.sicak; R.zaman = S.time;
+      const ciz = EO2.meydanUslup === 'cizim' && EO2.doku && (EO2.doku.acik || EO2.doku.hazir), IA = EO2.isikAyar || { ik: 0.24, sicak: 1 }, ik = ciz && !L.indoor ? IA.ik : 0, nI = Math.max(n, ik), sk = IA.sicak; R.zaman = S.time;
       F.amb = LT.amb || (ciz ? [lerp(1 + 0.06 * sk, 0.50, n), lerp(1 - 0.015 * sk, 0.49, n), lerp(1 - 0.13 * sk, 0.74, n)] : [lerp(1, 0.50, n), lerp(1, 0.49, n), lerp(1, 0.74, n)]); F.camH = H; F.py = player.y; F.night = nI; F.time = S.time; F.dt = dt; F.camX = cam.x; F.camY = cam.y - D; F.D = D;
       F.horizonNDC = 1 - 2 * (ppy - Fc * sin / cos) / h;
       playerScreen = R.project(player.x, player.y, 0.9);
@@ -430,11 +430,12 @@
       cam.x = clamp(player.x, Math.min(0, L.bounds[0] + 4.1), Math.max(0, L.bounds[1] - 4.1)); cam.y = player.y; target = null; near = null; flyer = null; flyT = 10 + Math.random() * 10; keys.clear();
       rebuildSigns(); $('locName').textContent = L.name; app.dataset.scene = id; app.classList.toggle('indoor', !!L.indoor); if (EO2.audio && EO2.audio.scene) EO2.audio.scene(L);
       if (from) { titleCard(L.name, L.sub); chatAdd('sistem', '', L.name + (L.sub ? ' · ' + L.sub : '')); } if (EO2.hooks.scene) EO2.hooks.scene(id); return true; }
-    EO2.iris = fn => { const el = $('iris'); el.classList.add('on'); setTimeout(() => { fn(); setTimeout(() => el.classList.remove('on'), 180); }, 430); };
+    EO2.iris = fn => { const el = $('iris'); el.classList.add('on'); setTimeout(() => { Promise.resolve(fn()).catch(e => console.error(e)).then(() => setTimeout(() => el.classList.remove('on'), 180)); }, 430); };   // fn söz döndürürse perde o bitene dek kapalı kalır
     let switching = false;
     /* varsayılan harita master Merkez Meydan'dır: 'meydan' isteği ona gider (eski meydan yalnız ?gelistirici ile) */
     function merkez(id) { return id === 'meydan' && (EO2.sceneDefs || {}).master && !app.classList.contains('gelistirici') ? 'master' : id; }
-    function goScene(id) { id = merkez(id); if (switching || !SC || id === SC.id || !(id === 'meydan' || (EO2.sceneDefs || {})[id])) return; switching = true; const from = SC.id; if (EO2.dialog) EO2.dialog.close(); closePanel(); if (EO2.audio) EO2.audio.chime(); EO2.iris(() => { enter(id, from); switching = false; }); }
+    function goScene(id) { id = merkez(id); if (switching || !SC || id === SC.id || !(id === 'meydan' || (EO2.sceneDefs || {})[id])) return; switching = true; const from = SC.id; if (EO2.dialog) EO2.dialog.close(); closePanel(); if (EO2.audio) EO2.audio.chime(); const yuk = EO2.sahneYukle ? EO2.sahneYukle(id) : Promise.resolve();   // sahnenin çizimleri girişte yüklenir; perde yükleme bitene dek kapalıdır
+      EO2.iris(() => yuk.then(() => { enter(id, from); }).then(() => { switching = false; }, e => { switching = false; console.error(e); })); }
 
     /* ---------- Döngü ---------- */
     function fit() { const r = app.getBoundingClientRect(); if (r.width && r.height) R.resize(r.width, r.height, Math.min(devicePixelRatio || 1, 2)); }
