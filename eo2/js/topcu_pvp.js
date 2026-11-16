@@ -66,7 +66,32 @@
     else if (a === 'pass') B.uzak({ t: 'pas' }); }
   ag.dinle('pvp_match_start', macBaslat);
   ag.dinle('pvp_match_end', m => { const M_ = st.mac; if (!M_ || (m.matchId && m.matchId !== M_.id)) return; M_.sunucuBitirdi = true; M_.neden = m.reason; if (st.oda) st.oda.state = 'ended'; if (B.active() && B.state() && !B.state().over) B.sonlandir(m.winner === m.you); });
-  ag.dinle('pvp_room', m => { st.oda = m.room; st.ben = m.you; st.hata = ''; if (m.room.state === 'waiting') st.rakipKoptu = false; ciz(); });
+  ag.dinle('pvp_room', m => { st.oda = m.room; st.ben = m.you; st.hata = ''; if (m.room.state === 'waiting') st.rakipKoptu = false;
+    if (st.davet && m.room.state === 'waiting') { const to = st.davet; st.davet = null; yolla({ type: 'pvp_room_invite', to: to.h }); }   // oda kuruldu: bekleyen davet gider
+    ciz(); });
+  /* ---------- meydandan davet (js/meydan_ag.js çağırır) ----------
+     Oyuncu meydanda yanına geldiği başka bir oyuncuyu Er Meydanı'na çağırır: oda yoksa kurulur, davet sunucudan gider.
+     Çağrılan oyuncu kabul ederse odaya katılır; ikisi de Er Meydanı künyesine götürülür. Dostça, ödülsüz. */
+  const meydanAc = () => { if (!G.live || B.active()) return; if (G.ekran() !== 'topcu') G.open('topcu'); EO2.topcu.sec('meydan'); };
+  function davet(h, ad) {
+    if (ag.durum() !== 'cevrimici') { G.toast('Sunucuya ulaşılamıyor; davet gönderilemedi.'); return false; }
+    if (B.active() || st.kuyruk) { G.toast('Önce süren maçı ya da eşleşmeyi bitir.'); return false; }
+    if (st.oda && st.oda.state === 'waiting' && st.oda.host === st.ben) yolla({ type: 'pvp_room_invite', to: h });
+    else if (st.oda) { G.toast('Zaten bir odadasın. Önce odadan çık.'); meydanAc(); return false; }
+    else { st.davet = { h, ad }; yolla(Object.assign({ type: 'pvp_room_create', mode: '1v1' }, kimlik())); }
+    meydanAc(); return true;
+  }
+  ag.dinle('pvp_invite_sent', () => G.toast('Davet gönderildi. Kabul ederse kızıl sancağa oturur.'));
+  ag.dinle('pvp_invite_declined', () => G.toast('Davetin geri çevrildi.'));
+  let davetAcik = false;
+  ag.dinle('pvp_invite', async m => {
+    if (!m || typeof m.code !== 'string' || davetAcik || !G.live || B.active() || st.oda || st.kuyruk) { if (m && m.roomId && !davetAcik) ag.gonder({ type: 'pvp_invite_reply', roomId: m.roomId, accept: false }); return; }
+    davetAcik = true; const kim = EO2.meydanAg && EO2.meydanAg.adOf ? EO2.meydanAg.adOf(m.from) : null;
+    const v = await G.pen({ k: 'Er Meydanı', t: 'Düello daveti', body: '<p><b>' + esc_(kim || 'Bir terbiyeci') + '</b> seni Topçu düellosuna çağırıyor.</p><p>Dostça bir maç: altın, ün ve sıralama yazılmaz; kaybın olmaz.</p>', btns: [{ t: 'Şimdi değil', v: false }, { t: 'Kabul et', cls: 'altin', v: true }] });
+    davetAcik = false;
+    if (!v) { ag.gonder({ type: 'pvp_invite_reply', roomId: m.roomId, accept: false }); return; }
+    if (yolla(Object.assign({ type: 'pvp_room_join', code: m.code }, kimlik()))) meydanAc();
+  });
   ag.dinle('pvp_room_left', () => { st.oda = null; ciz(); });
   ag.dinle('pvp_room_closed', () => { st.oda = null; st.hata = 'Oda kapandı.'; ciz(); });
   ag.dinle('pvp_error', m => { st.hata = m.message || 'İşlem yapılamadı.'; if (st.kuyruk) st.kuyruk = null; ciz(); });
@@ -76,5 +101,5 @@
   ag.dinle('pvp_peer_back', () => { st.rakipKoptu = false; if (B.active()) G.toast('Rakibin geri döndü.'); });
   ag.dinle('pvp_rematch_pending', m => { if (!m.self) { st.sonuc = 'Rakibin rövanş istiyor.'; ciz(); } });
   ag.dinle('durum', () => { if (ag.durum() !== 'cevrimici') { st.kuyruk = null; } ciz(); });
-  EO2.topcuPvp = { kunye, bagla, durum: () => st };
+  EO2.topcuPvp = { kunye, bagla, davet, durum: () => st };
 })();

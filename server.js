@@ -51,7 +51,7 @@ const zlib = require('node:zlib');
 const publicFile = createPublicFiles(__dirname, [DB_DIR]);
 const REPORTS = require('./server/report_log').createReportLog(DB_DIR);
 const EO2_PAGE = require('./server/eo2_page').createEo2Page(__dirname, PUBLIC_URL);
-const MEYDAN = require('./server/meydan_presence').createMeydanPresence({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); } });
+const MEYDAN = require('./server/meydan_presence').createMeydanPresence({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, kimlik: socket => socket.playerInfo && socket.playerInfo.handle });
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',

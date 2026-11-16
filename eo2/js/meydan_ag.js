@@ -14,7 +14,16 @@
 
   /* yer rozetinde kaç oyuncu olduğu: 'Merkez Meydan · 3 oyuncu' (kendin dahil); yalnızken görünmez */
   function say() { const el = document.getElementById('locKisi'); if (!el) return; const n = kisiler.size; el.hidden = !n; el.textContent = n ? (n + 1) + ' oyuncu' : ''; el.title = n ? 'Bu alanda seninle birlikte ' + (n + 1) + ' oyuncu var' : ''; }
-  function birak(id) { const c = kisiler.get(id); if (!c) return; kisiler.delete(id); const i = api.remotes.indexOf(c); if (i >= 0) api.remotes.splice(i, 1); api.dropChar(c); say(); }
+  /* etkileşim: oyuncunun yanına gelince (E ya da beliren düğme) Er Meydanı daveti. Kayıt, sahnenin etkileşim listesine eklenir ve
+     her karede oyuncunun konumunu izler; oyuncu ayrılınca ya da alan değişince listeden çıkar. */
+  let etkL = null;
+  function etkEkle(id, c) { if (!api.sceneState) return; const L = api.sceneState().L; if (!L || !Array.isArray(L.interact) || !c.handle) return; if (etkL !== L) etkL = L;
+    c.etk = { id: 'oy:' + id, x: c.x, y: c.y, r: 1.5, z: 2.3, label: c.name, sub: 'Topçu düellosuna çağır', act: 'oyuncu:' + id }; L.interact.push(c.etk); }
+  function etkSil(c) { if (!c.etk) return; for (const L of [etkL, api.sceneState && api.sceneState().L]) if (L && Array.isArray(L.interact)) { const i = L.interact.indexOf(c.etk); if (i >= 0) L.interact.splice(i, 1); } c.etk = null; }
+  async function cagir(id) { const c = kisiler.get(id); if (!c || !c.handle || !EO2.topcuPvp || !EO2.topcuPvp.davet) return;
+    const v = await G.pen({ k: 'Er Meydanı', t: c.name + ' ile düello', body: '<p><b>' + c.name.replace(/[&<>"]/g, '') + '</b> adlı terbiyeciyi Topçu düellosuna çağırırsın. Kabul ederse Er Meydanı\'nda karşılaşırsınız.</p><p>Dostça bir maç: altın, ün ve sıralama yazılmaz.</p>', btns: [{ t: 'Vazgeç', v: false }, { t: 'Çağır', cls: 'altin', v: true }] });
+    if (v) EO2.topcuPvp.davet(c.handle, c.name); }
+  function birak(id) { const c = kisiler.get(id); if (!c) return; etkSil(c); kisiler.delete(id); const i = api.remotes.indexOf(c); if (i >= 0) api.remotes.splice(i, 1); api.dropChar(c); say(); }
   function hepsiniBirak() { for (const id of [...kisiler.keys()]) birak(id); }
   function isle(p) {
     if (!api || !p || typeof p.id !== 'string' || p.id.length > 12) return;
@@ -25,9 +34,9 @@
     if (!c) {
       if (kisiler.size >= 40) return;
       c = api.mkChar({ remote: true, name: ad, x, y, tx: x, ty: y, set, dir, rdir: dir, crumbs: [[x, y]], lastE: p.e && p.e.t });
-      c.area = p.a; kisiler.set(p.id, c); api.remotes.push(c); api.setPlate(c); say();
+      c.area = p.a; c.handle = typeof p.h === 'string' && /^@[^\s]{2,40}$/.test(p.h) ? p.h : null; kisiler.set(p.id, c); api.remotes.push(c); api.setPlate(c); say(); etkEkle(p.id, c);
     }
-    if (c.name !== ad) { c.name = ad; api.setPlate(c); }
+    if (c.name !== ad) { c.name = ad; api.setPlate(c); if (c.etk) c.etk.label = ad; }
     c.area = p.a; c.tx = x; c.ty = y; c.set = set; c.rdir = dir;
     if (Math.hypot(c.x - x, c.y - y) > 12) { c.x = x; c.y = y; c.crumbs = [[x, y]]; }      // ışınlanma: araya yürütme
     if (p.p && !c.pet) c.pet = { x: c.x + 0.8, y: c.y - 0.2, face: 1, hop: 0, moving: false, cheer: 0 }; else if (!p.p && c.pet) { if (c.pet.bub) c.pet.bub.remove(); c.pet = null; }
@@ -49,10 +58,12 @@
   AG.dinle('durum', d => { if (d !== 'cevrimici') { hepsiniBirak(); sonJson = ''; alanim = null; } else setTimeout(() => bildir(true), 300); });
 
   (function bekle() {
-    if (!EO2.api || !EO2.hooks) return setTimeout(bekle, 120);
+    if (!EO2.api || !EO2.hooks || !EO2.hooks.act) return setTimeout(bekle, 120);   // hooks.act'i oyun.js kurar; ondan sonra sarılır
     api = EO2.api;
     const jest0 = EO2.hooks.emote; EO2.hooks.emote = k => { if (jest0) jest0(k); jest = { k, t: Date.now() }; bildir(true); };
     setInterval(() => bildir(false), 100);
+    EO2.frameHooks.push(() => { for (const c of kisiler.values()) if (c.etk) { c.etk.x = c.x; c.etk.y = c.y; } });
+    const act0 = EO2.hooks.act; EO2.hooks.act = act => { if (typeof act === 'string' && act.startsWith('oyuncu:')) { cagir(act.slice(7)); return true; } return act0 ? act0(act) : false; };
   })();
-  EO2.meydanAg = { kisiler, sayi: () => kisiler.size };
+  EO2.meydanAg = { kisiler, sayi: () => kisiler.size, adOf: h => { for (const c of kisiler.values()) if (c.handle === h) return c.name; return null; } };
 })();

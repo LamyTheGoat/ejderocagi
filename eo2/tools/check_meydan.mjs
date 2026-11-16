@@ -24,6 +24,16 @@ try {
   log.yurudu = await bekle(A, 'Math.abs([...EO2.meydanAg.kisiler.values()][0].tx - ' + hedef[0] + ') < 0.05 && Math.abs([...EO2.meydanAg.kisiler.values()][0].ty - ' + hedef[1] + ') < 0.05');
   await B.evaluate(() => { const d = [...document.querySelectorAll('#emotes button, .emote, [data-emote]')][2]; if (d) d.click(); else EO2.hooks.emote('heart'); });
   log.jest = await bekle(A, '([...EO2.meydanAg.kisiler.values()][0].happy || 0) > 0');
+  // düello daveti: A, B'nin yanına gelir ve çağırır; B kabul eder; ikisi de aynı odada, Er Meydanı künyesinde olmalı
+  log.etkilesim = await A.evaluate(() => { const c = [...EO2.meydanAg.kisiler.values()][0]; return !!(c.handle && c.etk && EO2.api.sceneState().L.interact.includes(c.etk)); });
+  await A.evaluate(() => { const id = [...EO2.meydanAg.kisiler.keys()][0]; EO2.api.runAct('oyuncu:' + id); }); await A.waitForTimeout(500);
+  await A.locator('.pen .gbtn:has-text("Çağır")').click();
+  log.davetGeldi = await B.waitForSelector('.pen:has-text("Düello daveti")', { timeout: 10000 }).then(() => true, () => false);
+  log.davetEden = log.davetGeldi ? await B.locator('.pen').first().textContent() : '';
+  if (log.davetGeldi) await B.locator('.pen .gbtn:has-text("Kabul et")').click();
+  log.oda = await bekle(A, 'EO2.topcuPvp.durum().oda && EO2.topcuPvp.durum().oda.slots.filter(s => s.kind !== "empty").length === 2') && await bekle(B, 'EO2.topcuPvp.durum().oda && EO2.topcuPvp.durum().oda.slots.filter(s => s.kind !== "empty").length === 2');
+  log.kunye = await A.evaluate(() => EO2.game.ekran() === 'topcu' && EO2.topcu.secili() === 'meydan') && await B.evaluate(() => EO2.game.ekran() === 'topcu' && EO2.topcu.secili() === 'meydan');
+  for (const p of [B, A]) { await p.evaluate(() => { const c = document.querySelector('[data-pvp="cik"]'); if (c) c.click(); }); await p.waitForTimeout(400); await p.evaluate(() => EO2.game.close()); }
   await B.evaluate(() => EO2.api.go('han'));
   log.hanaGitti = await bekle(A, 'EO2.meydanAg.sayi() === 0') && await bekle(B, 'EO2.api.scene() === "han" && EO2.meydanAg.sayi() === 0');
   await B.evaluate(() => EO2.api.go('meydan'));
@@ -32,6 +42,6 @@ try {
   log.ayrildi = await bekle(A, 'EO2.meydanAg.sayi() === 0 && EO2.api.remotes.length === 0');
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && log.gordu && log.adGeldi && log.aGoruyor && log.aGoruyor[0].ad === 'Bora' && log.aGoruyor[0].alan === 'master' && log.aGoruyor[0].sahnede && log.bGoruyor[0].ad === 'Aylin' && log.yurudu && log.jest && log.hanaGitti && log.dondu && log.ayrildi;
+const ok = !hata.length && log.gordu && log.adGeldi && log.aGoruyor && log.aGoruyor[0].ad === 'Bora' && log.aGoruyor[0].alan === 'master' && log.aGoruyor[0].sahnede && log.bGoruyor[0].ad === 'Aylin' && log.yurudu && log.jest && log.etkilesim && log.davetGeldi && /Aylin/.test(log.davetEden) && log.oda && log.kunye && log.hanaGitti && log.dondu && log.ayrildi;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

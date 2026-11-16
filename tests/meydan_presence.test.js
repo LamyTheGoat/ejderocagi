@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createMeydanPresence, temizAd, temizDurum, KANAL_BOYU, HIZ } = require('../server/meydan_presence');
 
-function kur() { let t = 1000; const kutu = new Map(); const P = createMeydanPresence({ send: (s, m) => { if (!kutu.has(s)) kutu.set(s, []); kutu.get(s).push(m); }, now: () => t });
+function kur() { let t = 1000; const kutu = new Map(); const P = createMeydanPresence({ send: (s, m) => { if (!kutu.has(s)) kutu.set(s, []); kutu.get(s).push(m); }, now: () => t, kimlik: s => '@' + s.ad });
   return { P, soket: ad => ({ ad }), gelen: s => kutu.get(s) || [], bosalt: () => kutu.clear(), ileri: ms => { t += ms; } }; }
 const konum = (x, y, a = 'master', ek = {}) => ({ type: 'meydan', a, x, y, d: 'left', s: 'temel', p: 1, n: 'Ayşe', ...ek });
 
@@ -31,7 +31,7 @@ test('aynı alandakiler birbirini görür; gönderen kendi yankısını almaz; a
   assert.deepEqual(gelen(A), [{ type: 'meydan_liste', a: 'master', liste: [] }]);
   P.onMessage(B, konum(3, 4, 'master', { n: 'Bora' }));
   assert.equal(gelen(B)[0].liste.length, 1); assert.equal(gelen(B)[0].liste[0].n, 'Ayşe');
-  const bA = gelen(A).find(m => m.type === 'meydan'); assert.equal(bA.n, 'Bora'); assert.equal(bA.x, 3);
+  const bA = gelen(A).find(m => m.type === 'meydan'); assert.equal(bA.n, 'Bora'); assert.equal(bA.x, 3); assert.equal(bA.h, '@B', 'hesap adı soketten gelir');
   assert.equal(gelen(B).some(m => m.type === 'meydan'), false, 'yankı yok');
   assert.notEqual(bA.id, gelen(B)[0].liste[0].id);
   // kimlik soketten: mesajdaki id yok sayılır

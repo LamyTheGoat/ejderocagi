@@ -33,11 +33,12 @@ function temizDurum(msg) {
   return { a, x, y, d: YON.has(msg.d) ? msg.d : 'down', s: typeof msg.s === 'string' && /^[a-z]{2,12}$/.test(msg.s) ? msg.s : 'temel', p: msg.p ? 1 : 0, e, n: temizAd(msg.n) };
 }
 
-function createMeydanPresence({ send, now = () => Date.now() }) {
+// kimlik(socket): oyuncunun sunucudaki hesap adı (@gezgin_...). Gizli değildir; düello daveti ve takas bu adla yapılır.
+function createMeydanPresence({ send, now = () => Date.now(), kimlik = () => null }) {
   const kanallar = [];                       // kanal no → Set<socket>
   let sira = 0;
   const kanalBul = () => { for (let i = 0; i < kanallar.length; i++) if (kanallar[i].size < KANAL_BOYU) return i; kanallar.push(new Set()); return kanallar.length - 1; };
-  const paket = m => ({ type: 'meydan', id: m.id, n: m.d.n, a: m.d.a, x: m.d.x, y: m.d.y, d: m.d.d, s: m.d.s, p: m.d.p, e: m.d.e });
+  const paket = m => ({ type: 'meydan', id: m.id, h: m.h, n: m.d.n, a: m.d.a, x: m.d.x, y: m.d.y, d: m.d.d, s: m.d.s, p: m.d.p, e: m.d.e });
   const ayniAlan = (socket, alan) => { const out = []; const m = socket.meydan; if (!m) return out; for (const o of kanallar[m.kanal]) if (o !== socket && o.meydan && o.meydan.d && o.meydan.d.a === alan) out.push(o); return out; };
 
   function onMessage(socket, msg) {
@@ -46,7 +47,7 @@ function createMeydanPresence({ send, now = () => Date.now() }) {
     const t = now();
     if (m) { if (t - m.pencere >= 1000) { m.pencere = t; m.sayac = 0; } if (++m.sayac > HIZ) return true; }
     const d = temizDurum(msg); if (!d) return true;
-    if (!m) { const kanal = kanalBul(); m = socket.meydan = { id: 'm' + (++sira).toString(36), kanal, d: null, pencere: t, sayac: 1 }; kanallar[kanal].add(socket); }
+    if (!m) { const kanal = kanalBul(); const h = kimlik(socket); m = socket.meydan = { id: 'm' + (++sira).toString(36), h: typeof h === 'string' ? h.slice(0, 41) : null, kanal, d: null, pencere: t, sayac: 1 }; kanallar[kanal].add(socket); }
     const eskiAlan = m.d ? m.d.a : null; m.d = d;
     if (eskiAlan !== d.a) {
       if (eskiAlan) for (const o of ayniAlan(socket, eskiAlan)) send(o, { type: 'meydan_cik', id: m.id });
