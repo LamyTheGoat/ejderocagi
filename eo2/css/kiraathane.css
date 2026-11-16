@@ -198,3 +198,25 @@
   .ui2 .kr-eylem .gbtn small { white-space: normal; text-align: center; }
   .ui2 .kr-jestler { left: auto; right: 0; bottom: auto; top: 0; transform-origin: 100% 0; } .ui2 .kr-balon.ben { left: auto; right: 0; bottom: auto; top: calc(100% + .3em); max-width: 24em; border-radius: 1.1em .25em 1.1em 1.1em; }
 }
+
+/* ---------- tavla tahtası: ceviz çerçeve, damarlı zemin, kakma haneler (2026-11-16; düz kahverengi dikdörtgenin yerine) ---------- */
+.ui2 .kr-tahta { padding: .55em; border-radius: 1em;
+  background:
+    repeating-linear-gradient(92deg, rgba(255, 220, 170, .05) 0 2px, rgba(40, 18, 4, .07) 2px 5px, rgba(255, 220, 170, 0) 5px 11px),
+    linear-gradient(180deg, #6b3f22, #472810 55%, #5a3318);
+  box-shadow: inset 0 0 0 2px #24130a, inset 0 0 0 3.5px rgba(240, 200, 105, .65), inset 0 0 0 5px rgba(36, 19, 10, .7), 0 .5em 1.2em rgba(2, 4, 20, .55); }
+.ui2 .kr-tahta .kr-sira { border-radius: .45em; padding: 0 .2em;
+  background:
+    radial-gradient(120% 90% at 50% 50%, rgba(255, 226, 170, .16), rgba(20, 8, 2, .28) 100%),
+    repeating-linear-gradient(88deg, rgba(255, 230, 180, .06) 0 3px, rgba(50, 24, 6, .08) 3px 7px, rgba(255, 230, 180, 0) 7px 15px),
+    linear-gradient(180deg, #b98850, #a6743f);
+  box-shadow: inset 0 0 0 1.5px rgba(46, 24, 8, .85), inset 0 .5em 1em rgba(30, 12, 2, .4), inset 0 -.3em .7em rgba(30, 12, 2, .28); }
+.ui2 .kr-tahta .kr-bar { margin: .3em 0; border-radius: .5em;
+  background: linear-gradient(180deg, rgba(255, 220, 160, .12), rgba(0, 0, 0, .18)), linear-gradient(180deg, #5a3318, #3d2210);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 170, .3), inset 0 -1px 0 rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(240, 200, 105, .35); }
+.ui2 .kr-tahta .kr-hane::before { background: linear-gradient(90deg, rgba(120, 80, 30, .35), rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, .4) 50%, rgba(255, 255, 255, 0) 70%, rgba(120, 80, 30, .35)), linear-gradient(180deg, #fbefcc, #d9bc86); }
+.ui2 .kr-tahta .kr-hane.koyu::before { background: linear-gradient(90deg, rgba(6, 12, 50, .5), rgba(120, 160, 255, 0) 30%, rgba(150, 185, 255, .45) 50%, rgba(120, 160, 255, 0) 70%, rgba(6, 12, 50, .5)), linear-gradient(180deg, #3f63cf, #1a2d7a); }
+.ui2 .kr-tahta .kr-hane.alt::before { background: linear-gradient(90deg, rgba(120, 80, 30, .35), rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, .4) 50%, rgba(255, 255, 255, 0) 70%, rgba(120, 80, 30, .35)), linear-gradient(0deg, #fbefcc, #d9bc86); }
+.ui2 .kr-tahta .kr-hane.alt.koyu::before { background: linear-gradient(90deg, rgba(6, 12, 50, .5), rgba(120, 160, 255, 0) 30%, rgba(150, 185, 255, .45) 50%, rgba(120, 160, 255, 0) 70%, rgba(6, 12, 50, .5)), linear-gradient(0deg, #3f63cf, #1a2d7a); }
+.ui2 .kr-tahta .kr-hane { filter: drop-shadow(0 1px 0 rgba(30, 12, 2, .55)); }
+.ui2 .kr-tavla .kr-cikan { background: linear-gradient(180deg, rgba(60, 34, 14, .9), rgba(34, 18, 8, .9)); box-shadow: inset 0 0 0 1.5px rgba(240, 200, 105, .55), inset 0 .5em 1em rgba(0, 0, 0, .35); }

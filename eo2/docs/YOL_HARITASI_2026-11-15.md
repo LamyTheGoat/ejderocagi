@@ -87,7 +87,7 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 
 ## 4. Cila isteyen görsel eksikler (gözle görülen)
 
-- Kervan Tavlası tahtası düz kahverengi dikdörtgen; öteki masaların dokusuyla aynı ayarda değil.
+- Kervan Tavlası tahtası (2026-11-16): kodla damarlı ahşap, orta ray ve kakma haneler çizildi; çizilmiş tahta görseli gelirse onunla değişir.
 - Midjourney bakiyesi bitti. Bekleyen çizimler: Ocak için bostan, odunluk, yalak, korkuluk, ahşap çit, kapı direği, çim dokusu; Kıraathane için masa sahnesi ve tavla tahtası; Topçu sahnesinin büyütülmüş hâli (şimdiki 1536 piksel).
 - Motor istekleri (Ocak ajanından): zemin kabartması çime uygulanmasın, mini haritada açılabilir kare katmanı, pano açıkken kamera kayması, zemin lekeleri için tek doku atlası (çizim çağrısı 296'dan yüzün altına iner).
 - Tam tur denetiminde ara sıra (2026-11-16: on altı koşuda bir; ardışık on koşuda yinelenmedi) sunucudan bir 400 yanıtı düşüyor ve o koşuda tur sonu altını düşük çıkıyor; nedeni bulunamadı. `check_oyun.mjs` artık yanıtın yolunu, komut türünü ve hata kodunu yazıyor.
