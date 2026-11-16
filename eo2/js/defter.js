@@ -122,9 +122,29 @@
   /* yedek ağ: kanal yoksa ya da kaçırıldıysa, başka sekmenin yazdığı kayıt görülünce bu sekme durur */
   addEventListener('storage', e => { if (!e.key || e.key !== anahtar() || !G.live || engel || !e.newValue) return; sekmePerde('eski'); });
 
+  /* ================= SORUN BİLDİR =================
+     Oyuncunun yazdığı metin, sürüm, sahne ve bellekteki hata günlüğü (EO2.hatalar, js/saglam.js) sunucuya gider (/api/report).
+     Kayıt, altın ya da kişisel veri gönderilmez. Bağlantı yoksa metin panoya kopyalanabilsin diye pencerede kalır. */
+  async function sorunBildir() {
+    const durum = { gitti: false };
+    await G.pen({ k: 'Yardım', t: 'Sorun bildir', body: '<div class="sorun"><p>Ne oldu, ne bekliyordun? Kısaca yaz. Bildirimle birlikte oyunun sürümü, bulunduğun yer ve hata günlüğü gider; kaydın ve altının gitmez.</p>' +
+      '<textarea class="sorun-metin" maxlength="2000" rows="6" placeholder="Örnek: Ahırda besle düğmesine bastım, yem azaldı ama ejderha yemedi."></textarea><p class="sorun-durum" role="status" aria-live="polite"></p></div>',
+      on(p) { const m = p.querySelector('.sorun-metin'); setTimeout(() => m && m.focus(), 60); m.addEventListener('keydown', e => e.stopPropagation()); m.addEventListener('keyup', e => e.stopPropagation()); },
+      btns: [{ t: 'Vazgeç', v: false }, { t: 'Gönder', cls: 'altin', fn(p, done) {
+        if (durum.gitti) return true; const m = p.querySelector('.sorun-metin'), d = p.querySelector('.sorun-durum'), metin = m.value.trim();
+        if (metin.length < 5) { d.textContent = 'Birkaç sözcük yazar mısın?'; m.focus(); return false; }
+        if (durum.yolda) return false; durum.yolda = true; d.textContent = 'Gönderiliyor…';
+        const A = EO2.api, govde = { metin, surum: EO2.surum || '', sahne: A ? A.scene() : '', ekran: innerWidth + 'x' + innerHeight + '@' + (devicePixelRatio || 1), hafta: typeof S !== 'undefined' && S ? (S.seasonNo || 1) + '/' + S.week : '', tarayici: navigator.userAgent, hatalar: (EO2.hatalar || []).slice(-30) };
+        fetch('/api/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(govde) })
+          .then(r => r.json().catch(() => ({})).then(j => ({ r, j })))
+          .then(({ r, j }) => { durum.yolda = false; if (r.ok && j.ok) { durum.gitti = true; done(true); toast('Bildirimin ulaştı. Teşekkürler.'); } else d.textContent = r.status === 429 ? 'Kısa sürede çok bildirim gönderdin. Biraz sonra yeniden dene.' : 'Gönderilemedi. Biraz sonra yeniden dene.'; })
+          .catch(() => { durum.yolda = false; d.textContent = 'Bağlantı yok; bildirim gönderilemedi. Metnin burada duruyor.'; });
+        return false; } }] });
+  }
+
   /* ================= MENÜ ================= */
   G.screen('menu', { k: 'Ocak ve kayıt', t: 'Menü', cls: 'mn', bg: 'bg-title', draw(body) { const A = EO2.api, se = seasonOf(), gel = app.classList.contains('gelistirici'), dokun = matchMedia('(pointer: coarse)').matches, yedek = yedekOku();
-    const oyuncu = [['devam', 'Oyuna dön', 'Kaldığın yerden sürdür'], ['ayarlar', 'Ayarlar', 'Ses, görüntü, arayüz boyu'], ['nasil', 'Nasıl oynanır', 'Hafta, emir, bakım ve arena']].concat(dokun ? [] : [['gizle', 'Arayüzü gizle', 'Ekran görüntüsü için (H)']]).concat([['cik', 'Ana ekrana dön', 'Oyun kaydedilir']]);
+    const oyuncu = [['devam', 'Oyuna dön', 'Kaldığın yerden sürdür'], ['ayarlar', 'Ayarlar', 'Ses, görüntü, arayüz boyu'], ['nasil', 'Nasıl oynanır', 'Hafta, emir, bakım ve arena'], ['sorun', 'Sorun bildir', 'Bir hata mı gördün? Bize yaz']].concat(dokun ? [] : [['gizle', 'Arayüzü gizle', 'Ekran görüntüsü için (H)']]).concat([['cik', 'Ana ekrana dön', 'Oyun kaydedilir']]);
     /* geliştirici araçları yalnız ?gelistirici ile menüye girer */
     const arac = gel ? [['isik', 'Işık', 'Gündüz ya da akşam (L)'], ['kamera', 'Kamera', 'Yakın ya da yüksek açı (C)'], ['meydan', 'Dünya çizimi', (EO2.meydanUslup === 'cizim' ? 'Şimdi çizim · çizgi dünyaya dön' : 'Şimdi çizgi · çizim dünyasına geç')], ['pilot', 'Pilot Meydan', 'Deneme haritası'], ['master', 'Master Meydan', 'Master referanstan kurulan sahne'], ['deneme', 'Deneme alanı', 'Motor ve perspektif denemesi'], ['editor', 'Sahne editörü', 'Bölümün nesnelerini taşı, kaydet']] : [];
     const liste = oyuncu.slice(0, -1).concat(arac, oyuncu.slice(-1));
@@ -138,6 +158,7 @@
     on(body, '[data-m]', async b => { const m = b.dataset.m;
       if (m === 'devam') G.close(); else if (m === 'ayarlar') G.open('ayarlar');
       else if (m === 'kamera' && A) { A.setCam(A.S.camMode === 'yakin' ? 'yuksek' : 'yakin'); G.close(); } else if (m === 'isik' && A) { A.setNight(A.S.nightT ? 0 : 1); G.close(); } else if (m === 'meydan' && EO2.meydanSec) { EO2.meydanSec(EO2.meydanUslup === 'cizim' ? 'duz' : 'cizim'); saveGame(); location.reload(); } else if (m === 'pilot' && A) { G.close(); A.go('pilot'); } else if (m === 'master' && A) { G.close(); A.go('master'); } else if (m === 'deneme' && A) { G.close(); A.go('deneme'); } else if (m === 'editor' && A) { G.close(); setTimeout(() => EO2.bolum && EO2.bolum.editorAc(), 60); } else if (m === 'gizle' && A) { G.close(); A.setHud(false); }
+      else if (m === 'sorun') await sorunBildir();
       else if (m === 'nasil') await G.pen({ k: 'Kılavuz', t: 'Nasıl oynanır', wide: true, body: '<div class="kilavuz"><p><b>Hafta.</b> Her ejderhaya bir emir ver (antrenman, dinlenme, gezinti), sonra <b>Haftayı Bitir</b>. Emirler hafta sonunda işlenir; yirmi hafta bir sezondur.</p><p><b>Bakım.</b> Besle, yıka, top oyna, konuş. Bağ ve moral yükseldikçe antrenman verimi ve arenadaki direnç artar.</p><p><b>Arena.</b> Dövüş ün ve altın kazandırır. Ün yükseldikçe yeni ligler, Bahar Kupası ve Kızıl Taç açılır.</p><p><b>Ocak.</b> Araziyi aç, yapı kur: kuluçka yumurtayı çatlatır, in yer açar, yuva çiftleştirir.</p><p><b>Han.</b> Haftada bir akşamı biriyle geçir; yakınlık ayrıcalık açar. Bilge Ejder dil öğretir.</p><p><b>Pazar ve sefer.</b> Yem, yumurta, kuşam ve ejderha alınıp satılır; seferlerde yaban ejderhası yakalanır.</p></div>', btns: (EO2.rehber ? [{ t: 'İpuçlarını yeniden göster', v: 'ipucu' }] : []).concat([{ t: 'Anladım', cls: 'altin' }]) }).then(v => { if (v === 'ipucu' && EO2.rehber) { EO2.rehber.sifirla(); G.close(); EO2.rehber.basla(false); toast('İpuçları yeniden açıldı.'); } });
       else if (m === 'cik') { saveGame(); G.close(); G.title(); } });
     on(body, '[data-k]', b => { const k = b.dataset.k; if (k === 'ad') G.adSor(); else if (k === 'aktar') aktar(); else if (k === 'yukle') yukle(); else if (k === 'geri') geriAl(); else if (k === 'sil') sil(); });

@@ -49,6 +49,7 @@ const ECONOMY = createEconomyStore();
 const GUEST_SESSIONS = createGuestSessions(ECONOMY, PUBLIC_URL, process.env.NODE_ENV === 'production');
 const zlib = require('node:zlib');
 const publicFile = createPublicFiles(__dirname, [DB_DIR]);
+const REPORTS = require('./server/report_log').createReportLog(DB_DIR);
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -912,6 +913,17 @@ async function handleHttp(req, res) {
   if(req.method==='GET' && READ_RATE_PATHS.has(pathname)) {
     if(req.identity) consumeReadRate('read:'+req.identity.accountId,READ_RATE.account);
     else consumeReadRate('read-ip:'+req.socket.remoteAddress,READ_RATE.ip);
+  }
+  // Sorun bildirimi (2.0 menüsü): metin ve istemci hata günlüğü veri dizinindeki sorunlar.jsonl dosyasına eklenir. Kimlik şart değildir.
+  if (pathname === '/api/report' && req.method === 'POST') {
+    try {
+      const body = await readJsonBody(req, false, 32768);
+      return sendJson(res, 200, REPORTS.add({ accountId: req.identity ? req.identity.accountId : null, ip: req.socket.remoteAddress, body }));
+    } catch (error) {
+      const known = Number.isInteger(error.status);
+      if (!known) console.error('[report]', error.message);
+      return sendJson(res, known ? error.status : 500, { ok: false, error: known ? (error.code || error.message) : 'report_failed' });
+    }
   }
   if (pathname.startsWith('/api/trade') && req.headers['x-trade-account'] && req.headers['x-trade-account'] !== req.identity?.accountId) return sendJson(res,409,{ok:false,error:'trade_account_changed'});
   if (pathname === '/api/trade/state' && req.method === 'GET') {

@@ -7,6 +7,7 @@
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const G = EO2.game = { live: false, busy: false, OLD };
+  EO2.surum = '2.0.0';   // sürüm numarası: giriş ekranındaki künyede ve sorun bildirimlerinde görünür
   const EV_NPC = { harita: 'selin', bataklik: 'selin', demirhan: 'demirhan', tac_davet: 'demirhan', dem2: 'demirhan', dem3: 'demirhan', dem4: 'demirhan', selin_yavru: 'selin', kor_ani: 'dede', cukur: 'cukur', cukur2: 'cukur', kan_tuccari: 'kantuccari', kerim: 'kerim', kristal: 'tuccar', ozan: 'ozan', sponsor: 'tuccar', kupa_ilan: 'muhtar', hirsiz: 'muhtar', son_gece: 'dede', mektup: 'dede', bilge: 'bilge', pul: 'muhtar' };
   const NPC_AD = { dede: 'Deden', selin: 'Haritacı Selin', demirhan: 'Demirhan', kerim: 'Usta Kerim', tuccar: 'Ejderha tüccarı Rüstem', kantuccari: 'Kan tüccarı', cukur: 'Yara izli adam', muhtar: 'Muhtar', ozan: 'Gezgin ozan', bilge: 'Bilge ejderha' };
   G.ELC = { ates: '#ff7a3d', buz: '#6fd0ff', firtina: '#b58cff', toprak: '#8fcf5a', golge: '#9a6bff' };
@@ -165,7 +166,7 @@
   /* ---------- giriş ekranı ---------- */
   let giris = null;
   function title() { if (giris) giris.remove(); const sv = loadGame(), ok = sv && (!sv.over || sv.ending !== 'iflas');
-    giris = el('div', 'giris', '<div class="giris-ic"><img src="assets/logo.webp" alt="Ejder Ocağı"><p>Dedenden kalan harabe bir ocak. Yaşlı bir ateş ejderhası. Soğumaya yüz tutmuş bir yumurta.<br>Yirmi hafta sonra Kızıl Taç başlıyor.</p><div class="dugmeler"></div><div class="not">Kayıt bu tarayıcıda durur. Menüden dosyaya yedekleyebilirsin.</div></div>');
+    giris = el('div', 'giris', '<div class="giris-ic"><img src="assets/logo.webp" alt="Ejder Ocağı"><p>Dedenden kalan harabe bir ocak. Yaşlı bir ateş ejderhası. Soğumaya yüz tutmuş bir yumurta.<br>Yirmi hafta sonra Kızıl Taç başlıyor.</p><div class="dugmeler"></div><div class="not">Kayıt bu tarayıcıda durur. Menüden dosyaya yedekleyebilirsin.</div><div class="kunye">Sürüm ' + EO2.surum + ' · <a href="gizlilik.html" target="_blank" rel="noopener">Gizlilik</a> · <a href="kosullar.html" target="_blank" rel="noopener">Kullanım koşulları</a></div></div>');
     const box = giris.querySelector('.dugmeler'), add = (t, sub, cls, fn) => { const b = el('button', 'gbtn buyuk ' + cls, t + (sub ? '<small>' + sub + '</small>' : '')); b.type = 'button'; b.addEventListener('click', fn); box.appendChild(b); return b; };
     if (ok) add('Ocağa dön', sv.over ? (sv.seasonNo || 1) + '. sezon bitti' : 'Hafta ' + sv.week + ' · ' + (sv.dragons || []).length + ' ejderha · ' + sv.gold + ' altın', 'altin', () => { S = sv; if (typeof careerRepair === 'function') careerRepair(); if (typeof registerAllHeirlooms === 'function') registerAllHeirlooms(); UI.sel = S.dragons[0] ? S.dragons[0].id : null; enter(false); });
     add('Yeni ocak kur', '', ok ? '' : 'altin', async () => { if (ok && !sv.over) { const v = await G.pen({ k: 'Yeni ocak', t: 'Kayıtlı ocağın silinsin mi?', body: '<p>Yeni bir ocak kurarsan bu yuvadaki kayıt (Hafta ' + sv.week + ') üzerine yazılır.</p>', btns: [{ t: 'Vazgeç', v: false }, { t: 'Yeni ocak kur', cls: 'kor', v: true }] }); if (!v) return; }

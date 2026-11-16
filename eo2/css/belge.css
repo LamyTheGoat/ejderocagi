@@ -1,0 +1,17 @@
+/* Ejder Ocağı 2.0 · belge sayfaları (gizlilik, kullanım koşulları): oyunun mavi-altın hattında sade okuma sayfası */
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: radial-gradient(120% 80% at 50% 0%, #22357c 0%, #131b40 46%, #0a1026 100%) fixed; color: #e9ecfb; font: 400 17px/1.6 'Alegreya Sans', 'Noto Sans', system-ui, sans-serif; }
+.belge { max-width: 42em; margin: 0 auto; padding: 2.2em 1.25em 4em; }
+.belge .logo { display: block; width: 9em; margin: 0 auto 1.2em; }
+.belge .logo img { width: 100%; height: auto; display: block; }
+.belge h1 { margin: 0; font: 800 2em/1.15 'Alegreya SC', serif; color: #f6d98a; text-align: center; letter-spacing: .02em; }
+.belge .tarih { margin: .3em 0 2em; text-align: center; color: #9aa6d6; font-size: .9em; }
+.belge h2 { margin: 2em 0 .5em; padding-bottom: .3em; font: 700 1.2em/1.2 'Alegreya SC', serif; color: #f6d98a; border-bottom: 1px solid rgba(246, 217, 138, .28); }
+.belge p, .belge li { color: #dfe4fa; }
+.belge ul { padding-left: 1.2em; margin: .5em 0; }
+.belge li { margin: .45em 0; }
+.belge b { color: #fff; font-weight: 700; }
+.belge a { color: #8fd0ff; text-underline-offset: .15em; }
+.belge a:hover, .belge a:focus-visible { color: #fff; }
+.belge .don { margin-top: 3em; text-align: center; }

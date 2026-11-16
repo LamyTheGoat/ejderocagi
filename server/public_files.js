@@ -25,7 +25,7 @@ function createPublicFiles(root, privateDirs = []) {
     if (!relative || relative.includes('\\') || relative.includes('\0') || relative.split('/').some(p => p.startsWith('.') || !p)) return null;
     const media = /^(img|assets|sfx)\/.+\.(webp|png|jpg|jpeg|gif|svg|mp3|ogg|wav|woff2?|json)$/i.test(relative);
     // bölüm dosyaları sayfada etiketle değil, js/bolumler/liste.js tarafından yüklenir
-    const eo2Ok = eo2Scripts.has(relative) || /^eo2\/js\/bolumler\/[a-z0-9_-]+\.js$/i.test(relative) ||/^eo2\/css\/[a-z0-9_]+\.css$/i.test(relative) || /^eo2\/assets\/.+\.(webp|png|jpg|jpeg|gif|svg|mp3|ogg|wav|woff2?|json)$/i.test(relative);
+    const eo2Ok = eo2Scripts.has(relative) || /^eo2\/js\/bolumler\/[a-z0-9_-]+\.js$/i.test(relative) ||/^eo2\/css\/[a-z0-9_]+\.css$/i.test(relative) || /^eo2\/(gizlilik|kosullar)\.html$/.test(relative) || /^eo2\/assets\/.+\.(webp|png|jpg|jpeg|gif|svg|mp3|ogg|wav|woff2?|json)$/i.test(relative);
     if (relative !== 'style.css' && relative !== 'style_mobile.css' && !scripts.has(relative) && !media && !eo2Ok) return null;
     try {
       const candidate = fs.realpathSync(path.join(root, relative));

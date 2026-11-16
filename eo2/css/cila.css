@@ -82,3 +82,15 @@ html, body, #app.ui2 { overflow: clip; }
 @media (max-width: 820px), (max-height: 560px) { .ui2 #actionsHafta { display: grid; } }
 .ui2 #actionsHafta .ic { background: radial-gradient(circle at 50% 30%, #3b4a86, #141a3a 74%); box-shadow: inset 0 0 0 2px #d9b96a, inset 0 0 0 3.5px rgba(10, 12, 26, .55), 0 .22em .5em rgba(4, 6, 16, .55); color: #f6e7bd; }
 .ui2 #actionsHafta .ic svg { display: block; width: 54%; height: 54%; }
+
+/* giriş ekranı künyesi: sürüm ve belge bağlantıları */
+.ui2 .giris .kunye { margin-top: .7em; font: 500 .78em var(--f-ui); color: var(--soluk); opacity: .85; }
+.ui2 .giris .kunye a { color: inherit; text-underline-offset: .15em; }
+.ui2 .giris .kunye a:hover, .ui2 .giris .kunye a:focus-visible { color: #fff; }
+
+/* sorun bildir penceresi */
+.ui2 .sorun p { margin: 0 0 .7em; }
+.ui2 .sorun-metin { display: block; width: 100%; min-height: 7.5em; resize: vertical; padding: .7em .8em; border-radius: .7em; border: 1px solid rgba(160, 190, 255, .35); background: rgba(8, 14, 40, .55); color: inherit; font: 500 1em/1.45 var(--f-ui); }
+.ui2 .sorun-metin:focus-visible { outline: 2px solid var(--varak, #f0c869); outline-offset: 2px; }
+.ui2 .sorun-metin::placeholder { color: var(--soluk); opacity: .8; }
+.ui2 .sorun-durum { min-height: 1.3em; margin: .6em 0 0 !important; font-size: .9em; color: var(--varak-hi, #f6d98a); }

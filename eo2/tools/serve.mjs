@@ -7,7 +7,7 @@ import http from 'node:http'; import net from 'node:net'; import fs from 'node:f
 import { spawn } from 'node:child_process'; import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), repo = path.resolve(root, '..');
 const args = process.argv.slice(2), statik = args.includes('--statik'), port = +(args.find(a => /^\d+$/.test(a)) || process.env.PORT || 3210), apiPort = +(process.env.API_PORT || port + 1);
-const T = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webp': 'image/webp', '.mp4': 'video/mp4', '.webm': 'video/webm', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav', '.json': 'application/json', '.woff2': 'font/woff2' };
+const T = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webp': 'image/webp', '.mp4': 'video/mp4', '.webm': 'video/webm', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav', '.json': 'application/json', '.woff2': 'font/woff2' };
 
 let api = null, veri = null;
 function temizle() { if (api) { try { api.kill(); } catch (_) { } api = null; } if (veri) { try { fs.rmSync(veri, { recursive: true, force: true }); } catch (_) { } veri = null; } }
