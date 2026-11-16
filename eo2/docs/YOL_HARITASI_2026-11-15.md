@@ -109,6 +109,12 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 
 ## 5. Bilinen riskler
 
+- **Yayın ortamı (2026-11-16, yayına almadan önce bakılacak):**
+  - Meydandaki oyuncu yayını (`server/meydan_presence.js`) ve canlı kanalın öteki yayınları sunucu örneğinin belleğindedir. Birden çok örnek çalışırsa farklı örneklere düşen oyuncular birbirini görmez; tek örnekle ya da oturum yapışkanlığıyla çalıştırılmalı, ileride ortak bir yayın katmanı gerekir.
+  - Sorun bildirimleri veri dizinindeki `sorunlar.jsonl` dosyasına yazılır; disk kalıcı değilse (Cloud Run) dosya örnekle birlikte gider. Bu yüzden her bildirimin özeti sunucu günlüğüne de düşer (`[sorun]`).
+  - Kayıt yedeği ve kurtarma kodu Firestore'da `eo_saves`, `eo_recovery` koleksiyonlarını kullanır; yalnız emülatörde denendi, gerçek projede denenmedi.
+  - Gizlilik ve kullanım koşulları sayfaları taslaktır: işletenin adı ve iletişim adresi yok, hukukçu görmedi.
+
 - `gold.local` hâlâ açık: değiştirilmiş bir istemci altın bildirebilir (kullanıcı kararı: şimdilik hile koruması yok).
 - İki kese: gösterge = yerel kese + sunucudaki arena payı. 2.1 bitene kadar geçici düzen.
 - Yedek: çalışma GitHub'da `ejder-ocagi-2.0` dalında. `main`'e birleştirme ve yayına alma ayrı onay ister.

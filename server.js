@@ -954,7 +954,10 @@ async function handleHttp(req, res) {
   if (pathname === '/api/report' && req.method === 'POST') {
     try {
       const body = await readJsonBody(req, false, 32768);
-      return sendJson(res, 200, REPORTS.add({ accountId: req.identity ? req.identity.accountId : null, ip: req.socket.remoteAddress, body }));
+      const sonuc = REPORTS.add({ accountId: req.identity ? req.identity.accountId : null, ip: req.socket.remoteAddress, body });
+      // dosya kalıcı olmayan bir diskte olabilir (Cloud Run): bildirimin özeti sunucu günlüğüne de düşer
+      console.log('[sorun]', JSON.stringify({ hesap: req.identity ? req.identity.accountId : null, otomatik: body.otomatik === true, metin: String(body.metin || '').slice(0, 300), surum: String(body.surum || '').slice(0, 20), sahne: String(body.sahne || '').slice(0, 40) }));
+      return sendJson(res, 200, sonuc);
     } catch (error) {
       const known = Number.isInteger(error.status);
       if (!known) console.error('[report]', error.message);
