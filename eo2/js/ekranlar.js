@@ -49,25 +49,5 @@
     on(body, '[data-unequip]', b => { d.equip[b.dataset.unequip] = null; afterAction(); });
   } });
 
-  /* ================= OCAK ================= */
-  const B_IMG = ['buzc', 'direk', 'fener', 'golgetas', 'heykel', 'in', 'kaynak', 'kiler', 'kulucka', 'lab', 'lav', 'magara', 'mezar', 'parkur', 'sifa', 'talim', 'yosun', 'yuva'];
-  const bImg = k => B_IMG.includes(k) ? '<img alt="" src="' + OLD + 'img/b-' + k + '.webp">' : '<b style="font-size:.7em;text-align:center">' + BUILD[k].ad + '</b>';
-  function ocakSide(i) {
-    if (i == null) { const eggs = S.eggs || [];
-      return '<h2>Dedenin Ocağı</h2><div class="ej-ic kay"><p>' + S.grid.filter(t => t.open).length + ' açık kare · ' + S.dragons.length + ' / ' + capacity() + ' ejder yeri. Bir kareye dokun: çalılığı aç ya da yapı kur.</p><h3>Yumurtalar</h3>' +
-        (eggs.length ? eggs.map(e => '<div class="yumurta"><i></i><div><b>' + (e.origin || 'Yumurta') + '</b><br><small style="color:var(--soluk)">' + (e.inK ? 'Kuluçkada · ' + (e.w || 0) + '. hafta' : 'Soğukta bekliyor') + '</small></div><button type="button" class="gbtn kucuk ' + (e.inK ? '' : 'altin') + '" data-egg="' + e.id + '" ' + (!e.inK && kuluckaFree() <= 0 ? 'disabled title="Boş kuluçka yeri yok"' : '') + '>' + (e.inK ? 'Çıkar' : 'Kuluçkaya koy') + '</button></div>').join('') : '<p class="bos-not">Bekleyen yumurta yok.</p>') + '</div>'; }
-    const t = S.grid[i];
-    if (!t.open) { const c = clearCost(); return '<h2>Çalılık</h2><div class="ej-ic kay">' + (canClear(i) ? '<p>Dikenleri söküp taşları kenara yığarsan ocak bir kare büyür. Her yeni kare biraz daha pahalı.</p><button type="button" class="gbtn altin" data-clear="1" ' + (S.gold < c ? 'disabled' : '') + '>Araziyi aç · ' + c + ' altın</button>' : '<p>Bu çalılığa ulaşmak için önce yanındaki araziyi açmalısın.</p>') + '</div>'; }
-    if (t.b) { const B = BUILD[t.b]; return '<h2>' + B.ad + '</h2><div class="ej-ic kay"><p>' + B.d + '</p><button type="button" class="gbtn kor" data-demolish="1">Yık · ' + Math.floor(B.fiyat / 2) + ' altın geri</button></div>'; }
-    return '<h2>Boş arazi</h2><div class="ej-ic kay">' + BUILD_GROUPS.map(([ad, ks]) => '<h3>' + ad + '</h3>' + ks.map(k => '<button type="button" class="secim" data-build="' + k + '" ' + (S.gold < BUILD[k].fiyat ? 'disabled' : '') + '><b>' + BUILD[k].ad + '</b><em class="au">' + BUILD[k].fiyat + ' altın</em><span>' + BUILD[k].d + '</span></button>').join('')).join('') + '</div>'; }
-  G.screen('ocak', { k: 'Senin arazin', t: 'Ocak', cls: 'oc', bg: 'bg-orman', enter() { UI.tile = null; }, draw(body) {
-    const house = typeof housing === 'function' ? housing() : {}, at = {}; for (const d of S.dragons) if (house[d.id] != null) (at[house[d.id]] = at[house[d.id]] || []).push(d);
-    body.innerHTML = '<div class="oc-alan cam"><div class="oc-izgara">' + S.grid.map((t, i) => '<button type="button" class="kare' + (t.open ? '' : ' kapali' + (canClear(i) ? ' acilir' : '')) + '" data-i="' + i + '" aria-pressed="' + (UI.tile === i) + '" aria-label="' + (t.open ? (t.b ? BUILD[t.b].ad : 'Boş arazi') : 'Çalılık') + '">' + (t.b ? bImg(t.b) : '') + (at[i] ? '<img class="ejd" alt="" src="' + G.img(at[i][0]) + '">' : '') + '</button>').join('') + '</div></div><div class="oc-yan cam">' + ocakSide(UI.tile) + '</div>';
-    // izometrik arazide tıklama: dik duran yapı görselleri kareyi örtebilir; imlecin altındaki yığından ilk kare seçilir
-    body.querySelector('.oc-alan').addEventListener('click', ev => { const k = document.elementsFromPoint(ev.clientX, ev.clientY).find(n => n.classList && n.classList.contains('kare')); if (!k) return; if (EO2.audio) EO2.audio.ui(); const i = +k.dataset.i; UI.tile = UI.tile === i ? null : i; render(); });
-    on(body, '[data-clear]', () => { const c = clearCost(); if (S.gold < c) return; S.gold -= c; S.grid[UI.tile].open = true; S.cleared++; UI.tile = null; afterAction(); });
-    on(body, '[data-build]', b => { const k = b.dataset.build, B = BUILD[k]; if (S.gold < B.fiyat) return; S.gold -= B.fiyat; S.grid[UI.tile].b = k; chron(B.ad + ' kuruldu.'); if (k === 'kulucka') { for (const e of S.eggs) if (!e.inK && kuluckaFree() > 0) e.inK = true; toast('Bekleyen yumurtalar kuluçkaya yerleştirildi.'); } UI.tile = null; if (EO2.audio) EO2.audio.chime(); afterAction(); });
-    on(body, '[data-demolish]', async () => { const t = S.grid[UI.tile], B = BUILD[t.b]; const ok = await G.pen({ k: 'Yıkım', t: B.ad + ' yıkılsın mı?', body: '<p>Bedelinin yarısı (' + Math.floor(B.fiyat / 2) + ' altın) geri gelir.</p>', btns: [{ t: 'Vazgeç', v: false }, { t: 'Yık', cls: 'kor', v: true }] }); if (!ok) return; S.gold += Math.floor(B.fiyat / 2); t.b = null; UI.tile = null; afterAction(); });
-    on(body, '[data-egg]', b => { const e = S.eggs.find(x => String(x.id) === b.dataset.egg); if (!e) return; if (e.inK) e.inK = false; else if (kuluckaFree() > 0) e.inK = true; afterAction(); });
-  } });
+  /* Ocak: eski ızgara ekranı kaldırıldı (2026-11-16). Ocak artık gezilen bir sahnedir: js/ocak25.js (EO2.ocak.git). */
 })();

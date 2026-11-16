@@ -7,6 +7,7 @@
     "start": "node server.js",
     "dev": "node server.js",
     "test": "node --test tests/*.test.js",
+    "duman": "node eo2/tools/duman.mjs",
     "test:firestore": "node --test tests/firestore_store.integration.js",
     "test:trade-ui": "playwright test --config tests/playwright.config.js trade_ui",
     "test:ocak-sandigi": "playwright test --config tests/playwright.config.js ocak_sandigi",

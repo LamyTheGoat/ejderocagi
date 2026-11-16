@@ -261,3 +261,15 @@
   /* açık görev takipçisi rıhtımın üstünde bitsin */
   #app #questLog .rh-ust { height: 26px; overflow: visible; align-items: center; }
 }
+
+/* ================= TELEFON DAVRANIŞI (js/telefon.js) ================= */
+/* uzun basınca resim sürüklenmesin, iOS'ta önizleme baloncuğu çıkmasın */
+.ui2 img, .ui2 canvas, .ui2 button, .ui2 a { -webkit-touch-callout: none; }
+.ui2 img { -webkit-user-drag: none; }
+/* yatay öneri: giriş ekranının da üstünde, ekranın altında tek satırlık cam şerit */
+.ui2 .yatay-oneri { position: absolute; left: 50%; bottom: max(1em, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 90; display: flex; align-items: center; gap: .7em; width: min(94vw, 34em); padding: .7em .9em; border-radius: 1.1em; font: 600 13px/1.3 var(--f-ui); color: #eef1ff; background: rgba(14, 22, 58, .88); box-shadow: inset 0 0 0 1px rgba(255, 226, 150, .5), 0 .6em 1.6em rgba(4, 6, 20, .5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.ui2 .yatay-oneri svg { flex: none; width: 26px; height: 26px; color: var(--varak-hi, #f6d98a); }
+.ui2 .yatay-oneri span { flex: 1; min-width: 0; }
+.ui2 .yatay-oneri button { flex: none; min-height: 44px; padding: 0 .9em; border: 0; border-radius: 1.4em; font: 700 13px var(--f-ui); cursor: pointer; }
+.ui2 .yatay-oneri .yo-evet { color: #2a2140; background: linear-gradient(#ffe9a8, #e8b84c); }
+.ui2 .yatay-oneri .yo-hayir { color: #dfe4fa; background: rgba(255, 255, 255, .1); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25); }
