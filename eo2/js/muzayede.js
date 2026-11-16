@@ -9,7 +9,7 @@
   const PIG = { a: 'grayscale(.8) brightness(1.4) ', m: 'brightness(.5) saturate(.85) contrast(1.2) ', am: 'saturate(.45) brightness(.82) ' };
   const pigF = d => (typeof pigOf === 'function' && PIG[pigOf(d)]) || '';
   const TAG = { dragon: 'Nadir ejderha', egg: 'Nadir yumurta', item: 'Usta işi' };
-  const lotImg = (L, sellD) => sellD ? '<img alt="" style="filter:' + pigF(sellD) + 'drop-shadow(0 1em 1.2em rgba(4,6,20,.6))" src="' + G.img(sellD) + '">' : L.kind === 'dragon' ? '<img alt="" style="filter:' + pigF(L.d) + 'drop-shadow(0 1em 1.2em rgba(4,6,20,.6))" src="' + G.img(L.d) + '">' : L.kind === 'egg' ? '<img class="yumurta-l" alt="" src="' + G.OLD + 'img/ic-yuva.webp">' : '<img class="esya-l" alt="" src="' + G.OLD + 'img/item-' + L.item + '.webp">';
+  const lotImg = (L, sellD) => sellD ? '<img alt="" style="filter:' + pigF(sellD) + 'drop-shadow(0 1em 1.2em rgba(4,6,20,.6))" src="' + G.img(sellD) + '">' : L.kind === 'dragon' ? '<img alt="" style="filter:' + pigF(L.d) + 'drop-shadow(0 1em 1.2em rgba(4,6,20,.6))" src="' + G.img(L.d) + '">' : L.kind === 'egg' ? '<img class="yumurta-l" alt="" src="' + G.yumurtaResim(L.egg || L.e || L.d || L) + '">' : '<img class="esya-l" alt="" src="' + G.OLD + 'img/item-' + L.item + '.webp">';
   let sel = 0;
 
   /* ---------- canlı artırma salonu ---------- */

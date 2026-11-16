@@ -59,7 +59,7 @@
       tier: d.stage === 'yetiskin' ? 3 : d.stage === 'genc' ? 2 : 1, muhur: yazi, muhurCls: cls, yetmez: yetmez(d.price),
       d: STATS.map(s => ST_AD[s] + ' ' + d.st[s]).join(' · ') + (d.traits && d.traits.length ? '. Huy: ' + d.traits.map(t => TRAITS[t] ? TRAITS[t].ad : t).join(', ') : '') + '.' + not(eko, d.price), btn: 'Satın al',
       go() { if (freeSlots() < 1) { if (typeof vSay === 'function') vSay('ejder', 'full'); return ciz(); } al('shop.dragon', d.id, d.name, 'ejder'); } });
-    else { const e = eko.game.market.egg; if (e) { const f = eggPrice(e); L.push({ key: 'h:' + e.id, img: G.OLD + 'img/ic-yuva.webp', ad: e.origin || 'Pazar yumurtası', alt: 'Yumurta', fiyat: f, tier: 3, muhur: yazi, muhurCls: cls, yetmez: yetmez(f),
+    else { const e = eko.game.market.egg; if (e) { const f = eggPrice(e); L.push({ key: 'h:' + e.id, img: G.yumurtaResim(e), ad: e.origin || 'Pazar yumurtası', alt: 'Yumurta', fiyat: f, tier: 3, muhur: yazi, muhurCls: cls, yetmez: yetmez(f),
       d: 'İçinden ne çıkacağını Hatice de bilmiyor.' + not(eko, f) + (cls === 'satilir' ? ' Ocağında çatlarsa yavru hesaba bağlı olur.' : ''), btn: 'Satın al', go() { al('shop.egg', e.id, 'Yumurta', 'yumurta'); } }); } }
     return L;
   }

@@ -120,3 +120,38 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .minimap .loc { overflow: visible; }
 .ui2 .minimap .loc #locKisi { position: absolute; right: .7em; top: 100%; margin-top: .3em; padding: .1em .7em; border-radius: 1em; font: 700 .78em/1.5 var(--f-ui); font-style: normal; color: #fff; white-space: nowrap; background: rgba(34, 78, 190, .92); box-shadow: inset 0 0 0 1px rgba(170, 205, 255, .7), 0 .15em .4em rgba(2, 4, 20, .5); pointer-events: none; }
 .ui2 .minimap .loc #locKisi[hidden] { display: none; }
+
+/* ================= simge ailesi: madalyonlar (2026-11-16) =================
+   Jestler, ses ve menü düğmeleri, antrenman ve bakım kartları, Yuva ve sefer eylemleri, Bedesten süzgeçleri aynı aileden:
+   lacivert disk, altın çerçeve, krem-altın simge (assets/ik/mdl-*.webp; tools/madalyon.mjs + tools/madalyon_esle.mjs). */
+.ui2 #emotes button { background: center / 100% 100% no-repeat; border: 0; box-shadow: 0 .15em .4em rgba(2, 4, 20, .5); border-radius: 50%; transition: transform .15s, filter .15s; }
+.ui2 #emotes button > * { display: none; }
+.ui2 #emotes button:nth-child(1) { background-image: url(../assets/ik/mdl-j-smile.webp); } .ui2 #emotes button:nth-child(2) { background-image: url(../assets/ik/mdl-j-wave.webp); }
+.ui2 #emotes button:nth-child(3) { background-image: url(../assets/ik/mdl-j-heart.webp); } .ui2 #emotes button:nth-child(4) { background-image: url(../assets/ik/mdl-j-spark.webp); }
+.ui2 #emotes button:nth-child(5) { background-image: url(../assets/ik/mdl-j-think.webp); } .ui2 #emotes button:nth-child(6) { background-image: url(../assets/ik/mdl-j-note.webp); }
+.ui2 #emotes button:hover, .ui2 #emotes button:focus-visible { transform: translateY(-.15em) scale(1.08); filter: brightness(1.15); }
+.ui2 #btnSound, .ui2 #btnGear { position: relative; background: center / 100% 100% no-repeat; border: 0; border-radius: 50%; box-shadow: 0 .15em .4em rgba(2, 4, 20, .5); }
+.ui2 #btnSound > *, .ui2 #btnGear > * { display: none; }
+#app.ui2 #hud #btnSound { background: center / 100% 100% no-repeat url(../assets/ik/mdl-ses.webp) !important; } #app.ui2 #hud #btnGear { background: center / 100% 100% no-repeat url(../assets/ik/mdl-ayar.webp) !important; }
+.ui2 #btnSound:hover, .ui2 #btnGear:hover { filter: brightness(1.15); }
+/* ses kapalı: simge söner, üstünden altın bir çizgi geçer */
+.ui2 #btnSound[aria-pressed="false"] { filter: saturate(.25) brightness(.8); }
+.ui2 #btnSound[aria-pressed="false"]::after { content: ""; position: absolute; left: 14%; right: 14%; top: 50%; height: .16em; margin-top: -.08em; border-radius: .1em; background: #f3d88e; box-shadow: 0 0 0 .07em #1a1030; transform: rotate(-45deg); }
+/* kart içindeki madalyon: kendi çerçevesi var, kartın halkası ve dolgusu kalkar */
+.ui2 .kartx .gl.mdl { width: 4.8em; height: 4.8em; background: none; box-shadow: 0 .25em .6em rgba(2, 4, 20, .55), 0 0 1.1em color-mix(in srgb, var(--c) 30%, transparent); overflow: visible; }
+.ui2 .kartx .gl.mdl img { width: 100%; height: 100%; padding: 0; object-fit: contain; filter: none; }
+.ui2 .kartx:hover:not(:disabled) .gl.mdl img { transform: scale(1.08) rotate(-4deg); }
+@media (max-height: 560px) { .ui2 .kartx .gl.mdl { width: 3em; height: 3em; } }
+/* Bedesten ve Sandık süzgeçleri */
+.ui2 .bd-mres.mdl { background: none; box-shadow: 0 .2em .5em rgba(2, 4, 20, .55); overflow: visible; }
+.ui2 .bd-mres.mdl img { width: 100%; height: 100%; padding: 0; object-fit: contain; }
+
+/* ================= yumurta, para ve ün çizimleri (2026-11-16) ================= */
+/* Yuva'daki yumurta hapı: düz renkli oval yerine yumurtanın kendi çizimi; kuluçkadaki sıcak parıltı korunur */
+.ui2 .yum-k i.res { border-radius: 0; background: center / contain no-repeat; box-shadow: none; filter: drop-shadow(0 .15em .25em rgba(2, 4, 20, .6)); }
+.ui2 .yum-k.sicak i.res { box-shadow: none; filter: drop-shadow(0 0 .5em rgba(255, 170, 80, .9)) drop-shadow(0 .15em .25em rgba(2, 4, 20, .6)); }
+/* para: ejder başlı altın sikke; ün: defne çelenkli yıldız nişanı */
+#app.ui2 .chip .coin, #app.ui2 .res2:not(.un) i, #app.ui2 .altin-ik { border: 0; border-radius: 0; box-shadow: none; background: center / contain no-repeat url(../assets/ik/para.webp) !important; filter: drop-shadow(0 .1em .15em rgba(2, 4, 20, .55)); }
+#app.ui2 .chip .un, #app.ui2 .res2.un i { border: 0; border-radius: 0; box-shadow: none; background: center / contain no-repeat url(../assets/ik/un.webp) !important; filter: drop-shadow(0 .1em .15em rgba(2, 4, 20, .55)); }
+#ocTepsi .ocp-yumurta i.res, #ocTepsi .ocp-yumurta.sicak i.res { border-radius: 0; background: center / contain no-repeat; box-shadow: none; filter: drop-shadow(0 .15em .25em rgba(2, 4, 20, .6)); }
+#ocTepsi .ocp-yumurta.sicak i.res { filter: drop-shadow(0 0 .5em rgba(255, 170, 80, .9)); }

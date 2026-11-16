@@ -15,7 +15,9 @@
   const TUR = { dragon: 'Ejderha', egg: 'Yumurta', item: 'Kuşam', food: 'Yem' };
   const TUR_COK = { dragon: 'Ejderhalar', egg: 'Yumurtalar', item: 'Kuşam', food: 'Yem ve iksir' };
   const TUR_SIRA = ['dragon', 'egg', 'item', 'food'];
-  const SUZ = [['hepsi', 'Hepsi', 'img/ic-pazar.webp'], ['dragon', 'Ejderha', 'img/ic-ahir.webp'], ['egg', 'Yumurta', 'img/ic-yuva.webp'], ['item', 'Kuşam', 'img/item-zirh1.webp'], ['food', 'Yem', 'img/ic-feed.webp']];
+  /* süzgeç simgeleri madalyon ailesinden (assets/ik/mdl-*.webp) */
+  const MDL = n => 'assets/ik/mdl-' + n + '.webp';
+  const SUZ = [['hepsi', 'Hepsi', MDL('menu')], ['dragon', 'Ejderha', MDL('ejder')], ['egg', 'Yumurta', MDL('yumurta')], ['item', 'Kuşam', MDL('kusam')], ['food', 'Yem', MDL('besle')]];
   const MUHUR = {
     earned: { ad: 'Kazanılmış', kisa: 'Satılabilir', d: 'Oyunda kazandığın altınla ya da başka bir oyuncudan edindin. Bedesten\'de satabilir, takasa koyabilirsin.' },
     bound: { ad: 'Hesaba bağlı', kisa: 'Satılamaz', d: 'Başlangıç armağanı ya da bir kerelik hedef ödülüyle geldi. Dilediğin gibi kullanırsın; satılamaz, takas edilemez.' },
@@ -155,7 +157,7 @@
   }
   const elAd = el => (typeof EL_AD !== 'undefined' && EL_AD[el]) || '';
   const elRenk = el => (G.ELC && G.ELC[el]) || '#ffd76a';
-  function yumurtaCizim(e) { try { if (typeof eggSVG === 'function') return eggSVG(e, 0, {}); } catch (x) { /* düz görsele düş */ } return '<img alt="" src="' + OLD + 'img/ic-yuva.webp">'; }
+  function yumurtaCizim(e) { return '<img alt="" src="' + G.yumurtaResim(e) + '">'; }   // elementine göre çizilmiş yumurta (assets/ik/yum-*.webp)
   const yemResim = k => OLD + 'img/' + (k === 'genclik' ? 'ic-feed' : 'food-' + k) + '.webp';
   /* Ortak "mal" tarifi: { tur, ad, alt, cizim (html), el, kunye[] } */
   function malDragon(d) {
@@ -229,7 +231,7 @@
   /* ---------- ortak parçalar ---------- */
   const altinIk = '<i class="bd-altin" aria-hidden="true"></i>';
   function suzgec(secili, sayilar, ek) {
-    return '<nav class="bd-alt" aria-label="Süzgeç">' + SUZ.map(s => '<button type="button" class="bd-madalyon" data-suz="' + s[0] + '" aria-pressed="' + (s[0] === secili) + '"><span class="bd-mres"><img alt="" src="' + OLD + s[2] + '"></span>' + (sayilar[s[0]] ? '<b>' + sayilar[s[0]] + '</b>' : '') + '<span class="bd-mad">' + s[1] + '</span></button>').join('') + (ek || '') + '</nav>';
+    return '<nav class="bd-alt" aria-label="Süzgeç">' + SUZ.map(s => '<button type="button" class="bd-madalyon" data-suz="' + s[0] + '" aria-pressed="' + (s[0] === secili) + '"><span class="bd-mres mdl"><img alt="" src="' + s[2] + '"></span>' + (sayilar[s[0]] ? '<b>' + sayilar[s[0]] + '</b>' : '') + '<span class="bd-mad">' + s[1] + '</span></button>').join('') + (ek || '') + '</nav>';
   }
   function kunyeHtml(mal) { return mal.kunye.length ? '<dl class="bd-kunye">' + mal.kunye.map(k => '<div><dt>' + k[0] + '</dt><dd>' + esc(k[1]) + '</dd></div>').join('') + '</dl>' : ''; }
   const kapaliSahne = (baslik, yazi) => '<div class="bd-kapali"><i class="bd-kilit" aria-hidden="true"></i><h2>' + baslik + '</h2><p>' + yazi + '</p><button type="button" class="gbtn altin" data-yeniden="1">Yeniden dene</button></div>';
@@ -359,7 +361,7 @@
         (mod === 'carsi' ? '<button type="button" class="gbtn bd-sira" data-sira="1" aria-label="Sıralama">' + (sira === 'ucuz' ? 'Ucuzdan pahalıya' : 'Yeni konanlar') + '</button>' : '') +
         '<button type="button" class="gbtn altin bd-cikar" data-yeni="1">Satışa çıkar</button></div>' : '') +
       '<div class="bd-sokak kay' + (NET.mesgul ? ' mesgul' : '') + '">' + sokak + '</div>' +
-      (acik && !satis && !secili ? (mod === 'carsi' ? suzgec(suz, sayilar, ek) : '<nav class="bd-alt">' + '<button type="button" class="bd-madalyon" data-mod="carsi" aria-pressed="false"><span class="bd-mres"><img alt="" src="' + OLD + 'img/ic-pazar.webp"></span><span class="bd-mad">Çarşıya dön</span></button><button type="button" class="bd-madalyon" data-sandik="1" aria-pressed="false"><span class="bd-mres"><img alt="" src="' + OLD + 'img/ic-ocak.webp"></span><span class="bd-mad">Ocak Sandığı</span></button></nav>') : '') +
+      (acik && !satis && !secili ? (mod === 'carsi' ? suzgec(suz, sayilar, ek) : '<nav class="bd-alt">' + '<button type="button" class="bd-madalyon" data-mod="carsi" aria-pressed="false"><span class="bd-mres mdl"><img alt="" src="' + MDL('carsi') + '"></span><span class="bd-mad">Çarşıya dön</span></button><button type="button" class="bd-madalyon" data-sandik="1" aria-pressed="false"><span class="bd-mres mdl"><img alt="" src="' + MDL('sandik') + '"></span><span class="bd-mad">Ocak Sandığı</span></button></nav>') : '') +
       (acik && satis ? satisHtml(ejler) : acik && secili ? vitrinHtml(secili, ejler) : '') + '</div>';
     const yeniKay = body.querySelector('.bd-sokak'); if (kay && yeniKay) { yeniKay.scrollLeft = kay[0]; yeniKay.scrollTop = kay[1]; }
     const sahne = body.firstChild;

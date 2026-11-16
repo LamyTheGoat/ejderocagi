@@ -7,7 +7,10 @@
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const G = EO2.game = { live: false, busy: false, OLD };
-  EO2.surum = '2.0.0';   // sürüm numarası: giriş ekranındaki künyede ve sorun bildirimlerinde görünür
+  EO2.surum = '2.0.0';
+  /* yumurta çizimi: genlerdeki baskın elemente göre (eski oyun da yumurtayı elementinin rengiyle gösterir); gen yoksa sedef yumurta */
+  G.yumurtaResim = e => { let el = ''; try { const g = e && e.genes && e.genes.el; el = g ? (typeof expEl === 'function' ? expEl(g) : g[0]) : (e && e.el) || ''; } catch (_) { el = ''; }
+    return 'assets/ik/yum-' + (['ates', 'buz', 'firtina', 'toprak', 'golge'].includes(el) ? el : 'soy') + '.webp'; };   // sürüm numarası: giriş ekranındaki künyede ve sorun bildirimlerinde görünür
   const EV_NPC = { harita: 'selin', bataklik: 'selin', demirhan: 'demirhan', tac_davet: 'demirhan', dem2: 'demirhan', dem3: 'demirhan', dem4: 'demirhan', selin_yavru: 'selin', kor_ani: 'dede', cukur: 'cukur', cukur2: 'cukur', kan_tuccari: 'kantuccari', kerim: 'kerim', kristal: 'tuccar', ozan: 'ozan', sponsor: 'tuccar', kupa_ilan: 'muhtar', hirsiz: 'muhtar', son_gece: 'dede', mektup: 'dede', bilge: 'bilge', pul: 'muhtar' };
   const NPC_AD = { dede: 'Deden', selin: 'Haritacı Selin', demirhan: 'Demirhan', kerim: 'Usta Kerim', tuccar: 'Ejderha tüccarı Rüstem', kantuccari: 'Kan tüccarı', cukur: 'Yara izli adam', muhtar: 'Muhtar', ozan: 'Gezgin ozan', bilge: 'Bilge ejderha' };
   G.ELC = { ates: '#ff7a3d', buz: '#6fd0ff', firtina: '#b58cff', toprak: '#8fcf5a', golge: '#9a6bff' };
