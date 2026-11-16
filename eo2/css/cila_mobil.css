@@ -295,3 +295,15 @@
   /* Kervan: rota seçici sağdaki bilgi sütununun düğmesine biniyordu; sol yarıya, ejderhanın altına iner */
   .ui2 .scr-b.kv .ar-alt { left: 0; right: 54%; width: auto; }
 }
+
+/* dik telefon: ekran başlığı tek satıra sığmıyor, düğmeler kesiliyordu (2026-11-16 ekran denetimi).
+   1. sıra geri + başlık, sağda kese ve Haftayı Bitir; 2. sıra sekmeler, tam en */
+@media (max-width: 620px) {
+  #app .scr-h { flex-wrap: wrap; align-items: center; }
+  #app .scr-h #scrBack { flex: none; }
+  #app .scr-h .ad { flex: 1 1 4em; min-width: 0; padding-right: 0; }
+  #app .scr-h .ad h1 { font-size: 1.25em; }
+  #app .scr-h .res2 { flex: none; }
+  #app .scr-h #scrWeek { flex: none; margin-left: 0; }
+  #app .scr-h #scrNav { order: 9; flex: 1 1 100%; margin-left: 0; min-width: 0; }
+}
