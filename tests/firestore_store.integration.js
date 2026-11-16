@@ -519,3 +519,12 @@ test('Firestore hesap kurtarma ve kayıt yedeği: kod yeni oturum açar, yenilen
   await assert.rejects(() => a.putSave(g1.accountId, '{"week":9}', son), /save_conflict/);
   assert.equal(await a.putSave('yok-boyle-hesap', '{}'), null);
 });
+
+test('Firestore sosyal kayıt: yazılır, okunur, hesap adıyla hesap bulunur', { timeout: 30000 }, async t => {
+  const a = openFirestoreStore(options); t.after(async () => { await a.close(); });
+  const g = await a.createGuest();
+  assert.equal(await a.getSocial(g.accountId), null);
+  await a.putSocial(g.accountId, { ad: 'Aylin', dost: {}, gelen: {}, giden: {} });
+  assert.equal((await a.getSocial(g.accountId)).ad, 'Aylin');
+  assert.equal(await a.findAccountByHandle(g.handle), g.accountId); assert.equal(await a.findAccountByHandle('@yok_boyle_biri'), null);
+});

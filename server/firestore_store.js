@@ -54,6 +54,11 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
     });
   }
   async function getSave(accountId) { const doc = await saves.doc(accountId).get(); return doc.exists ? { savedAt: doc.data().savedAt, save: doc.data().save } : null; }
+  // sosyal kayıt (arkadaş listesi, istekler): server/social_service.js. Koleksiyon eo_social/<hesap>.
+  const socials = db.collection('eo_social');
+  async function getSocial(accountId) { const doc = await socials.doc(accountId).get(); return doc.exists ? JSON.parse(doc.data().json) : null; }
+  async function putSocial(accountId, kayit) { const json = JSON.stringify(kayit); if (json.length > 64000) throw Object.assign(new Error('social_too_large'), { code: 'social_too_large', status: 409 }); await socials.doc(accountId).set({ accountId, json }); }
+  async function findAccountByHandle(handle) { const q = await accounts.where('handle', '==', String(handle)).limit(1).get(); return q.empty ? null : q.docs[0].id; }
   async function resolveSession(token) {
     if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
     const doc = await sessions.doc(hashToken(token)).get();
@@ -304,7 +309,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
   async function readMatch(matchId) { return duel.MATCH_ID.test(matchId || '') ? matchOf(await matches.doc(matchId).get()) : null; }
   return {
     checkDuelEntry, openMatch, finalizeMatch, settleGameplay, readMatch,
-    backend: 'firestore', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
+    backend: 'firestore', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, findAccountByHandle, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
     async revokeSession(token) { if (typeof token === 'string') await sessions.doc(hashToken(token)).delete(); },
     async close() { await db.terminate(); },
   };

@@ -51,6 +51,7 @@ const zlib = require('node:zlib');
 const publicFile = createPublicFiles(__dirname, [DB_DIR]);
 const REPORTS = require('./server/report_log').createReportLog(DB_DIR);
 const EO2_PAGE = require('./server/eo2_page').createEo2Page(__dirname, PUBLIC_URL);
+const SOSYAL = require('./server/social_service').createSocial({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS });
 const MEYDAN = require('./server/meydan_presence').createMeydanPresence({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, kimlik: socket => socket.playerInfo && socket.playerInfo.handle });
 
 const MIME_TYPES = {
@@ -606,7 +607,8 @@ async function handleWsMessage(socket, msg) {
   }
   if (DUEL_SERVER.onMessage(socket, msg)) return;
   if (PVP_ROOMS.onMessage(socket, msg)) return;
-  if (MEYDAN.onMessage(socket, msg)) return;   // 2.0 meydanında öteki oyuncular (server/meydan_presence.js)
+  if (MEYDAN.onMessage(socket, msg)) return;
+  if (msg.type === 'ozel') { await SOSYAL.onMessage(socket, msg); return; }   // arkadaşlar arası özel mesaj (server/social_service.js)   // 2.0 meydanında öteki oyuncular (server/meydan_presence.js)
 
   if (msg.type === 'hub_update' || msg.type === 'hub_actor') {
     const h = socket.playerInfo.handle;
@@ -913,6 +915,16 @@ async function handleHttp(req, res) {
       res.setHeader('Set-Cookie', GUEST_SESSIONS.cookie(identity.token, identity.expiresAt));
     }
     return sendJson(res, 200, { ok: true, accountId: identity.accountId, handle: identity.handle, expiresAt: identity.expiresAt, economyReady: true });
+  }
+  // Arkadaş listesi (server/social_service.js): GET durumu verir; POST { type: ad | istek | kabul | red | sil }.
+  if (pathname === '/api/social' && (req.method === 'GET' || req.method === 'POST')) {
+    if (!req.identity) { req.resume(); return sendJson(res, 401, { ok: false, error: 'guest_session_required' }); }
+    try {
+      if (req.method === 'GET') return sendJson(res, 200, { ok: true, sosyal: await SOSYAL.durum(req.identity) });
+      await ECONOMY.consumeRate('social:' + req.identity.accountId, 40, 600000);
+      const body = await readJsonBody(req, false, 2048);
+      return sendJson(res, 200, { ok: true, sosyal: await SOSYAL.komut(req.identity, body) });
+    } catch (error) { const known = Number.isInteger(error.status); if (!known) console.error('[sosyal]', error.message); return sendJson(res, known ? error.status : 503, { ok: false, error: known ? (error.code || error.message) : 'social_unavailable' }); }
   }
   // Hesap kurtarma ve kayıt yedeği (server/account_recovery.js). Kod yalnız bir kez, üretildiği yanıtta görünür.
   if (pathname === '/api/session/recovery' && req.method === 'POST') {

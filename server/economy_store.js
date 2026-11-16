@@ -68,7 +68,8 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
   db.exec('CREATE TABLE IF NOT EXISTS service_state (id TEXT PRIMARY KEY, json TEXT NOT NULL)');
   // hesap kurtarma kodu (yalnız özeti) ve kayıt yedeği (istemcinin yerel kaydı; sunucu okumaz): server/account_recovery.js
   db.exec(`CREATE TABLE IF NOT EXISTS account_recovery (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), code_hash TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL) STRICT;
-    CREATE TABLE IF NOT EXISTS account_saves (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), saved_at INTEGER NOT NULL, save TEXT NOT NULL) STRICT;`);
+    CREATE TABLE IF NOT EXISTS account_saves (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), saved_at INTEGER NOT NULL, save TEXT NOT NULL) STRICT;
+    CREATE TABLE IF NOT EXISTS account_social (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), json TEXT NOT NULL) STRICT;`);
   // ENG-07 Bedesten: ilan, hesap başı rezervasyon (hold) ve makbuz. Hepsi aynı transaction'da yazılır.
   db.exec(`CREATE TABLE IF NOT EXISTS market_listings (id TEXT PRIMARY KEY, seller_id TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL, json TEXT NOT NULL) STRICT;
     CREATE INDEX IF NOT EXISTS market_open ON market_listings(status, created_at);
@@ -254,6 +255,12 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
     return row ? { savedAt: row.savedAt, save: row.save } : null;
   }
 
+  // sosyal kayıt (arkadaş listesi, istekler): server/social_service.js. En çok 64 KB.
+  function getSocial(accountId) { const row = db.prepare('SELECT json FROM account_social WHERE account_id = ?').get(accountId); return row ? JSON.parse(row.json) : null; }
+  function putSocial(accountId, kayit) { const json = JSON.stringify(kayit); if (json.length > 64000) throw Object.assign(new Error('social_too_large'), { code: 'social_too_large', status: 409 });
+    db.prepare('INSERT INTO account_social(account_id, json) VALUES (?, ?) ON CONFLICT(account_id) DO UPDATE SET json = excluded.json').run(accountId, json); }
+  function findAccountByHandle(handle) { const row = db.prepare('SELECT account_id AS id FROM accounts WHERE handle = ?').get(String(handle)); return row ? row.id : null; }
+
   function resolveSession(token) {
     if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
     const row = db.prepare(`SELECT a.account_id AS accountId, a.handle, s.expires_at AS expiresAt
@@ -409,7 +416,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
 
   return Object.freeze({
     checkDuelEntry, openMatch, finalizeMatch, settleGameplay, readMatch,
-    backend: 'sqlite', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
+    backend: 'sqlite', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, findAccountByHandle, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
     revokeSession(token) { if (typeof token === 'string') db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token)); },
     close() { db.close(); },
   });

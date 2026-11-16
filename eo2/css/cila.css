@@ -210,3 +210,27 @@ html, body, #app.ui2 { overflow: clip; }
 /* ================= alan sohbeti (2026-11-16): çevrimiçiyken yazı alanı açılır; sekmeler kapalı kalır (tek kanal: bulunduğun alan) ================= */
 .ui2.sohbet-acik:not(.gelistirici) #chatForm { display: grid !important; }
 .ui2.sohbet-acik #chatInput::placeholder { color: #b9c4ea; }
+
+/* ================= Dostlar ekranı ve fısıltı (js/dostlar.js) ================= */
+.ui2 #actions button[data-panel="dostlar"] .ic { background: center / 100% 100% no-repeat url(../assets/ik/mdl-sosyal.webp); } .ui2 #actions button[data-panel="dostlar"] .ic > * { display: none; }
+.ui2 #actions .yeni-var { position: relative; } .ui2 #actions .yeni-var::after { content: attr(data-say); position: absolute; right: .2em; top: -.1em; min-width: 1.5em; height: 1.5em; padding: 0 .3em; border-radius: 1em; display: grid; place-items: center; font: 800 .72em var(--f-ui); color: #fff; background: #e0482c; box-shadow: 0 0 0 1.5px #1a1030; }
+.ui2 .scr-b.ds { display: grid; grid-template-columns: minmax(0, 20em) minmax(0, 1fr); gap: 1.2em; min-height: 0; padding: .6em 1em 1em; }
+.ui2 .ds-sol { display: grid; align-content: start; gap: .9em; min-height: 0; overflow-y: auto; }
+.ui2 .ds-sol section { padding: .9em 1.1em; border-radius: 1.2em; background: var(--cam-koyu, rgba(14, 20, 48, .82)); box-shadow: var(--frame); }
+.ui2 .ds h3 { margin: 0 0 .5em; font: 700 1.05em var(--f-ui); color: #f6d98a; } .ui2 .ds-sol p { margin: 0 0 .4em; font: 500 .95em/1.45 var(--f-ui); color: #e9ecfb; }
+.ui2 .ds-ist { display: flex; align-items: center; justify-content: space-between; gap: .6em; flex-wrap: wrap; padding: .35em 0; } .ui2 .ds-ist span { display: flex; gap: .4em; }
+.ui2 .ds-liste { display: flex; flex-wrap: wrap; align-content: flex-start; gap: .9em; min-height: 0; overflow-y: auto; padding: .2em; }
+.ui2 .ds-kart { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "yuz ad" "eylem eylem"; gap: .5em .8em; width: min(26em, 100%); padding: .8em 1em; border-radius: 1.3em; background: linear-gradient(180deg, rgba(40, 50, 100, .9), rgba(18, 24, 56, .95)); box-shadow: inset 0 0 0 1px rgba(255, 226, 150, .3), 0 .4em 1em rgba(2, 4, 20, .45); }
+.ui2 .ds-kart.acik { box-shadow: inset 0 0 0 1.5px rgba(160, 240, 176, .75), 0 .4em 1em rgba(2, 4, 20, .45); }
+.ui2 .ds-yuz { grid-area: yuz; position: relative; width: 3.4em; height: 3.4em; } .ui2 .ds-yuz img { width: 100%; height: 100%; }
+.ui2 .ds-isik { position: absolute; right: -.1em; bottom: -.1em; width: 1em; height: 1em; border-radius: 50%; background: #7b84a8; box-shadow: 0 0 0 2px #141a3a; } .ui2 .ds-kart.acik .ds-isik { background: #7cf09a; box-shadow: 0 0 0 2px #141a3a, 0 0 .6em rgba(124, 240, 154, .9); }
+.ui2 .ds-ad { grid-area: ad; display: grid; align-content: center; } .ui2 .ds-ad b { font: 700 1.2em var(--f-ui); } .ui2 .ds-ad small { font: 500 .82em var(--f-ui); color: #cfd8f6; }
+.ui2 .ds-eylem { grid-area: eylem; display: flex; flex-wrap: wrap; gap: .4em; align-items: center; }
+.ui2 .ds-sil { margin-left: auto; padding: .3em .2em; border: 0; background: none; font: 600 .82em var(--f-ui); color: #ffb9a6; text-decoration: underline; text-underline-offset: .15em; cursor: pointer; min-height: 0; }
+.ui2 .ds-bos { margin: 1em; font: 500 1em var(--f-ui); color: #e9ecfb; }
+.ui2 .ds-fis { display: grid; gap: .5em; } .ui2 .ds-fis-akis { display: flex; flex-direction: column; gap: .3em; height: min(15em, 40vh); overflow-y: auto; padding: .5em; border-radius: .8em; background: rgba(8, 14, 40, .5); }
+.ui2 .ds-fis-akis p { margin: 0; display: flex; } .ui2 .ds-fis-akis p span { max-width: 80%; padding: .3em .8em; border-radius: 1em; font: 500 .95em/1.35 var(--f-ui); background: rgba(255, 255, 255, .12); user-select: text; -webkit-user-select: text; }
+.ui2 .ds-fis-akis p.ben { justify-content: flex-end; } .ui2 .ds-fis-akis p.ben span { color: #23305c; background: linear-gradient(180deg, #fffaf0, #f1e3c0); } .ui2 .ds-fis-akis p.bos { color: #cfd8f6; font: 500 .9em var(--f-ui); }
+.ui2 .ds-fis-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .4em; } .ui2 .ds-fis-gir { min-height: 40px; padding: .2em .9em; border-radius: 1.2em; border: 1px solid rgba(160, 190, 255, .4); background: rgba(8, 14, 40, .6); color: #fff; font: 500 1em var(--f-ui); user-select: text; -webkit-user-select: text; }
+.ui2 .ds-fis-durum { min-height: 1.2em; margin: 0; font-size: .88em; color: #f6d98a; }
+@media (max-width: 760px), (max-aspect-ratio: 1/1) { .ui2 .scr-b.ds { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } }

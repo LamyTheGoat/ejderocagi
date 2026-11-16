@@ -41,11 +41,14 @@
       btns: [{ t: 'Selam ver', cls: 'altin', sub: 'El sallarsın', v: 'selam' }, { t: 'Ejderha düellosuna çağır', sub: 'Canlı dövüş: ejderhan onunkine karşı', v: 'ejder', off: EO2.arena && EO2.arena.erCagir ? '' : 'Arena yüklenemedi' },
         { t: 'Topçu düellosuna çağır', sub: 'Dostça maç; altın ve ün yazılmaz', v: 'duello', off: EO2.topcuPvp && EO2.topcuPvp.davet ? '' : 'Er Meydanı yüklenemedi' },
         { t: 'Takas teklif et', sub: 'Kazanılmış mal ve altın; ikiniz de onaylayınca', v: 'takas', off: EO2.takas ? '' : 'Takas yüklenemedi' },
+        ...(EO2.dostlar ? [EO2.dostlar.dostMu(c.handle) ? { t: 'Fısılda', sub: 'Dostuna özel mesaj', v: 'fis' } : { t: 'Dost ekle', sub: 'Kabul ederse fısıldaşır, her yerden çağırırsın', v: 'dost' }] : []),
         { t: eng ? 'Engeli kaldır' : 'Engelle', sub: eng ? 'Sözlerini yeniden görürsün' : 'Sözlerini ve balonlarını görmezsin', v: 'engel' }, { t: 'Şikâyet et', sub: 'Uygunsuz ad ya da söz', v: 'sikayet' }, { t: 'Kapat', v: false }] });
     if (v === 'selam') { if (api.emote) api.emote(1); }
     else if (v === 'ejder') EO2.arena.erCagir(c.handle, c.name);
     else if (v === 'duello') EO2.topcuPvp.davet(c.handle, c.name);
     else if (v === 'takas') EO2.takas.teklif(c.handle, c.name);
+    else if (v === 'dost') EO2.dostlar.ekle(c.handle, c.name);
+    else if (v === 'fis') { const d = EO2.dostlar.durum().veri.dostlar.find(x => x.h === c.handle); if (d) EO2.dostlar.fisilda(d.id); }
     else if (v === 'engel') { if (eng) engelli.delete(c.handle); else engelli.add(c.handle); engelYaz(); G.toast(eng ? temiz(c.name) + ' için engel kalktı.' : temiz(c.name) + ' engellendi.'); }
     else if (v === 'sikayet') sikayet(c); }
   function birak(id) { const c = kisiler.get(id); if (!c) return; etkSil(c); kisiler.delete(id); const i = api.remotes.indexOf(c); if (i >= 0) api.remotes.splice(i, 1); api.dropChar(c); say(); }
