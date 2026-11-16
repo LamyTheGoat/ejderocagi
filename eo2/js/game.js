@@ -362,12 +362,12 @@
     // sohbet
     const chat = { tab: 'genel', log: [] };
     function chatAdd(ch, who, text) { chat.log.push({ ch, who, text }); if (chat.log.length > 60) chat.log.shift(); chatRender(); }
-    function chatRender() { const box = $('chatLog'); box.textContent = ''; const rows = chat.log.filter(m => chat.tab === 'genel' ? m.ch !== 'parti' : m.ch === chat.tab || m.ch === 'sistem');
+    function chatRender() { const box = $('chatLog'); box.textContent = ''; const rows = chat.log.filter(m => chat.tab === 'genel' ? true : m.ch === chat.tab || m.ch === 'sistem');
       if (!rows.length) { const p = document.createElement('p'); p.className = 'sys'; p.textContent = chat.tab === 'parti' ? 'Partide kimse yok.' : 'Henüz mesaj yok.'; box.appendChild(p); }
       for (const m of rows.slice(-30)) { const p = document.createElement('p'); if (m.ch === 'sistem') { p.className = 'sys'; p.textContent = m.text; } else { const t = document.createElement('span'); t.className = 'ch ' + m.ch; t.textContent = '[' + ({ genel: 'Genel', bolge: 'Bölge', parti: 'Parti' })[m.ch] + '] '; const b = document.createElement('b'); b.textContent = m.who + ': '; p.append(t, b, m.text); } box.appendChild(p); }
       box.scrollTop = box.scrollHeight; }
     for (const b of $('chatTabs').querySelectorAll('button')) b.addEventListener('click', () => { chat.tab = b.dataset.tab; for (const o of $('chatTabs').querySelectorAll('button')) o.setAttribute('aria-selected', String(o === b)); chatRender(); });
-    $('chatForm').addEventListener('submit', e => { e.preventDefault(); const v = $('chatInput').value.trim(); if (!v) { $('chatInput').blur(); return; } const ch = chat.tab === 'parti' ? 'parti' : chat.tab; if (EO2.hooks.sohbet && EO2.hooks.sohbet(v.slice(0, 120))) { /* söz sunucudan süzülmüş hâliyle geri gelir (js/meydan_ag.js) */ } else { chatAdd(ch, 'Sen', v.slice(0, 120)); say(player, v.slice(0, 80), 4.5); } if (EO2.hooks.chat) EO2.hooks.chat(v.slice(0, 120)); $('chatInput').value = ''; $('chatInput').blur(); });
+    $('chatForm').addEventListener('submit', e => { e.preventDefault(); const v = $('chatInput').value.trim(); if (!v) { $('chatInput').blur(); return; } const ch = chat.tab === 'parti' ? 'parti' : chat.tab; if (EO2.hooks.sohbet && EO2.hooks.sohbet(v.slice(0, 120), ch)) { /* söz sunucudan süzülmüş hâliyle geri gelir (js/meydan_ag.js) */ } else { chatAdd(ch, 'Sen', v.slice(0, 120)); say(player, v.slice(0, 80), 4.5); } if (EO2.hooks.chat) EO2.hooks.chat(v.slice(0, 120)); $('chatInput').value = ''; $('chatInput').blur(); });
     $('chatToggle').addEventListener('click', () => $('chat').classList.toggle('open'));
     chatAdd('sistem', '', 'Meydana hoş geldin, terbiyeci.');
 

@@ -238,3 +238,26 @@ html, body, #app.ui2 { overflow: clip; }
 /* ocak ziyareti (js/ziyaret.js): sunulan ejderhanın künyesi */
 .ui2 .zy-sunu { display: flex; align-items: center; gap: .9em; margin: 0 0 .7em; padding: .5em .8em; border-radius: 1.1em; background: rgba(6, 10, 32, .45); box-shadow: inset 0 0 0 1px rgba(255, 226, 150, .4); }
 .ui2 .zy-sunu img { width: 5.2em; height: 5.2em; object-fit: contain; flex: none; } .ui2 .zy-sunu b { display: block; font: 700 1.2em var(--f-ui); } .ui2 .zy-sunu small { font: 500 .88em var(--f-ui); color: #f6d98a; }
+
+/* ---------- oyuncu künyesi (js/profil.js) ---------- */
+.ui2 .pf-kart { display: grid; gap: .8em; min-width: min(30em, 100%); }
+.ui2 .pf-ust { display: flex; align-items: center; gap: 1em; }
+.ui2 .pf-yuz { width: 6.4em; height: 6.4em; flex: none; border-radius: 50%; background: radial-gradient(circle at 50% 35%, #3a57b4, #141c46 78%); box-shadow: 0 0 0 2px #f0c869, 0 0 0 5px rgba(12, 18, 48, .9), 0 .3em .9em rgba(2, 4, 20, .6); }
+.ui2 .pf-kim { display: grid; gap: .1em; justify-items: start; } .ui2 .pf-kim small { font: 600 .78em var(--f-ui); letter-spacing: .12em; text-transform: uppercase; color: #f6d98a; } .ui2 .pf-kim b { font: 800 1.7em/1.1 var(--f-ui); } .ui2 .pf-kim span { font: 500 .95em var(--f-ui); color: #e9ecfb; }
+.ui2 .pf-un { display: inline-flex; align-items: center; gap: .35em; } .ui2 .pf-un img { width: 1.5em; height: 1.5em; }
+.ui2 .pf-durum { font: 600 .82em var(--f-ui); font-style: normal; padding: .1em .8em; border-radius: 1em; background: rgba(255, 255, 255, .12); color: #cfd8f6; } .ui2 .pf-durum.acik { background: rgba(70, 190, 110, .28); color: #b9f5c6; }
+.ui2 .pf-yildiz { display: flex; align-items: center; gap: .9em; padding: .5em .9em; border-radius: 1.2em; background: radial-gradient(120% 160% at 0% 50%, color-mix(in srgb, var(--el) 34%, rgba(10, 16, 44, .7)), rgba(10, 16, 44, .7) 70%); box-shadow: inset 0 0 0 1px rgba(255, 226, 150, .45); }
+.ui2 .pf-yildiz img { width: 5.6em; height: 5.6em; object-fit: contain; flex: none; filter: drop-shadow(0 .2em .4em rgba(2, 4, 20, .6)); } .ui2 .pf-yildiz div { display: grid; } .ui2 .pf-yildiz small { font: 600 .78em var(--f-ui); color: #f6d98a; } .ui2 .pf-yildiz b { font: 700 1.3em var(--f-ui); } .ui2 .pf-yildiz span { font: 500 .9em var(--f-ui); color: #e9ecfb; }
+.ui2 .pf-rozetler { display: flex; justify-content: space-between; gap: .4em; } .ui2 .pf-rozet { display: grid; justify-items: center; gap: .05em; flex: 1; } .ui2 .pf-rozet img { width: 3em; height: 3em; } .ui2 .pf-rozet b { font: 800 1.15em var(--f-ui); } .ui2 .pf-rozet small { font: 500 .78em var(--f-ui); color: #cfd8f6; }
+/* ---------- parti çerçevesi (js/parti.js) ---------- */
+#partiCerceve { position: absolute; left: .8em; bottom: 16.8em; z-index: 6; display: grid; gap: .35em; pointer-events: auto; } #partiCerceve[hidden], #partiCerceve.gizli { display: none; }
+#partiCerceve .pt-uye { display: flex; align-items: center; gap: .5em; min-width: 11.5em; padding: .22em .9em .22em .25em; border: 0; border-radius: 2em; cursor: pointer; text-align: left; color: #fff; background: linear-gradient(180deg, rgba(34, 46, 104, .92), rgba(14, 20, 52, .95)); box-shadow: inset 0 0 0 1.5px rgba(240, 200, 105, .6), 0 .2em .6em rgba(2, 4, 20, .5); }
+#partiCerceve .pt-uye canvas { width: 2.6em; height: 2.6em; border-radius: 50%; background: radial-gradient(circle at 50% 35%, #3a57b4, #141c46 78%); box-shadow: 0 0 0 1.5px #f0c869; flex: none; }
+#partiCerceve .pt-uye span { display: grid; } #partiCerceve .pt-uye b { font: 700 .95em var(--f-ui); display: flex; align-items: center; gap: .35em; } #partiCerceve .pt-uye small { font: 500 .76em var(--f-ui); color: #cfd8f6; }
+#partiCerceve .pt-uye.kopuk { filter: grayscale(.8) brightness(.75); } #partiCerceve .pt-uye.ben { box-shadow: inset 0 0 0 1.5px rgba(160, 200, 255, .75), 0 .2em .6em rgba(2, 4, 20, .5); }
+#partiCerceve .pt-tac { width: 1em; height: .8em; background: #f6d98a; clip-path: polygon(0 100%, 0 20%, 25% 60%, 50% 0, 75% 60%, 100% 20%, 100% 100%); }
+#partiCerceve .pt-uye:focus-visible { outline: 2px solid #a6e0ff; outline-offset: 2px; }
+/* partideyken sohbet kutusunda Genel ve Parti sekmeleri görünür */
+.ui2.partide:not(.gelistirici) #chatTabs { display: flex !important; } .ui2.partide:not(.gelistirici) #chatTabs [data-tab="bolge"] { display: none; }
+@media (max-width: 760px), (max-height: 500px) { #partiCerceve { top: auto; bottom: 9.5em; left: .4em; } #partiCerceve .pt-uye { min-width: 0; padding-right: .5em; } #partiCerceve .pt-uye span { display: none; } }
+.ui2:not(.gelistirici) #chatLog .ch.parti { display: inline; color: #8fd3ff; font-weight: 700; }

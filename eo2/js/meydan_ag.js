@@ -38,7 +38,8 @@
   async function cagir(id) { const c = kisiler.get(id); if (!c || !c.handle) return;
     const eng = engelli.has(c.handle);
     const v = await G.pen({ k: 'Terbiyeci', t: temiz(c.name), dikey: true, body: '<p>Aynı meydandasınız. Ne yapmak istersin?</p>',
-      btns: [{ t: 'Selam ver', cls: 'altin', sub: 'El sallarsın', v: 'selam' }, { t: 'Ejderha düellosuna çağır', sub: 'Canlı dövüş: ejderhan onunkine karşı', v: 'ejder', off: EO2.arena && EO2.arena.erCagir ? '' : 'Arena yüklenemedi' },
+      btns: [{ t: 'Selam ver', cls: 'altin', sub: 'El sallarsın', v: 'selam' }, ...(EO2.profil ? [{ t: 'Künyesine bak', sub: 'Haftası, ünü, yıldız ejderhası', v: 'profil' }] : []),
+        ...(EO2.parti && !EO2.parti.uyeMi(c.handle) ? [{ t: 'Partiye çağır', sub: 'Birbirinizi her yerden görür, parti sohbetinde konuşursunuz', v: 'parti' }] : []), { t: 'Ejderha düellosuna çağır', sub: 'Canlı dövüş: ejderhan onunkine karşı', v: 'ejder', off: EO2.arena && EO2.arena.erCagir ? '' : 'Arena yüklenemedi' },
         { t: 'Topçu düellosuna çağır', sub: 'Dostça maç; altın ve ün yazılmaz', v: 'duello', off: EO2.topcuPvp && EO2.topcuPvp.davet ? '' : 'Er Meydanı yüklenemedi' },
         { t: 'Kıraathane masasına çağır', sub: 'Ejder Pokeri; bahsi masada koyarsınız', v: 'masa', off: EO2.masa ? '' : 'Masa yüklenemedi' },
         ...(EO2.ziyaret ? (EO2.ziyaret.evSahibi() && EO2.ziyaret.evSahibi().h === c.handle ? [{ t: 'Bir ejderhamı eşleşmeye sun', sub: 'Yumurta ev sahibinin ocağına gider', v: 'sun' }]
@@ -53,6 +54,8 @@
     else if (v === 'takas') EO2.takas.teklif(c.handle, c.name);
     else if (v === 'masa') EO2.masa.cagir(c.handle, c.name);
     else if (v === 'ocak') EO2.ziyaret.cagir(c.handle, c.name);
+    else if (v === 'profil') EO2.profil.ac(c.handle, c.name);
+    else if (v === 'parti') EO2.parti.davet(c.handle, c.name);
     else if (v === 'sun') EO2.ziyaret.sun(false);
     else if (v === 'esle') EO2.ziyaret.iste(c.handle);
     else if (v === 'ugurla') EO2.ziyaret.ugurla();
@@ -106,7 +109,7 @@
   (function bekle() {
     if (!EO2.api || !EO2.hooks || !EO2.hooks.act) return setTimeout(bekle, 120);   // hooks.act'i oyun.js kurar; ondan sonra sarılır
     api = EO2.api;
-    EO2.hooks.sohbet = x => { if (!AG.cevrimici() || !G.live) return false; bildir(true); return AG.gonder({ type: 'meydan_soz', x: String(x).slice(0, 120) }); };   // game.js sohbet kutusu buradan yollar
+    EO2.hooks.sohbet = (x, sekme) => { if (!AG.cevrimici() || !G.live) return false; if (EO2.parti && EO2.parti.soz(String(x), sekme)) return true; bildir(true); return AG.gonder({ type: 'meydan_soz', x: String(x).slice(0, 120) }); };   // game.js sohbet kutusu buradan yollar
     const jest0 = EO2.hooks.emote; EO2.hooks.emote = k => { if (jest0) jest0(k); jest = { k, t: Date.now() }; bildir(true); };
     setInterval(() => bildir(false), 100);
     EO2.frameHooks.push(() => { for (const c of kisiler.values()) if (c.etk) { c.etk.x = c.x; c.etk.y = c.y; } });

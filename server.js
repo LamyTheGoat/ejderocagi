@@ -59,6 +59,11 @@ setInterval(() => { try { ORTAK.supur(); } catch (e) { console.error('[ortak] s�
 const KIR_KILIT = new Set();
 const KIR_PVP = require('./server/kiraathane_pvp').createKiraathanePvp({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo, kilitli: KIR_KILIT });
 ORTAK.kaydet('kiraathane', KIR_PVP.tanim);
+// Oyuncu profili (künye) ve parti: ikisi de bellekte, ekonomiye dokunmaz (server/profil_service.js, server/parti_service.js)
+const wsYolla = (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); };
+const PROFIL = require('./server/profil_service').createProfil({ send: wsYolla, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo });
+const PARTI = require('./server/parti_service').createParti({ send: wsYolla, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo, yer: socket => socket.meydan && socket.meydan.d ? { alan: socket.meydan.d.a, set: socket.meydan.d.s } : null });
+setInterval(() => { try { PARTI.supur(); } catch (e) { console.error('[parti] süpürme', e.message); } }, 30000).unref();
 // Ocak ziyareti ve birlikte çiftleştirme (server/ocak_ziyaret.js): misafir ev sahibinin ocağını görür; yumurta Damızlık kuralıyla ev sahibine gider.
 const ZIYARET = require('./server/ocak_ziyaret').createOcakZiyaret({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo });
 const MEYDAN = require('./server/meydan_presence').createMeydanPresence({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, kimlik: socket => socket.playerInfo && socket.playerInfo.handle, alan: ZIYARET.alan });
@@ -537,6 +542,7 @@ async function handleWsUpgrade(req, socket, head) {
   if(socket.destroyed){await ECONOMY.publishPresence(socket.presenceId,null);return;}
   WS_CLIENTS.add(socket);
   ORTAK.onConnect(socket);
+  PARTI.onConnect(socket);
 
   socket.write(encodeWsFrame({
     type: 'welcome',
@@ -590,6 +596,7 @@ async function handleWsUpgrade(req, socket, head) {
     MEYDAN.onDisconnect(socket);
     ORTAK.onDisconnect(socket);
     ZIYARET.onDisconnect(socket);
+    PARTI.onDisconnect(socket);
     wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size });
   });
   socket.on('error', () => {
@@ -623,6 +630,8 @@ async function handleWsMessage(socket, msg) {
   if (MEYDAN.onMessage(socket, msg)) return;
   if (ORTAK.onMessage(socket, msg)) return;
   if (ZIYARET.onMessage(socket, msg)) return;
+  if (PROFIL.onMessage(socket, msg)) return;
+  if (PARTI.onMessage(socket, msg)) return;
   if (msg.type === 'ozel') { await SOSYAL.onMessage(socket, msg); return; }   // arkadaşlar arası özel mesaj (server/social_service.js)   // 2.0 meydanında öteki oyuncular (server/meydan_presence.js)
 
   if (msg.type === 'hub_update' || msg.type === 'hub_actor') {
