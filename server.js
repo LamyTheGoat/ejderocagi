@@ -969,14 +969,17 @@ async function handleHttp(req, res) {
     if(!req.identity)return sendJson(res,401,{ok:false,error:'guest_session_required'});
     const trade=await ECONOMY.currentTrade(req.identity.accountId);
     const economy=await ECONOMY.readEconomy(req.identity.accountId);
-    const labels={};
+    const labels={}, previews={};
     if(trade) for(const p of trade.participants) {
       const snapshot=p===req.identity.accountId?economy:await ECONOMY.readEconomy(p);
       for(const kind of ['items','dragons','eggs']) for(const asset of snapshot?.[kind] || []) {
-        if(trade.offers[p][kind].includes(asset.assetId)) labels[asset.assetId]=String(asset.data.name || asset.data.id || kind).slice(0,100);
+        if(trade.offers[p][kind].includes(asset.assetId)) { labels[asset.assetId]=String(asset.data.name || asset.data.id || kind).slice(0,100);
+          // önizleme: yalnız masaya konmuş malın görünüş ve künye alanları (karşı taraf neyi aldığını görsün)
+          const d=asset.data, al=(o,ks)=>Object.fromEntries(ks.filter(k=>o[k]!==undefined).map(k=>[k,o[k]]));
+          previews[asset.assetId]=kind==='dragons'?{kind:'dragon',data:al(d,['name','el','stage','sex','genes','gx','hue','eye','pat','horn','cos','st','traits','gen','old','retired'])}:kind==='eggs'?{kind:'egg',data:al(d,['genes','el','gen','origin'])}:{kind:'item',data:al(d,['id'])}; }
       }
     }
-    return sendJson(res,200,{ok:true,accountId:req.identity.accountId,trade,economy,labels,serverNow:Date.now()});
+    return sendJson(res,200,{ok:true,accountId:req.identity.accountId,trade,economy,labels,previews,serverNow:Date.now()});
   }
   if (pathname === '/api/trade/peers' && req.method === 'GET') {
     if(!req.identity)return sendJson(res,401,{ok:false,error:'guest_session_required'});

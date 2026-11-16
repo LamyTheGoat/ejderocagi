@@ -454,5 +454,5 @@
   setInterval(() => { if (acikMi() && !document.hidden && NET.durum === 'acik' && !NET.mesgul && !yaziyor() && (!G.sakin || G.sakin()) && Date.now() - NET.sonOku > 9000) tazele(true); }, 2500);
   addEventListener('online', () => { if (acikMi() && NET.durum === 'kapali') baglan(); });
   if (EO2.ag && EO2.ag.dinle) EO2.ag.dinle('durum', d => { if (d === 'cevrimici' && acikMi() && NET.durum === 'kapali') baglan(); });
-  EO2.bedesten = { tazele: () => tazele(true), baglan, kimAd, get durum() { return NET.durum; }, get veri() { return NET; }, get ekran() { return ekran; } };
+  EO2.bedesten = { mal: { dragon: malDragon, egg: malEgg, item: malItem, food: malFood }, tazele: () => tazele(true), baglan, kimAd, get durum() { return NET.durum; }, get veri() { return NET; }, get ekran() { return ekran; } };
 })();

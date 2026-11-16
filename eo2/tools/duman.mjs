@@ -61,6 +61,11 @@ if (acik) {
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
     yaz('meydanda öteki oyuncular (iki tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 240)) : String(r.stderr || '').slice(0, 200)); }
 
+  // 4d) bire bir takas: teklif, masa, onay, vazgeçme (iki tarayıcı)
+  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_takas.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 240000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('bire bir takas (iki tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
+
   // 5) belge sayfaları ve yazı tipleri
   { const g = await al(URL0 + 'gizlilik.html'), k = await al(URL0 + 'kosullar.html'), y = await al(URL0 + 'css/yazi.css'), pay = await al(URL0 + 'assets/paylasim.jpg');
     const adlar = (fs.readFileSync(path.join(repo, 'eo2', 'css', 'yazi.css'), 'utf8').match(/assets\/yazi\/[a-z0-9-]+\.woff2/g) || []), eksik = adlar.filter(a => !fs.existsSync(path.join(repo, 'eo2', a)));
