@@ -51,7 +51,17 @@
   app.appendChild(serit);
   const sP = serit.querySelector('p'), sGit = serit.querySelector('.rh-git'); let simdi = null, sure = 0;
   function goster(o) { if (simdi && simdi.id === o.id && simdi.metin === o.metin) return; simdi = o; clearTimeout(sure); sP.innerHTML = o.metin; sGit.hidden = !o.git; sGit.textContent = o.dugme || 'Git'; serit.dataset.tur = o.tur; serit.hidden = false; serit.classList.remove('gel'); void serit.offsetWidth; serit.classList.add('gel');
-    if (o.sn) sure = setTimeout(() => { if (simdi === o) gizle(); }, o.sn * 1000); }
+    if (o.sn) sure = setTimeout(() => { if (simdi === o) gizle(); }, o.sn * 1000);
+    serit.classList.remove(...YERLER.filter(Boolean)); if (o.tur === 'ekran') for (const ms of [380, 1200]) setTimeout(() => { if (simdi === o) yerles(); }, ms); }
+  /* ekran ipucu ekranın düğmelerini örtmez: altta bir düğmeye biniyorsa üste (başlığın altına) çıkar */
+  function binen() { const q = serit.getBoundingClientRect(); if (q.width < 4) return false; for (const el of document.querySelectorAll('#app button, #app input, #app [role="button"], #app [role="tab"]')) { if (serit.contains(el) || el.closest('#hud, .quests, #chat, #emotes, #actions, #world, #anchors')) continue;
+      const r = el.getBoundingClientRect(); if (r.width < 6 || r.height < 6) continue; const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || cs.display === 'none' || cs.pointerEvents === 'none') continue;
+      if (Math.min(q.right, r.right) - Math.max(q.left, r.left) > 4 && Math.min(q.bottom, r.bottom) - Math.max(q.top, r.top) > 4) return true; } return false; }
+  /* sırayla denenen yerler: altta, başlığın altında, sekmelerin altında, ekranın ortasının üstünde, ortasının altında. İlk boş olan seçilir. */
+  const YERLER = ['', 'yer-ust', 'yer-ust2', 'yer-orta', 'yer-orta2'], DIK = ['', 'yer-orta2', 'yer-orta', 'yer-ust2', 'yer-ust'];   // dik ekranda üst taraf doludur: önce ekranın ortası denenir
+  function yerles() { if (serit.hidden || !binen()) return; const adlar = YERLER.filter(Boolean);
+    for (const y of (innerWidth < innerHeight ? DIK : YERLER)) { serit.classList.remove(...adlar); if (y) serit.classList.add(y); if (!binen()) return; }
+    serit.classList.remove(...adlar); serit.classList.add('yer-ust2'); }
   function gizle() { clearTimeout(sure); simdi = null; serit.hidden = true; }
   serit.querySelector('.rh-kapat').addEventListener('click', () => { if (EO2.audio) EO2.audio.ui(); if (simdi) isaretle(simdi.id); gizle(); tazele(); });
   sGit.addEventListener('click', () => { if (!simdi || !simdi.git) return; if (EO2.audio) EO2.audio.ui(); const g = simdi.git; if (simdi.tur === 'adim' && g === 'hafta') isaretle(simdi.id); ac(g); });

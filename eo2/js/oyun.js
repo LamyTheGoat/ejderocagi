@@ -22,7 +22,18 @@
 
   /* ---------- bildirim ---------- */
   const tray = el('div', 'bildirimler'); tray.setAttribute('aria-live', 'polite'); app.appendChild(tray);
-  G.toast = function (html, kind) { const t = el('div', 'bildirim cam' + (kind ? ' ' + kind : ''), html); tray.appendChild(t); while (tray.children.length > 4) tray.firstChild.remove();
+  /* bildirim tepsisi düğmelerin üstüne çıkmaz: olağan yerinde bir düğmeye biniyorsa sırayla öteki yerler denenir, ilk boş olan seçilir.
+     G.dugmeyeBiner(kutular): verilen kutulardan biri görünen bir düğmeye, girişe ya da sekmeye değiyor mu (js/rehber.js de kullanır). */
+  G.dugmeyeBiner = function (kutular, haric) { const L = kutular.filter(q => q && q.width > 3 && q.height > 3); let alan = 0; if (!L.length) return 0;
+    for (const b of document.querySelectorAll('#app button, #app input, #app select, #app [role="button"], #app [role="tab"]')) { if ((haric && haric.contains(b)) || b.closest('#world, #anchors, #loading')) continue;
+      const r = b.getBoundingClientRect(); if (r.width < 6 || r.height < 6) continue; const cs = getComputedStyle(b); if (cs.visibility === 'hidden' || cs.display === 'none' || cs.pointerEvents === 'none' || +cs.opacity < 0.05) continue;
+      for (const q of L) if (Math.min(q.right, r.right) - Math.max(q.left, r.left) > 3 && Math.min(q.bottom, r.bottom) - Math.max(q.top, r.top) > 3) { const t = document.elementFromPoint((Math.max(q.left, r.left) + Math.min(q.right, r.right)) / 2, (Math.max(q.top, r.top) + Math.min(q.bottom, r.bottom)) / 2); if (t && (t === b || b.contains(t) || t.contains(b))) alan += (Math.min(q.right, r.right) - Math.max(q.left, r.left)) * (Math.min(q.bottom, r.bottom) - Math.max(q.top, r.top)); } }
+    return alan; };
+  const BY = ['', 'by-ust', 'by-ust2', 'by-orta', 'by-orta2', 'by-alt2', 'by-alt', 'by-bas'], BY_AD = BY.filter(Boolean);
+  /* hiçbir yer boş değilse (telefonda baştan sona düğme olan ekranlar) en az binen yer seçilir; bildirim dokunmayı engellemez ve birkaç saniyede gider */
+  function trayYer() { const biner = () => G.dugmeyeBiner([...tray.children].map(c => c.getBoundingClientRect()), tray); if (!biner()) return; let enIyi = '', enAz = Infinity;
+    for (const y of BY) { tray.classList.remove(...BY_AD); if (y) tray.classList.add(y); const a = biner(); if (!a) return; if (a < enAz) { enAz = a; enIyi = y; } } tray.classList.remove(...BY_AD); if (enIyi) tray.classList.add(enIyi); }
+  G.toast = function (html, kind) { const t = el('div', 'bildirim cam' + (kind ? ' ' + kind : ''), html); if (!tray.children.length) tray.classList.remove(...BY_AD); tray.appendChild(t); while (tray.children.length > 4) tray.firstChild.remove(); try { trayYer(); } catch (_) { }
     setTimeout(() => { t.classList.add('git'); setTimeout(() => t.remove(), 400); }, kind === 'goal' ? 4600 : 3000); if (EO2.audio) (kind === 'goal' ? EO2.audio.chime : EO2.audio.pop)(); };
   EO2_BUS.toast = G.toast;
   EO2_BUS.sfx = k => { const a = EO2.audio; if (!a) return; if (k === 'coin' || k === 'bell' || k === 'build' || k === 'grow' || k === 'hatch') a.chime(); else if (k === 'heart' || k === 'chirp') a.chirp(); else if (k === 'error') a.pop(); else a.ui(); };

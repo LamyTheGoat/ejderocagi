@@ -122,7 +122,7 @@
   /* ================= SAHNE: kip seçimi ================= */
   const YER = [   // konumlar tp-kapilar.webp üzerindeki oranlardır (2:1 çizim)
     { k: 'sahmeran', x: 0.214, y: 0.585, w: 0.085, h: 0.31, tur: 'zindan' }, { k: 'komutan', x: 0.5, y: 0.585, w: 0.09, h: 0.32, tur: 'zindan' }, { k: 'abra', x: 0.791, y: 0.585, w: 0.075, h: 0.3, tur: 'zindan' },
-    { k: 'talim', x: 0.186, y: 0.905, w: 0.2, h: 0.13, tur: 'talim' }, { k: 'kervan', x: 0.726, y: 0.9, w: 0.13, h: 0.17, tur: 'kervan' }, { k: 'meydan', x: 0.325, y: 0.79, w: 0.12, h: 0.2, tur: 'pvp' }];
+    { k: 'talim', x: 0.176, y: 0.905, w: 0.15, h: 0.13, tur: 'talim' }, { k: 'kervan', x: 0.726, y: 0.9, w: 0.13, h: 0.17, tur: 'kervan' }, { k: 'meydan', x: 0.325, y: 0.79, w: 0.12, h: 0.2, tur: 'pvp' }];
   const yerAd = y => y.tur === 'zindan' ? ['Zindan ' + V.ZINDAN[y.k].rakam, V.ZINDAN[y.k].ad] : y.tur === 'talim' ? ['Talim alanı', 'Talim'] : y.tur === 'pvp' ? ['Dostça düello', 'Er Meydanı'] : ['Kervan yolu', 'Kervan Baskını'];
   function kunye(y) { const kil = kilitli(), T = kayit();
     if (y.tur === 'pvp') return EO2.topcuPvp ? EO2.topcuPvp.kunye() : '<div class="tp-k-bas"><small>Dostça düello</small><h2>Er Meydanı</h2></div><p>Oda sistemi yüklenemedi.</p>';

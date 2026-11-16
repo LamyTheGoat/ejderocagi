@@ -91,6 +91,11 @@ if (acik) {
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
     yaz('arayüz parçaları birbirine binmiyor (on ekran boyu)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : j.binme.slice(0, 4).join(' | ')) : String(r.stderr || '').slice(0, 200)); }
 
+  // 4j) ekran içi bindirme ölçümü: her ekranda düğmeler, ipucu şeridi ve bildirim birbirine binmiyor (masaüstü, yatay ve dik telefon)
+  for (const [ad, bayrak] of [['masaüstü', []], ['yatay telefon', ['--mobil']], ['dik telefon', ['--dik']]]) { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_binme_ekran.mjs'), ...bayrak], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 240000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('ekran içi bindirme yok (' + ad + ')', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? (j.uyari.length ? j.uyari.length + ' ekranda bildirime boş yer yok' : '') : j.sorun.slice(0, 3).join(' | ')) : String(r.stderr || '').slice(0, 200)); }
+
   // 5) belge sayfaları ve yazı tipleri
   { const g = await al(URL0 + 'gizlilik.html'), k = await al(URL0 + 'kosullar.html'), y = await al(URL0 + 'css/yazi.css'), pay = await al(URL0 + 'assets/paylasim.jpg');
     const adlar = (fs.readFileSync(path.join(repo, 'eo2', 'css', 'yazi.css'), 'utf8').match(/assets\/yazi\/[a-z0-9-]+\.woff2/g) || []), eksik = adlar.filter(a => !fs.existsSync(path.join(repo, 'eo2', a)));

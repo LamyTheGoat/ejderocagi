@@ -277,3 +277,19 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2:has(> .pen-perde) #anchors .prompt, .ui2:has(> .pen-perde) #anchors .plate, .ui2:has(> .pen-perde) #anchors .bubble { visibility: hidden; }
 /* dar masaüstü: jest çubuğu sohbet kutusuyla eylem çubuğunun arasına sığmaz; eylem çubuğunun üstüne, sağa oturur */
 @media (min-width: 901px) and (max-width: 1240px) and (min-height: 501px) { .ui2 #emotes { left: auto; right: max(.9em, env(safe-area-inset-right, 0px)); bottom: calc(max(.8em, env(safe-area-inset-bottom, 0px)) + 6.6em); transform: none; } }
+
+/* ekran ipucu ekranın düğmelerine biniyorsa başlığın altına çıkar (js/rehber.js yerles) */
+.ui2 .rehber[data-tur="ekran"].yer-ust { bottom: auto; top: calc(max(.5em, env(safe-area-inset-top, 0px)) + 4.4em); } .ui2 .rehber[data-tur="ekran"].yer-ust2 { bottom: auto; top: calc(max(.5em, env(safe-area-inset-top, 0px)) + 8.6em); }
+.ui2 .rehber[data-tur="ekran"].yer-orta { bottom: auto; top: 32%; } .ui2 .rehber[data-tur="ekran"].yer-orta2 { bottom: auto; top: 62%; }
+/* dik telefonda ekran içi bildirimler alt eylem çubuğunun üstünde durur; düğmeleri örtmez */
+@media (max-aspect-ratio: 1/1) { .ui2.ekranda .bildirimler { bottom: calc(max(1.1em, env(safe-area-inset-bottom, 0px)) + 6.6em); } }
+/* Saray (yatay telefon): rakip kartlarının "Çiçek at" düğmesi podyum düğmesine değmez · Gök Yarışı (dik telefon): "Yarışa gir" pist madalyonuna değmez */
+@media (max-height: 560px) { .ui2 .sy-rakipler { bottom: 6.4em; } }
+@media (max-aspect-ratio: 1/1) { .ui2 .yr-bilgi { top: 34%; } .ui2 .yr-alt .madalyon.bolge-m img { width: 4.2em; height: 4.2em; } }
+
+/* bildirim tepsisinin yedek yerleri (js/oyun.js trayYer): olağan yeri bir düğmeye biniyorsa sırayla denenir */
+.ui2 .bildirimler[class*="by-"] { left: 50% !important; right: auto !important; transform: translateX(-50%) !important; justify-items: center !important; bottom: auto !important; }
+.ui2 .bildirimler.by-ust { top: calc(max(.5em, env(safe-area-inset-top, 0px)) + 4.4em) !important; } .ui2 .bildirimler.by-ust2 { top: calc(max(.5em, env(safe-area-inset-top, 0px)) + 8.6em) !important; }
+.ui2 .bildirimler.by-orta { top: 30% !important; } .ui2 .bildirimler.by-orta2 { top: 56% !important; }
+.ui2 .bildirimler.by-alt2 { top: auto !important; bottom: calc(max(1.1em, env(safe-area-inset-bottom, 0px)) + 6.6em) !important; } .ui2 .bildirimler.by-alt { top: auto !important; bottom: max(1.1em, env(safe-area-inset-bottom, 0px)) !important; }
+.ui2 .bildirimler.by-bas { top: max(.35em, env(safe-area-inset-top, 0px)) !important; width: min(22em, 46%) !important; font-size: .9em; }
