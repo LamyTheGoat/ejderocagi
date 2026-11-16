@@ -58,7 +58,8 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 
 ### 2.4 Sosyal katman
 - Meydanda öteki oyuncuların görünmesi: **yapıldı (2026-11-16).** `server/meydan_presence.js` + `eo2/js/meydan_ag.js`: konum, yön, set, yol arkadaşı, jest; aynı kanal (en çok 30 oyuncu) ve aynı alandakiler birbirini görür; ad sunucuda süzgeçten geçer; sohbet taşınmaz. İki tarayıcılı denetim `tools/check_meydan.mjs` (duman testinde). Eksik: öteki oyuncunun gerçek kuşamı ve ejderhasının türü (şimdi set adı ve genel yol arkadaşı), oyuncuya dokununca profil.
-- Sohbet: açılmadan önce küfür süzgeci, engelle, şikâyet, hız sınırı şart. O zamana kadar kutu günlük olarak duruyor.
+- Sohbet: **açıldı (2026-11-16)**, şart koşulan dört önlemle: sunucuda küfür süzgeci ve bağlantı ayıklama (`temizSoz`), hız sınırı (iki söz arası 1,2 sn, otuz saniyede sekiz söz), istemcide engelleme (`eo2.engel`), şikâyet (`/api/report`, son sözlerle). Tek kanal: bulunduğun alan ve kanal. Sözler saklanmaz. Süzgeç listesi kısadır; yayından önce genişletilmeli. Parti ve fısıltı yok.
+- Oyuncu kartı (2026-11-16): meydanda bir oyuncunun yanına gelince selam ver, Topçu düellosuna çağır (Er Meydanı odası kurulur, davet gider), engelle, şikâyet et.
 - Arkadaş listesi, fısıltı, parti penceresi, profil inceleme.
 - Oyuncular arası Kıraathane masası ve takas (bağlantı noktaları hazır: `EO2.kiraathane.baglan`, `server/trade_service.js`).
 
@@ -92,8 +93,8 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 - Motor istekleri (Ocak ajanından): zemin kabartması çime uygulanmasın, mini haritada açılabilir kare katmanı, pano açıkken kamera kayması, zemin lekeleri için tek doku atlası (çizim çağrısı 296'dan yüzün altına iner).
 - Tam tur denetiminde ara sıra (2026-11-16: on altı koşuda bir; ardışık on koşuda yinelenmedi) sunucudan bir 400 yanıtı düşüyor ve o koşuda tur sonu altını düşük çıkıyor; nedeni bulunamadı. `check_oyun.mjs` artık yanıtın yolunu, komut türünü ve hata kodunu yazıyor. 2026-11-16: sunucu, reddettiği dövüşün hangi denetimde hangi değerle kaldığını günlüğe yazıyor (`[komut reddi]`, `server/arena_service.js` `detail`); bir sonraki görülüşte nedeni günlükten okunur. Turnuva denetimindeki 400'ler denetim yapaylığıydı (senaryo rakipleri 1. seviyeye indiriyordu, sunucu doğru olarak reddediyordu); senaryo düzeltildi.
 - Mini harita: master'daki gibi çizilmiş harita, pusula ve yakınlaştırma yok.
-- Simge ailesi: Ahır'daki antrenman taşları ve Pazar portreleri madalyon ailesinde değil.
-- Arena dövüşünde terbiyeciler sahnede yok (eski oyunda vardı); durum rozetleri ve efektler sade.
+- Simge ailesi (2026-11-16): jestler, ses ve menü, antrenman ve bakım, Yuva, sefer, Bedesten süzgeçleri ve dövüş düğmeleri madalyon ailesine geçti (Midjourney sayfaları, `tools/madalyon.mjs` + `tools/madalyon_esle.mjs`; kaynak sayfa `docs/arayuz_simge_sayfalari_2026-11-16.jpg`). Yumurtalar elementine göre çizildi, para ve ün simgeleri yenilendi. Pazar ve Han'daki kişi portreleri portre olarak kaldı.
+- Arena dövüşü (2026-11-16): ilk sürümün çizgi roman ara kareleri bağlandı (açılış, güçlü nefes, kritik, siper, sendeleme, zafer ve yenilgi; `css/kare.css` eski stilden `tools/kare_css.mjs` ile ayıklanır), nefes ışını, vuruşta beyaz parlama ve geri savrulma, hamle sesleri, ayrı renkli can çubukları, terbiyeci avatarları (yapay rakipte addan türetilen set). Hikâye çizgi romanı ekrana sığdırılıyor ve 2.0 düğmelerini kullanıyor. Eksik: Er Meydanı ejderha düellosunda öteki oyuncunun gerçek seti, durum rozetleri.
 - Mavi-altın hat: ekranlar ayrı ayrı iyi, ama pencere çerçevesi, düğme ve sekme ölçüleri tek bir bileşen dosyasında toplanmadı
   (`cam.css` 1200 satır, üstüne altı ek dosya). Öneri: çıkıştan önce bir "bileşen sayfası" (düğme, sekme, pano, rozet, pencere)
   çıkarıp sapmaları tek geçişte gidermek.

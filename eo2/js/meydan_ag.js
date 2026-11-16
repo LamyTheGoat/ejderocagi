@@ -18,11 +18,32 @@
      her karede oyuncunun konumunu izler; oyuncu ayrılınca ya da alan değişince listeden çıkar. */
   let etkL = null;
   function etkEkle(id, c) { if (!api.sceneState) return; const L = api.sceneState().L; if (!L || !Array.isArray(L.interact) || !c.handle) return; if (etkL !== L) etkL = L;
-    c.etk = { id: 'oy:' + id, x: c.x, y: c.y, r: 1.5, z: 2.3, label: c.name, sub: 'Topçu düellosuna çağır', act: 'oyuncu:' + id }; L.interact.push(c.etk); }
+    c.etk = { id: 'oy:' + id, x: c.x, y: c.y, r: 1.5, z: 2.3, label: c.name, sub: 'Selam ver, düelloya çağır', act: 'oyuncu:' + id }; L.interact.push(c.etk); }
   function etkSil(c) { if (!c.etk) return; for (const L of [etkL, api.sceneState && api.sceneState().L]) if (L && Array.isArray(L.interact)) { const i = L.interact.indexOf(c.etk); if (i >= 0) L.interact.splice(i, 1); } c.etk = null; }
-  async function cagir(id) { const c = kisiler.get(id); if (!c || !c.handle || !EO2.topcuPvp || !EO2.topcuPvp.davet) return;
-    const v = await G.pen({ k: 'Er Meydanı', t: c.name + ' ile düello', body: '<p><b>' + c.name.replace(/[&<>"]/g, '') + '</b> adlı terbiyeciyi Topçu düellosuna çağırırsın. Kabul ederse Er Meydanı\'nda karşılaşırsınız.</p><p>Dostça bir maç: altın, ün ve sıralama yazılmaz.</p>', btns: [{ t: 'Vazgeç', v: false }, { t: 'Çağır', cls: 'altin', v: true }] });
-    if (v) EO2.topcuPvp.davet(c.handle, c.name); }
+  /* ---------- engelleme ve şikâyet ----------
+     Engellenen oyuncunun sözleri ve balonları gösterilmez (bu tarayıcıda, hesap adına göre). Şikâyet, oyuncunun son sözleriyle
+     birlikte sorun bildirimi olarak sunucuya gider (/api/report). */
+  const ENGEL = 'eo2.engel'; let engelli = new Set(); try { engelli = new Set(JSON.parse(localStorage.getItem(ENGEL) || '[]')); } catch (_) { }
+  const engelYaz = () => { try { localStorage.setItem(ENGEL, JSON.stringify([...engelli].slice(-200))); } catch (_) { } };
+  const temiz = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const sozGunlugu = [];   // son sözler: { h, n, x, t }
+  async function sikayet(c) {
+    const son = sozGunlugu.filter(z => z.h === c.handle).slice(-10).map(z => z.x);
+    const v = await G.pen({ k: 'Şikâyet', t: temiz(c.name) + ' şikâyet edilsin mi?', body: '<p>Şikâyetin, bu oyuncunun son sözleriyle birlikte bize ulaşır. İstersen oyuncuyu ayrıca engelleyebilirsin.</p>' + (son.length ? '<p class="soluk">Son sözleri: ' + son.map(temiz).join(' · ') + '</p>' : ''), btns: [{ t: 'Vazgeç', v: false }, { t: 'Şikâyet et', cls: 'kor', v: true }] });
+    if (!v) return;
+    try { const r = await fetch('/api/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ metin: '[şikâyet] ' + c.handle + ' (' + c.name + ') · ' + (son.join(' | ') || 'söz yok'), surum: EO2.surum || '', sahne: api.scene() }) });
+      G.toast(r.ok ? 'Şikâyetin ulaştı. Teşekkürler.' : 'Şikâyet gönderilemedi; biraz sonra yeniden dene.'); } catch (_) { G.toast('Bağlantı yok; şikâyet gönderilemedi.'); }
+  }
+  /* ---------- oyuncu kartı: yanına gelinen oyuncuyla yapılabilecekler ---------- */
+  async function cagir(id) { const c = kisiler.get(id); if (!c || !c.handle) return;
+    const eng = engelli.has(c.handle);
+    const v = await G.pen({ k: 'Terbiyeci', t: temiz(c.name), dikey: true, body: '<p>Aynı meydandasınız. Ne yapmak istersin?</p>',
+      btns: [{ t: 'Selam ver', cls: 'altin', sub: 'El sallarsın', v: 'selam' }, { t: 'Topçu düellosuna çağır', sub: 'Dostça maç; altın ve ün yazılmaz', v: 'duello', off: EO2.topcuPvp && EO2.topcuPvp.davet ? '' : 'Er Meydanı yüklenemedi' },
+        { t: eng ? 'Engeli kaldır' : 'Engelle', sub: eng ? 'Sözlerini yeniden görürsün' : 'Sözlerini ve balonlarını görmezsin', v: 'engel' }, { t: 'Şikâyet et', sub: 'Uygunsuz ad ya da söz', v: 'sikayet' }, { t: 'Kapat', v: false }] });
+    if (v === 'selam') { if (api.emote) api.emote(1); }
+    else if (v === 'duello') EO2.topcuPvp.davet(c.handle, c.name);
+    else if (v === 'engel') { if (eng) engelli.delete(c.handle); else engelli.add(c.handle); engelYaz(); G.toast(eng ? temiz(c.name) + ' için engel kalktı.' : temiz(c.name) + ' engellendi.'); }
+    else if (v === 'sikayet') sikayet(c); }
   function birak(id) { const c = kisiler.get(id); if (!c) return; etkSil(c); kisiler.delete(id); const i = api.remotes.indexOf(c); if (i >= 0) api.remotes.splice(i, 1); api.dropChar(c); say(); }
   function hepsiniBirak() { for (const id of [...kisiler.keys()]) birak(id); }
   function isle(p) {
@@ -55,11 +76,21 @@
   AG.dinle('meydan', m => isle(m));
   AG.dinle('meydan_liste', m => { if (!api || !m || m.a !== alanim || !Array.isArray(m.liste)) return; const gelen = new Set(m.liste.map(p => p && p.id)); for (const id of [...kisiler.keys()]) if (!gelen.has(id)) birak(id); for (const p of m.liste.slice(0, 40)) isle(p); });
   AG.dinle('meydan_cik', m => { if (m && typeof m.id === 'string') birak(m.id); });
+  /* ---------- alan sohbeti: aynı kanal ve alandakiler; sunucu süzer ve hızı sınırlar ---------- */
+  AG.dinle('meydan_soz', m => { if (!api || !m || typeof m.x !== 'string') return; const x = m.x.slice(0, 120);
+    if (m.ben) { api.chatAdd('genel', 'Sen', x); api.say(api.player, x.slice(0, 80), 4.5); return; }
+    const c = kisiler.get(m.id); if (!c || (c.handle && engelli.has(c.handle))) return;
+    sozGunlugu.push({ h: c.handle, n: c.name, x, t: Date.now() }); if (sozGunlugu.length > 80) sozGunlugu.shift();
+    api.say(c, x.slice(0, 80), 4.5); api.chatAdd('genel', c.name, x); if (EO2.audio && EO2.audio.pop) EO2.audio.pop(); });
+  AG.dinle('meydan_soz_red', () => { if (api) api.chatAdd('sistem', '', 'Çok hızlı yazıyorsun; biraz bekle.'); });
+  const sohbetAcik = () => { const a = document.getElementById('app'); if (a) a.classList.toggle('sohbet-acik', AG.cevrimici() && G.live); };
+  setInterval(sohbetAcik, 1500);
   AG.dinle('durum', d => { if (d !== 'cevrimici') { hepsiniBirak(); sonJson = ''; alanim = null; } else setTimeout(() => bildir(true), 300); });
 
   (function bekle() {
     if (!EO2.api || !EO2.hooks || !EO2.hooks.act) return setTimeout(bekle, 120);   // hooks.act'i oyun.js kurar; ondan sonra sarılır
     api = EO2.api;
+    EO2.hooks.sohbet = x => { if (!AG.cevrimici() || !G.live) return false; bildir(true); return AG.gonder({ type: 'meydan_soz', x: String(x).slice(0, 120) }); };   // game.js sohbet kutusu buradan yollar
     const jest0 = EO2.hooks.emote; EO2.hooks.emote = k => { if (jest0) jest0(k); jest = { k, t: Date.now() }; bildir(true); };
     setInterval(() => bildir(false), 100);
     EO2.frameHooks.push(() => { for (const c of kisiler.values()) if (c.etk) { c.etk.x = c.x; c.etk.y = c.y; } });

@@ -206,3 +206,7 @@ html, body, #app.ui2 { overflow: clip; }
 @keyframes vuruldu-ters { 0%, 100% { transform: scaleX(-1); } 0.1%, 14% { filter: brightness(0) invert(1) drop-shadow(0 0 1em #fff); transform: scaleX(-1) translateX(-8%) rotate(-2deg); } 32% { filter: brightness(1.7); transform: scaleX(-1) translateX(-5%); } 62% { transform: scaleX(-1) translateX(3%); filter: none; } }
 @keyframes hamle-sol { 18% { transform: translateX(-5%) scale(.98); } 46% { transform: translateX(26%) scale(1.08); } }
 @keyframes hamle-sag { 0%, 100% { transform: scaleX(-1); } 18% { transform: scaleX(-1) translateX(-5%) scale(.98); } 46% { transform: scaleX(-1) translateX(26%) scale(1.08); } }
+
+/* ================= alan sohbeti (2026-11-16): çevrimiçiyken yazı alanı açılır; sekmeler kapalı kalır (tek kanal: bulunduğun alan) ================= */
+.ui2.sohbet-acik:not(.gelistirici) #chatForm { display: grid !important; }
+.ui2.sohbet-acik #chatInput::placeholder { color: #b9c4ea; }

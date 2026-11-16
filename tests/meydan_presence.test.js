@@ -59,3 +59,25 @@ test('hız sınırı saniyede ' + HIZ + ' bildirim; kanal ' + KANAL_BOYU + ' oyu
   assert.deepEqual(P.sayim(), [KANAL_BOYU, 1]); assert.deepEqual(gelen(yeni)[0].liste, []); assert.equal(gelen(A).length, 0, 'dolu kanal yeni geleni görmez');
   P.onDisconnect(kalabalik[0]); const sonraki = soket('sonraki'); P.onMessage(sonraki, konum(3, 3)); assert.deepEqual(P.sayim(), [KANAL_BOYU, 1], 'boşalan yere oturur');
 });
+
+test('alan sohbeti: süzgeç, bağlantı ayıklama, hız sınırı; yalnız aynı alandakiler duyar', () => {
+  const { temizSoz } = require('../server/meydan_presence');
+  assert.equal(temizSoz('  Selam   millet!  '), 'Selam millet!');
+  assert.equal(temizSoz('bak şuna https://kotu.site/x hemen'), 'bak şuna hemen');
+  assert.equal(temizSoz('sitem ornek.com/odul'), 'sitem');
+  assert.equal(temizSoz('sen bir orospusun'), 'sen bir ••••••');
+  assert.equal(temizSoz('klasik bir maçtı'), 'klasik bir maçtı');
+  for (const kotu of [null, 5, '', '   ', 'http://x.y/z']) assert.equal(temizSoz(kotu), null, String(kotu));
+  assert.equal(temizSoz('a'.repeat(300)).length, 120);
+  const { P, soket, gelen, bosalt, ileri } = kur(), A = soket('A'), B = soket('B'), C = soket('C'), Y = soket('Y');
+  assert.equal(P.onMessage(Y, { type: 'meydan_soz', x: 'katılmadan yazıyorum' }), true); assert.equal(gelen(Y).length, 0);
+  P.onMessage(A, konum(0, 0)); P.onMessage(B, konum(1, 1, 'master', { n: 'Bora' })); P.onMessage(C, konum(0, 0, 'han')); bosalt();
+  P.onMessage(B, { type: 'meydan_soz', x: 'Selam Ayşe', n: 'Sahte', id: 'sahte' });
+  assert.equal(gelen(A).length, 1); assert.equal(gelen(A)[0].x, 'Selam Ayşe'); assert.equal(gelen(A)[0].n, 'Bora'); assert.equal(gelen(A)[0].h, '@B');
+  assert.equal(gelen(B)[0].ben, true); assert.equal(gelen(C).length, 0, 'başka alan duymaz');
+  bosalt(); P.onMessage(B, { type: 'meydan_soz', x: 'hemen ardından' });
+  assert.equal(gelen(A).length, 0); assert.deepEqual(gelen(B), [{ type: 'meydan_soz_red', neden: 'hiz' }]);
+  for (let i = 0; i < 7; i++) { ileri(1300); P.onMessage(B, { type: 'meydan_soz', x: 'söz ' + i }); }
+  bosalt(); ileri(1300); P.onMessage(B, { type: 'meydan_soz', x: 'dokuzuncu' }); assert.equal(gelen(A).length, 0, 'otuz saniyede sekiz söz');
+  ileri(30000); bosalt(); P.onMessage(B, { type: 'meydan_soz', x: 'yeniden' }); assert.equal(gelen(A).length, 1);
+});

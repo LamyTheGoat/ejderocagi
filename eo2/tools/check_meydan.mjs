@@ -24,10 +24,16 @@ try {
   log.yurudu = await bekle(A, 'Math.abs([...EO2.meydanAg.kisiler.values()][0].tx - ' + hedef[0] + ') < 0.05 && Math.abs([...EO2.meydanAg.kisiler.values()][0].ty - ' + hedef[1] + ') < 0.05');
   await B.evaluate(() => { const d = [...document.querySelectorAll('#emotes button, .emote, [data-emote]')][2]; if (d) d.click(); else EO2.hooks.emote('heart'); });
   log.jest = await bekle(A, '([...EO2.meydanAg.kisiler.values()][0].happy || 0) > 0');
+  // sohbet: B yazar; A süzülmüş hâlini görür; A, B'yi engelleyince B'nin sözü A'ya düşmez
+  log.sohbetAcik = await bekle(B, 'document.getElementById("app").classList.contains("sohbet-acik")');
+  await B.evaluate(() => { const i = document.getElementById('chatInput'); i.value = 'Selam Aylin, orospu https://kotu.site'; document.getElementById('chatForm').requestSubmit(); });
+  log.sohbet = await bekle(A, '/Bora: Selam Aylin, •+/.test(document.getElementById("chatLog").textContent) && !/kotu/.test(document.getElementById("chatLog").textContent)');
+  log.sohbetBen = await bekle(B, '/Sen: Selam Aylin, •+/.test(document.getElementById("chatLog").textContent)');
   // düello daveti: A, B'nin yanına gelir ve çağırır; B kabul eder; ikisi de aynı odada, Er Meydanı künyesinde olmalı
   log.etkilesim = await A.evaluate(() => { const c = [...EO2.meydanAg.kisiler.values()][0]; return !!(c.handle && c.etk && EO2.api.sceneState().L.interact.includes(c.etk)); });
   await A.evaluate(() => { const id = [...EO2.meydanAg.kisiler.keys()][0]; EO2.api.runAct('oyuncu:' + id); }); await A.waitForTimeout(500);
-  await A.locator('.pen .gbtn:has-text("Çağır")').click();
+  log.kart = await A.locator('.pen .gbtn').allTextContents();
+  await A.locator('.pen .gbtn:has-text("Topçu düellosuna çağır")').click();
   log.davetGeldi = await B.waitForSelector('.pen:has-text("Düello daveti")', { timeout: 10000 }).then(() => true, () => false);
   log.davetEden = log.davetGeldi ? await B.locator('.pen').first().textContent() : '';
   if (log.davetGeldi) await B.locator('.pen .gbtn:has-text("Kabul et")').click();
@@ -42,6 +48,6 @@ try {
   log.ayrildi = await bekle(A, 'EO2.meydanAg.sayi() === 0 && EO2.api.remotes.length === 0');
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && log.gordu && log.adGeldi && log.aGoruyor && log.aGoruyor[0].ad === 'Bora' && log.aGoruyor[0].alan === 'master' && log.aGoruyor[0].sahnede && log.bGoruyor[0].ad === 'Aylin' && log.yurudu && log.jest && log.etkilesim && log.davetGeldi && /Aylin/.test(log.davetEden) && log.oda && log.kunye && log.hanaGitti && log.dondu && log.ayrildi;
+const ok = !hata.length && log.gordu && log.adGeldi && log.aGoruyor && log.aGoruyor[0].ad === 'Bora' && log.aGoruyor[0].alan === 'master' && log.aGoruyor[0].sahnede && log.bGoruyor[0].ad === 'Aylin' && log.yurudu && log.jest && log.sohbetAcik && log.sohbet && log.sohbetBen && log.kart.some(t => /Engelle/.test(t)) && log.kart.some(t => /Şikâyet/.test(t)) && log.etkilesim && log.davetGeldi && /Aylin/.test(log.davetEden) && log.oda && log.kunye && log.hanaGitti && log.dondu && log.ayrildi;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

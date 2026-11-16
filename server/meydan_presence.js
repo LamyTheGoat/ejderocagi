@@ -26,6 +26,17 @@ function temizAd(v) {
 }
 const sayi = (v, a, b) => (typeof v === 'number' && Number.isFinite(v)) ? Math.round(Math.max(a, Math.min(b, v)) * 100) / 100 : null;
 
+// Sohbet sözü: en çok 120 karakter, denetim karakteri ve bağlantı yok; uygunsuz sözcükler yıldızlanır.
+// Dönen: temiz metin ya da null (boş, yalnız bağlantı, biçimsiz).
+const BAGLANTI = /(https?:\/\/|www\.)\S+|\b[\w-]+\.(com|net|org|io|gg|tr|ru|xyz|app|me|co)\b\S*/gi;
+function temizSoz(v) {
+  if (typeof v !== 'string') return null;
+  let s = v.normalize('NFC').replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, ' ').replace(BAGLANTI, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+  if (!s) return null;
+  s = s.split(' ').map(soz => { const k = sade(soz); if (!k) return soz; for (const y of YASAK) if (y.length <= 3 ? k.startsWith(y) : k.includes(y)) return '•'.repeat(Math.min(6, Math.max(3, soz.length))); return soz; }).join(' ');
+  return s;
+}
+
 function temizDurum(msg) {
   const a = typeof msg.a === 'string' && /^[a-z0-9]{2,16}$/.test(msg.a) ? msg.a : null, x = sayi(msg.x, -400, 400), y = sayi(msg.y, -400, 400);
   if (!a || x === null || y === null) return null;
@@ -41,7 +52,21 @@ function createMeydanPresence({ send, now = () => Date.now(), kimlik = () => nul
   const paket = m => ({ type: 'meydan', id: m.id, h: m.h, n: m.d.n, a: m.d.a, x: m.d.x, y: m.d.y, d: m.d.d, s: m.d.s, p: m.d.p, e: m.d.e });
   const ayniAlan = (socket, alan) => { const out = []; const m = socket.meydan; if (!m) return out; for (const o of kanallar[m.kanal]) if (o !== socket && o.meydan && o.meydan.d && o.meydan.d.a === alan) out.push(o); return out; };
 
+  /* alan sohbeti: yalnız meydana katılmış oyuncu yazar; aynı kanal ve alandakiler duyar. Kalıcı değildir.
+     Hız: iki söz arası en az 1,2 saniye ve otuz saniyede en çok sekiz söz; aşan söz sessizce atılır, gönderene bildirilir. */
+  function soz(socket, msg) {
+    const m = socket.meydan; if (!m || !m.d) return true;
+    const t = now(); m.sozler = (m.sozler || []).filter(z => t - z < 30000);
+    if ((m.sozler.length && t - m.sozler[m.sozler.length - 1] < 1200) || m.sozler.length >= 8) { send(socket, { type: 'meydan_soz_red', neden: 'hiz' }); return true; }
+    const x = temizSoz(msg.x); if (!x) return true;
+    m.sozler.push(t);
+    const p = { type: 'meydan_soz', id: m.id, h: m.h, n: m.d.n, x };
+    for (const o of ayniAlan(socket, m.d.a)) send(o, p);
+    send(socket, { type: 'meydan_soz', id: m.id, h: m.h, n: m.d.n, x, ben: true });   // gönderen süzülmüş hâlini görür
+    return true;
+  }
   function onMessage(socket, msg) {
+    if (msg && msg.type === 'meydan_soz') return soz(socket, msg);
     if (!msg || msg.type !== 'meydan') return false;
     let m = socket.meydan;
     const t = now();
@@ -64,4 +89,4 @@ function createMeydanPresence({ send, now = () => Date.now(), kimlik = () => nul
   return { onMessage, onDisconnect, sayim: () => kanallar.map(k => k.size) };
 }
 
-module.exports = { createMeydanPresence, temizAd, temizDurum, KANAL_BOYU, HIZ };
+module.exports = { createMeydanPresence, temizAd, temizDurum, temizSoz, KANAL_BOYU, HIZ };
