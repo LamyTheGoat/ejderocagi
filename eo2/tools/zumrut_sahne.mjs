@@ -3,7 +3,7 @@
 //   kopru.webp   köprü konsepti, kemer ortalarından aynalanarak dünya boyuna uzatılır (iki uçta perdeli özgün kenarlar)
 //   defile.webp  defile salonu modüllerinden dizilir; boss yükseltisi oyundaki yere ve yüksekliğe oturur (önizleme görseli kullanılmaz)
 //   yilan_*.webp yılan düşmanlar (tek duruş)
-// Ölçüler js/zindan_ortak.js içindeki ASAMA.sahne ile aynı olmalı (konsola yazılır).
+// Sahne resimleri arena klasörlerine yazılır (eo2/arenalar/zumrut-kopru, zumrut-defile); blok haritalar: tools/zumrut_blok.mjs; sonra tools/arena_derle.mjs.
 // Kullanım: node eo2/tools/zumrut_sahne.mjs   (geliştirme sunucusu 3210'da açık olmalı)
 import fs from 'node:fs'; import path from 'node:path'; import { createRequire } from 'node:module'; import { fileURLToPath } from 'node:url';
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..'), require = createRequire(path.join(repo, 'package.json')), { chromium } = require('playwright-core');
@@ -22,11 +22,12 @@ const veri = await p.evaluate(async () => {
   /* ---- köprü: [0..1308] · ayna[327..1308] · [327..1308] · ... · [327..1672]; 327 ve 1308 kemer ayaklarının ortasıdır ---- */
   { const im = await al('arka_plan/kopru_konsept_v1.png'), H = im.naturalHeight, A = 327, B = 1308, parca = [[0, B, 0], [A, B, 1], [A, B, 0], [A, B, 1], [A, B, 0], [A, B, 1], [A, im.naturalWidth, 0]];
     // sıra: sol kenar B'de biter; aynalı parça B'den A'ya; düz parça A'dan B'ye; son düz parçanın yerine sağ kenar (A'dan sona)
-    const dizi = [parca[0], parca[1], parca[2], parca[3], parca[6]], W = dizi.reduce((s, q) => s + q[1] - q[0], 0), [c, x] = tuval(W, H); let dx = 0;
+    const dizi = [parca[0], parca[1], parca[2], parca[3], parca[6]], W = dizi.reduce((s, q) => s + q[1] - q[0], 0), PAY = 350, [c, x] = tuval(W, H + PAY); let dx = 0; x.translate(0, PAY);
     const [tc, tx] = tuval(im.naturalWidth, H); tx.drawImage(im, 0, 0); tx.drawImage(im, 800, 0, 1, 48, A, 0, 130, 48); tx.drawImage(im, 800, 0, 1, 100, 1205, 0, B - 1205, 100);   // ara parçalarda köşe çiçeklerinin kesik uçları gökyüzüyle kapatılır
     dizi.forEach(([a, bb, ters], i) => { ayna(x, tc, a, bb - a, dx, bb - a, 0, H, ters); dx += bb - a; });
     const g = x.createLinearGradient(0, H - 90, 0, H); g.addColorStop(0, 'rgba(232,242,251,0)'); g.addColorStop(1, 'rgba(232,242,251,1)'); x.fillStyle = g; x.fillRect(0, H - 90, W, 90);   // alt kenar sise karışır
-    const ust = x.getImageData(W >> 1, 2, 1, 1).data; cik.kopru = { d: c.toDataURL('image/webp', 0.86), w: W, h: H, yer: 563, ust: [ust[0], ust[1], ust[2]] }; }
+    x.drawImage(tc, 800, 0, 1, 3, 0, -PAY, W, PAY + 1);   // üst pay: çizimin en üst satırındaki gökyüzü rengi
+    const ust = x.getImageData(W >> 1, PAY + 2, 1, 1).data; cik['zumrut-kopru'] = { d: c.toDataURL('image/webp', 0.86), w: W, h: H + PAY, yer: 563 + PAY, ust: [ust[0], ust[1], ust[2]] }; }
 
   /* ---- defile: 4459×941, yürüme hattı 683; 1 eski oyun pikseli = 4459/3400 tuval pikseli ---- */
   { const W = 4459, H = 941, L = 683, K = W / 3400, S = 0.445, [c, x] = tuval(W, H), M = 'defile_modul/';
@@ -56,12 +57,12 @@ const veri = await p.evaluate(async () => {
     const arkalar = []; for (let i = 1; i <= 8; i++) arkalar.push(await al('seyirci/back_' + i + '.png'));
     for (let dx = 70, i = 0; dx < W - 60; dx += 139, i++) { const im = arkalar[Math.floor(r() * 8)]; x.drawImage(im, dx - 48, H - 62 - 125, 96, 125); }
     for (let dx = 0; dx < W; dx += 836) x.drawImage(sandalye, dx, H - 150, 836, 150);
-    cik.defile = { d: c.toDataURL('image/webp', 0.86), w: W, h: H, yer: L, rampa: [rampa0, rampa1, ustY] }; }
+    cik['zumrut-defile'] = { d: c.toDataURL('image/webp', 0.86), w: W, h: H, yer: L, rampa: [rampa0, rampa1, ustY] }; }
 
   /* ---- yılanlar ---- */
   for (const [ad, yol] of [['yilan_vurucu', 'snake_striker'], ['yilan_agir', 'snake_heavy'], ['yilan_kucuk', 'snake_basic']]) { const im = await al('dusman_yilan/' + yol + '.png'), [c, x] = tuval(im.naturalWidth, im.naturalHeight); x.drawImage(im, 0, 0); cik[ad] = { d: c.toDataURL('image/webp', 0.92), w: c.width, h: c.height }; }
   return cik;
 });
 await b.close();
-const ozet = {}; for (const ad in veri) { const v = veri[ad], h = path.join(hedef, ad + '.webp'); fs.writeFileSync(h, Buffer.from(v.d.split(',')[1], 'base64')); delete v.d; v.bayt = fs.statSync(h).size; ozet[ad] = v; }
+const ozet = {}; for (const ad in veri) { const v = veri[ad], arena = /^zumrut-/.test(ad), h = arena ? path.join(repo, 'eo2', 'arenalar', ad, 'sahne.webp') : path.join(hedef, ad + '.webp'); if (arena) fs.mkdirSync(path.dirname(h), { recursive: true }); fs.writeFileSync(h, Buffer.from(v.d.split(',')[1], 'base64')); delete v.d; v.bayt = fs.statSync(h).size; ozet[ad] = v; }
 console.log(JSON.stringify(ozet));

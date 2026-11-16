@@ -32,8 +32,9 @@
 //   sira { adim, tur, tip: 'oyuncu' | 'dusman', kim, i, hedef, tohum, ruzgar, ex } · tur_bitti { kim, adim, x, y }
 const ZORLUK = { normal: 0.75, zor: 1.0 };
 // Zindanlar tek tarif dosyasından okunur (eo2/js/zindan_tarif.js; oyun da aynı dosyayı okur). Yeni zindan oraya eklenir; burada değişiklik gerekmez.
-const TARIF = require('../eo2/js/zindan_tarif.js');
-const tariftenKur = T => { const Z = {}; for (const k in T) Z[k] = { ad: T[k].ad, asama: T[k].asama.map(A => ({ ad: A.ad, dusman: (A.dusman || []).map(q => ({ hp: q.hp })).concat(A.boss ? [{ hp: A.boss.hp, boss: true }] : []) })) }; return Z; };
+// Arenalar (düşman sayısı ve canları) eo2/js/arena_veri.js'ten gelir: eo2/arenalar klasörlerinden derlenir (eo2/tools/arena_derle.mjs).
+const TARIF = require('../eo2/js/zindan_tarif.js'), ARENA = require('../eo2/js/arena_veri.js');
+const tariftenKur = (T, AR) => { const Z = {}; for (const k in T) Z[k] = { ad: T[k].ad, asama: T[k].asama.map(ad => { const A = (AR || ARENA)[ad]; if (!A) throw new Error('arena yok: ' + ad); return { ad: A.ad, dusman: (A.dusman || []).map(q => ({ hp: q.hp })).concat(A.boss ? [{ hp: A.boss.hp, boss: true }] : []) }; }) }; return Z; };
 const ZINDANLAR = tariftenKur(TARIF);
 const HASAR_UST = 6000;   // tek bildirimde kabul edilen en büyük hasar (hata ve bozuk veri süzgeci; denge kuralı değildir)
 const hata = kod => Object.assign(new Error(kod), { kod });
@@ -43,7 +44,7 @@ const SURE = { giris: 15000, oyuncu: 50000, dusman: 16000 }, GECIKME_MS = 6000; 
 const partiCarpan = n => 1 + 0.5 * (Math.max(1, n) - 1);
 
 function createZindanOrtak(secenek) {
-  const ZINDANLAR = secenek && secenek.tarif ? tariftenKur(secenek.tarif) : module.exports.ZINDANLAR;   // testler kendi tarifini verebilir
+  const ZINDANLAR = secenek && secenek.tarif ? tariftenKur(secenek.tarif, secenek.arena) : module.exports.ZINDANLAR;   // testler kendi tarifini verebilir
   const now = (secenek && secenek.now) || Date.now, rast = (secenek && secenek.rast) || Math.random;
   const bagli = oda => oda.uyeler.filter(u => u.bagli).map(u => u.id);
   const uye = (d, id) => d.uye[id] || (d.uye[id] = { hazir: false, hayatta: true, hasar: 0, cark: false, hp: 0, max: 0 });

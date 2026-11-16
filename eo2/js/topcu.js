@@ -104,6 +104,8 @@
     bitis(); }
   const destan = (z, hangi) => { const Z = V.ZINDAN[z], id = hangi === 'zafer' ? Z.zafer : Z.prolog; if (!G.comic || typeof COMIC === 'undefined' || !COMIC[id]) return Promise.resolve(false); return G.comic({ id, title: Z.destan, opts: [{ t: hangi === 'zafer' ? 'Ocağa dön' : Z.gir, fx: () => null }] }); };
   async function zindan(z, zorluk, ilkAsama) { if (kilitli()) return kilitPen(); const Z = V.ZINDAN[z], T = kayit();
+    /* Tek kişi = içinde tek kişi olan aynı zindan (kullanıcı, 2026-11-17). Yeni yöntemle kurulmuş zindan (js/zindan_tarif.js) varsa tek kişilik sefer açılır. */
+    if (!ilkAsama && EO2.zindan && EO2.zindan.tekVar && EO2.zindan.tekVar(z)) { if (!T.okundu[z]) { await destan(z, 'prolog'); T.okundu[z] = 1; if (typeof saveGame === 'function') saveGame(); } if (EO2.zindan.tekBasla(z, zorluk)) return; }
     ornek = { kimlik: z + '-' + zorluk + '-' + Date.now(), zindan: z, zorluk, asama: ilkAsama || 0, altin: 0, ganimet: [], hasar: 0 };      // ilkAsama yalnız denetim betikleri içindir; oyunda sefer hep ilk aşamadan başlar
     if (!T.okundu[z]) { await destan(z, 'prolog'); T.okundu[z] = 1; if (typeof saveGame === 'function') saveGame(); }
     for (;;) { const cfg = asamaCfg(), r = await mac(cfg); if (r.terk) break; ornek.hasar += r.ist.hasar; const son = ornek.asama === Z.asama.length - 1;

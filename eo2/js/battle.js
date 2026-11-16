@@ -50,6 +50,9 @@
     kervan: { g: ['#d39a62', '#aa7048', '#663c36'], bant: ['rgba(80,30,20,.16)', 'rgba(255,236,190,.12)'], cat: 'rgba(70,30,20,.3)', ust: ['#8a6434', '#bb9a52', '#f0d88e'], ot: ['#e0c878', '#bb9a52'], cizgi: '#3a2018', tas: ['#e8b64c', '#fff0b0'], oyuk: 'rgba(50,22,14,.8)', kirik: '#a06a48' },
   };
   function buildTerrain(spec) {
+    if (spec.maske) { const c = document.createElement('canvas'); c.width = FW * TP; c.height = FH * TP; const mask = Uint8Array.from(spec.maske);
+      const top = v => { const i = Math.floor(v * MP); if (i < 0 || i >= MW) return NaN; for (let j = MH - 1; j >= 0; j--) if (mask[j * MW + i]) return (j + 1) / MP; return NaN; };
+      return { c, x: c.getContext('2d'), mask, top, Tm: TEMA[spec.tema] || TEMA.talim, delik: true }; }
     const Tm = TEMA[spec.tema] || TEMA.talim, ada = !!spec.ada, x0 = ada ? 3 : 0, x1 = ada ? 61 : FW, N = Math.round((x1 - x0) * 10) + 1, raw = new Float32Array(N), hs = new Float32Array(N);
     const tf = spec.top || topH; for (let i = 0; i < N; i++) { const v = tf(x0 + i / 10); raw[i] = v == null ? NaN : v; }
     // dik basamaklar yürünür yamaca döner (eski oyunda birim araziye doğrudan otururdu); boşluklar olduğu gibi kalır
@@ -82,9 +85,11 @@
     const mask = new Uint8Array(MW * MH); for (let j = 0; j < MH; j++) for (let i = 0; i < MW; i++) { const wx = (i + 0.5) / MP, wy = (j + 0.5) / MP, t = top(wx); if (!isNaN(t) && wy < t && wy > bot(wx)) mask[j * MW + i] = 1; }
     return { c, x, mask, top, Tm };
   }
-  const solid = (T, wx, wy) => { const i = Math.floor(wx * MP), j = Math.floor(wy * MP); return i >= 0 && j >= 0 && i < MW && j < MH && T.mask[j * MW + i] === 1; };
+  const solid = (T, wx, wy) => { const i = Math.floor(wx * MP), j = Math.floor(wy * MP); return i >= 0 && j >= 0 && i < MW && j < MH && T.mask[j * MW + i] > 0; };
   function carve(T, cx, cy, rad) { if (M && M.cfg && M.cfg.kirilmaz) return;   // kırılmaz zemin (ör. Şahmeran'ın defilesi): gülle çukur açmaz
-    const r2 = rad * rad; for (let j = Math.max(0, Math.floor((cy - rad) * MP)); j <= Math.min(MH - 1, Math.ceil((cy + rad) * MP)); j++) for (let i = Math.max(0, Math.floor((cx - rad) * MP)); i <= Math.min(MW - 1, Math.ceil((cx + rad) * MP)); i++) { const dx = (i + 0.5) / MP - cx, dy = (j + 0.5) / MP - cy; if (dx * dx + dy * dy < r2) T.mask[j * MW + i] = 0; }
+    const r2 = rad * rad; for (let j = Math.max(0, Math.floor((cy - rad) * MP)); j <= Math.min(MH - 1, Math.ceil((cy + rad) * MP)); j++) for (let i = Math.max(0, Math.floor((cx - rad) * MP)); i <= Math.min(MW - 1, Math.ceil((cx + rad) * MP)); i++) { const dx = (i + 0.5) / MP - cx, dy = (j + 0.5) / MP - cy; if (dx * dx + dy * dy < r2 && T.mask[j * MW + i] === 1) { T.mask[j * MW + i] = 0;   // 2 = kırılmaz hücre (blok haritada koyu gri): gülle açamaz
+        if (T.delik) { T.x.fillStyle = 'rgb(9,12,26)'; T.x.beginPath(); T.x.arc((i + 0.5) / MP * TP, (FH - (j + 0.5) / MP) * TP, TP / MP * 0.85, 0, 6.3); T.x.fill(); } } }   // sahne resimli arenada çukur koyu oyuk olarak görünür
+    if (T.delik) return;
     const x = T.x, px = cx * TP, py = (FH - cy) * TP; x.save(); x.globalCompositeOperation = 'destination-out'; x.beginPath(); for (let a = 0; a <= 6.3; a += 0.3) { const rr = rad * TP * (0.94 + Math.sin(a * 5 + cx) * 0.06); a === 0 ? x.moveTo(px + rr, py) : x.lineTo(px + Math.cos(a) * rr, py + Math.sin(a) * rr); } x.closePath(); x.fill();
     x.globalCompositeOperation = 'source-atop'; const g = x.createRadialGradient(px, py, rad * TP * 0.9, px, py, rad * TP * 1.45); g.addColorStop(0, T.Tm.oyuk); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.beginPath(); x.arc(px, py, rad * TP * 1.45, 0, 6.3); x.fill();
     x.lineWidth = 3; x.strokeStyle = T.Tm.cizgi; x.beginPath(); x.arc(px, py, rad * TP * 0.99, 0, 6.3); x.stroke(); x.restore();
@@ -178,7 +183,7 @@
     if (cfg.rakip) { const R = cfg.rakip, E = mkTopcu(Object.assign({}, R, { takim: 1, set: imgs['assets/battle_' + R.set] ? R.set : 'temel', x: X_(R.x || 2480), face: -(cfg.yon || 1), angle: 45, col: EL[R.el] || EL.talim })); E.shown = E.hp = E.max = R.hp || 1350; M.act.push(E); M.rakip = E; }
     for (const m of (cfg.moblar || [])) { const D = MOB[m.tip] || {}; const e = mkYaratik(Object.assign({ tip: m.tip, D, h: D.h || 2.1, ucan: !!D.ucan, el: D.el || 'venom' }, m, { x: X_(m.x) })); e.shown = e.hp = e.max = m.hp; M.act.push(e); }
     if (cfg.boss) { const D = BOSS[cfg.boss.tip] || {}; const b = mkYaratik(Object.assign({ tur: 'boss', D, h: D.h || 6.8, faz: 1, kalkan: 0, sersem: 0, kiyamet: 0 }, cfg.boss, { x: X_(cfg.boss.x) })); b.shown = b.hp = b.max = cfg.boss.hp; M.act.push(b); M.boss = b; }
-    for (const a of M.act) { if (a.ucan && a.yuk != null) a.y = Y_(a.yuk); else if (a.tur === 'boss' && a.D.suda) a.y = Y_(a.D.suda); else a.y = groundBelow(T, a.x, FH - 1) || 8; }
+    for (const a of M.act) { if (a.ucan && a.yW != null) a.y = a.yW; else if (a.ucan && a.yuk != null) a.y = Y_(a.yuk); else if (a.tur === 'boss' && a.D.suda) a.y = Y_(a.D.suda); else a.y = groundBelow(T, a.x, FH - 1) || 8; }
     for (const p of (cfg.props || [])) { const x = X_(p.x); M.props.push(Object.assign({ x, y: groundBelow(T, x, FH - 1) || 8, dead: false }, PROP[p.tip] || {}, p, { x })); }
     M.sira = cfg.ilkRakip && M.rakip ? [M.rakip, P] : [P, ...M.act.filter(a => a !== P)]; M.uzakKuyruk = []; M.hedef = M.boss || M.rakip || null;
     if (M.boss && M.boss.D.kur) M.boss.D.kur(M.boss, API);
@@ -352,7 +357,7 @@
   function bossSira(b) { const hd = hedefT(), ben = M.ben, D = b.D, ad = M.adim, tn = turNo(), sn = fn => () => { if (M.adim === ad) fn(); }; M.faz = 'oyun'; b.face = hd.x < b.x ? -1 : 1;
     if (D.siraBasi && D.siraBasi(b, API)) return sonra(1.0, sn(siradaki));
     if (b.sersem > 0) { b.sersem--; yazi(b.x, b.y + b.h + 1, 'Sersemledi, sırası geçti', { col: '#ffe08a' }); return sonra(1.0, sn(siradaki)); }
-    const laf = !M.cfg.ortak && b.sonLaf !== tn && D.laflar && (b.lafZorla || tn === 2 || (!D.lafsiz && tn >= 1 && R() < 0.35));
+    const laf = false && b.sonLaf !== tn && D.laflar && (b.lafZorla || tn === 2 || (!D.lafsiz && tn >= 1 && R() < 0.35));
     let p = ben;   // laf atma herkese: karşılığı her oyuncu kendi ekranında verir
     if (laf) { b.lafZorla = false; b.sonLaf = tn; b.acik = 0.35; p.rage = Math.min(100, p.rage + 25); p.sta = Math.min(p.staMax, p.sta + 25); const soz = D.laflar[(b.lafN = (b.lafN || 0) + 1) % D.laflar.length];
       balon(b, soz, b.ad + ' laf atıyor', 4.4); const L = $('tpLaf'); L.hidden = false; L.querySelector('p').textContent = 'Nasıl karşılık verirsin?'; M.lafT = 4.4; M.lafAdim = ad; hud(true); return; }
@@ -452,12 +457,12 @@
   function render() {
     const cv = $('tpCv'), app = $('app').getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2), W = Math.round(app.width * dpr), H = Math.round(app.height * dpr);
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-    const x = cv.getContext('2d'), n = M.cfg.bg || M.cfg.sahne ? 0 : (EO2.state ? EO2.state.night : 0), c = M.cam, dik = W / H < 1, sc = (W / 22) * c.z * (dik ? 1.9 : 1), viewW = W / sc, viewH = H / sc;
-    const cx = clamp(c.x, Math.min(FW / 2, viewW / 2 - 2), Math.max(FW / 2, FW - viewW / 2 + 2)) + (Math.random() - 0.5) * M.shake * 0.5, cy = clamp(c.y, viewH / 2 - 2, 40) + (Math.random() - 0.5) * M.shake * 0.5;
+    const x = cv.getContext('2d'), n = M.cfg.bg || M.cfg.sahne ? 0 : (EO2.state ? EO2.state.night : 0), c = M.cam, dik = W / H < 1, kb = !dik && M.cfg.kameraBoy ? M.cfg.kameraBoy * 1.7 : 0, sc = (kb ? H / kb : (W / 22) * (dik ? 1.9 : 1)) * c.z, viewW = W / sc, viewH = H / sc, AE = M.cfg.arenaEn || FW, pay = 2;
+    const cx = clamp(c.x, Math.min(AE / 2, viewW / 2 - pay), Math.max(AE / 2, AE - viewW / 2 + pay)) + (Math.random() - 0.5) * M.shake * 0.5, cy = clamp(c.y, viewH / 2 - pay, 40) + (Math.random() - 0.5) * M.shake * 0.5;
     const X = wx => (wx - cx) * sc + W / 2, Y = wy => H / 2 - (wy - cy) * sc + H * 0.02; M.view = { X, Y, sc, W, H };
     x.setTransform(1, 0, 0, 1, 0, 0); const T = M.T, Tm = T.Tm, bgI = M.cfg.bg ? imgs[M.cfg.bg] : null, sh = M.cfg.sahne, shI = sh ? imgs[sh.src] : null;
-    if (shI) { // dünyaya kilitli sahne resmi (cfg.sahne = { src, yer: resimde yürüme hattı, y: dünyada zemin, ust, alt }): resim dünya boyunca uzanır, zemin çizgisi araziyle çakışır; arazi ayrıca çizilmez
-      const kk = FW * sc / shI.naturalWidth, ih = shI.naturalHeight * kk, iy = Y(sh.y) - sh.yer * kk; x.fillStyle = sh.alt; x.fillRect(0, 0, W, H); x.fillStyle = sh.ust; x.fillRect(0, 0, W, Math.max(0, iy + 2)); x.drawImage(shI, X(0), iy, FW * sc, ih);
+    if (shI) { // dünyaya kilitli sahne resmi (cfg.sahne = { src, ppu: birim başına resim pikseli, ust, alt }): resim dünya boyunca uzanır, zemin çizgisi araziyle çakışır; arazi ayrıca çizilmez
+      const kk = sc / sh.ppu, ih = shI.naturalHeight * kk, iy = Y(sh.taban || 0) - ih; x.fillStyle = sh.alt; x.fillRect(0, 0, W, H); x.fillStyle = sh.ust; x.fillRect(0, 0, W, Math.max(0, iy + 2)); x.drawImage(shI, X(0), iy, shI.naturalWidth * kk, ih);   // resmin sol alt köşesi dünyada (0, taban); ölçek blok haritadaki mavi kutudan
     } else if (bgI) { // eski oyunun sahne çizimi: ekranı kaplar, kamerayla hafifçe kayar
       const k = Math.max(W / bgI.naturalWidth, H / bgI.naturalHeight) * 1.14, bw = bgI.naturalWidth * k, bh = bgI.naturalHeight * k, ox = (W - bw) / 2 - (cx - 32) / 32 * (bw - W) * 0.42, oy = (H - bh) / 2 + (cy - 12) * sc * 0.05;
       x.fillStyle = '#060a1c'; x.fillRect(0, 0, W, H); x.drawImage(bgI, ox, clamp(oy, H - bh, 0), bw, bh);
@@ -485,7 +490,7 @@
     if (M.boss && M.boss.D.arkada && (!M.boss.dead || M.boss.olu < 0.9)) { spr(M.boss); if (M.boss.D.cizArka) M.boss.D.cizArka(M.boss, x, M.view, API); }
     if (M.cfg.ozel && M.cfg.ozel.cizArka) M.cfg.ozel.cizArka(x, M.view, API);
     for (const p of M.props) { if (p.dead) continue; const im = imgs[p.im]; const gy = groundBelow(T, p.x, p.y + 1.5); if (gy != null) p.y = gy; if (im) { const h = p.h * sc, w = h * im.naturalWidth / im.naturalHeight; x.drawImage(im, X(p.x) - w / 2, Y(p.y) - h * 0.96, w, h); } else if (p.ciz) p.ciz(x, X(p.x), Y(p.y), sc, M.time); }
-    if (!shI) x.drawImage(T.c, X(0), Y(FH), FW * sc, FH * sc);
+    if (!shI || T.delik) x.drawImage(T.c, X(0), Y(FH), FW * sc, FH * sc);
     // yerdeki işaretler: lav havuzları ve tehlike bölgesi (durağan halka; içindeki çizgiler yavaşça döner)
     for (const l of M.lav) { const g = x.createRadialGradient(X(l.x), Y(l.y), 0, X(l.x), Y(l.y), l.r * sc); g.addColorStop(0, 'rgba(255,200,90,.75)'); g.addColorStop(0.6, 'rgba(255,110,30,.45)'); g.addColorStop(1, 'rgba(255,90,20,0)'); x.fillStyle = g; x.beginPath(); x.ellipse(X(l.x), Y(l.y), l.r * sc, l.r * sc * 0.45, 0, 0, 6.3); x.fill(); }
     for (const z of M.bolge) { const col = EL[z.el] || EL.venom, gy = yerY(z.x), rc = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ','; x.fillStyle = rc + '.14)'; x.beginPath(); x.ellipse(X(z.x), Y(gy), z.r * sc, z.r * sc * 0.3, 0, 0, 6.3); x.fill(); x.strokeStyle = rc + '.95)'; x.lineWidth = Math.max(2, 0.07 * sc); x.setLineDash([0.45 * sc, 0.3 * sc]); x.lineDashOffset = -M.time * sc * 0.5; x.stroke(); x.setLineDash([]);

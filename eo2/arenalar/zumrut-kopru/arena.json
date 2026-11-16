@@ -1,0 +1,33 @@
+{
+  "ad": "Zümrüt Saray Köprüsü",
+  "alt": "Yılanlar iki yandan geliyor",
+  "ipucu": "Yılanlar iki yandan gelir. Fareyi çevirdiğin yana döner, o yana ateş edersin. Önce yaklaşanı vur.",
+  "tema": "sirca",
+  "ortam": "spor",
+  "ust": "#6fafFd",
+  "altRenk": "#e8f2fb",
+  "dusman": [
+    {
+      "tip": "viper",
+      "ad": "Uçan Sırça Engereği",
+      "hp": 800,
+      "fizik": false
+    },
+    {
+      "tip": "zs_vurucu",
+      "ad": "Bronz Engerek Muhafızı",
+      "hp": 760
+    },
+    {
+      "tip": "zs_vurucu",
+      "ad": "Bronz Engerek Muhafızı",
+      "hp": 760
+    },
+    {
+      "tip": "viper",
+      "ad": "Uçan Sırça Engereği",
+      "hp": 800,
+      "fizik": false
+    }
+  ]
+}

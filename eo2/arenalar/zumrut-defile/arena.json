@@ -1,0 +1,27 @@
+{
+  "ad": "Şahmeran'ın Defilesi",
+  "alt": "Yılan Kraliçe yükseltide bekliyor",
+  "ipucu": "Zemin kırılmaz. Altın tacı zayıf noktasıdır. Her tur yerdeki halkadan çık, sonra ateş et.",
+  "tema": "sirca",
+  "ortam": "spor",
+  "ust": "#0d3327",
+  "altRenk": "#0a2a20",
+  "dusman": [
+    {
+      "tip": "zs_agir",
+      "ad": "Sırça Taht Muhafızı",
+      "hp": 640
+    },
+    {
+      "tip": "zs_agir",
+      "ad": "Sırça Taht Muhafızı",
+      "hp": 640
+    }
+  ],
+  "boss": {
+    "tip": "sahmeran_v3",
+    "ad": "Yılan Kraliçe Şahmeran",
+    "unvan": "Zümrüt Saray'ın ebedi hükümdarı",
+    "hp": 3600
+  }
+}

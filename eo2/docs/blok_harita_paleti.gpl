@@ -1,0 +1,10 @@
+GIMP Palette
+Name: Ejder Ocagi Blok Harita
+Columns: 6
+#
+255   0   0	Kırılabilir zemin (Kırmızı #FF0000)
+ 64  64  64	Kırılamaz zemin (Koyu gri #404040)
+  0   0 255	Oyuncu doğuş kutusu (Mavi #0000FF)
+255 255   0	Düşman kutusu (Sarı #FFFF00)
+255   0 255	Boss kutusu (Macenta #FF00FF)
+  0 255   0	Kamera alanı (Yeşil #00FF00)
