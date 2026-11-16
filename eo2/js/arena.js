@@ -190,7 +190,11 @@
     if (T.hp != null) { F.p.hp = Math.round(T.hp + (F.p.maxHp - T.hp) * 0.5); if (T.round > 0) FT.log.push({ t: 'Turlar arası yaraların yarısı sarıldı. ' + esc(d.name) + ' ' + F.p.hp + '/' + F.p.maxHp + ' canla çıkıyor.', c: 'soluk' }); }
     return sunucuAc().then(fightUI); }
   function startTour(d) { const T = S.tour; d.tourW = d.tourW || {}; if (d.tourW[T.id] == null) d.tourW[T.id] = 0; if (typeof careerCheck === 'function') careerCheck(false); T.dragon = d.id; T.round = 0; T.hp = null; d.task = { t: 'done', what: ek(T.ad, 'loc') + ' dövüştü' }; tourRound(); }
-  EO2.arena = { fight: () => FT, act, er: () => ER };
+  EO2.arena = { fight: () => FT, act, er: () => ER,
+    /* meydandaki oyuncu kartından: Er Meydanı (canlı ejderha düellosu) o oyuncu seçili olarak açılır. Oyuncu lobideyse "Meydan oku"
+       düğmesi hazırdır; değilse listede görünmez ve bunu söyleriz (düello için iki tarafın da ejderhasıyla meydana girmesi gerekir). */
+    erCagir(h, ad) { if (!G.live || FT) return; UI.arenaTier = 'er'; ER.sec = h; G.open('arena');
+      setTimeout(() => { const var_ = ER.lobi && ER.lobi.players.some(p => p.handle === h); toast(var_ ? esc(ad || 'Terbiyeci') + ' Er Meydanı\'nda. <b>Meydan oku</b> ile çağır.' : esc(ad || 'Terbiyeci') + ' henüz Er Meydanı\'na girmemiş. Sohbetten çağır; Arena → Er Meydanı\'na gelince burada görünür.'); }, 1200); } };
 
   /* ================= Er Meydanı: oyuncuya karşı dostça düello =================
      Görev bulucu mantığı: lobiye ejderhanla girersin; kuyruğa girer (eşleşince dövüş kendiliğinden açılır), sancak diker

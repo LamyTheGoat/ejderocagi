@@ -38,9 +38,11 @@
   async function cagir(id) { const c = kisiler.get(id); if (!c || !c.handle) return;
     const eng = engelli.has(c.handle);
     const v = await G.pen({ k: 'Terbiyeci', t: temiz(c.name), dikey: true, body: '<p>Aynı meydandasınız. Ne yapmak istersin?</p>',
-      btns: [{ t: 'Selam ver', cls: 'altin', sub: 'El sallarsın', v: 'selam' }, { t: 'Topçu düellosuna çağır', sub: 'Dostça maç; altın ve ün yazılmaz', v: 'duello', off: EO2.topcuPvp && EO2.topcuPvp.davet ? '' : 'Er Meydanı yüklenemedi' },
+      btns: [{ t: 'Selam ver', cls: 'altin', sub: 'El sallarsın', v: 'selam' }, { t: 'Ejderha düellosuna çağır', sub: 'Canlı dövüş: ejderhan onunkine karşı', v: 'ejder', off: EO2.arena && EO2.arena.erCagir ? '' : 'Arena yüklenemedi' },
+        { t: 'Topçu düellosuna çağır', sub: 'Dostça maç; altın ve ün yazılmaz', v: 'duello', off: EO2.topcuPvp && EO2.topcuPvp.davet ? '' : 'Er Meydanı yüklenemedi' },
         { t: eng ? 'Engeli kaldır' : 'Engelle', sub: eng ? 'Sözlerini yeniden görürsün' : 'Sözlerini ve balonlarını görmezsin', v: 'engel' }, { t: 'Şikâyet et', sub: 'Uygunsuz ad ya da söz', v: 'sikayet' }, { t: 'Kapat', v: false }] });
     if (v === 'selam') { if (api.emote) api.emote(1); }
+    else if (v === 'ejder') EO2.arena.erCagir(c.handle, c.name);
     else if (v === 'duello') EO2.topcuPvp.davet(c.handle, c.name);
     else if (v === 'engel') { if (eng) engelli.delete(c.handle); else engelli.add(c.handle); engelYaz(); G.toast(eng ? temiz(c.name) + ' için engel kalktı.' : temiz(c.name) + ' engellendi.'); }
     else if (v === 'sikayet') sikayet(c); }
