@@ -1456,6 +1456,7 @@ function sikistir(dosya, etiket, kodlama) {
 const server = http.createServer((req, res) => {
   if(shuttingDown)return sendJson(res,503,{ok:false,error:'server_shutting_down'});
   track(handleHttp(req, res)).catch(error => {
+    if (error && error.detail) console.warn('[komut reddi]', error.code || error.message, error.detail);   // ayrıntı yalnız günlüğe; istemciye yalnız hata kodu gider
     if (!res.headersSent) sendJson(res, error.status || 500, { ok: false, error: error.status ? error.message : 'internal_error' });
     else res.end();
   });

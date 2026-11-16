@@ -18,7 +18,8 @@ const vm = require('node:vm');
 const debt = require('./economy_debt');
 const sources = require('./economy_sources');
 
-function fail(code, status = 409) { throw Object.assign(new Error(code), { code, status }); }
+// detail: hangi denetimin hangi değerle kaldığı. İstemciye gitmez; sunucu günlüğüne yazılır (server.js), nedeni bulunabilsin diye.
+function fail(code, status = 409, detail) { throw Object.assign(new Error(code), { code, status }, detail ? { detail: String(detail).slice(0, 300) } : null); }
 const clone = v => JSON.parse(JSON.stringify(v));
 const load = name => new vm.Script(fs.readFileSync(path.join(__dirname, '../js', name + '.js'), 'utf8'), { filename: name + '.js' });
 // Dövüşü etkileyen kural dosyaları 2.0 sayfasındakiyle AYNI olmalıdır, yoksa yeniden oynatma sapar:
@@ -110,10 +111,10 @@ const E_FLOOR = ['gu', 'ce', 'da', 'ze', 'atk', 'def', 'crit', 'dodge', 'nefesB'
 function cleanEnemy(raw, api, opp, floor) {
   const e = cleanPlayer(raw, api, 'e');
   const base = baseEnemy(api, opp, floor);
-  for (const k of E_FLOOR) if (e[k] < base[k] - 1e-9) fail('arena_opp_invalid', 400);
-  if (e.hp < base.maxHp - 1e-9 || (base.demir && !e.demir)) fail('arena_opp_invalid', 400);
-  if (e.cards.length < base.cards.length || base.cards.some(k => !e.cards.includes(k))) fail('arena_opp_invalid', 400);
-  if (e.cesur || e.temkinli !== !!base.temkinli || e.vahsi || e.heart || e.bond || !e.bondUsed) fail('arena_opp_invalid', 400);
+  for (const k of E_FLOOR) if (e[k] < base[k] - 1e-9) fail('arena_opp_invalid', 400, 'taban ' + k + ' ' + e[k] + '<' + base[k] + ' rakip=' + opp.name + '/' + opp.trainer);
+  if (e.hp < base.maxHp - 1e-9 || (base.demir && !e.demir)) fail('arena_opp_invalid', 400, 'can ' + e.hp + '<' + base.maxHp + ' demir=' + !!base.demir + '/' + !!e.demir);
+  if (e.cards.length < base.cards.length || base.cards.some(k => !e.cards.includes(k))) fail('arena_opp_invalid', 400, 'kart ' + e.cards.join(',') + ' taban ' + base.cards.join(','));
+  if (e.cesur || e.temkinli !== !!base.temkinli || e.vahsi || e.heart || e.bond || !e.bondUsed) fail('arena_opp_invalid', 400, 'bayrak cesur=' + e.cesur + ' temkinli=' + e.temkinli + '/' + !!base.temkinli + ' vahsi=' + e.vahsi + ' heart=' + e.heart + ' bond=' + e.bond + ' bondUsed=' + e.bondUsed);
   return e;
 }
 
@@ -173,12 +174,12 @@ function open(S, a, { api: econ }) {
     if (opp.story) {
       // Şampiyon maçı (arenastory.js champOpp): sabit ödül, kendi kademesinde.
       if (CHAMPS[opp.story].tier !== tier || opp.odul !== CHAMPS[opp.story].odul) fail('arena_reward_invalid', 400);
-      if (statSum(api, opp) < floorSum(api, base + T.grow)) fail('arena_opp_invalid', 400);
+      if (statSum(api, opp) < floorSum(api, base + T.grow)) fail('arena_opp_invalid', 400, 'kademe toplam ' + statSum(api, opp) + '<' + floorSum(api, base + T.grow));
     } else {
       // Olağan ilan (core.js genOpp): ödül = kademe aralığı + hafta payı; ilan bu haftada ya da bir önceki hafta sonunda asılmıştır.
       const lo = T.odul[0] + Math.min(weekBonus(tier, week - 1), weekBonus(tier, week)), hi = T.odul[1] + weekBonus(tier, week);
       if (!Number.isInteger(opp.odul) || opp.odul < lo || opp.odul > hi) fail('arena_reward_invalid', 400);
-      if (statSum(api, opp) < floorSum(api, (base + (week - 1) * T.grow) * 0.8)) fail('arena_opp_invalid', 400);
+      if (statSum(api, opp) < floorSum(api, (base + (week - 1) * T.grow) * 0.8)) fail('arena_opp_invalid', 400, 'hafta toplam ' + statSum(api, opp) + '<' + floorSum(api, (base + (week - 1) * T.grow) * 0.8) + ' hafta=' + week);
     }
     Object.assign(reward, { odul: opp.odul, goldB, bet });
   } else if (spec.mode === 'tour') {
@@ -186,7 +187,7 @@ function open(S, a, { api: econ }) {
     const round = int(spec.round, 0, tour.odul.length - 1, 'arena_tour_invalid');
     live.tour = tour.id; live.round = round;
     // Turnuva rakibi genOpp(null, tur seviyesi): final rakibi hikâyeyle zayıflayabildiği için taban yarı seviyeden alınır.
-    if (statSum(api, opp) < floorSum(api, tour.rounds[round] * 0.5)) fail('arena_opp_invalid', 400);
+    if (statSum(api, opp) < floorSum(api, tour.rounds[round] * 0.5)) fail('arena_opp_invalid', 400, 'turnuva toplam ' + statSum(api, opp) + '<' + floorSum(api, tour.rounds[round] * 0.5) + ' tur=' + round);
     reward.odul = tour.odul[round]; // week.js TOURS
     delete opp.odul;
   } else if (spec.mode === 'kule') {
@@ -195,7 +196,7 @@ function open(S, a, { api: econ }) {
     const floor = int(spec.floor, 1, 999, 'arena_tower_invalid');
     if (spec.divan != null && spec.divan !== 'gladyator') fail('arena_tower_invalid', 400);
     live.floor = floor; live.divan = spec.divan || null;
-    if (statSum(api, opp) < floorSum(api, towerLevel(floor))) fail('arena_opp_invalid', 400);
+    if (statSum(api, opp) < floorSum(api, towerLevel(floor))) fail('arena_opp_invalid', 400, 'kule toplam ' + statSum(api, opp) + '<' + floorSum(api, towerLevel(floor)) + ' kat=' + floor);
     reward.odul = towerGold(floor, spec.divan === 'gladyator');
     delete opp.odul;
   } else fail('arena_mode_invalid', 400);

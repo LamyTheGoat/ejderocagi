@@ -83,14 +83,14 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 | 3 Ürün kimliği | bitti, iki eksikle | Yazı tipleri kendi sunucudan (`tools/yazi_indir.mjs`), sürüm `EO2.surum`, giriş ekranında künye, `gizlilik.html` ve `kosullar.html` (**taslak**: iletişim adresi ve işletenin adı kullanıcıdan bekleniyor; hukukçu görmedi), paylaşım görseli (`tools/paylasim.mjs`) |
 | 4 Telefon | kısmen | Uzun basma menüsü kapalı, dik tutuşta yatay öneri (`js/telefon.js`), tam ekran ayarlarda vardı. Gerçek telefonda ve iOS Safari'de deneme yapılmadı |
 | 5 Sorun bildir | bitti | Menü → Sorun bildir; `/api/report` veri dizinindeki `sorunlar.jsonl` dosyasına yazar (`server/report_log.js`). Okumak için yönetici ekranı yok; dosyadan okunur |
-| 6 Duman testi | bitti | `npm run duman`: birim testleri, tam tur, sahne gezisi, belge sayfaları. `check_uc.mjs` uyarlanmadı |
+| 6 Duman testi | bitti | `npm run duman`: birim testleri, tam tur, sahne gezisi, belge sayfaları. `check_uc.mjs` (derin akışlar: turnuva, ölüm, üreme, yaban yakalama, pazar, yarış, ocak, süs, kütük, kule, divan, diyar, kervan, Kıraathane) güncel akışa uyarlandı; on dört senaryo hatasız. Duman testine dahil değil (uzun sürer): `node eo2/tools/check_uc.mjs <klasör>` |
 
 ## 4. Cila isteyen görsel eksikler (gözle görülen)
 
 - Kervan Tavlası tahtası (2026-11-16): kodla damarlı ahşap, orta ray ve kakma haneler çizildi; çizilmiş tahta görseli gelirse onunla değişir.
 - Midjourney bakiyesi bitti. Bekleyen çizimler: Ocak için bostan, odunluk, yalak, korkuluk, ahşap çit, kapı direği, çim dokusu; Kıraathane için masa sahnesi ve tavla tahtası; Topçu sahnesinin büyütülmüş hâli (şimdiki 1536 piksel).
 - Motor istekleri (Ocak ajanından): zemin kabartması çime uygulanmasın, mini haritada açılabilir kare katmanı, pano açıkken kamera kayması, zemin lekeleri için tek doku atlası (çizim çağrısı 296'dan yüzün altına iner).
-- Tam tur denetiminde ara sıra (2026-11-16: on altı koşuda bir; ardışık on koşuda yinelenmedi) sunucudan bir 400 yanıtı düşüyor ve o koşuda tur sonu altını düşük çıkıyor; nedeni bulunamadı. `check_oyun.mjs` artık yanıtın yolunu, komut türünü ve hata kodunu yazıyor.
+- Tam tur denetiminde ara sıra (2026-11-16: on altı koşuda bir; ardışık on koşuda yinelenmedi) sunucudan bir 400 yanıtı düşüyor ve o koşuda tur sonu altını düşük çıkıyor; nedeni bulunamadı. `check_oyun.mjs` artık yanıtın yolunu, komut türünü ve hata kodunu yazıyor. 2026-11-16: sunucu, reddettiği dövüşün hangi denetimde hangi değerle kaldığını günlüğe yazıyor (`[komut reddi]`, `server/arena_service.js` `detail`); bir sonraki görülüşte nedeni günlükten okunur. Turnuva denetimindeki 400'ler denetim yapaylığıydı (senaryo rakipleri 1. seviyeye indiriyordu, sunucu doğru olarak reddediyordu); senaryo düzeltildi.
 - Mini harita: master'daki gibi çizilmiş harita, pusula ve yakınlaştırma yok.
 - Simge ailesi: Ahır'daki antrenman taşları ve Pazar portreleri madalyon ailesinde değil.
 - Arena dövüşünde terbiyeciler sahnede yok (eski oyunda vardı); durum rozetleri ve efektler sade.
