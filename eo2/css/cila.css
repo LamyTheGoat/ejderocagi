@@ -111,3 +111,7 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .giris .giris-bag { padding: 0; border: 0; background: none; font: inherit; color: #cfe0ff; text-decoration: underline; text-underline-offset: .15em; cursor: pointer; min-height: 0; }
 .ui2 .giris .giris-bag:hover, .ui2 .giris .giris-bag:focus-visible { color: #fff; }
 @media (pointer: coarse) { .ui2 .giris .giris-bag { display: inline-block; padding: .6em .3em; } }
+
+/* ekran ipucu (ilk açılışta bir kez): alt şeritteki düğmeleri ve seçicileri kilitlemesin; yalnız kapatma düğmesi dokunuşu alır */
+.ui2 .rehber[data-tur="ekran"] { pointer-events: none; }
+.ui2 .rehber[data-tur="ekran"] .rh-kapat, .ui2 .rehber[data-tur="ekran"] .rh-git { pointer-events: auto; }

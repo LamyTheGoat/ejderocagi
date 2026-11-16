@@ -196,8 +196,11 @@
       if (!engel && tur === 'item' && (e.dragons || []).some(x => Object.values((x.data && x.data.equip) || {}).some(v => v != null && String(v) === String(d.uid)))) engel = 'Bir ejderha kuşanmış';
       const tezgahta = ilanda.has(row.assetId);
       out.push({ anahtar: tur + ':' + row.assetId, tur, assetId: row.assetId, mal, kaynak, adet: 1, satAdet: kaynak === 'earned' && !tezgahta && !engel ? 1 : 0, tezgahta, engel }); };
-    (e.dragons || []).forEach(r => ekle('dragon', r, malDragon(r.data)));
-    (e.eggs || []).forEach(r => ekle('egg', r, malEgg(r.data)));
+    /* sunucunun kendi başlangıç ejderhası ve yumurtası (ocak.taban) yerel ocaktakilerin ikizidir: oyuncunun elinde tek Kor vardır, sandıkta iki tane görünmemeli.
+       Yerel ocaktaki varlıkların yansıları (yerel) gösterilir; ikiz hesaba bağlıdır, satılamaz ve hiçbir yerde kullanılmaz. */
+    const ikiz = new Set((e.game.ocak && e.game.ocak.taban) || []);
+    (e.dragons || []).filter(r => !ikiz.has(r.assetId)).forEach(r => ekle('dragon', r, malDragon(r.data)));
+    (e.eggs || []).filter(r => !ikiz.has(r.assetId)).forEach(r => ekle('egg', r, malEgg(r.data)));
     (e.items || []).forEach(r => ekle('item', r, malItem(r.data.id)));
     const yem = e.game.food || {}, ky = e.game.foodSources || {};
     for (const k of Object.keys(yem)) { const n = yem[k] || 0; if (n < 1) continue; const b = ky[k] || {}, kazan = b.earned || 0, ayrik = ilanYem[k] || 0;
@@ -415,7 +418,7 @@
       const hepsi = sandikListe(), sayilar = { hepsi: hepsi.length }; for (const v of hepsi) sayilar[v.tur] = (sayilar[v.tur] || 0) + 1;
       const secili = sdSec ? hepsi.find(v => v.anahtar === sdSec) : null; if (sdSec && !secili) sdSec = null;
       const raflar = TUR_SIRA.filter(t => sdSuz === 'hepsi' || sdSuz === t).map(t => { const L = hepsi.filter(v => v.tur === t); let n = 0;
-        return '<div class="sd-raf"><h3>' + TUR_COK[t] + '</h3><div class="sd-dizi">' + (L.length ? L.map(v => esyaHtml(v, n++, ejler)).join('') : '<span class="sd-bos">Bu raf boş</span>') + '</div><i class="sd-tahta" aria-hidden="true"></i></div>'; }).join('');
+        return '<div class="snd-raf"><h3>' + TUR_COK[t] + '</h3><div class="sd-dizi">' + (L.length ? L.map(v => esyaHtml(v, n++, ejler)).join('') : '<span class="sd-bos">Bu raf boş</span>') + '</div><i class="sd-tahta" aria-hidden="true"></i></div>'; }).join('');
       const kese = '<div class="sd-kese cam"><div class="sd-toplam">' + altinIk + '<b>' + sayi(e.gold) + '</b><span>altın kesende</span></div>' +
         '<div class="sd-pay">' + muhur('earned') + '<span><b>' + sayi(F.earned) + '</b> kazanılmış<small>çarşıda ve takasta geçer</small></span></div>' +
         '<div class="sd-pay">' + muhur('bound') + '<span><b>' + sayi(F.bound) + '</b> hesaba bağlı<small>yalnız ocağında harcanır</small></span></div>' +
@@ -441,7 +444,7 @@
   G.screen('bedesten', { k: 'Oyuncular arası çarşı', t: 'Bedesten', cls: 'bd', bg: 'a:bd-carsi',
     enter(arg) { sec = null; adet = 1; soz = null; satis = null; mod = arg && arg.mod === 'tezgah' ? 'tezgah' : 'carsi'; if (arg && arg.sat) { satis = { anahtar: arg.sat, fiyat: '', adet: 1 }; mod = 'tezgah'; } if (NET.durum === 'acik') tazele(true); else baglan(); },
     draw: bedestenCiz });
-  G.screen('sandik', { k: 'Hesabının hazinesi', t: 'Ocak Sandığı', cls: 'sd', bg: 'a:bd-sandik',
+  G.screen('sandik', { k: 'Hesabının hazinesi', t: 'Ocak Sandığı', cls: 'snd',   /* 'sd' Süs Dolabı'nın sınıfıdır (ejder.css); ikisi aynı adı kullanınca Süs Dolabı bozuluyordu */ bg: 'a:bd-sandik',
     enter() { sdSec = null; if (NET.durum === 'acik') tazele(true); else baglan(); },
     draw: sandikCiz });
   G.navOf = Object.assign(G.navOf || {}, { bedesten: [['bedesten', 'Bedesten'], ['sandik', 'Ocak Sandığı']], sandik: [['bedesten', 'Bedesten'], ['sandik', 'Ocak Sandığı']] });
