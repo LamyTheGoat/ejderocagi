@@ -40,6 +40,7 @@
     const v = await G.pen({ k: 'Terbiyeci', t: temiz(c.name), dikey: true, body: '<p>Aynı meydandasınız. Ne yapmak istersin?</p>',
       btns: [{ t: 'Selam ver', cls: 'altin', sub: 'El sallarsın', v: 'selam' }, { t: 'Ejderha düellosuna çağır', sub: 'Canlı dövüş: ejderhan onunkine karşı', v: 'ejder', off: EO2.arena && EO2.arena.erCagir ? '' : 'Arena yüklenemedi' },
         { t: 'Topçu düellosuna çağır', sub: 'Dostça maç; altın ve ün yazılmaz', v: 'duello', off: EO2.topcuPvp && EO2.topcuPvp.davet ? '' : 'Er Meydanı yüklenemedi' },
+        { t: 'Kıraathane masasına çağır', sub: 'Ejder Pokeri; bahsi masada koyarsınız', v: 'masa', off: EO2.masa ? '' : 'Masa yüklenemedi' },
         { t: 'Takas teklif et', sub: 'Kazanılmış mal ve altın; ikiniz de onaylayınca', v: 'takas', off: EO2.takas ? '' : 'Takas yüklenemedi' },
         ...(EO2.dostlar ? [EO2.dostlar.dostMu(c.handle) ? { t: 'Fısılda', sub: 'Dostuna özel mesaj', v: 'fis' } : { t: 'Dost ekle', sub: 'Kabul ederse fısıldaşır, her yerden çağırırsın', v: 'dost' }] : []),
         { t: eng ? 'Engeli kaldır' : 'Engelle', sub: eng ? 'Sözlerini yeniden görürsün' : 'Sözlerini ve balonlarını görmezsin', v: 'engel' }, { t: 'Şikâyet et', sub: 'Uygunsuz ad ya da söz', v: 'sikayet' }, { t: 'Kapat', v: false }] });
@@ -47,6 +48,7 @@
     else if (v === 'ejder') EO2.arena.erCagir(c.handle, c.name);
     else if (v === 'duello') EO2.topcuPvp.davet(c.handle, c.name);
     else if (v === 'takas') EO2.takas.teklif(c.handle, c.name);
+    else if (v === 'masa') EO2.masa.cagir(c.handle, c.name);
     else if (v === 'dost') EO2.dostlar.ekle(c.handle, c.name);
     else if (v === 'fis') { const d = EO2.dostlar.durum().veri.dostlar.find(x => x.h === c.handle); if (d) EO2.dostlar.fisilda(d.id); }
     else if (v === 'engel') { if (eng) engelli.delete(c.handle); else engelli.add(c.handle); engelYaz(); G.toast(eng ? temiz(c.name) + ' için engel kalktı.' : temiz(c.name) + ' engellendi.'); }

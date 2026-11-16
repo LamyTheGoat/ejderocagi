@@ -27,6 +27,7 @@
     try { await AG.istek('/api/trade', { method: 'POST', body: Object.assign({ type, requestId: crypto.randomUUID() }, extra || {}) }); await cek(); return true; }
     catch (e) { T.hata = hataYaz(e); try { await cek(); } catch (_) { } return false; }
     finally { T.mesgul = false; isle(); } }
+  HATA.trade_locked_by_table = 'Bahis kilitli; oyun bitene dek tepsi değişmez.';
 
   /* ---------- teklif (meydandaki oyuncu kartından) ---------- */
   async function teklif(handle, ad) {
@@ -37,7 +38,12 @@
   }
 
   /* ---------- durum değişince ---------- */
-  async function isle() { const t = T.trade, me = ben(); if (!t) { if (G.ekran() === 'takas') G.close(); return; }
+  async function isle() { const t = T.trade, me = ben(); if (!t) { if (G.ekran() === 'takas') G.close(); if (T.masa && T.masaCiz) T.masaCiz(); return; }
+    if (T.masa && t.participants.includes(T.masa)) { T.bitenler.add(t.id);   // sonucu masa ekranı söyler; takas bildirimi çıkmaz
+// Kıraathane masasının bahsi (js/masa.js): karşı tarafın daveti kendiliğinden kabul edilir
+      if (t.status === 'invited' && t.participants[1] === me && !T.mesgul) { await komut('accept', { tradeId: t.id }); return; }
+      if (t.status === 'active' && !T.kisiler.length) await kisileriCek();
+      if (T.masaCiz) T.masaCiz(); return; }
     if (t.status === 'invited' && t.participants[1] === me && !T.davetAcik && G.live) { T.davetAcik = true; await kisileriCek();
       const v = await G.pen({ k: 'Takas', t: 'Takas teklifi', body: '<p><b>' + esc_(adOf(t.participants[0])) + '</b> seninle takas yapmak istiyor.</p><p>Masada yalnız kazanılmış mal ve altın el değiştirir; ikiniz de onaylamadan hiçbir şey gitmez.</p>', btns: [{ t: 'Geri çevir', v: false }, { t: 'Masaya otur', cls: 'altin', v: true }] });
       T.davetAcik = false; await komut(v ? 'accept' : 'reject', { tradeId: t.id }); return; }
@@ -61,10 +67,10 @@
     return out; }
   function onizleMal(id) { const o = T.onizle[id]; if (!o || !B()) return null; try { return o.kind === 'dragon' ? B().dragon(o.data) : o.kind === 'egg' ? B().egg(o.data) : o.kind === 'item' ? B().item(o.data.id) : null; } catch (_) { return null; } }
   const kart = (mal, id, ek) => '<span class="tk-es"' + (ek || '') + '><span class="tk-res">' + (mal ? mal.cizim : '<img alt="" src="assets/ik/mdl-sandik.webp">') + '</span><b>' + esc_(mal ? mal.ad : 'Mal') + '</b><small>' + esc_(mal ? mal.alt || '' : '') + '</small></span>';
-  function tepsiHtml(acct, benim) { const o = (T.trade.offers || {})[acct] || { gold: 0, items: [], dragons: [], eggs: [] }, onay = (T.trade.approvals || []).includes(acct);
+  function tepsiHtml(acct, benim, rozet, isaretli) { const o = (T.trade.offers || {})[acct] || { gold: 0, items: [], dragons: [], eggs: [] }, onay = rozet ? !!isaretli : (T.trade.approvals || []).includes(acct);
     const ic = [...o.dragons, ...o.eggs, ...o.items].map(id => { const mal = onizleMal(id); return benim ? '<button type="button" class="tk-esb" data-cikar="' + esc_(id) + '" title="Tepsiden al">' + kart(mal, id) + '</button>' : kart(mal, id); }).join('') +
       (o.gold > 0 ? '<span class="tk-es altin"><span class="tk-res"><img alt="" src="assets/ik/para.webp"></span><b>' + o.gold + ' altın</b><small>kazanılmış</small></span>' : '');
-    return '<div class="tk-tepsi ' + (benim ? 'ben' : 'o') + (onay ? ' onayli' : '') + '"><h3>' + (benim ? 'Senin tepsin' : esc_(adOf(acct)) + ' tepsisi') + '</h3><em class="tk-onay">' + (onay ? 'Onayladı' : 'Onay bekliyor') + '</em><div class="tk-ic">' + (ic || '<p class="tk-bos">' + (benim ? 'Soldan bir mal seç ya da altın koy.' : 'Henüz bir şey koymadı.') + '</p>') + '</div></div>'; }
+    return '<div class="tk-tepsi ' + (benim ? 'ben' : 'o') + (onay ? ' onayli' : '') + '"><h3>' + (benim ? 'Senin tepsin' : esc_(adOf(acct)) + ' tepsisi') + '</h3><em class="tk-onay">' + (rozet || (onay ? 'Onayladı' : 'Onay bekliyor')) + '</em><div class="tk-ic">' + (ic || '<p class="tk-bos">' + (benim ? 'Soldan bir mal seç ya da altın koy.' : 'Henüz bir şey koymadı.') + '</p>') + '</div></div>'; }
 
   /* ---------- ekran ---------- */
   G.screen('takas', { k: 'Bire bir', t: 'Takas masası', cls: 'tk', bg: 'a:bd-sandik', draw(body) {
@@ -87,5 +93,6 @@
   function ciz() { if (G.ekran() === 'takas') G.redraw(); }
   setInterval(() => { if (G.ekran() === 'takas' && T.trade && T.trade.status === 'active' && !T.mesgul) { if (T.trade.expiresAt <= Date.now()) komut('get', { tradeId: T.trade.id }); else ciz(); } }, 20000);
   setTimeout(tazele, 2500);
-  EO2.takas = { teklif, durum: () => T, tazele };
+  EO2.takas = { teklif, durum: () => T, tazele, komut, mallar: benimMallar, tepsi: tepsiHtml, kart,
+    masaKipi(hesap, cizici) { T.masa = hesap || null; T.masaCiz = hesap ? cizici : null; if (hesap) tazele(); } };
 })();

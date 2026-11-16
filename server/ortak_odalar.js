@@ -10,7 +10,10 @@
 //   baslat(oda)        : ortak başlangıç durumu (ör. { can, enCan, asama }); sunucuda durur
 //   eylem(durum, uye, eylem, oda) : oyuncunun eylemini işler; { olaylar: [...], bitti?: { kazanan: bool, ... } } döner ya da
 //                        hata fırlatır (kod alanıyla). Durumu yerinde değiştirir. Doğrulama türün işidir.
-//   bitir(oda, sonuc)  : örnek bitince bir kez çağrılır (ödül yazımı burada tetiklenir)
+//   bitir(oda, sonuc, durum) : örnek bitince bir kez çağrılır (ödül yazımı burada tetiklenir). Oyuncu kalmadığı için bittiyse
+//                        sonuc = { kazanan: false, neden: 'oyuncu_kalmadi', ayrilan: <hesap> }
+//   tik(durum, oda)    : (isteğe bağlı) süpürmede çağrılır; süreye bağlı kurallar için. eylem ile aynı biçimde döner ya da boş.
+//   eylem ve tik söz (Promise) döndürebilir; bir odanın eylemleri sırayla işlenir.
 //
 // MESAJLAR (istemci → sunucu, tür alanı `type`)
 //   ortak_kur { tur, anahtar, ozel }   ortak_katil { kod }      ortak_cik {}          ortak_hazir { hazir }
@@ -54,7 +57,7 @@ function createOrtakOdalar({ send, sockets, kimlik, crypto = require('node:crypt
     o.uyeler.splice(i, 1); uyelik.delete(id); for (const s of soketler(id)) send(s, { type: 'ortak_ayrildi', neden: neden || 'cikti' });
     if (!o.uyeler.length) return odaKapat(o);
     if (o.kurucu === id) o.kurucu = o.uyeler[0].id;
-    if (o.durum === 'oyunda' && o.uyeler.length < o.tanim.enAz) return bitir(o, { kazanan: false, neden: 'oyuncu_kalmadi' });
+    if (o.durum === 'oyunda' && o.uyeler.length < o.tanim.enAz) return bitir(o, { kazanan: false, neden: 'oyuncu_kalmadi', ayrilan: id });
     odaYay(o);
   }
   function odaKapat(o) { for (const u of o.uyeler) uyelik.delete(u.id); odalar.delete(o.id); kodlar.delete(o.kod); }
@@ -65,8 +68,8 @@ function createOrtakOdalar({ send, sockets, kimlik, crypto = require('node:crypt
   function bitir(o, sonuc) {
     if (o.durum === 'bitti') return; o.durum = 'bitti'; o.sonHareket = now();
     try { o.tanim.bitir(gorunum(o), sonuc, o.ortak); } catch (e) { console.error('[ortak] bitir kancası', o.tur, e.message); }
+    for (const u of o.uyeler) u.hazir = false;   // rövanş için herkes yeniden hazır olur; istemci bunu ortak_bitti içindeki odadan görür
     yay(o, { type: 'ortak_bitti', sonuc, oda: gorunum(o) });
-    for (const u of o.uyeler) u.hazir = false;
   }
   /* görev bulucu: aynı tür ve anahtarı arayanlar enCok kişiye (ya da enAz'a ulaşıp en eski bekleyen 20 sn beklediyse) dolunca oda açılır */
   function eslestir() {
@@ -90,7 +93,7 @@ function createOrtakOdalar({ send, sockets, kimlik, crypto = require('node:crypt
         case 'ortak_katil': { if (o) throw hata('zaten_odada'); const y = odalar.get(kodlar.get(String(msg.kod || '').toUpperCase().trim())); if (!y) throw hata('oda_yok');
           if (y.durum !== 'bekliyor') throw hata('oda_mesgul'); if (y.uyeler.length >= y.tanim.enCok) throw hata('oda_dolu'); kuyrukCik(k.accountId); uyeEkle(y, k, msg.ad); odaYay(y); break; }
         case 'ortak_cik': if (o) odadanCik(o, k.accountId); else send(socket, { type: 'ortak_ayrildi' }); break;
-        case 'ortak_hazir': { if (!o) throw hata('odada_degil'); if (o.durum !== 'bekliyor') throw hata('oda_mesgul'); const u = o.uyeler.find(x => x.id === k.accountId); u.hazir = msg.hazir !== false; o.sonHareket = t; odaYay(o); break; }
+        case 'ortak_hazir': { if (!o) throw hata('odada_degil'); if (o.durum === 'oyunda') throw hata('oda_mesgul');   /* biten örnekten sonra aynı odada yeniden hazır olunur (rövanş) */ const u = o.uyeler.find(x => x.id === k.accountId); u.hazir = msg.hazir !== false; o.sonHareket = t; odaYay(o); break; }
         case 'ortak_baslat': { if (!o) throw hata('odada_degil'); if (o.kurucu !== k.accountId) throw hata('yalniz_kurucu'); if (o.durum === 'oyunda') throw hata('oda_mesgul');
           if (o.uyeler.length < o.tanim.enAz) throw hata('oyuncu_eksik'); if (o.uyeler.some(u => u.id !== o.kurucu && !u.hazir)) throw hata('hazir_degil'); basla(o); break; }
         case 'ortak_davet': { if (!o) throw hata('odada_degil'); if (o.durum !== 'bekliyor') throw hata('oda_mesgul'); const to = String(msg.to || '');
@@ -101,8 +104,12 @@ function createOrtakOdalar({ send, sockets, kimlik, crypto = require('node:crypt
           kuyrukCik(k.accountId); kuyruk.push({ id: k.accountId, k, tur: msg.tur, anahtar: msg.anahtar, ad: typeof msg.ad === 'string' ? msg.ad.slice(0, 16) : '', t }); send(socket, { type: 'ortak_kuyruk', durum: 'ariyor' }); eslestir(); break; }
         case 'ortak_kuyruk_cik': kuyrukCik(k.accountId); send(socket, { type: 'ortak_kuyruk', durum: 'yok' }); break;
         case 'ortak_eylem': { if (!o || o.durum !== 'oyunda') throw hata('oyunda_degil'); const u = o.uyeler.find(x => x.id === k.accountId);
-          const r = o.tanim.eylem(o.ortak, { id: u.id, h: u.h, ad: u.ad }, msg.eylem, gorunum(o)) || {}; o.sonHareket = t;
-          yay(o, { type: 'ortak_olay', olaylar: r.olaylar || [], durum: o.ortak, kim: u.id }); if (r.bitti) bitir(o, r.bitti); break; }
+          // tür kancası söz döndürebilir (depo okuması gerekebilir); aynı odanın eylemleri sıraya girer, böylece durum yarışmaz
+          o.sira = (o.sira || Promise.resolve()).then(async () => { if (o.durum !== 'oyunda') throw hata('oyunda_degil');
+            const r = (await o.tanim.eylem(o.ortak, { id: u.id, h: u.h, ad: u.ad }, msg.eylem, gorunum(o))) || {}; o.sonHareket = now();
+            yay(o, { type: 'ortak_olay', olaylar: r.olaylar || [], durum: o.ortak, kim: u.id }); if (r.bitti) bitir(o, r.bitti); })
+            .catch(e => { send(socket, { type: 'ortak_hata', kod: e.kod || 'hata' }); if (!e.kod) console.error('[ortak] eylem', e.message); });
+          break; }
         case 'ortak_durum': if (o) { send(socket, { type: 'ortak_oda', oda: gorunum(o), sen: k.accountId }); if (o.durum === 'oyunda') send(socket, { type: 'ortak_basladi', oda: gorunum(o), durum: o.ortak, tohum: o.tohum, surur: true }); } else send(socket, { type: 'ortak_ayrildi' }); break;
         default: throw hata('komut_bilinmiyor');
       }
@@ -118,7 +125,10 @@ function createOrtakOdalar({ send, sockets, kimlik, crypto = require('node:crypt
   function onConnect(socket) { const k = hesapOf(socket); if (!k) return; const o = odaOf(k.accountId); if (!o) return; const u = o.uyeler.find(x => x.id === k.accountId); if (u && !u.bagli) { u.bagli = true; u.kopma = 0; odaYay(o); } }
   function supur() { const t = now();
     for (const o of [...odalar.values()]) { for (const u of [...o.uyeler]) if (!u.bagli && t - u.kopma >= KOPMA_MS) odadanCik(o, u.id, 'koptu');
-      if (odalar.has(o.id) && o.durum !== 'oyunda' && t - o.sonHareket >= BOS_ODA_MS) { for (const u of [...o.uyeler]) odadanCik(o, u.id, 'oda_kapandi'); } }
+      if (odalar.has(o.id) && o.durum !== 'oyunda' && t - o.sonHareket >= BOS_ODA_MS) { for (const u of [...o.uyeler]) odadanCik(o, u.id, 'oda_kapandi'); }
+      // tik kancası: süreye bağlı kurallar (ör. hamle süresi dolan oyuncu adına karar) türün kendisindedir
+      if (odalar.has(o.id) && o.durum === 'oyunda' && typeof o.tanim.tik === 'function') { o.sira = (o.sira || Promise.resolve()).then(async () => { if (o.durum !== 'oyunda') return;
+        const r = await o.tanim.tik(o.ortak, gorunum(o)); if (!r) return; yay(o, { type: 'ortak_olay', olaylar: r.olaylar || [], durum: o.ortak, kim: null }); if (r.bitti) bitir(o, r.bitti); }).catch(e => console.error('[ortak] tik', e.message)); } }
     eslestir(); }
   return { kaydet, onMessage, onDisconnect, onConnect, supur, sayim: () => ({ oda: odalar.size, kuyruk: kuyruk.length, turler: [...turler.keys()] }) };
 }

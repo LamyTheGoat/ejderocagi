@@ -16,7 +16,7 @@
 | Arena altını sunucuda (kademe, turnuva, bahis, kule, çukur cezası) | bitti | 197 birim testi; tarayıcıda 11 dövüşte sapma 0 |
 | Er Meydanı (ejderha düellosu PvP, ödülsüz) | bitti | Bağlantı kopması tarayıcıda denenmedi |
 | Bedesten ve Ocak Sandığı | bitti | Kuşam ve yumurta ilanı gerçek veriyle denenmedi |
-| Kıraathane 2.0 ve bahis tepsisi | bitti | Yerel rakibe karşı; oyuncular arası masa yok |
+| Kıraathane 2.0 ve bahis tepsisi | bitti | Yerel rakibe karşı. Oyuncuya karşı masa (Ejder Pokeri) 2026-11-16'da eklendi; tavla ve taş oyunu oyuncuya karşı yok |
 | Topçu ve Zindan sahnesi, zindan çizgi romanları, Topçu PvP odaları | bitti | Volkanik Kaldera, Batık Donanma ve Ağır zorluk baştan sona oynatılmadı; ödüller yerel kayıtta |
 | Ayarlar, kayıt aktarma, oyuncu adı, ilk hafta rehberi, müzik | bitti | Oyuncu adı sunucuya gitmiyor; parçalar dinlenerek denetlenmedi |
 | Ocak sahnesi cilası | bitti | Yeni çizim üretilemedi (Midjourney bakiyesi); gece görünüşü doğrulanmadı |
@@ -62,7 +62,7 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
 - Sohbet: **açıldı (2026-11-16)**, şart koşulan dört önlemle: sunucuda küfür süzgeci ve bağlantı ayıklama (`temizSoz`), hız sınırı (iki söz arası 1,2 sn, otuz saniyede sekiz söz), istemcide engelleme (`eo2.engel`), şikâyet (`/api/report`, son sözlerle). Tek kanal: bulunduğun alan ve kanal. Sözler saklanmaz. Süzgeç listesi kısadır; yayından önce genişletilmeli. Parti ve fısıltı yok.
 - Oyuncu kartı (2026-11-16): meydanda bir oyuncunun yanına gelince selam ver, Topçu düellosuna çağır (Er Meydanı odası kurulur, davet gider), engelle, şikâyet et.
 - **Yapıldı (2026-11-16):** bire bir takas (`eo2/js/takas.js`, sunucu `trade_service.js`), dost listesi ve fısıltı (`server/social_service.js`, `eo2/js/dostlar.js`), oyuncu kartından ejderha ve Topçu düellosu daveti. Açık: parti penceresi, profil inceleme, çevrimdışı mesaj.
-- Oyuncular arası Kıraathane masası ve takas (bağlantı noktaları hazır: `EO2.kiraathane.baglan`, `server/trade_service.js`).
+- **Oyuncuya karşı Kıraathane masası: yapıldı (2026-11-16).** Ejder Pokeri, iki oyuncu. Sunucu `server/kiraathane_pvp.js` (ortak oda altyapısının `kiraathane` türü), ekran `eo2/js/masa.js`. Özel masa (kod ya da davet), rakip arama, rövanş. Zarları sunucu atar, eli sunucu sayar. Karar (kullanıcı, 2026-11-16): **bahis yalnız kazanılmış malla.** Bahis masada açılan takasın tepsilerine konur; ikisi de kilitleyince oyun bitene dek o takasa oyuncu komutu reddedilir (`trade_locked_by_table`); kazanan kendi bahsini korur, kaybedeninkini alır; berabere iade; oyun sürerken kalkan kaybeder; 45 sn hamle yapmayanın yerine sunucu oynar. Giriş: Kıraathane salonu, meydandaki oyuncu kartı, Dostlar kartı. Denetim: `tests/kiraathane_pvp.test.js` (gerçek aktarım), `tools/check_masa.mjs` (iki tarayıcı, duman testinde). Açık: kilit kümesi ve odalar bellekte, tek sunucu örneği varsayar; Firestore deposuyla koşulmadı; tavla ve taş oyunu oyuncuya karşı yok.
 
 ## 3. Çıkıştan önce şart olan küçük ve orta işler
 

@@ -60,3 +60,10 @@ Hata kodları: `tur_bilinmiyor`, `anahtar_gecersiz`, `zaten_odada`, `oda_yok`, `
 ## İstemci
 
 `EO2.ortak.kur / katil / cik / hazir / baslat / davet / kuyruk / kuyrukCik / eylem / dinle / durum`. Ayrıntı dosyanın başında.
+
+## İlk kullanan tür: Kıraathane masası (2026-11-16)
+`server/kiraathane_pvp.js` bu altyapının `kiraathane` türüdür (PvE değil, iki oyunculu masa) ve çalışan örnek olarak okunabilir. Onun için altyapıya eklenenler:
+- `eylem` kancası Promise döndürebilir; oda başına eylemler sıraya girer, biri bitmeden öteki işlenmez.
+- `tik(durum, oda)` kancası: süpürme turunda (15 sn) çağrılır; süreye bağlı işler (hamle süresi dolan oyuncu adına oynamak) burada yapılır.
+- Oyuncu sayısı `enAz` altına düşünce `bitir` sonucu `ayrilan` alanını taşır.
+- Örnek bitince herkesin hazır durumu sıfırlanır ve aynı odada yeniden hazır olunup başlatılabilir (rövanş).

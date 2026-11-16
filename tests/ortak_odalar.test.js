@@ -15,7 +15,8 @@ function kur(config) {
   return { O, baglan, kopar: s => { soketler.delete(s); O.onDisconnect(s); }, son, gelen: s => kutu.get(s) || [], bosalt: () => kutu.clear(), ileri: ms => { t += ms; }, biten };
 }
 
-test('oda: kur, kodla katıl, hazır, başlat; ortak durum sunucuda; eylem herkese yayılır; bitince kanca bir kez çağrılır', () => {
+const bekle = () => new Promise(r => setImmediate(r));
+test('oda: kur, kodla katıl, hazır, başlat; ortak durum sunucuda; eylem herkese yayılır; bitince kanca bir kez çağrılır', async () => {
   const { O, baglan, son, gelen, bosalt, biten } = kur(), a = baglan('a1', '@a'), b = baglan('b1', '@b'), c = baglan('c1', '@c');
   assert.equal(O.onMessage(a, { type: 'meydan' }), false);
   O.onMessage(a, { type: 'ortak_kur', tur: 'yok', anahtar: 'kule' }); assert.equal(son(a, 'ortak_hata').kod, 'tur_bilinmiyor');
@@ -30,9 +31,9 @@ test('oda: kur, kodla katıl, hazır, başlat; ortak durum sunucuda; eylem herke
   assert.deepEqual(son(b, 'ortak_basladi').durum, { can: 30, enCan: 30, vuran: {} }); assert.equal(typeof son(b, 'ortak_basladi').tohum, 'number');
   O.onMessage(c, { type: 'ortak_katil', kod: oda.kod }); assert.equal(son(c, 'ortak_hata').kod, 'oda_mesgul');
   O.onMessage(c, { type: 'ortak_eylem', eylem: { t: 'vur', guc: 5 } }); assert.equal(son(c, 'ortak_hata').kod, 'oyunda_degil');
-  bosalt(); O.onMessage(b, { type: 'ortak_eylem', eylem: { t: 'vur', guc: 9999 } }); assert.equal(son(b, 'ortak_hata').kod, 'eylem_gecersiz'); assert.equal(gelen(a).length, 0);
-  O.onMessage(b, { type: 'ortak_eylem', eylem: { t: 'vur', guc: 10 } }); assert.equal(son(a, 'ortak_olay').durum.can, 20); assert.equal(son(a, 'ortak_olay').kim, 'b1'); assert.equal(gelen(c).length, 0, 'oda dışına yayın yok');
-  O.onMessage(a, { type: 'ortak_eylem', eylem: { t: 'vur', guc: 10 } }); O.onMessage(a, { type: 'ortak_eylem', eylem: { t: 'vur', guc: 10 } });
+  bosalt(); O.onMessage(b, { type: 'ortak_eylem', eylem: { t: 'vur', guc: 9999 } }); await bekle(); assert.equal(son(b, 'ortak_hata').kod, 'eylem_gecersiz'); assert.equal(gelen(a).length, 0);
+  O.onMessage(b, { type: 'ortak_eylem', eylem: { t: 'vur', guc: 10 } }); await bekle(); assert.equal(son(a, 'ortak_olay').durum.can, 20); assert.equal(son(a, 'ortak_olay').kim, 'b1'); assert.equal(gelen(c).length, 0, 'oda dışına yayın yok');
+  O.onMessage(a, { type: 'ortak_eylem', eylem: { t: 'vur', guc: 10 } }); O.onMessage(a, { type: 'ortak_eylem', eylem: { t: 'vur', guc: 10 } }); await bekle(); await bekle();
   assert.deepEqual(son(b, 'ortak_bitti').sonuc, { kazanan: true }); assert.equal(biten.length, 1); assert.deepEqual(biten[0].vuran, { b1: 10, a1: 20 });
   O.onMessage(a, { type: 'ortak_eylem', eylem: { t: 'vur', guc: 1 } }); assert.equal(son(a, 'ortak_hata').kod, 'oyunda_degil'); assert.equal(biten.length, 1);
 });

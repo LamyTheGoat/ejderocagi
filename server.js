@@ -55,6 +55,10 @@ const SOSYAL = require('./server/social_service').createSocial({ store: ECONOMY,
 // Ortak PvE altyapısı: örnek odaları ve görev bulucu (server/ortak_odalar.js). Oynanış türleri ORTAK.kaydet ile eklenir; bugün kayıtlı tür yok.
 const ORTAK = require('./server/ortak_odalar').createOrtakOdalar({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo });
 setInterval(() => { try { ORTAK.supur(); } catch (e) { console.error('[ortak] süpürme', e.message); } }, 15000).unref();
+// Kıraathane · oyuncuya karşı masa (server/kiraathane_pvp.js): bahis takas emanetindedir; oyun sürerken o takas oyunculara kilitlidir.
+const KIR_KILIT = new Set();
+const KIR_PVP = require('./server/kiraathane_pvp').createKiraathanePvp({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo, kilitli: KIR_KILIT });
+ORTAK.kaydet('kiraathane', KIR_PVP.tanim);
 const MEYDAN = require('./server/meydan_presence').createMeydanPresence({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, kimlik: socket => socket.playerInfo && socket.playerInfo.handle });
 
 const MIME_TYPES = {
@@ -605,6 +609,7 @@ async function handleWsMessage(socket, msg) {
   msg = { ...msg, accountId: socket.playerInfo.accountId, handle: socket.playerInfo.handle, from: socket.playerInfo.handle, buyer: socket.playerInfo.handle, attacker: socket.playerInfo.handle };
   if (msg.listing && typeof msg.listing === 'object') msg.listing = { ...msg.listing, seller: socket.playerInfo.handle };
   if (msg.type === 'trade_command') {
+    if (msg.command && KIR_KILIT.has(msg.command.tradeId) && msg.command.type !== 'get') { if (!socket.destroyed) socket.write(encodeWsFrame({ type: 'trade_error', requestId: msg.command.requestId, error: 'trade_locked_by_table' })); return; }
     await Promise.resolve().then(() => ECONOMY.executeTrade(socket.playerInfo.accountId, msg.command)).then(result => {
       for (const peer of WS_CLIENTS) if (result.trade.participants.includes(peer.playerInfo?.accountId) && !peer.destroyed) peer.write(encodeWsFrame({ type: 'trade_state', ...result }));
     }).catch(error => { if (!socket.destroyed) socket.write(encodeWsFrame({ type: 'trade_error', requestId: msg.command?.requestId, error: error.code || 'trade_unavailable' })); });
@@ -1006,6 +1011,8 @@ async function handleHttp(req, res) {
   if (pathname === '/api/trade' && req.method === 'POST') {
     if (!req.identity) return sendJson(res, 401, { ok: false, error: 'guest_session_required' });
     const command = await readJsonBody(req, false, 16384);
+    // Kıraathane masasında kilitlenen bahis takasına oyuncu komut gönderemez (vazgeçemez, tepsiyi değiştiremez); sonucu sunucu işler
+    if (command && KIR_KILIT.has(command.tradeId) && command.type !== 'get') return sendJson(res, 409, { ok: false, error: 'trade_locked_by_table' });
     try {
       const result = await ECONOMY.executeTrade(req.identity.accountId, command);
       for (const peer of WS_CLIENTS) if (result.trade.participants.includes(peer.playerInfo?.accountId) && !peer.destroyed) peer.write(encodeWsFrame({ type: 'trade_state', ...result }));
