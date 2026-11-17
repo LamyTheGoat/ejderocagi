@@ -1,5 +1,5 @@
 // EO2 · mezar taşı yer tutucusu: savaş motorundaki kodla çizilen mezar taşının aynısını eo2/assets/topcu/mezar.webp olarak yazar.
-// ChatGPT ile üretilecek asıl çizim gelince bu dosyanın üzerine yazılır (aynı ad, saydam zemin, alt kenar zemin çizgisi).
+// Asıl çizim Midjourney ile üretildi ve bu dosyanın yerine kondu (2026-11-18); bu araç yalnız çizim kaybolursa yer tutucuyu yeniden yazmak içindir: ÇALIŞTIRIRSAN ASIL ÇİZİMİN ÜZERİNE YAZAR.
 // Kullanım: node eo2/tools/mezar_ciz.mjs
 import fs from 'node:fs'; import path from 'node:path'; import { createRequire } from 'node:module'; import { fileURLToPath } from 'node:url';
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..'), require = createRequire(path.join(repo, 'package.json')), { chromium } = require('playwright-core');

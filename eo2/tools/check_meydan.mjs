@@ -38,7 +38,7 @@ try {
   log.davetEden = log.davetGeldi ? await B.locator('.pen').first().textContent() : '';
   if (log.davetGeldi) await B.locator('.pen .gbtn:has-text("Kabul et")').click();
   log.oda = await bekle(A, 'EO2.topcuPvp.durum().oda && EO2.topcuPvp.durum().oda.slots.filter(s => s.kind !== "empty").length === 2') && await bekle(B, 'EO2.topcuPvp.durum().oda && EO2.topcuPvp.durum().oda.slots.filter(s => s.kind !== "empty").length === 2');
-  log.kunye = await A.evaluate(() => EO2.game.ekran() === 'topcu' && EO2.topcu.secili() === 'meydan') && await B.evaluate(() => EO2.game.ekran() === 'topcu' && EO2.topcu.secili() === 'meydan');
+  log.kunye = await A.evaluate(() => EO2.game.ekran() === 'ermeydani' && !!document.querySelector('.em-kok.oda')) && await B.evaluate(() => EO2.game.ekran() === 'ermeydani' && !!document.querySelector('.em-kok.oda'));   // davet kabul edilince ikisi de Er Meydanı bekleme odasındadır
   for (const p of [B, A]) { await p.evaluate(() => { const c = document.querySelector('[data-pvp="cik"]'); if (c) c.click(); }); await p.waitForTimeout(400); await p.evaluate(() => EO2.game.close()); }
   await B.evaluate(() => EO2.api.go('han'));
   log.hanaGitti = await bekle(A, 'EO2.meydanAg.sayi() === 0') && await bekle(B, 'EO2.api.scene() === "han" && EO2.meydanAg.sayi() === 0');

@@ -63,7 +63,7 @@
     EO2.topcu.pvpBaslat({ macKimlik: m.matchId, rakip: { ad: (rakip.chibi && rakip.chibi.ad) || rakip.name || rakip.handle || 'Rakip', set: (rakip.chibi && rakip.chibi.set) || 'temel', gor: EO2.gorunum ? EO2.gorunum.kodOf(rakip.handle) : '', el: rakip.el || 'talim', unvan: 'Er Meydanı rakibi' }, ilk: m.firstTurn === m.you ? 'ben' : 'rakip', sag: benYuva.idx === 1, ruzgar: ruzgar(m.seed),
       sonra: r => { kes(); const M_ = st.mac; if (r.terk && M_ && !M_.sunucuBitirdi) ag.gonder({ type: 'pvp_match_result', matchId: M_.id, result: 'lose' }); if (M_) M_.bitti = true; st.sonuc = r.terk ? 'Meydandan ayrıldın.' : r.zafer ? 'Kazandın.' : 'Kaybettin.';
         return G.pen({ k: 'Er Meydanı · dostça maç', t: r.terk ? 'Ayrıldın' : r.zafer ? 'Zafer' : 'Yenildin', body: '<p>' + (r.terk ? 'Maçtan ayrıldın; rakibin kazandı.' : r.zafer ? (M_ && M_.neden === 'forfeit' ? 'Rakibin meydandan ayrıldı.' : 'Rakibin topu sustu.') : 'Bu kez rakibin daha isabetliydi.') + ' Dostça maç ödülsüzdür: altın, ün ve sıralama yazılmaz.</p>', btns: [{ t: 'Odaya dön', cls: 'altin' }] }); } })
-      .then(() => { EO2.topcu.sec('meydan'); });
+      .then(() => { meydanAc(); });   /* maçtan sonra Er Meydanı ekranına (bekleme odasına) dönülür */
   }
   const benden = m => !st.mac || m.from === st.mac.ben;
   ag.dinle('pvp_sync', m => { if (!st.mac || st.mac.bitti || benden(m) || (m.matchId && m.matchId !== st.mac.id)) return; if (!st.mac.hazir) { if (m.action !== 'move_aim') st.mac.bekleyen.push(m); return; } isle(m); });
