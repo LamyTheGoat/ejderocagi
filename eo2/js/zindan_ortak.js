@@ -71,7 +71,8 @@
     if (Z.sonAsama) sonrasi(); }
   function asamaBitti(o) { Z.sonAsama = o; if (Z.savas && !Z.savasBitti && B.active()) { const M = B.state(); if (M && !M.over) { if (o.zafer) B.sonlandir(true); else B.kapat(); } return; } sonrasi(); }
   /* aşama sonu: çark ve ödül (tek oyunculu seferle aynı fonksiyonlar), sonra kampa dönüş */
-  async function sonrasi() { const o = Z.sonAsama, d = od(); if (!o || !d || Z.islenen === d.tur * 10 + (o.zafer ? 1 : 0)) return; Z.islenen = d.tur * 10 + (o.zafer ? 1 : 0); Z.sonAsama = null; Z.savas = false; seyirKapat(); if (B.active()) B.kapat(); yoldasCiz(); kampaGit();
+  async function sonrasi() { Z.carkta = true; try { await sonrasiIc(); } finally { Z.carkta = false; Z.carkT = Date.now(); } }
+  async function sonrasiIc() { const o = Z.sonAsama, d = od(); if (!o || !d || Z.islenen === d.tur * 10 + (o.zafer ? 1 : 0)) return; Z.islenen = d.tur * 10 + (o.zafer ? 1 : 0); Z.sonAsama = null; Z.savas = false; seyirKapat(); if (B.active()) B.kapat(); yoldasCiz(); kampaGit();
     if (!o.zafer) { ses('pop'); await G.pen({ k: zad() + ' · Aşama ' + (o.asama + 1), t: 'Grup düştü', body: '<p>Ayakta kimse kalmadı. Kampta toparlanın; aynı aşama yeniden denenir.</p>', btns: [{ t: 'Kampa dön', cls: 'altin' }] }); return; }
     T.ornekKur({ zindan: tarif().odul, zorluk: d.zorluk });
     if (!o.son) { T.odulYaz('asama'); await T.cark('Aşama ' + (o.asama + 1) + ' temizlendi', '150 altın kesene girdi. Çarkı bir kez çevir.', T.kucukCark(o.asama + 1), false); }
@@ -134,6 +135,8 @@
     if (olay === 'bitti') seferSonu(v.sonuc);
     yoldasCiz(); seyirCiz(); seritCiz(); if (G.ekran() === 'zindan') G.redraw(); });
   setInterval(() => { seritCiz();
+    /* çark aşamasında bu ekranda çark açık değilse (sayfa çark sırasında yenilendi) grup bekletilmez: çark geçilir. Ödül iki kez yazılmasın diye çark yeniden açılmaz. */
+    if (seferde() && od().faz === 'cark' && !(od().uye[ben()] || {}).cark && !Z.savas && !Z.sonAsama && !Z.carkta && !B.active() && G.live && Date.now() - (Z.carkT || 0) > 6000) { Z.carkT = Date.now(); OR.eylem({ t: 'cark' }); G.toast('Sayfa yenilendiği için bu aşamanın çarkı geçildi. Sefer sürüyor.'); }
     // sefer savaştayken bu ekranda savaş açık değilse (sayfa yenilendi ya da bağlantı kopup geldi) savaşa geri dönülür
     if (seferde() && od().faz === 'savas' && !Z.savas && !Z.sonAsama && !B.active() && G.live && Date.now() - (Z.donusT || 0) > 4000 && Date.now() - (Z.baslaT || 0) > 5000) {   /* aşama yeni başlıyorsa olağan başlangıç beklenir */ Z.donusT = Date.now(); G.toast('Sefer sürüyor: savaşa dönüyorsun.', 'goal'); T.ornekKur(T.ornek() || { zindan: tarif().odul, zorluk: od().zorluk }); asamaBaslat(true); } const L = EO2.api && EO2.api.sceneState && EO2.api.sceneState().L, k = L && L.id === 'kamp' && (L.interact || []).find(i => i.id === 'kapi'), d = od();
     if (k && seferde()) { const me = d.uye[ben()] || {}; k.sub = d.faz !== 'bekleme' ? 'Mühür kapalı' : me.hazir ? 'Hazırsın · vazgeç' : 'Aşama ' + (d.asama + 1) + ': hazırım'; }
