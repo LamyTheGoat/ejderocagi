@@ -314,3 +314,6 @@ html, body, #app.ui2 { overflow: clip; }
   .ui2 .yu-kadro { height: 6.6em; padding: .9em .7em .3em; align-items: flex-start; }
   .ui2 .yu-kadro .madalyon[aria-pressed="true"] { transform: scale(1.06); }
 }
+/* Masa ve sefer lobisi: iki satırlı büyük düğmeler (başlık + açıklama) dar sütunda kesilmesin: açıklama alt satıra iner, yazı sarar */
+.ui2 .ms-secenek .gbtn, .ui2 .zn-secenek .gbtn { display: grid; justify-items: center; align-content: center; gap: .15em; height: auto; min-height: 3.3em; padding: .55em 1.1em; white-space: normal; line-height: 1.15; text-align: center; }
+.ui2 .ms-secenek .gbtn small, .ui2 .zn-secenek .gbtn small { display: block; margin: 0; white-space: normal; line-height: 1.2; }
