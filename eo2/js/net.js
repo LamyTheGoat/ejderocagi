@@ -6,7 +6,7 @@
   'use strict';
   const EO2 = window.EO2, SETS = Object.keys(window.EO2_ATLAS.sets), DIRS = ['up', 'down', 'left', 'right'], EM = ['smile', 'wave', 'heart', 'spark', 'think', 'note'];
   const AREAS = { meydan: 'Merkez Meydan', han: 'Han', bahce: 'Ejder Bahçesi', yol: 'Kuzey Yolu', pazar: 'Pazar', arena: 'Topçu Arenası' };
-  const SETNAME = { bare: 'Çıplak', temel: 'Temel', muhafiz: 'Muhafız', avci: 'Avcı', madenci: 'Madenci' };
+  const SETNAME = { bare: 'Çıplak', temel: 'Temel', muhafiz: 'Muhafız', avci: 'Avcı', madenci: 'Madenci', buyucu: 'Büyücü', senlik: 'Ocak Şenliği' };
   const whenApi = () => new Promise(r => { const t = setInterval(() => { if (EO2.api) { clearInterval(t); r(EO2.api); } }, 60); });
   const first = n => String(n || '').trim().split(/\s+/)[0].slice(0, 18);
   const chip = () => document.getElementById('liveChip');

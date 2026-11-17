@@ -105,3 +105,30 @@ test('Kor 21: kartları sunucu dağıtır, yirmi bire yakın el kazanır ve bahs
   d = son(sb, 'ortak_olay').durum; assert.equal(d.faz, 'bitti'); const ea = d.son.eller[a.accountId], eb = d.son.eller[b.accountId];
   assert.equal(d.son.kazanan, ea.yandi ? b.accountId : ea.deger > eb.deger ? a.accountId : ea.deger < eb.deger ? b.accountId : null); assert.equal(son(sb, 'masa_odeme').bahis, false);
 });
+
+test('Kervan Tavlası: zarı sunucu atar, sıra dışı ve kural dışı hamle reddedilir, oynanamayan sıra geçer, altı pulu toplayan bahsi alır, oyalananın yerine sunucu oynar', async t => {
+  // zar sırası: A 3-5 · B 2-2 (düşeş: dört hamle) · sonra hep 6-6
+  const { yeni, baglan, son, tr, masa, eylem, altin, O, ileri, kilitli } = kur(t, [3, 5, 2, 2, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6]);
+  const a = yeni(), b = yeni(), sa = baglan(a), sb = baglan(b), a0 = altin(a.accountId), b0 = altin(b.accountId);
+  await masa(sa, sb, 'tavla'); let d = son(sb, 'ortak_basladi').durum; assert.equal(d.oyun, 'tavla'); assert.equal(d.yan[a.accountId], 'me'); assert.equal(d.yan[b.accountId], 'opp');
+  assert.equal(d.T.pts[0].n, 6); assert.equal(d.T.pts[11].n, 6);
+  let tk = tr(a.accountId, 'invite', { targetId: b.accountId }); tk = tr(b.accountId, 'accept', { tradeId: tk.id });
+  tk = tr(b.accountId, 'offer', { tradeId: tk.id, revision: tk.revision, offer: { gold: 20, items: [], dragons: [], eggs: [], food: {} } });
+  await eylem(sa, { t: 'kilit', takas: tk.id }); await eylem(sb, { t: 'kilit', takas: tk.id }); assert.equal(son(sa, 'ortak_olay').durum.faz, 'oyun'); assert.equal(kilitli.has(tk.id), true);
+  await eylem(sb, { t: 'zar' }); assert.equal(son(sb, 'ortak_hata').kod, 'sira_sende_degil');
+  await eylem(sa, { t: 'oyna', from: 0, to: 3, d: 3 }); assert.equal(son(sa, 'ortak_hata').kod, 'once_zar_at');
+  await eylem(sa, { t: 'zar' }); d = son(sb, 'ortak_olay').durum; assert.deepEqual(d.T.dice, [3, 5]); assert.equal(d.T.phase, 'move');
+  await eylem(sa, { t: 'oyna', from: 0, to: 4, d: 4 }); assert.equal(son(sa, 'ortak_hata').kod, 'hamle_gecersiz');
+  await eylem(sa, { t: 'oyna', from: 0, to: 3, d: 3 }); await eylem(sa, { t: 'oyna', from: 0, to: 5, d: 5 });
+  d = son(sb, 'ortak_olay').durum; assert.equal(d.T.turn, 'opp'); assert.equal(d.T.phase, 'roll'); assert.equal(d.T.pts[0].n, 4); assert.equal(d.T.pts[3].n, 1); assert.equal(d.T.pts[5].n, 1);
+  await eylem(sb, { t: 'zar' }); assert.deepEqual(son(sa, 'ortak_olay').durum.T.moves, [2, 2, 2, 2]);
+  for (let i = 0; i < 4; i++) await eylem(sb, { t: 'oyna', from: 11, to: 9, d: 2 });
+  d = son(sa, 'ortak_olay').durum; assert.equal(d.T.turn, 'me'); assert.equal(d.T.pts[9].n, 4); assert.equal(d.T.pts[9].o, 'opp');
+  // A oyalanır: süre dolunca sunucu onun adına zar atar ve oynar; sıra B'ye geçer
+  ileri(HAMLE_MS + 1000); O.supur(); await bekle(12); d = son(sb, 'ortak_olay').durum; assert.equal(d.T.turn, 'opp'); assert.equal(d.faz, 'oyun');
+  // son pul: A'nın beş pulu toplanmış, biri son hanede; B geçer, A toplar ve kazanır (durum nesnesi doğrudan kurulur)
+  d.T.pts = Array.from({ length: 12 }, () => ({ o: null, n: 0 })); d.T.pts[11] = { o: 'me', n: 1 }; d.T.pts[0] = { o: 'opp', n: 6 }; d.T.bar = { me: 0, opp: 0 }; d.T.off = { me: 5, opp: 0 }; d.T.turn = 'me'; d.T.phase = 'roll'; d.T.moves = [];
+  await eylem(sa, { t: 'zar' }); await eylem(sa, { t: 'oyna', from: 11, to: 'off', d: 6 }); await bekle(12);
+  d = son(sb, 'ortak_olay').durum; assert.equal(d.faz, 'bitti'); assert.equal(d.son.kazanan, a.accountId); assert.equal(son(sb, 'ortak_bitti').sonuc.kazananId, a.accountId);
+  assert.equal(son(sa, 'masa_odeme').odendi, true); assert.equal(altin(a.accountId), a0 + 20); assert.equal(altin(b.accountId), b0 - 20); assert.equal(kilitli.size, 0);
+});

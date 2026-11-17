@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Er Meydanı · oda taslağı</title>
+<link rel="stylesheet" href="../../css/yazi.css">
+<script src="../../assets/atlas.js"></script>
+<style>
+  :root { --altin: #f6d98a; --altin2: #e8b84e; --krem: #fff3d6; --mavi: #5aa2ff; --kizil: #ff6a5a; --cam: linear-gradient(160deg, rgba(40, 56, 130, .55), rgba(6, 10, 30, .78)); --kenar: inset 0 0 0 1.5px rgba(246, 217, 138, .55), 0 10px 30px rgba(2, 4, 20, .55); --f: 'Alegreya Sans', 'Segoe UI', sans-serif; --fb: 'Alegreya SC', Georgia, serif; }
+  * { box-sizing: border-box; } body { margin: 0; background: #0b0f24; font-family: var(--f); color: #fff; }
+  h1.baslik { margin: 18px 24px 8px; font: 800 20px var(--f); color: var(--altin); letter-spacing: .04em; }
+  .kare { position: relative; width: 1280px; height: 720px; margin: 0 0 26px; overflow: hidden; background: #0d1330 url(../../assets/arena/er_meydani_bg.webp) center / cover; }
+  .kare::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8, 12, 40, .38), rgba(8, 12, 40, .08) 30%, rgba(8, 12, 40, .55)); }
+  .cam { background: var(--cam); box-shadow: var(--kenar); backdrop-filter: blur(8px); border-radius: 22px; }
+  .ust { position: absolute; left: 22px; right: 22px; top: 16px; display: flex; align-items: center; gap: 14px; }
+  .geri { padding: 9px 18px; border-radius: 22px; font: 700 15px var(--f); }
+  .ad small { display: block; font: 700 11px var(--f); letter-spacing: .22em; color: var(--altin); text-transform: uppercase; } .ad b { font: 800 26px var(--fb); letter-spacing: .02em; }
+  .bos { flex: 1; } .rozet { padding: 7px 14px; border-radius: 20px; font: 700 13px var(--f); color: #cfe2ff; } .rozet i { display: inline-block; width: 9px; height: 9px; margin-right: 7px; border-radius: 50%; background: #6fe08a; box-shadow: 0 0 8px #6fe08a; }
+  /* ---- 1: oda listesi ---- */
+  .kipler { position: absolute; left: 22px; top: 96px; display: flex; gap: 10px; }
+  .kip { padding: 10px 20px 11px; border-radius: 18px; font: 800 16px var(--f); color: #dfe6ff; } .kip small { display: block; font: 600 11.5px var(--f); opacity: .75; letter-spacing: .04em; }
+  .kip.secili { color: #1d1606; background: linear-gradient(180deg, #fff3cf, var(--altin2)); box-shadow: 0 6px 18px rgba(2, 4, 20, .5); }
+  .sancaklar { position: absolute; left: 22px; top: 176px; width: 820px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .sancak { position: relative; height: 236px; padding: 14px 14px 12px; border-radius: 20px 20px 26px 26px; display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; }
+  .sancak::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 7px; background: linear-gradient(90deg, var(--mavi), #9cc8ff); } .sancak.dolu::after { background: linear-gradient(90deg, #8a93b8, #c1c7e0); }
+  .sancak .kip2 { font: 700 11px var(--f); letter-spacing: .18em; text-transform: uppercase; color: var(--altin); display: flex; justify-content: space-between; }
+  .sancak .sahne { position: relative; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
+  .sancak canvas { width: 92px; height: 108px; filter: drop-shadow(0 6px 6px rgba(2, 4, 20, .55)); } .sancak .yer { width: 92px; height: 108px; display: grid; place-items: center; }
+  .sancak .yer span { width: 54px; height: 54px; border-radius: 50%; border: 2px dashed rgba(255, 255, 255, .45); display: grid; place-items: center; font: 800 26px var(--f); color: rgba(255, 255, 255, .6); }
+  .sancak .vs { align-self: center; margin: 0 2px 26px; font: 800 20px var(--fb); color: var(--altin); text-shadow: 0 2px 6px rgba(0, 0, 0, .6); }
+  .sancak .alt { display: flex; align-items: center; gap: 10px; } .sancak .alt b { flex: 1; min-width: 0; font: 800 16px var(--f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .sancak .alt b small { display: block; font: 600 12px var(--f); color: #c8d2f4; }
+  .dugme { border: 0; padding: 9px 20px; border-radius: 20px; font: 800 15px var(--f); color: #1d1606; background: linear-gradient(180deg, #fff3cf, var(--altin2)); box-shadow: 0 4px 12px rgba(2, 4, 20, .5), inset 0 0 0 1.5px rgba(255, 255, 255, .5); }
+  .dugme.sade { color: #e9eeff; background: rgba(255, 255, 255, .1); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .3); } .dugme.kapali { opacity: .5; }
+  .sag { position: absolute; right: 22px; top: 96px; width: 380px; display: grid; gap: 14px; }
+  .buyuk { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 22px; } .buyuk img { width: 64px; height: 64px; } .buyuk b { font: 800 21px var(--f); } .buyuk small { display: block; font: 600 13px var(--f); color: #cdd6f6; }
+  .buyuk.ana { background: linear-gradient(180deg, #fff3cf, var(--altin2)); color: #1d1606; box-shadow: 0 10px 26px rgba(2, 4, 20, .55), inset 0 0 0 2px rgba(255, 255, 255, .55); } .buyuk.ana small { color: #4a3410; }
+  .kod { padding: 14px 18px 16px; } .kod label { font: 700 12px var(--f); letter-spacing: .16em; text-transform: uppercase; color: var(--altin); } .kod div { display: flex; gap: 10px; margin-top: 8px; }
+  .kod .kutu { flex: 1; padding: 10px 14px; border-radius: 16px; font: 800 20px var(--f); letter-spacing: .2em; color: rgba(255, 255, 255, .45); background: rgba(4, 8, 28, .6); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .22); }
+  .not { padding: 12px 18px; font: 600 13.5px/1.4 var(--f); color: #dfe6ff; } .not b { color: var(--altin); }
+  .bosyer { height: 236px; border-radius: 22px; border: 2px dashed rgba(255, 255, 255, .35); display: grid; place-items: center; text-align: center; font: 700 15px var(--f); color: rgba(255, 255, 255, .8); background: rgba(8, 12, 40, .3); } .bosyer small { display: block; font: 600 12.5px var(--f); opacity: .8; margin-top: 4px; }
+  /* ---- 2: bekleme odası ---- */
+  .kod2 { position: absolute; left: 50%; top: 84px; transform: translateX(-50%); padding: 8px 22px 10px; text-align: center; border-radius: 20px; } .kod2 small { display: block; font: 700 11px var(--f); letter-spacing: .2em; text-transform: uppercase; color: var(--altin); } .kod2 b { font: 800 26px var(--f); letter-spacing: .16em; } .kod2 em { font: 600 12px var(--f); font-style: normal; color: #cdd6f6; margin-left: 10px; }
+  .taraf { position: absolute; bottom: 150px; width: 380px; display: grid; justify-items: center; } .taraf.sol { left: 110px; } .taraf.sagt { right: 110px; }
+  .taraf canvas { width: 250px; height: 293px; filter: drop-shadow(0 14px 10px rgba(2, 4, 20, .6)); } .taraf .kaide { width: 300px; height: 40px; margin-top: -26px; border-radius: 50%; background: radial-gradient(ellipse at center, rgba(90, 162, 255, .75), rgba(90, 162, 255, 0) 70%); } .taraf.sagt .kaide { background: radial-gradient(ellipse at center, rgba(255, 106, 90, .75), rgba(255, 106, 90, 0) 70%); }
+  .plaka { margin-top: 6px; min-width: 300px; padding: 10px 18px 12px; border-radius: 20px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; } .plaka b { font: 800 21px var(--f); } .plaka small { display: block; font: 600 12.5px var(--f); color: #cdd6f6; }
+  .lamba { padding: 6px 14px; border-radius: 16px; font: 800 13px var(--f); color: #062a14; background: linear-gradient(180deg, #b9f5d8, #55c898); } .lamba.bekle { color: #e9eeff; background: rgba(255, 255, 255, .12); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .3); }
+  .sancakU { position: absolute; top: 150px; width: 70px; height: 190px; border-radius: 0 0 35px 35px; box-shadow: 0 8px 20px rgba(2, 4, 20, .5); } .sancakU.m { left: 60px; background: linear-gradient(180deg, #2b4fb8, #5aa2ff); } .sancakU.k { right: 60px; background: linear-gradient(180deg, #a52c22, #ff6a5a); }
+  .orta { position: absolute; left: 50%; top: 208px; transform: translateX(-50%); width: 300px; display: grid; justify-items: center; gap: 12px; }
+  .vsB { width: 120px; height: 120px; border-radius: 50%; display: grid; place-items: center; font: 800 46px var(--fb); color: #1d1606; background: radial-gradient(circle at 40% 30%, #fff7dc, var(--altin2)); box-shadow: 0 0 0 4px rgba(12, 18, 50, .85), 0 0 0 6px var(--altin), 0 12px 30px rgba(2, 4, 20, .6); }
+  .kural { width: 100%; padding: 12px 16px; text-align: center; font: 600 13.5px/1.45 var(--f); color: #e3e9ff; } .kural b { display: block; font: 800 16px var(--f); color: var(--altin); margin-bottom: 2px; }
+  .harita { width: 100%; height: 86px; border-radius: 18px; background: url(../../assets/arena/er_meydani_bg.webp) center 30% / cover; box-shadow: var(--kenar); position: relative; overflow: hidden; } .harita span { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 12px; font: 700 12px var(--f); background: rgba(8, 12, 40, .75); }
+  .altB { position: absolute; left: 22px; right: 22px; bottom: 18px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; }
+  .hizli { display: flex; gap: 8px; } .hizli span { padding: 8px 14px; border-radius: 18px; font: 700 13.5px var(--f); color: #e9eeff; background: rgba(12, 18, 50, .78); box-shadow: inset 0 0 0 1.5px rgba(246, 217, 138, .45); }
+  .hazir { padding: 16px 64px 18px; border-radius: 34px; font: 800 26px var(--f); } .hazir small { display: block; font: 600 13px var(--f); color: #4a3410; }
+  .sagalt { display: flex; justify-content: flex-end; gap: 10px; }
+  .aciklama { width: 1280px; padding: 0 24px 28px; font: 600 15px/1.5 var(--f); color: #cfd8f6; } .aciklama b { color: var(--altin); }
+</style>
+</head>
+<body>
+<h1 class="baslik">1 · Er Meydanı: oda listesi</h1>
+<div class="kare">
+  <div class="ust"><span class="geri cam">◂ Meydan</span><div class="ad"><small>Dostça düello · ödülsüz</small><b>Er Meydanı</b></div><span class="bos"></span><span class="rozet cam"><i></i>14 terbiyeci meydanda</span></div>
+  <div class="kipler"><span class="kip secili">Düello<small>1'e 1 topçu</small></span><span class="kip cam">Takım Meydanı<small>2'ye 2 topçu</small></span><span class="kip cam">Ejderha dövüşü<small>ejderhan dövüşür</small></span></div>
+  <div class="sancaklar">
+    <div class="sancak cam"><div class="kip2"><span>Düello</span><span>1 / 2</span></div><div class="sahne"><canvas data-set="muhafiz" data-yon="right"></canvas><span class="vs">VS</span><span class="yer"><span>+</span></span></div><div class="alt"><b>Demirhan<small>Rakip bekliyor</small></b><span class="dugme">Katıl</span></div></div>
+    <div class="sancak cam"><div class="kip2"><span>Düello</span><span>1 / 2</span></div><div class="sahne"><canvas data-set="avci" data-yon="right"></canvas><span class="vs">VS</span><span class="yer"><span>+</span></span></div><div class="alt"><b>Selin<small>Rakip bekliyor</small></b><span class="dugme">Katıl</span></div></div>
+    <div class="sancak cam dolu"><div class="kip2"><span>Düello</span><span>2 / 2 · oynanıyor</span></div><div class="sahne"><canvas data-set="temel" data-yon="right"></canvas><span class="vs">VS</span><canvas data-set="madenci" data-yon="left"></canvas></div><div class="alt"><b>Bora · Ceren<small>Tur 4</small></b><span class="dugme sade">İzle</span></div></div>
+    <div class="sancak cam"><div class="kip2"><span>Düello</span><span>1 / 2</span></div><div class="sahne"><canvas data-set="bare" data-yon="right"></canvas><span class="vs">VS</span><span class="yer"><span>+</span></span></div><div class="alt"><b>Aylin<small>Rakip bekliyor</small></b><span class="dugme">Katıl</span></div></div>
+    <div class="bosyer"><div>Buraya senin odan gelir<small>Oda kurunca herkes listede görür</small></div></div>
+  </div>
+  <div class="sag">
+    <div class="buyuk ana"><img src="../../assets/ik/mdl-topcu.webp" alt=""><div><b>Hızlı eşleş</b><small>Sıraya gir; ilk gelenle hemen başlar</small></div></div>
+    <div class="buyuk cam"><img src="../../assets/ik/mdl-arena.webp" alt=""><div><b>Oda kur</b><small>Listede görünür; kodla da girilir</small></div></div>
+    <div class="kod cam"><label>Arkadaşının oda kodu</label><div><span class="kutu">EJD-ABC</span><span class="dugme sade">Katıl</span></div></div>
+    <div class="not cam"><b>Dostça oynanır.</b> Altın, ün ve sıralama yazılmaz; kaybın olmaz.</div>
+  </div>
+</div>
+<p class="aciklama"><b>Fikir:</b> odalar tablo değil, <b>sancak kartı</b>. Her kartta odadaki terbiyeci kendi zırhı ve saçıyla durur, boş yer "+" ile görünür. Dolu oda gri şeritli ve "İzle" düğmeli. Sağda üç büyük yol: hızlı eşleş (altın, ana düğme), oda kur, kodla katıl.</p>
+
+<h1 class="baslik">2 · Bekleme odası</h1>
+<div class="kare">
+  <div class="ust"><span class="geri cam">◂ Odadan çık</span><div class="ad"><small>Düello · 1'e 1 topçu</small><b>Demirhan'ın odası</b></div><span class="bos"></span><span class="rozet cam"><i></i>Bağlantı iyi</span></div>
+  <div class="kod2 cam"><small>Oda kodu</small><b>EJD-K7M</b><em>dokun: kopyala</em></div>
+  <div class="sancakU m"></div><div class="sancakU k"></div>
+  <div class="taraf sol"><canvas data-set="muhafiz" data-yon="right" data-buyuk="1"></canvas><div class="kaide"></div><div class="plaka cam"><div><b>Demirhan</b><small>Mavi sancak · odayı kurdu</small></div><span class="lamba">Hazır</span></div></div>
+  <div class="taraf sagt"><canvas data-set="avci" data-yon="left" data-buyuk="1"></canvas><div class="kaide"></div><div class="plaka cam"><div><b>Sen</b><small>Kızıl sancak</small></div><span class="lamba bekle">Hazır değil</span></div></div>
+  <div class="orta"><div class="vsB">VS</div><div class="harita"><span>Er Meydanı · rüzgâr her tur değişir</span></div><div class="kural cam"><b>Sırayla atış</b>Canı biten kaybeder. Ödül yok, kayıp yok.</div></div>
+  <div class="altB"><div class="hizli"><span>Selam!</span><span>Hazır mısın?</span><span>Bol şans</span><span>Bir dakika</span></div><span class="dugme hazir">Hazırım<small>ikiniz de hazır olunca başlar</small></span><div class="sagalt"><span class="dugme sade">Meydandan çağır</span><span class="dugme sade">Kuşam</span></div></div>
+</div>
+<p class="aciklama"><b>Fikir:</b> iki terbiyeci sancaklarının altında <b>karşı karşıya</b> durur; hazır olanın lambası yeşil yanar. Ortada meydanın resmi ve tek cümlelik kural. Altta tek büyük düğme (Hazırım / kurucuda Maçı başlat), solda hazır sözler, sağda arkadaş çağırma ve kuşam. 2'ye 2'de her tarafta iki terbiyeci yan yana durur; düzen aynı kalır.</p>
+<script>
+  const A = window.EO2_ATLAS, resim = {};
+  const yukle = set => resim[set] || (resim[set] = new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = '../../assets/chibi_' + set + '.webp'; }));
+  document.querySelectorAll('canvas[data-set]').forEach(async cv => { const set = cv.dataset.set, m = A.sets[set], im = await yukle(set); if (!m || !im) return; const sol = cv.dataset.yon === 'left', i = m.frames[sol ? 'right_idle' : cv.dataset.yon + '_idle'];
+    cv.width = m.cw; cv.height = m.ch; const x = cv.getContext('2d'); if (sol) { x.translate(m.cw, 0); x.scale(-1, 1); } x.drawImage(im, (i % m.cols) * m.cw, Math.floor(i / m.cols) * m.ch, m.cw, m.ch, 0, 0, m.cw, m.ch); });
+</script>
+</body>
+</html>

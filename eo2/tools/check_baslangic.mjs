@@ -33,6 +33,9 @@ try {
   await p.locator('[data-gr-al="temel"]').click(); await p.waitForTimeout(600);
   log.alindi = await p.evaluate(a => S.gold === a - 120 && S.kusam.giyili === 'temel' && S.kusam.sahip.includes('temel') && EO2.api.player.set === 'temel', altin0);
   log.pahali = await p.evaluate(() => { const b = document.querySelector('[data-set="muhafiz"]'); b.click(); const al = document.querySelector('[data-gr-al="muhafiz"]'); return !!al && al.disabled && !EO2.gorunum.satinAl('muhafiz'); });
+  // üretim emeğe bağlı: altın yetse de malzeme olmadan Avcı seti dövülmez; Kıvılcım Kor Taşı gelince dövülür ve taşlar harcanır
+  log.grind = await p.evaluate(() => { const g0 = S.gold, K = EO2.gorunum.kusam().setler.find(q => q.set === 'avci'); S.gold = 5000; S.topcu = S.topcu || {}; S.topcu.ganimet = S.topcu.ganimet || {}; S.topcu.ganimet.kor_t1 = 0; const malzemesiz = EO2.gorunum.satinAl('avci');
+    S.topcu.ganimet.kor_t1 = 5; const oldu = EO2.gorunum.satinAl('avci'), kalan = S.topcu.ganimet.kor_t1, odenen = 5000 - S.gold; S.gold = g0; EO2.gorunum.giy('temel'); return K.malzeme.kor_t1 === 4 && !malzemesiz && oldu && kalan === 1 && odenen === K.fiyat && EO2.gorunum.kusam().sahip.includes('avci'); });
   await p.locator('[data-set="bare"]').click(); await p.waitForTimeout(400); log.giyBare = await p.evaluate(() => EO2.api.player.set === 'bare'); await p.locator('[data-set="temel"]').click(); await p.waitForTimeout(700);
   log.giyTemel = await p.evaluate(() => EO2.api.player.set === 'temel' && !!EO2.api.player.gor); await cek('baslangic_4_kusam'); await p.evaluate(() => EO2.game.close());
   // 4) hızlı seyahat
@@ -44,9 +47,9 @@ try {
   await p.evaluate(() => saveGame()); await p.reload(); await p.waitForFunction('window.EO2 && EO2.game && document.querySelector(".giris")', null, { timeout: 60000 }); await p.waitForTimeout(1000);
   await p.locator('.giris .gbtn:has-text("Ocağa dön")').first().click();
   log.yenidenOcakta = await bekle('EO2.api.scene() === "ocak"', 40000); await p.waitForTimeout(1500);
-  log.kayitli = await p.evaluate(() => EO2.api.player.set === 'temel' && S.kusam.sahip.join(',') === 'bare,temel' && S.gorunus.sac === 'ikiz' && !EO2.game.ekran());
+  log.kayitli = await p.evaluate(() => EO2.api.player.set === 'temel' && S.kusam.sahip.join(',') === 'bare,temel,avci' && S.gorunus.sac === 'ikiz' && !EO2.game.ekran());
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && log.secimAcildi && log.ocakta && log.ciplak && !!log.ogretici && log.adim1 && log.adimHarita && log.kusamAcildi && log.deneme && log.alindi && log.pahali && log.giyBare && log.giyTemel && log.haritaVar && log.haritaAcildi && log.meydanaGitti && log.ocagaDondu && log.yenidenOcakta && log.kayitli;
+const ok = !hata.length && log.secimAcildi && log.ocakta && log.ciplak && !!log.ogretici && log.adim1 && log.adimHarita && log.kusamAcildi && log.deneme && log.alindi && log.pahali && log.grind && log.giyBare && log.giyTemel && log.haritaVar && log.haritaAcildi && log.meydanaGitti && log.ocagaDondu && log.yenidenOcakta && log.kayitli;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

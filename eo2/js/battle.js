@@ -146,6 +146,7 @@
       '<div class="tp-pad tp-pad-l"><button type="button" id="tpSol" aria-label="Sola yürü">' + (I.left || '◂') + '</button><button type="button" id="tpSag" aria-label="Sağa yürü" class="cevir">' + (I.left || '▸') + '</button></div>' +
       '<div class="tp-pad tp-pad-r"><div><button type="button" id="tpYuk" aria-label="Açıyı artır" class="yukari">' + (I.left || '▴') + '</button><button type="button" id="tpAsg" aria-label="Açıyı azalt" class="asagi">' + (I.left || '▾') + '</button></div><button type="button" id="tpAtes" aria-label="Basılı tut, bırak: ateş"><b>ATEŞ</b></button></div>' +
       '<div id="tpPankart" aria-live="polite"><b></b><span></span></div>' +
+      '<div id="tpBitis" hidden role="dialog" aria-modal="true" aria-labelledby="tpBitisBas"><div class="ts-isin" aria-hidden="true"></div><div class="ts-ic"><small id="tpBitisUst"></small><h2 id="tpBitisBas"></h2><p id="tpBitisAlt"></p><ul id="tpBitisSayi"></ul><p id="tpBitisOdul"></p><button type="button" class="gbtn altin buyuk" id="tpBitisDevam" disabled>Devam</button></div></div>' +
       '<div class="tp-balon cam" id="tpBalon" hidden><small></small><p></p></div>' +
       '<div class="tp-laf cam" id="tpLaf" hidden><p></p><div><button type="button" class="gbtn" data-laf="rage">Öfkeyle kükre<small>+20 öfke</small></button><button type="button" class="gbtn" data-laf="focus">Açığını yakala<small>zayıf noktaya +%50</small></button><button type="button" class="gbtn" data-laf="shield">Siper al<small>+1 kalkan, +25 nefes</small></button></div></div>';
     $('app').appendChild(el);
@@ -178,7 +179,7 @@
   async function ac(cfg) {
     if (M && M.on) kapat(true); ensureDom(); const api = EO2.api, T = buildTerrain(cfg.arazi);
     const setler = new Set(['temel']); if (cfg.oyuncu && cfg.oyuncu.set) setler.add(cfg.oyuncu.set); if (cfg.rakip && cfg.rakip.set) setler.add(cfg.rakip.set);
-    const bek = []; for (const s of setler) bek.push(load('assets/battle_' + s + '.webp')); if (cfg.bg) bek.push(load(cfg.bg)); if (cfg.sahne) for (const k of cfg.sahne.katman) bek.push(load(k.src));
+    const bek = []; for (const s of setler) bek.push(load('assets/battle_' + s + '.webp')); if (cfg.bg) bek.push(load(cfg.bg)); bek.push(load(MEZAR)); if (cfg.sahne) for (const k of cfg.sahne.katman) bek.push(load(k.src));
     const tipler = [...(cfg.moblar || []).map(m => MOB[m.tip]), cfg.boss ? BOSS[cfg.boss.tip] : null].filter(Boolean); for (const t of tipler) for (const k in t.spr) if (typeof t.spr[k] === 'string' && /\.webp$/.test(t.spr[k])) bek.push(load(t.spr[k])); for (const p of (cfg.props || [])) if (PROP[p.tip] && PROP[p.tip].im) bek.push(load(PROP[p.tip].im));
     await Promise.all(bek);
     const katman = cfg.sahne ? cfg.sahne.katman.map(k => { const im = imgs[k.src]; if (!im) return null; const o = { im, z: k.z, zemin: k.zemin }; if (k.zemin === 'kirilir') { o.cv = document.createElement('canvas'); o.cv.width = im.naturalWidth; o.cv.height = im.naturalHeight; o.cv.getContext('2d').drawImage(im, 0, 0); } return o; }).filter(Boolean) : null;
@@ -205,6 +206,7 @@
     $('tpAsama').hidden = !cfg.asama; if (cfg.asama) $('tpAsama').innerHTML = '<small>' + cfg.asama.ad + '</small>' + Array.from({ length: cfg.asama.n }, (_, i) => '<i class="' + (i < cfg.asama.i ? 'tamam' : i === cfg.asama.i ? 'simdi' : '') + '"></i>').join('');
     $('tpBalon').hidden = true; $('tpLaf').hidden = true; $('tpBilgi').hidden = true; $('tpIpucu').textContent = matchMedia('(pointer: coarse)').matches ? 'ATEŞ\'e basılı tut, bırak' : 'Space basılı tut, bırak';
     yeniRuzgar(); hudCache = {}; hud(true);
+    $('tpBitis').hidden = true; $('tpBitis').className = '';
     $('tpSavas').hidden = false; $('tpSavas').className = 'tema-' + (cfg.arazi.aile || cfg.arazi.tema); $('app').classList.add('fight'); ses('battle', true); addEventListener('keydown', kd, true); addEventListener('keyup', ku, true);
     pankart(cfg.baslik || 'Düello', cfg.alt || '', 'big'); ses('turn'); yay('mac_basla', { kimlik: cfg.kimlik, ruzgar: M.wind });
     if (M.boss) sonra(0.5, () => { M.shake = Math.max(M.shake, 0.5); ses('whoosh'); ses('boom', 0.3); halka(M.boss.x, M.boss.y + M.boss.h * 0.55, 3, EL[M.boss.D.el || 'venom']); if (M.boss.D.giris) balon(M.boss, M.boss.D.giris, null, 3.2); });
@@ -405,7 +407,42 @@
     if (k) ses('chime'); hud(true); const ad = M.adim; sonra(0.6, () => { if (M.adim === ad) siradaki(); }); }
   function bitir(zafer, terk) { if (M.over) return; M.over = true; M.faz = 'bitti'; M.lafT = null; $('tpLaf').hidden = true; hud(true); yay('mac_bitti', { zafer, terk: !!terk, ist: M.ist });
     if (terk) return M.bitir({ zafer: false, terk: true, ist: M.ist });
-    pankart(zafer ? 'Zafer' : 'Yenildin', '', zafer ? 'big' : 'big kayip'); ses('win', zafer); const m = M; setTimeout(() => { m.bitir({ zafer, terk: false, ist: m.ist, can: m.ben.hp, max: m.ben.max }); }, window.__fastFx ? 60 : 1500); }
+    const m = M, sonuc = { zafer, terk: false, ist: m.ist, can: m.ben.hp, max: m.ben.max };
+    if (window.__fastFx) { pankart(zafer ? 'Zafer' : 'Yenildin', '', zafer ? 'big' : 'big kayip'); ses('win', zafer); setTimeout(() => m.bitir(sonuc), 60); return; }
+    macSonu(m, zafer, sonuc); }
+  /* MAÇ SONU (kullanıcı, 2026-11-17): maçın bittiği gözle ve kulakla belli olur, sonucu okumaya yetecek süre tanınır.
+     Sıra: 0 sn sarsıntı, parlama ve vuruş sesi; sahne zaferde altına, yenilgide griye döner · 0,45 sn başlık ("Zafer" / "Yenildin") ve ezgi ·
+     1,5 sn maçın sayıları ve ödül satırı · "Devam" zaferde 2,2, yenilgide 2,8 saniyede açılır (erken dokunuş yanlışlıkla geçmesin) · dokunulmazsa 12 saniyede kendiliğinden geçer. */
+  function macSonu(m, zafer, sonuc) { const el = $('tpBitis'), kok = $('tpSavas'), cfg = m.cfg, kip = cfg.kip, dv = $('tpBitisDevam'); let bitti = false;
+    m.shake = Math.max(m.shake, zafer ? 0.9 : 1.2); m.flash = Math.max(m.flash || 0, zafer ? 0.45 : 0.25); ses('boom', zafer ? 0.6 : 0.9);
+    const p = m.ben; if (zafer) { for (let i = 0; i < 46; i++) m.parts.push({ k: 'ember', x: p.x + (Math.random() - 0.5) * 5, y: p.y + 0.4 + Math.random() * 1.2, vx: (Math.random() - 0.5) * 5, vy: 4 + Math.random() * 7, life: 1.1 + Math.random() * 1.1, max: 2.2, s: 0.09 + Math.random() * 0.06, col: [255, 215, 106] }); halka(p.x, p.y + 1, 2.4, [255, 215, 106]); }
+    else for (let i = 0; i < 16; i++) m.parts.push({ k: 'smoke', x: p.x + (Math.random() - 0.5) * 1.6, y: p.y + 0.3 + Math.random(), vx: (Math.random() - 0.5) * 1.4, vy: 0.5 + Math.random() * 1.2, life: 1.4 + Math.random(), max: 2.4, s: 0.5 + Math.random() * 0.5 });
+    if (el.parentNode !== kok) kok.appendChild(el);   /* katman savaş kökünün doğrudan çocuğudur: öteki HUD parçaları solarken o görünür kalır */ kok.classList.add(zafer ? 'bitis-zafer' : 'bitis-yenilgi');
+    const dusman = m.boss ? m.boss.ad : m.rakip ? m.rakip.ad : '', dostca = kip === 'pvp' || kip === 'talim' || kip === 'takim';
+    $('tpBitisUst').textContent = cfg.baslik || ''; $('tpBitisBas').textContent = zafer ? 'Zafer' : 'Yenildin';
+    $('tpBitisAlt').textContent = zafer ? (m.boss ? dusman + ' yere serildi.' : m.rakip ? dusman + ' meydanı sana bıraktı.' : 'Düşmanların hepsi indi.') : (cfg.ortak ? 'Hepiniz düştünüz.' : m.rakip ? dusman + ' bu kez isabetliydi.' : 'Topçun düştü.');
+    $('tpBitisSayi').innerHTML = [['Tur', m.cfg.ortak ? m.tur : m.ist.tur], ['Verilen hasar', Math.round(m.ist.hasar)], ['Tam isabet', m.ist.kritik], ['En uzun seri', m.ist.enKombo]].map(q => '<li><b>' + q[1] + '</b><span>' + q[0] + '</span></li>').join('');
+    $('tpBitisOdul').textContent = dostca ? 'Dostça maç: altın, ün ve sıralama yazılmaz.' : zafer ? (kip === 'zindan' ? 'Ganimet çarkı seni bekliyor.' : 'Ganimetin hesabına yazılıyor.') : (kip === 'zindan' ? 'Aşama yeniden denenebilir.' : 'Kaybın yok; yeniden deneyebilirsin.');
+    el.className = zafer ? 'zafer' : 'yenilgi'; dv.disabled = true; dv.textContent = 'Devam';
+    const gec = () => { if (bitti) return; bitti = true; clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); removeEventListener('keydown', tus, true); el.hidden = true; kok.classList.remove('bitis-zafer', 'bitis-yenilgi'); m.bitir(sonuc); };
+    const tus = e => { if (!dv.disabled && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.stopPropagation(); gec(); } };
+    const t1 = setTimeout(() => { if (bitti || M !== m) return; el.hidden = false; void el.offsetWidth; el.classList.add('acik'); ses('win', zafer); if (zafer) setTimeout(() => ses('chime'), 520); }, 450);
+    const oto = navigator.webdriver && !window.__gercekAkis;   /* otomatik denetimde bekleme kısadır */
+    const t2 = setTimeout(() => { dv.disabled = false; try { dv.focus({ preventScroll: true }); } catch (_) { } }, oto ? 700 : zafer ? 2200 : 2800), t3 = setTimeout(gec, oto ? 1600 : 12000);
+    dv.onclick = () => { if (!dv.disabled) { ses('ui'); gec(); } }; addEventListener('keydown', tus, true); m.sonGec = gec; }
+
+  /* Mezar taşı (kullanıcı, 2026-11-17): düşen topçunun yerinde durur. Çizimi assets/topcu/mezar.webp gelince o kullanılır;
+     dosya yoksa aynı biçim kodla çizilir (yuvarlak tepeli taş, ejder arması, dibinde çimen). Taş yukarıdan düşüp yerine oturur. */
+  const MEZAR = 'assets/topcu/mezar.webp';
+  function mezarCiz(x, a, px, py, sc) { a.mezarT = Math.min(1, (a.mezarT || 0) + 0.05); const k = a.mezarT, dus = (1 - k) * (1 - k) * 2.2 * sc, zip = k >= 1 ? 0 : Math.sin(k * 9) * (1 - k) * 0.08 * sc, im = imgs[MEZAR], H = 1.55 * sc;
+    x.fillStyle = 'rgba(10,8,30,.36)'; x.beginPath(); x.ellipse(px, py + 2, 0.62 * sc * (0.5 + 0.5 * k), 0.14 * sc, 0, 0, 6.3); x.fill();
+    if (im && im.naturalWidth) { const w = H * im.naturalWidth / im.naturalHeight; x.drawImage(im, px - w / 2, py - H - dus + zip + 0.06 * sc, w, H); }
+    else { const w = 0.95 * sc, h = 1.25 * sc, yy = py - dus + zip; x.save(); x.translate(px, yy); x.lineJoin = 'round'; x.lineWidth = Math.max(2.5, 0.07 * sc); x.strokeStyle = '#1b2140';
+      x.fillStyle = '#8f98b4'; x.beginPath(); x.moveTo(-w / 2, 0); x.lineTo(-w / 2, -h + w / 2); x.arc(0, -h + w / 2, w / 2, Math.PI, 0); x.lineTo(w / 2, 0); x.closePath(); x.fill(); x.stroke();
+      x.fillStyle = '#b9c1d8'; x.beginPath(); x.moveTo(-w / 2 + 0.1 * sc, -0.06 * sc); x.lineTo(-w / 2 + 0.1 * sc, -h + w / 2); x.arc(0, -h + w / 2, w / 2 - 0.1 * sc, Math.PI, Math.PI * 1.55); x.lineTo(-0.02 * sc, -0.06 * sc); x.closePath(); x.fill();
+      x.fillStyle = '#5a6388'; x.beginPath(); x.arc(0, -h * 0.62, 0.17 * sc, 0, 6.3); x.fill(); x.fillRect(-0.2 * sc, -h * 0.4, 0.4 * sc, 0.05 * sc); x.fillRect(-0.14 * sc, -h * 0.29, 0.28 * sc, 0.05 * sc);
+      x.fillStyle = '#4fae5e'; x.strokeStyle = '#1b2140'; x.lineWidth = Math.max(1.5, 0.04 * sc); for (const g of [-0.52, -0.36, 0.34, 0.5]) { x.beginPath(); x.moveTo((g - 0.09) * sc, 0.02 * sc); x.lineTo(g * sc, -0.24 * sc); x.lineTo((g + 0.09) * sc, 0.02 * sc); x.closePath(); x.fill(); x.stroke(); } x.restore(); }
+    if (a.ad && (a.yoldas || a.kontrol === 'uzak')) { x.font = '700 ' + Math.max(11, 0.28 * sc) + "px 'Alegreya Sans', sans-serif"; x.textAlign = 'center'; x.lineWidth = 3; x.strokeStyle = '#0f1a40'; x.fillStyle = '#c9d3ee'; x.strokeText(a.ad, px, py - H - 0.18 * sc); x.fillText(a.ad, px, py - H - 0.18 * sc); } }
 
   /* ---------- güncelleme ---------- */
   function update(dt) {
@@ -539,7 +576,8 @@
       if (!a.fall && !a.dead) { x.fillStyle = 'rgba(10,8,30,.34)'; x.beginPath(); x.ellipse(X(a.x), Y(a.y) + 2, 0.75 * sc, 0.16 * sc, 0, 0, 6.3); x.fill(); }
       if (a.shield > 0 && !a.dead) { x.strokeStyle = 'rgba(255,224,138,.7)'; x.fillStyle = 'rgba(255,224,138,.08)'; x.lineWidth = 0.06 * sc; x.beginPath(); x.ellipse(X(a.x), Y(a.y + 0.95), 1.05 * sc, 1.25 * sc, 0, 0, 6.3); x.fill(); x.stroke(); }
       if (a.capa) { x.strokeStyle = 'rgba(127,232,216,.9)'; x.lineWidth = 0.07 * sc; x.beginPath(); x.moveTo(X(a.x - 0.5), Y(a.y + 0.4)); x.lineTo(X(a.x - 0.9), Y(a.y - 0.25)); x.stroke(); }
-      x.save(); x.translate(X(a.x), Y(a.y)); if (a.dead) { x.globalAlpha = 0.85; x.rotate(a.face * -0.5); } x.scale(a.face, 1);
+      if (a.dead && (a.dustuKesin || !(a.revive > 0))) { mezarCiz(x, a, X(a.x), Y(a.y), sc); continue; }   /* dirilmeyecek topçu: yerinde mezar taşı */
+      a.mezarT = 0; x.save(); x.translate(X(a.x), Y(a.y)); if (a.dead) { x.globalAlpha = 0.85; x.rotate(a.face * -0.5); } x.scale(a.face, 1);
       x.drawImage(im, sx, sy, m.cw, m.ch, -m.ax * s, -m.ay * s + 3, m.cw * s, m.ch * s);
       if (a.hurtT > 0.42) { x.globalCompositeOperation = 'lighter'; x.globalAlpha = (a.hurtT - 0.42) / 0.13 * 0.8; x.drawImage(im, sx, sy, m.cw, m.ch, -m.ax * s, -m.ay * s + 3, m.cw * s, m.ch * s); x.globalCompositeOperation = 'source-over'; } x.restore();
       if (a.yoldas && !a.dead) { x.font = '700 ' + Math.max(11, 0.3 * sc) + "px 'Alegreya Sans', sans-serif"; x.textAlign = 'center'; x.lineWidth = 3; x.strokeStyle = '#06202a'; x.fillStyle = '#9fe8d0'; x.strokeText(a.ad, X(a.x), Y(a.y + 2.55 + (a.cubukKay || 0))); x.fillText(a.ad, X(a.x), Y(a.y + 2.55 + (a.cubukKay || 0))); } }

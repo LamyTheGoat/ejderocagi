@@ -57,6 +57,9 @@ for (const set of SETS) {
   meta.sets[set] = res; console.log(`chibi_${set}.webp`, res.w + 'x' + res.h, 'hücre', res.cw + 'x' + res.ch, 'boy', Math.round(res.tall), (bytes / 1024 | 0) + ' KB');
 }
 
+/* EKLE=1: yalnız SETS içindeki setler pişirilir ve var olan atlas.js kaydına eklenir (öteki setlere, ejder parçalarına ve logoya dokunulmaz) */
+if (process.env.EKLE) { const yol = path.join(out, 'atlas.js'), w = {}; new Function('window', fs.readFileSync(yol, 'utf8'))(w); Object.assign(w.EO2_ATLAS.sets, meta.sets);
+  fs.writeFileSync(yol, '// tools/bake.mjs üretir; elle düzenleme.' + String.fromCharCode(10) + 'window.EO2_ATLAS = ' + JSON.stringify(w.EO2_ATLAS) + ';' + String.fromCharCode(10)); console.log('atlas.js: eklendi', Object.keys(meta.sets).join(', ')); await b.close(); srv.close(); process.exit(0); }
 // Ejder modülü: dört parça tek atlas (çalışma anında kanat, baş, kuyruk ayrı oynatılır).
 const dr = await p.evaluate(async () => {
   const ld = s => new Promise((r, j) => { const i = new Image(); i.onload = () => r(i); i.onerror = () => j(new Error(s)); i.src = s; });

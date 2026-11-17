@@ -148,6 +148,10 @@ if (acik) {
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_baslangic.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 400000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
     yaz('başlangıç: görünüş seçimi, ocakta başlama, kuşam, harita, öğretici', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
+  // 4k5j) oyuncu masasında üçüncü oyun: Kervan Tavlası (iki tarayıcı)
+  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_masa_tavla.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 400000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('oyuncu masasında Kervan Tavlası (iki tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
   // 4k6) Er Meydanı: ejderha dövüşünde herkese açık eşleşme (iki tarayıcı sıraya girer, dövüşür, tutarlı sonuç; altın yazılmaz)
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_er_meydani.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 280000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }

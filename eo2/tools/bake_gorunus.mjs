@@ -14,7 +14,7 @@
 import http from 'node:http'; import fs from 'node:fs'; import path from 'node:path'; import { createRequire } from 'node:module'; import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url)), repo = path.resolve(here, '..', '..'), require = createRequire(path.join(repo, 'package.json')), { chromium } = require('playwright-core');
 const rigRoot = path.join(repo, 'prototype', 'chibi_rig'), out = path.join(repo, 'eo2', 'assets', 'gorunus'), hedef = path.join(repo, 'eo2', 'assets', 'gorunus_atlas.js'); fs.mkdirSync(out, { recursive: true });
-const SC = +(process.env.SC || 0.8), YALNIZ = process.env.YALNIZ || '', SETLER = ['bare', 'temel', 'muhafiz', 'avci', 'madenci'];
+const SC = +(process.env.SC || 0.8), YALNIZ = process.env.YALNIZ || '', SETLER = ['bare', 'temel', 'muhafiz', 'avci', 'madenci', 'buyucu', 'senlik'];
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png' };
 const srv = http.createServer((q, s) => { const u = decodeURIComponent(q.url.split('?')[0]), p = path.join(rigRoot, u); if (!path.resolve(p).startsWith(rigRoot)) { s.writeHead(403); s.end(); return; }
   fs.readFile(p, (e, b) => { if (e) { s.writeHead(404); s.end(); return; } s.writeHead(200, { 'content-type': TYPES[path.extname(p)] || 'application/octet-stream' }); s.end(b); }); });

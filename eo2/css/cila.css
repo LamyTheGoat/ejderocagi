@@ -449,3 +449,8 @@ html, body, #app.ui2 { overflow: clip; }
 
 /* öğretici zinciri: adım numarası */
 .rehber .rh-sira { display: inline-block; margin-right: .5em; padding: .08em .6em; border-radius: 1em; font: 700 max(11px, .74em) var(--f-ui); letter-spacing: .06em; text-transform: uppercase; color: #2a1c06; background: linear-gradient(180deg, #fff3cf, #e8b84e); vertical-align: middle; white-space: nowrap; }
+
+/* zırh üretimi: gereken malzemeler */
+.ui2 .gr-al > span { display: grid; gap: .25em; min-width: 0; } .ui2 .gr-malzler { display: flex; flex-wrap: wrap; gap: .3em; }
+.ui2 .gr-malz { padding: .15em .6em; border-radius: 1em; font: 600 max(12px, .85em) var(--f-ui); font-style: normal; color: #d8f5e2; background: rgba(110, 224, 138, .14); box-shadow: inset 0 0 0 1px rgba(110, 224, 138, .5); } .ui2 .gr-malz b { font-weight: 800; }
+.ui2 .gr-malz.eksik { color: #ffd2c8; background: rgba(255, 120, 100, .14); box-shadow: inset 0 0 0 1px rgba(255, 120, 100, .55); } .ui2 .gr-nereden { font: 600 max(12px, .78em) var(--f-ui); opacity: .75; }

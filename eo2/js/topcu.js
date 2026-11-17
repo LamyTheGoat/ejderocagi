@@ -69,7 +69,7 @@
         let sec = dilimler[0], r = Math.random() * dilimler.reduce((a, d) => a + d.w, 0); for (const d of dilimler) { r -= d.w; if (r <= 0) { sec = d; break; } }
         donus = (Math.floor(donus / 360) + 4) * 360 + (360 - sec.idx * der); mesgul = true; sayi++; p.querySelector('.tp-teker').style.transform = 'rotate(' + donus + 'deg)'; if (EO2.audio) EO2.audio.whoosh();
         const tik = setInterval(() => { if (EO2.audio) EO2.audio.ui(); }, 160);
-        setTimeout(() => { clearInterval(tik); mesgul = false; const s = odulYaz('cark', { dilim: sec, zindan: ornek && ornek.zindan }); son.innerHTML = '<b>' + sec.ad + '</b>' + (s.length ? ' · ' + s.join(', ') : ''); if (ornek) ornek.ganimet.push(...s); if (EO2.audio) EO2.audio.chime(); if (G.fx) G.fx.stars(p.querySelector('.tp-gobek'), 18);
+        setTimeout(() => { clearInterval(tik); mesgul = false; const s = odulYaz('cark', { dilim: sec, zindan: ornek && ornek.zindan }); { const ek = s.filter(q => q !== sec.ad); son.innerHTML = '<span class="tp-kazanc"><small>Kazandın</small><b>' + sec.ad + '</b>' + (ek.length ? '<em>' + ek.join(', ') + '</em>' : '') + '</span>'; }   /* ödül adı ile yazılan ödül aynıysa bir kez yazılır */ if (ornek) ornek.ganimet.push(...s); if (EO2.audio) EO2.audio.chime(); if (G.fx) G.fx.stars(p.querySelector('.tp-gobek'), 18);
           if (buyuk) { btn.innerHTML = 'Bir daha çevir<small>120 altın</small>'; const f = p.querySelector('.pen-f'); if (!f.querySelector('[data-tamam]')) { const b2 = el('button', 'gbtn', 'Tamam'); b2.type = 'button'; b2.dataset.tamam = '1'; b2.addEventListener('click', () => { if (!mesgul) done(true); }); f.appendChild(b2); } } else btn.textContent = 'Devam'; }, window.__fastFx ? 60 : 2150);
         return { keep: true }; } }] }); }
 
