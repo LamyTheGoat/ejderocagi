@@ -25,7 +25,7 @@
   /* bildirim tepsisi düğmelerin üstüne çıkmaz: olağan yerinde bir düğmeye biniyorsa sırayla öteki yerler denenir, ilk boş olan seçilir.
      G.dugmeyeBiner(kutular): verilen kutulardan biri görünen bir düğmeye, girişe ya da sekmeye değiyor mu (js/rehber.js de kullanır). */
   G.dugmeyeBiner = function (kutular, haric) { const L = kutular.filter(q => q && q.width > 3 && q.height > 3); let alan = 0; if (!L.length) return 0;
-    for (const b of document.querySelectorAll('#app button, #app input, #app select, #app [role="button"], #app [role="tab"]')) { if ((haric && haric.contains(b)) || b.closest('#world, #anchors, #loading')) continue;
+    for (const b of document.querySelectorAll('#app button, #app input, #app select, #app [role="button"], #app [role="tab"], #app > .rehber:not([hidden])')) {   /* öğretici şeridi de engeldir: bildirim onun yazısına binmez */ if ((haric && haric.contains(b)) || b.closest('#world, #anchors, #loading')) continue;
       const r = b.getBoundingClientRect(); if (r.width < 6 || r.height < 6) continue; const cs = getComputedStyle(b); if (cs.visibility === 'hidden' || cs.display === 'none' || cs.pointerEvents === 'none' || +cs.opacity < 0.05) continue;
       for (const q of L) if (Math.min(q.right, r.right) - Math.max(q.left, r.left) > 3 && Math.min(q.bottom, r.bottom) - Math.max(q.top, r.top) > 3) { const t = document.elementFromPoint((Math.max(q.left, r.left) + Math.min(q.right, r.right)) / 2, (Math.max(q.top, r.top) + Math.min(q.bottom, r.bottom)) / 2); if (t && (t === b || b.contains(t) || t.contains(b))) alan += (Math.min(q.right, r.right) - Math.max(q.left, r.left)) * (Math.min(q.bottom, r.bottom) - Math.max(q.top, r.top)); } }
     return alan; };

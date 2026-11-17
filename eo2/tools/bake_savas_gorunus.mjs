@@ -24,7 +24,7 @@ await p.goto(`http://127.0.0.1:${srv.address().port}/gate7/index.html`); await p
 const meta = { kutu: null, set: {}, var: {} };
 const yaz = () => fs.writeFileSync(hedef, '// tools/bake_savas_gorunus.mjs üretir; elle düzenleme. kutu: ortak kare düzeni ve baş parçalarının hücreleri · set: namlu noktaları ve dönüşümler · var: pişirilmiş katmanlar\nwindow.EO2_SAVAS_GORUNUS = ' + JSON.stringify(meta) + ';\n');
 const sec = await p.evaluate(() => ({ sac: Object.keys(window.STYLES.hair), goz: Object.keys(window.STYLES.eyes), sacRenk: window.PALETTE.HAIR.map(q => q[0]), gozRenk: window.PALETTE.EYE.map(q => q[0]) }));
-const setSec = async set => { await p.evaluate(s => { const nm = (window.SET_NAMES || {})[s] || s, bt = [...document.querySelectorAll('#slotSet button')].find(x => x.textContent === nm); if (!bt) throw new Error('set yok: ' + s); bt.click(); }, set); await p.waitForTimeout(2500); };
+const setSec = async set => { await p.evaluate(s => { const nm = s === 'bare' ? 'Çıplak' : (window.SET_NAMES || {})[s] || s,   /* bare: zırhsız topçu (çizicideki "Çıplak" düğmesi) */ bt = [...document.querySelectorAll('#slotSet button')].find(x => x.textContent === nm); if (!bt) throw new Error('set yok: ' + s); bt.click(); }, set); await p.waitForTimeout(2500); };
 // arka planı ve yer gölgesini atla, kamera ve namlu noktasını yakala (bake_battle.mjs ile aynı); kare listesi, katman süzgeci, dönüşüm yakalama
 await p.evaluate(() => { const TR = window.TRIAL, view = TR.view, c = view.getContext('2d'), fr = c.fillRect.bind(c), fl = c.fill.bind(c), W = view.width, H = view.height; window.__cam = {};
   const ident = () => { const m = c.getTransform(); return m.a === 1 && m.d === 1 && m.e === 0 && m.f === 0; };

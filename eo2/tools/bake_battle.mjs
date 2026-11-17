@@ -23,7 +23,7 @@ await p.evaluate(() => { const c = window.TRIAL.view.getContext('2d'), fr = c.fi
   c.fill = (...a) => { if (c.fillStyle instanceof CanvasGradient) { if (window.__cam.x === undefined) window.__cam.x = c.getTransform().e; return; } fl(...a); };
   const rg = c.createRadialGradient.bind(c); c.createRadialGradient = (x0, y0, r0, x1, y1, r1) => { const m = c.getTransform(); if (m.b !== 0 || m.c !== 0 || Math.abs(m.a - m.d) < 1e-6) { const q = m.transformPoint(new DOMPoint(x0, y0)); window.__cam.muzzle = [q.x, q.y]; } return rg(x0, y0, r0, x1, y1, r1); }; });
 for (const set of SETS) {
-  await p.evaluate(s => { const nm = (window.SET_NAMES || {})[s] || s, bt = [...document.querySelectorAll('#slotSet button')].find(x => x.textContent === nm); if (!bt) throw new Error('set yok: ' + s); bt.click(); }, set);
+  await p.evaluate(s => { const nm = s === 'bare' ? 'Çıplak' : (window.SET_NAMES || {})[s] || s,   /* bare: zırhsız topçu (çizicideki "Çıplak" düğmesi) */ bt = [...document.querySelectorAll('#slotSet button')].find(x => x.textContent === nm); if (!bt) throw new Error('set yok: ' + s); bt.click(); }, set);
   await p.waitForTimeout(2500);
   const res = await p.evaluate(async ({ ANGLES, TALL }) => {
     const TR = window.TRIAL, view = TR.view, c = view.getContext('2d'), W = view.width, H = view.height, cyc = 1 / 1.3;
