@@ -25,7 +25,10 @@
   const zid = () => { const o = OR.durum().oda, k = o && o.tur === 'zindan' ? String(o.anahtar).split('-')[0] : Z.zindan; return TARIF[k] ? k : Object.keys(TARIF)[0]; };
   const tarif = k => TARIF[k || zid()], zs = k => V.ZINDAN[tarif(k).odul], zad = k => tarif(k).ad;
   /* aşama = arena: tek yükleyici js/battle.js arenaCfg (düello meydanı da onu kullanır) */
-  const hazirAsama = {}, asamalar = k => { k = k || zid(); return hazirAsama[k] || (hazirAsama[k] = tarif(k).asama.map(ad => B.arenaCfg(ad))); };
+  /* çizimsiz arena (arena.json içinde "eski"): zemin, arka plan, deniz ve özel kurallar eski seferin aşamasından alınır; düşman sırası ve adları arena kaydından */
+  const eskiAsama = ad => { const R = (window.EO2_ARENA || {})[ad], Zo = R && R.eski && V.ZINDAN[R.eski.zindan], As = Zo && Zo.asama[R.eski.asama]; if (!As) return null; const PX = B.api.PX, x0 = (As.x0 || 460) / PX;
+    return { eski: true, As, Zo, ad: As.ad, alt: As.alt, ipucu: As.ipucu, tema: As.tema || Zo.tema, ortam: Zo.ortam, en: 64, oyuncu: [0, -1.5, 1.5, -3].map(dx => ({ x: x0 + dx })), moblar: R.dusman.map(q => ({ tip: q.tip, ad: q.ad })), boss: R.boss ? { tip: R.boss.tip, ad: R.boss.ad, unvan: R.boss.unvan } : null }; };
+  const hazirAsama = {}, asamalar = k => { k = k || zid(); return hazirAsama[k] || (hazirAsama[k] = tarif(k).asama.map(ad => B.arenaCfg(ad) || eskiAsama(ad))); };
   /* doğuş yeri: gruptaki sıraya göre mavi kutulardan biri; kutu yetmezse ilk kutunun çevresine dizilir (dünya birimi) */
   const dogus = (A, i) => { const K = A.oyuncu; i = Math.max(0, i); return i < K.length ? K[i].x : K[0].x + [0, -2.8, 2.8, -5.6][i % 4]; };
   const D = () => OR.durum(), oda = () => D().oda, od = () => D().ortak, ben = () => D().ben, benim = () => !!(oda() && oda().tur === 'zindan');
@@ -36,6 +39,10 @@
 
   /* ---------- savaş ---------- */
   function cfgKur(d) { const A = asamalar()[d.asama], zr = V.ZORLUK[d.zorluk], n = oda().uyeler.filter(u => u.bagli).length, o = T.oyuncuDeger(true); if (n > 1) o.dmg = Math.round(o.dmg / 1.40);   // 1,40 yoldaşsız sefer çarpanıdır (js/topcu.js); grupla girilince uygulanmaz
+    if (A.eski) { const As = A.As, aile = A.Zo.tema, can = j => d.dusman[j] ? d.dusman[j].max : 1, m0 = As.moblar(1), b0 = As.boss ? As.boss(1) : null;   /* yerler, kalkan ve uçuş yüksekliği eski aşamadan; canlar sunucudan */
+      return { kimlik: 'ortak-' + oda().id + '-' + d.tur, kip: 'zindan', baslik: A.ad, alt: 'Aşama ' + (d.asama + 1) + ' / ' + d.n + ' · ' + zr.ad + (n > 1 ? ' · ' + n + ' terbiyeci' : ''), arazi: V.arazi(A.tema, aile, As.f, 11 + d.asama * 7), bg: As.bg, deniz: As.deniz, ozel: As.ozel, ortam: A.ortam,
+        x0: dogus(A, oda().uyeler.findIndex(u => u.id === ben())) * B.api.PX, ortak: true, oyuncu: Object.assign(o, As.aci ? { angle: As.aci } : {}), zorluk: zr, moblar: m0.map((m, j) => Object.assign({}, m, { hp: can(j) })), boss: b0 ? Object.assign({}, b0, { hp: can(m0.length) }) : null,
+        asama: { ad: zad(), n: d.n, i: d.asama }, ipucu: A.ipucu, cikis: savasAyril, sis: aile === 'kaldera' ? 'rgba(30,6,4,.5)' : aile === 'donanma' ? 'rgba(4,16,34,.5)' : 'rgba(4,14,20,.55)' }; }
     const can = j => d.dusman[j] ? d.dusman[j].max : 1, moblar = A.moblar.map((m, j) => Object.assign({}, m, { hp: can(j) })), boss = A.boss ? Object.assign({}, A.boss, { hp: can(A.moblar.length) }) : null;
     return { kimlik: 'ortak-' + oda().id + '-' + d.tur, kip: 'zindan', baslik: A.ad, alt: 'Aşama ' + (d.asama + 1) + ' / ' + d.n + ' · ' + zr.ad + (n > 1 ? ' · ' + n + ' terbiyeci' : ''), arazi: { tema: A.tema, aile: A.tema, maske: A.maske }, bg: null, sahne: A.sahne, arenaEn: A.en, kameraBoy: A.kameraBoy, ortam: A.ortam, x0: dogus(A, oda().uyeler.findIndex(u => u.id === ben())) * B.api.PX, ortak: true,
       ozel: { mobSinir: A.mobSinir }, oyuncu: o, zorluk: zr, moblar, boss, asama: { ad: zad(), n: d.n, i: d.asama }, ipucu: A.ipucu, cikis: savasAyril, sis: 'rgba(4,14,20,.55)' }; }
@@ -53,7 +60,7 @@
   function siraUygula(s) { if (!Z.savas || !s || !s.adim) return; B.ortakSira({ adim: s.adim, tur: s.tur, kim: s.kim ? kimden(s.kim) : null, i: s.i, hedef: kimden(s.hedef), tohum: s.tohum, ruzgar: s.ruzgar, ex: s.ex }); }
   /* yoldaşların topçuları bu ekranda da durur (js/battle.js yoldasKoy); motor savaşı kurana dek beklenir */
   function yoldaslariKur(deneme) { const M = B.state(); if (!Z.savas || !benim()) return; if (!M || !M.on || !M.ben) { if ((deneme || 0) < 40) setTimeout(() => yoldaslariKur((deneme || 0) + 1), 150); return; }
-    for (const u of oda().uyeler) { if (u.id === ben() || !u.bagli) continue; const c = EO2.meydanAg && [...EO2.meydanAg.kisiler.values()].find(x => x.handle === u.h); B.yoldasKoy(u.id, { ad: u.ad, set: (c && c.set) || 'temel', x: dogus(asamalar()[od().asama], oda().uyeler.indexOf(u)) }); } }
+    for (const u of oda().uyeler) { if (u.id === ben() || !u.bagli) continue; const c = EO2.meydanAg && [...EO2.meydanAg.kisiler.values()].find(x => x.handle === u.h); B.yoldasKoy(u.id, { ad: u.ad, set: (c && c.set) || 'temel', gor: EO2.gorunum ? EO2.gorunum.kodOf(u.h) : '', x: dogus(asamalar()[od().asama], oda().uyeler.indexOf(u)) }); } }
   /* savaşa dönüş: bu ekran savaşı baştan kurar; düşman canları ve oyuncunun kendi durumu sunucudaki hâle getirilir. Sıra, giriş bitince sunucudaki adımdan sürer ('adim_bitti'). */
   function canEsitle(deneme) { const M = B.state(), d = od(); if (!Z.savas || !d || d.faz !== 'savas') return; if (!M || !M.on || !M.ben) { if ((deneme || 0) < 40) setTimeout(() => canEsitle((deneme || 0) + 1), 150); return; }
     d.dusman.forEach((q, j) => { if (q.hp < q.max) B.ortakCan(j + 1, q.hp); });

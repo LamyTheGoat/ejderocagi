@@ -18,6 +18,9 @@ test('her zindan tarifi tam: yazılar, ödül kaynağı, arenalar; her arenanın
     assert.ok(new RegExp('\\b' + Z.odul + ': \\{ ad:').test(veri), k + ': odul "' + Z.odul + '" js/topcu_veri.js ZINDAN içinde yok');
     assert.ok(Array.isArray(Z.asama) && Z.asama.length >= 1, k + ': en az bir aşama');
     Z.asama.forEach((ad, i) => { const A = ARENA[ad]; assert.ok(A, k + ': "' + ad + '" arenası derlenmemiş (eo2/arenalar/' + ad + ' ve node eo2/tools/arena_derle.mjs)');
+      if (A.eski) { const dus = A.dusman.concat(A.boss ? [A.boss] : []); assert.ok(dus.length >= 1); assert.ok(new RegExp('\\b' + A.eski.zindan + ': \\{ ad:').test(veri), ad + ': eski zindan yok');
+        for (const q of dus) { assert.ok(veri.includes("tip: '" + q.tip + "'"), ad + ': "' + q.tip + '" eski veride yok'); assert.ok(veri.includes('Math.round(' + q.hp + ' * d)'), ad + ': ' + q.ad + ' canı (' + q.hp + ') eski veriyle aynı değil'); }
+        assert.deepEqual(ZINDANLAR[k].asama[i].dusman.map(q => q.hp), dus.map(q => q.hp), ad + ': sunucu canları arenadan alır'); return; }
       assert.ok(A.katman.length >= 1); for (const k of A.katman) assert.ok(fs.existsSync(path.join(kok, decodeURIComponent(k.src))), ad + ': katman resmi yok: ' + k.src); assert.ok(A.en <= 64 && A.taban + A.boy <= 30 && A.ppu > 0, ad + ': ölçü');
       assert.ok(A.oyuncu.length >= 1 && Math.abs(A.oyuncu[0].h - 1.7) < 0.02, ad + ': mavi kutu oyuncu boyunda');
       const dus = A.dusman.concat(A.boss ? [A.boss] : []); assert.ok(dus.length >= 1);

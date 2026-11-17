@@ -1,0 +1,15 @@
+{
+  "eski": {
+    "zindan": "abra",
+    "asama": 2
+  },
+  "ad": "Batık Tersane Mahzeni",
+  "alt": "Ara boss: Dalgıç ve Mercan Golemi",
+  "dusman": [],
+  "boss": {
+    "tip": "mercan_golem",
+    "ad": "Dalgıç ve Mercan Golemi",
+    "unvan": "Batık tersane muhafızı",
+    "hp": 2200
+  }
+}

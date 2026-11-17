@@ -102,7 +102,7 @@ Bugün: düşman ve boss türleri `eo2/js/topcu_veri.js` içinde tanımlı (eski
 - Katmanlı arena ve kırılabilir zemin katmanı kodla üretilmiş bir deneme arenasında doğrulandı (gülle zemin resmini oyuyor, kırılmaz katman duruyor, ön katman oyuncunun önünde). Oyunda duran iki arena tek resimli ve kırılmaz; Krita'dan çıkmış gerçek bir katman takımı henüz denenmedi.
 - Katmanlar PNG olarak oyuncuya gider; büyük arenalarda dosya boyu için ayrı bir küçültme adımı gerekebilir.
 - Uçan düşman yerinden kıpırdamaz (eski kural); "hayalet" ayarı okunuyor ama zeminin içinden geçen bir hareket henüz yok.
-- Eski üç zindanın (Sırça Saray'ın dört aşamalı hâli, Volkanik Kaldera, Batık Donanma) tek kişilik seferleri eski yolla duruyor. Zümrüt Saray'ı olan Sırça Saray girişi yeni sisteme gider; öteki ikisi arenaları çizilince taşınacak.
+- Üç zindan da ortak sistemdedir (2026-11-17): Zümrüt Saray çizimli arenalarla; Volkanik Kaldera ve Batık Donanma **çizimsiz arenalarla** (aşağıda). Eski tek kişilik yol yalnız sunucuya ulaşılamadığında kullanılır.
 - Düello (PvP) ve talim aynı yükleyiciye bağlı: `eo2/arenalar/er-meydani` klasörü gelince meydan oradan kurulur (geçici bir deneme meydanıyla doğrulandı). Klasör henüz yok; o gelene dek eski talim meydanı kullanılır.
 - Sunucuya ulaşılamazsa tek kişilik giriş eski yola düşer.
 - Ödül oyuncunun kendi ekranında yazılır; ortak oda servisi sunucunun belleğindedir.
@@ -116,12 +116,12 @@ Bugün: düşman ve boss türleri `eo2/js/topcu_veri.js` içinde tanımlı (eski
 |---|---|---|
 | Ortak zindan (1–4 kişi; tek kişi de aynı sistem) | `server/zindan_ortak.js`, `eo2/js/zindan_ortak.js` | `check_zindan.mjs`, `check_zindan_donus.mjs` |
 | Takım Meydanı 2v2 (ejder topçusu; sıra ve can sunucuda, ödül yok) | `server/takim_ortak.js`, `eo2/js/takim.js` | `check_takim.mjs` (dört tarayıcı, gerçek atış dahil) |
-| Er Meydanı (ejderha dövüşü: eşleşme sırası, sancak, meydan okuma) | `server/duel_service.js`, `eo2/js/arena.js` | `check_er_meydani.mjs` (sıra ve sancak; meydan okuma daveti denetimde yok) |
-| Topçu düellosu 1v1 (eski oda sistemi) | `server/pvp_rooms.js`, `eo2/js/topcu_pvp.js` | kalıcı denetimi yok |
+| Er Meydanı (ejderha dövüşü: eşleşme sırası, sancak, meydan okuma) | `server/duel_service.js`, `eo2/js/arena.js` | `check_er_meydani.mjs` (sıra, sancak ve meydan okuma daveti) |
+| Topçu düellosu 1v1 (eski oda sistemi) | `server/pvp_rooms.js`, `eo2/js/topcu_pvp.js` | `check_topcu_duello.mjs` (eşleşme, sıra, gerçek atış, sonuç) |
 | Karakter görünüşü (saç, göz; öteki oyuncuya gider) | `eo2/js/gorunum.js`, `eo2/tools/bake_gorunus.mjs` | `check_gorunus.mjs` |
 
 Takım Meydanı ortak zindanla aynı oda altyapısını kullanır; 1v1 topçu düellosu hâlâ eski oda sistemindedir (iki ayrı yol). İleride 1v1 de Takım Meydanı'nın yoluna alınabilir.
-Savaş ekranındaki topçu (`assets/battle_<set>.webp`) karakter görünüşünü yansıtmaz: saç ve göz seçimi yalnız dünyada ve portrelerde görünür.
+Savaş ekranındaki topçu karakter görünüşünü taşır (2026-11-17): oyuncunun, yoldaşın ve rakibin saçı ve gözü savaşta da görünür. Katmanlar `eo2/tools/bake_savas_gorunus.mjs` ile pişirilir (`eo2/assets/gorunus_savas/`, 6,7 MB): gövde 70 kare; yüz, saç ve kulak az hücreli olup her kareye çizicinin dönüşümüyle yerleştirilir. Denetim: `check_savas_gorunus.mjs`. Savaş ekranının sol üstündeki küçük portre hâlâ özgün görünüştedir.
 
 ## 7. Açık sorular (kullanıcı kararı)
 
@@ -137,3 +137,12 @@ Savaş ekranındaki topçu (`assets/battle_<set>.webp`) karakter görünüşün�
 - **Uçan engerek hiçbir zaman olmayacak (KARAR).** Zümrüt Saray'da yalnız yer yılanları vardır; köprüdeki iki uçan engerek küçük yer yılanıyla (Sırça Engerek) değiştirildi. Uçan yılan çizimi istenmez.
 - **Kor Örsü** (`eo2/js/ors_kural.js` kurallar, `eo2/js/ors.js` ekran): terbiyecinin Ejder Topu +0'dan +12'ye dövülür; her kademe topçunun hasarını ve canını yüzde 2 artırır (çatlak topta artış yok). Bedel peşin ödenir (kor taşı + altın; sayılar eski oyunun birinci kademe tablosu). Üç çekiç darbeli tav oyunu şansı değiştirir; "Körüğe yüklen" kumarı; +4'ten sonra tutmayan deneme kademe düşürür, +7'den sonra topu çatlatır; Anka Mührü korur; üç altın darbe + tutan deneme iki kademe verir. Giriş: Gece Çarşısı'nda Usta Kerim'in tezgâhı ve Usta Kerim'le konuşma. Denetim: `tests/ors_kural.test.js`, `eo2/tools/check_ors.mjs` (duman testinde).
 - Örs kaydı ve taşlar oyuncunun kendi kaydındadır (tezgâh alışverişiyle aynı yol); sunucu örs denemesini doğrulamaz.
+
+### Çizimsiz arena (2026-11-17)
+
+Kendi çizimi henüz gelmemiş aşamalar için: klasörde yalnız `arena.json` durur ve içinde `"eski": { "zindan": "komutan", "asama": 0 }` yazar. Böyle bir arenanın zemini, arka planı, denizi ve özel kuralları eski seferin o aşamasından alınır (`eo2/js/topcu_veri.js` ZINDAN); düşmanların sırası ve canları `arena.json`'dadır ve sunucu canları oradan okur (birim testi, canların eski veriyle aynı olduğunu denetler). Sıra, can ve akış öteki arenalarla aynıdır: tek kişi de grup da aynı sistemde oynar.
+
+- Sekiz çizimsiz arena var: `kaldera-yol`, `kaldera-kopru`, `kaldera-ors`, `kaldera-mabet`, `donanma-kiyi`, `donanma-bogaz`, `donanma-tersane`, `donanma-kadirga`.
+- Çizimi gelince: `"eski"` silinir, klasöre blok harita ve katmanlar konur, `arena.json` öteki arenalar gibi doldurulur. Tarifte (`zindan_tarif.js`) değişiklik gerekmez.
+- Denetim: `check_zindan_eski.mjs` iki zindanı tek kişilik seferle baştan sona oynatır (sekiz aşama). **Grupla (iki tarayıcı) denenmedi**: kırılan zeminin ve deniz olaylarının bütün ekranlarda aynı kaldığı ölçülmedi.
+- Kaldera köprüsündeki uçan wyvern eski kuralla yerinde durur. Uçan engerek hiçbir yerde yoktur: sunucuya ulaşılamadığında açılan eski Sırça Saray'daki uçan engerek de yer yılanına çevrildi.

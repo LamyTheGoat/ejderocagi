@@ -1,6 +1,7 @@
 // EO2 · Er Meydanı denetimi (iki tarayıcı): ejderha dövüşünde herkese açık eşleşme.
 // İki oyuncu Arena → Er Meydanı'na girer, birbirini meydanda görür, ikisi de "Eşleşme ara" der; rakip bulununca onaylar, dövüş iki ekranda açılır,
 // hamleler sırayla oynanır ve iki ekranda tutarlı sonuç çıkar (biri zafer, öteki yenilgi; ya da ikisi berabere). Dostça düello: altın yazılmaz.
+// Üç yol da ölçülür: eşleşme sırası, sancak (oda) ve meydan okuma daveti.
 // Kullanım: node eo2/tools/check_er_meydani.mjs   (EKRAN=<klasör> ile ekran görüntüsü)
 import fs from 'node:fs'; import path from 'node:path'; import { createRequire } from 'node:module'; import { fileURLToPath } from 'node:url';
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..'), require = createRequire(path.join(repo, 'package.json')), { chromium } = require('playwright-core');
@@ -43,9 +44,21 @@ try {
   await bekle(B, 'document.querySelector("#dov [data-x=\\"pence\\"]:not([disabled])")', 30000); await B.locator('#dov [data-x="pence"]').click();
   const son = async p => { for (let i = 0; i < 60; i++) { const t = await p.evaluate(() => [...document.querySelectorAll('.pen')].map(x => x.textContent).join(' ')); if (/Zafer|Yenilgi|Teslim/.test(t) && !/teslim olacak|Teslim olursan/i.test(t)) return /Zafer/.test(t) ? 'zafer' : 'yenilgi'; await p.waitForTimeout(500); } return 'bitmedi'; };
   log.sancakSonuc = await Promise.all([son(A), son(B)]);
+  // üçüncü yol: meydan okuma daveti. İkisi meydana döner; B, A'yı seçip "Meydan oku" der; A'ya davet penceresi gelir, kabul eder; dövüş açılır, B teslim olur
+  for (const p of [A, B]) { await p.locator('.pen .gbtn:has-text("Er Meydanı")').first().click().catch(() => { }); await p.waitForTimeout(900); }
+  log.davetMeydan = await bekle(B, 'document.querySelectorAll("[data-ersec]").length >= 1 && !document.getElementById("dov") && !document.querySelector(".pen")', 30000) && await bekle(A, '!document.getElementById("dov") && !document.querySelector(".pen")', 30000);
+  await B.locator('[data-ersec]').first().click(); await B.waitForTimeout(500);
+  log.davetDugmesi = await B.locator('[data-er="invite"]').count() === 1; if (log.davetDugmesi) await B.locator('[data-er="invite"]').click();
+  log.davetGeldi = await A.waitForSelector('.pen:has-text("meydan okuyor")', { timeout: 30000 }).then(() => true, () => false);
+  if (ekran) await A.screenshot({ path: path.join(ekran, 'er_5_davet.png') });
+  await A.locator('.pen .gbtn:has-text("Kabul et")').click().catch(() => { });
+  log.davetDovusu = await bekle(A, '!!document.getElementById("dov")', 40000) && await bekle(B, '!!document.getElementById("dov")', 40000);
+  await bekle(B, 'document.querySelector("#dov [data-x=\\"teslim\\"]:not([disabled])")', 30000); await B.locator('#dov [data-x="teslim"]').click().catch(() => { }); await B.waitForTimeout(600);
+  await bekle(A, 'document.querySelector("#dov [data-x=\\"pence\\"]:not([disabled])")', 30000); await A.locator('#dov [data-x="pence"]').click().catch(() => { });
+  log.davetSonuc = await Promise.all([son(A), son(B)]);
   log.altinYazilmadi = (await A.evaluate(() => S.gold)) === altin0[0] && (await B.evaluate(() => S.gold)) === altin0[1];
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && log.meydanda && log.dovusAcildi && log.tutarli && log.meydanaDondu && log.sancakGorundu && log.sancakDovusu && log.sancakSonuc[0] === 'yenilgi' && log.sancakSonuc[1] === 'zafer' && log.altinYazilmadi;
+const ok = !hata.length && log.meydanda && log.dovusAcildi && log.tutarli && log.meydanaDondu && log.sancakGorundu && log.sancakDovusu && log.sancakSonuc[0] === 'yenilgi' && log.sancakSonuc[1] === 'zafer' && log.davetMeydan && log.davetDugmesi && log.davetGeldi && log.davetDovusu && log.davetSonuc[0] === 'zafer' && log.davetSonuc[1] === 'yenilgi' && log.altinYazilmadi;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

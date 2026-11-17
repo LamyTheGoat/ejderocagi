@@ -1,0 +1,20 @@
+{
+  "eski": {
+    "zindan": "abra",
+    "asama": 1
+  },
+  "ad": "Girdap Boğazı",
+  "alt": "İki ada, ortada su hortumu",
+  "dusman": [
+    {
+      "tip": "karkinos",
+      "ad": "Zırhlı Boğaz Karkinosu",
+      "hp": 800
+    },
+    {
+      "tip": "karkinos",
+      "ad": "Derin Girdap Karkinosu",
+      "hp": 850
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "eski": {
+    "zindan": "komutan",
+    "asama": 3
+  },
+  "ad": "Başkomutan Kalgarot",
+  "alt": "Kaldera'nın iç mabedi",
+  "dusman": [
+    {
+      "tip": "drake",
+      "ad": "Kaldera Muhafız Drake'i",
+      "hp": 680
+    }
+  ],
+  "boss": {
+    "tip": "kalgarot",
+    "ad": "Başkomutan Kalgarot",
+    "unvan": "Kül Yutan'ın sağ kolu",
+    "hp": 4400
+  }
+}

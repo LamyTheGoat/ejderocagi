@@ -1,0 +1,15 @@
+{
+  "eski": {
+    "zindan": "abra",
+    "asama": 3
+  },
+  "ad": "Derya Yılanı Abra",
+  "alt": "Üçe bölünmüş kadırga",
+  "dusman": [],
+  "boss": {
+    "tip": "abra",
+    "ad": "Derya Yılanı Abra",
+    "unvan": "Kadim derya leviathanı",
+    "hp": 4800
+  }
+}

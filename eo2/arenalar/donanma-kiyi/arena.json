@@ -1,0 +1,20 @@
+{
+  "eski": {
+    "zindan": "abra",
+    "asama": 0
+  },
+  "ad": "Fosforlu Mercan Kıyısı",
+  "alt": "Kıskaç kalkanlı karkinoslar",
+  "dusman": [
+    {
+      "tip": "karkinos",
+      "ad": "Derin Deniz Karkinosu",
+      "hp": 650
+    },
+    {
+      "tip": "karkinos",
+      "ad": "Kıdemli Mercan Karkinosu",
+      "hp": 750
+    }
+  ]
+}

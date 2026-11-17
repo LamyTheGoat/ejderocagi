@@ -72,6 +72,18 @@ export function arenaKur(ad, json, blok, katman) {
     boss: json.boss ? Object.assign({ tip: json.boss.tip, ad: json.boss.ad, unvan: json.boss.unvan, hp: json.boss.hp }, blok.boss) : null, maske: blok.maske };
 }
 
+/* ÇİZİMSİZ ARENA (2026-11-17): arena.json içinde "eski": { zindan, asama } varsa arena, eski tek kişilik seferin o aşamasıdır.
+   Zemin biçimi, arka plan, deniz ve özel kurallar js/topcu_veri.js ZINDAN[zindan].asama[asama] içinden alınır (oyun kurar); burada yalnız
+   sunucunun bilmesi gerekenler durur: düşmanlar ve canları (sıra: düşmanlar, sonra boss). Kendi çizimi gelince "eski" silinir, klasöre blok harita ve katmanlar konur. */
+export function eskiKur(ad, json) {
+  if (!json.eski.zindan || !Number.isInteger(json.eski.asama)) throw new Error(ad + ': "eski" için zindan ve asama (tam sayı) gerekli.');
+  for (const alan of ['ad', 'alt']) if (typeof json[alan] !== 'string' || !json[alan]) throw new Error(ad + ': arena.json içinde "' + alan + '" eksik.');
+  const dus = json.dusman || []; if (!dus.length && !json.boss) throw new Error(ad + ': en az bir düşman ya da boss olmalı.');
+  const can = (q, kim) => { if (!q.tip || !q.ad || !(Number.isInteger(q.hp) && q.hp > 0)) throw new Error(ad + ': ' + kim + ' için tip, ad ve hp (tam sayı) gerekli.'); };
+  dus.forEach((q, i) => can(q, (i + 1) + '. düşman')); if (json.boss) { can(json.boss, 'boss'); if (!json.boss.unvan) throw new Error(ad + ': boss için unvan gerekli.'); }
+  return { tur: 'pve', eski: { zindan: json.eski.zindan, asama: json.eski.asama }, ad: json.ad, alt: json.alt, dusman: dus.map(q => ({ tip: q.tip, ad: q.ad, hp: q.hp })), boss: json.boss ? { tip: json.boss.tip, ad: json.boss.ad, unvan: json.boss.unvan, hp: json.boss.hp } : null };
+}
+
 const sade = s => s.toLowerCase().replace(/ı/g, 'i').replace(/İ/gi, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
 /* klasördeki katman dosyalarını sıraya dizer: [{ dosya, z, zemin }] (z'ye, sonra ada göre) */
 export function katmanlariBul(dosyalar, ad) { const out = [];
@@ -87,7 +99,9 @@ export function katmanlariBul(dosyalar, ad) { const out = [];
 export function hepsiniDerle() { const out = {};
   for (const ad of fs.readdirSync(klasor).sort()) { const d = path.join(klasor, ad); if (!fs.statSync(d).isDirectory()) continue;
     if (!/^[a-z0-9-]+$/.test(ad)) throw new Error(ad + ': klasör adı küçük harf, rakam ve tire olmalı.');
-    for (const f of ['blok.png', 'arena.json']) if (!fs.existsSync(path.join(d, f))) throw new Error(ad + ': ' + f + ' yok.');
+    if (!fs.existsSync(path.join(d, 'arena.json'))) throw new Error(ad + ': arena.json yok.');
+    { const j = JSON.parse(fs.readFileSync(path.join(d, 'arena.json'), 'utf8')); if (j.eski) { out[ad] = eskiKur(ad, j); continue; } }
+    if (!fs.existsSync(path.join(d, 'blok.png'))) throw new Error(ad + ': blok.png yok.');
     const png = pngOku(fs.readFileSync(path.join(d, 'blok.png'))), K = katmanlariBul(fs.readdirSync(d), ad), zeminler = [];
     for (const k of K) { const buf = fs.readFileSync(path.join(d, k.dosya)), q = boyutOku(buf);
       if (q.w !== png.w || q.h !== png.h) throw new Error(ad + ': "' + k.dosya + '" ' + q.w + '×' + q.h + ', blok.png ise ' + png.w + '×' + png.h + '. Bütün katmanlar tuvalin tamamı olarak aynı boyda dışa aktarılmalı (katman içeriğine göre kırpma kapalı).');
@@ -100,6 +114,6 @@ export const dosyaMetni = A => '/* ÜRETİLMİŞ DOSYA: elle değiştirme. Kayna
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try { const A = hepsiniDerle(), metin = dosyaMetni(A);
     if (process.argv.includes('--denet')) { if (!fs.existsSync(hedef) || fs.readFileSync(hedef, 'utf8').replace(/\r\n/g, '\n') !== metin) { console.error('arena_veri.js güncel değil: node eo2/tools/arena_derle.mjs'); process.exit(1); } console.log('arena_veri.js güncel (' + Object.keys(A).length + ' arena).'); }
-    else { fs.writeFileSync(hedef, metin); for (const k in A) console.log(k + ': ' + A[k].en + ' × ' + A[k].boy + ' birim · ' + A[k].oyuncu.length + ' oyuncu kutusu · ' + A[k].dusman.length + ' düşman' + (A[k].boss ? ' · boss' : '') + (A[k].kamera ? ' · kamera çizili' : '')); }
+    else { fs.writeFileSync(hedef, metin); for (const k in A) console.log(A[k].eski ? k + ': çizimsiz (eski ' + A[k].eski.zindan + ' aşama ' + (A[k].eski.asama + 1) + ') · ' + A[k].dusman.length + ' düşman' + (A[k].boss ? ' · boss' : '') : k + ': ' + A[k].en + ' × ' + A[k].boy + ' birim · ' + A[k].oyuncu.length + ' oyuncu kutusu · ' + A[k].dusman.length + ' düşman' + (A[k].boss ? ' · boss' : '') + (A[k].kamera ? ' · kamera çizili' : '')); }
   } catch (e) { console.error('HATA · ' + e.message); process.exit(1); }
 }

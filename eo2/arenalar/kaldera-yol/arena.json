@@ -1,0 +1,20 @@
+{
+  "eski": {
+    "zindan": "komutan",
+    "asama": 0
+  },
+  "ad": "Yanık Bazalt Yolu",
+  "alt": "Zırhlı magma drake'leri",
+  "dusman": [
+    {
+      "tip": "drake",
+      "ad": "Zırhlı Magma Drake",
+      "hp": 735
+    },
+    {
+      "tip": "drake",
+      "ad": "Kıdemli Kaldera Drake'i",
+      "hp": 775
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "eski": {
+    "zindan": "komutan",
+    "asama": 2
+  },
+  "ad": "Yıkık Ejderha Örsü",
+  "alt": "Ara boss: Zırhlı Magma Behemoth",
+  "dusman": [],
+  "boss": {
+    "tip": "behemoth",
+    "ad": "Zırhlı Magma Behemoth",
+    "unvan": "Yıkık Ejderha Örsü'nün devi",
+    "hp": 2900
+  }
+}

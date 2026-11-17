@@ -168,6 +168,9 @@
   const mkTopcu = o => Object.assign({ tur: 'topcu', takim: 0, kontrol: 'yapay', x: 0, y: 0, vy: 0, face: 1, hp: 1350, max: 1350, shown: 1350, angle: 40, set: 'temel', t: 0, ph: 0, fall: false, dead: false, hurtT: 0, fireT: 9, lastPower: -1,
     sta: 125, staMax: 125, rage: 40, shield: 0, revive: 1, dmg: 210, el: 'ates', el2: null, crit: 0, cd: { teleport: 0, shield: 0, heal: 0, anchor: 0 }, mods: {}, capa: 0, ad: '', col: EL.ates }, o);
   const mkYaratik = o => Object.assign({ tur: 'mob', takim: 1, x: 0, y: 0, vy: 0, hp: 600, max: 600, shown: 600, dead: false, olu: 0, hurtT: 0, anim: 'idle', animT: 0, face: -1, chill: 0, ad: '', h: 2.1, lunge: 0 }, o);
+  /* karakter görünüşü (saç, göz): katman sayfaları üst üste çizilip hazır olunca topçuya giydirilir (js/gorunum.js savas); özgün görünüşte bir şey yapılmaz */
+  function gorGiy(a, kod) { const g = EO2.gorunum; if (!g || !g.savas || !kod || a.gorKod === kod) return; a.gorKod = kod; const m0 = M, set0 = a.set0 || a.set; a.set0 = set0;
+    g.savas(set0, kod).then(r => { if (!r || M !== m0 || !M.on || a.gorKod !== kod) return; imgs['assets/battle_' + r.ad + '.webp'] = r.cv; a.set = r.ad; }).catch(() => { }); }
   async function ac(cfg) {
     if (M && M.on) kapat(true); ensureDom(); const api = EO2.api, T = buildTerrain(cfg.arazi);
     const setler = new Set(['temel']); if (cfg.oyuncu && cfg.oyuncu.set) setler.add(cfg.oyuncu.set); if (cfg.rakip && cfg.rakip.set) setler.add(cfg.rakip.set);
@@ -179,9 +182,9 @@
     M = { on: true, cfg, T, katman, time: 0, tur: 1, faz: 'giris', pt: 0, timer: 25, wind: 0, charge: 0, charging: false, shots: [], parts: [], nums: [], bolge: [], lav: [], isin: [], dalga: [], zaman: [], shake: 0, stop: 0, over: false, keys: {}, cam: { x: 32, y: 12, z: 0.5 },
       act: [], props: [], sira: [], si: -1, aktif: null, ist: { hasar: 0, tur: 1, kritik: 0, kombo: 0, enKombo: 0, mob: 0 }, ortam: Array.from({ length: 34 }, () => ({ x: Math.random(), y: Math.random(), s: 0.5 + Math.random() * 0.8, p: Math.random() * 6 })), tick: 0 };
     M.sonuc = new Promise(res => { M.bitir = res; }); M.deniz = cfg.deniz != null ? Y_(cfg.deniz) : null; M.cikis = cfg.cikis || null; M.ruzgarSirasi = cfg.ruzgar || null;
-    const O = cfg.oyuncu || {}, pset = imgs['assets/battle_' + O.set] ? O.set : 'temel';
-    const P = mkTopcu(Object.assign({}, O, { takim: 0, kontrol: 'yerel', set: pset, x: X_(cfg.x0 || 460), face: cfg.yon || 1, ben: true, col: EL[O.el] || EL.ates })); P.shown = P.hp = P.max = O.hp || 1350; P.sta = P.staMax = O.sta || 125; M.ben = P; M.act.push(P);
-    if (cfg.rakip) { const R = cfg.rakip, E = mkTopcu(Object.assign({}, R, { takim: 1, set: imgs['assets/battle_' + R.set] ? R.set : 'temel', x: X_(R.x || 2480), face: -(cfg.yon || 1), angle: 45, col: EL[R.el] || EL.talim })); E.shown = E.hp = E.max = R.hp || 1350; M.act.push(E); M.rakip = E; }
+    const O = cfg.oyuncu || {}, pset = imgs['assets/battle_' + O.set + '.webp'] ? O.set : 'temel';
+    const P = mkTopcu(Object.assign({}, O, { takim: 0, kontrol: 'yerel', set: pset, x: X_(cfg.x0 || 460), face: cfg.yon || 1, ben: true, col: EL[O.el] || EL.ates })); P.shown = P.hp = P.max = O.hp || 1350; P.sta = P.staMax = O.sta || 125; M.ben = P; M.act.push(P); gorGiy(P, O.gor != null ? O.gor : (EO2.gorunum && EO2.gorunum.kod ? EO2.gorunum.kod() : ''));
+    if (cfg.rakip) { const R = cfg.rakip, E = mkTopcu(Object.assign({}, R, { takim: 1, set: imgs['assets/battle_' + R.set + '.webp'] ? R.set : 'temel', x: X_(R.x || 2480), face: -(cfg.yon || 1), angle: 45, col: EL[R.el] || EL.talim })); E.shown = E.hp = E.max = R.hp || 1350; M.act.push(E); M.rakip = E; gorGiy(E, R.gor); }
     for (const m of (cfg.moblar || [])) { const D = MOB[m.tip] || {}; const e = mkYaratik(Object.assign({ tip: m.tip, D, h: D.h || 2.1, ucan: !!D.ucan, el: D.el || 'venom' }, m, { x: X_(m.x) })); e.shown = e.hp = e.max = m.hp; M.act.push(e); }
     if (cfg.boss) { const D = BOSS[cfg.boss.tip] || {}; const b = mkYaratik(Object.assign({ tur: 'boss', D, h: D.h || 6.8, faz: 1, kalkan: 0, sersem: 0, kiyamet: 0 }, cfg.boss, { x: X_(cfg.boss.x) })); b.shown = b.hp = b.max = cfg.boss.hp; M.act.push(b); M.boss = b; }
     for (const a of M.act) { if (a.ucan && a.yW != null) a.y = a.yW; else if (a.ucan && a.yuk != null) a.y = Y_(a.yuk); else if (a.tur === 'boss' && a.D.suda) a.y = Y_(a.D.suda); else a.y = groundBelow(T, a.x, FH - 1) || 8; }
@@ -585,6 +588,7 @@
   function yoldasKoy(id, o) { if (!M || !M.on) return null; o = o || {}; M.yoldas = M.yoldas || {}; let a = M.yoldas[id];
     if (!a) { const n = Object.keys(M.yoldas).length, set = imgs['assets/battle_' + o.set + '.webp'] ? o.set : M.ben.set, x0 = clamp(M.ben.x + (n % 2 ? 1 : -1) * (1.9 + Math.floor(n / 2) * 1.7), 1.7, FW - 1.7);
       a = mkTopcu({ takim: o.takim === 1 ? 1 : 0, yid: id, kontrol: 'yoldas', yoldas: true, ad: String(o.ad || 'Yoldaş').slice(0, 16), set, x: x0, face: o.takim === 1 ? -M.ben.face : M.ben.face, col: EL[o.el] || EL.ates, revive: 0 }); a.y = yerY(a.x); M.yoldas[id] = a; M.act.push(a); }
+    if (o.gor) gorGiy(a, o.gor);
     if (typeof o.x === 'number') { a.moving = Math.abs(o.x - a.x) > 0.02; a.x = clamp(o.x, 1.7, FW - 1.7); a.y = typeof o.y === 'number' ? o.y : yerY(a.x); a.fall = false; a.vy = 0; }
     if (typeof o.aci === 'number') a.angle = clamp(o.aci, -10, 70); if (o.yon === 1 || o.yon === -1) a.face = o.yon;
     if (typeof o.max === 'number' && o.max > 0) { const yeni = clamp(o.hp || 0, 0, o.max), fark = a.canBilindi ? Math.round(a.hp - yeni) : 0; a.max = o.max; a.hp = yeni; if (!a.canBilindi) a.shown = yeni; a.canBilindi = true;
@@ -627,7 +631,7 @@
   /* TEK ARENA YÜKLEYİCİSİ (eo2/docs/ZINDAN_YONTEMI.md): eo2/arenalar/<ad> klasöründen derlenen kaydı savaşın kullanacağı biçime çevirir.
      Zindan aşamaları (js/zindan_ortak.js) ve düello meydanı (js/topcu.js) aynı fonksiyonu kullanır. Arena yoksa null döner. */
   const arenaHazir = {};
-  function arenaCfg(ad) { const A = (window.EO2_ARENA || {})[ad]; if (!A) return null; if (arenaHazir[ad]) return arenaHazir[ad];
+  function arenaCfg(ad) { const A = (window.EO2_ARENA || {})[ad]; if (!A || A.eski) return null;   /* çizimsiz arena: js/zindan_ortak.js eski aşamadan kurar */ if (arenaHazir[ad]) return arenaHazir[ad];
     const maske = new Uint8Array(MW * MH); let p = 0; for (let i = 0; i < A.maske.length; i += 2) { if (A.maske[i]) maske.fill(A.maske[i], p, p + A.maske[i + 1]); p += A.maske[i + 1]; }
     return (arenaHazir[ad] = { ad: A.ad, alt: A.alt, ipucu: A.ipucu, tema: A.tema, ortam: A.ortam, en: A.en, kameraBoy: A.kamera ? Math.round(A.kamera.h / 1.7 * 100) / 100 : A.kameraBoy, oyuncu: A.oyuncu, maske,
       sahne: { katman: A.katman, ppu: A.ppu, taban: A.taban, ust: A.sahne.ust, alt: A.sahne.alt }, mobSinir: [1.2 * PX, (A.en - 1.2) * PX],

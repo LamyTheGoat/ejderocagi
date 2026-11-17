@@ -1,0 +1,20 @@
+{
+  "eski": {
+    "zindan": "komutan",
+    "asama": 1
+  },
+  "ad": "Bazalt Köprü ve Lav Nehri",
+  "alt": "Uçan kor kanat wyvern",
+  "dusman": [
+    {
+      "tip": "drake",
+      "ad": "Zırhlı Magma Drake",
+      "hp": 790
+    },
+    {
+      "tip": "wyvern",
+      "ad": "Uçan Kor Kanat Wyvern",
+      "hp": 830
+    }
+  ]
+}

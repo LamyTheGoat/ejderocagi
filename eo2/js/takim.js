@@ -24,7 +24,7 @@
     if (M !== B.state()) return; M.dur = false; if (v) { Z.savas = false; B.kapat(); OR.cik(); } }
   function oyuncuKur(deneme) { const M = B.state(); if (!Z.savas || !macta()) return; if (!M || !M.on || !M.ben) { if ((deneme || 0) < 40) setTimeout(() => oyuncuKur((deneme || 0) + 1), 150); return; }
     const d = od(), me = d.uye[ben()]; for (const u of oda().uyeler) { if (u.id === ben()) continue; const q = d.uye[u.id]; if (!q) continue;
-      B.yoldasKoy(u.id, Object.assign({ ad: u.ad, set: setOf(u), takim: q.takim === me.takim ? 0 : 1, x: yerX(q) / B.api.PX, yon: q.takim === 'B' ? -1 : 1 }, q.max ? { hp: q.hp, max: q.max } : {}, q.hayatta === false || !u.bagli ? { dustu: true } : {})); }
+      B.yoldasKoy(u.id, Object.assign({ ad: u.ad, set: setOf(u), gor: EO2.gorunum ? EO2.gorunum.kodOf(u.h) : '', takim: q.takim === me.takim ? 0 : 1, x: yerX(q) / B.api.PX, yon: q.takim === 'B' ? -1 : 1 }, q.max ? { hp: q.hp, max: q.max } : {}, q.hayatta === false || !u.bagli ? { dustu: true } : {})); }
     if (me.max) B.benCan(me.hp, me.max, 0); if (me.hayatta === false) B.benDus(); }
   const kimden = id => (id === ben() ? 'ben' : id);
   function siraUygula(s) { if (Z.savas && s && s.adim) B.ortakSira({ adim: s.adim, tur: s.tur, kim: kimden(s.kim), ruzgar: s.ruzgar }); }

@@ -32,6 +32,22 @@
       EO2.setEkle(ad, c, { cw, ch, cols, rows, ax: sol, ay: ust, tall: B.tall, frames }); return ad; });
     kurulan.set(ad, soz); soz.catch(() => kurulan.delete(ad)); return soz; }
 
+  /* savaş ekranı: aynı görünüş Topçu savaş karelerine de giydirilir (tools/bake_savas_gorunus.mjs). Gövde sayfaları olduğu gibi üst üste çizilir;
+     baş parçaları (yüz, saç, kulak) az hücrelidir ve her kareye o karenin dönüşümüyle çizilir. Dönen: { ad, cv } (özgün görünüşte ya da çizimi olmayan sette null). Kare ölçüleri window.EO2_BATTLE.sets[ad] olarak kaydedilir. */
+  const SG = window.EO2_SAVAS_GORUNUS, savasKurulan = new Map(), savasResim = ad => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error(ad)); i.src = 'assets/gorunus_savas/' + ad + '.webp'; });
+  function savas(set, g) { g = typeof g === 'string' ? coz(g) : temiz(g); const BT = window.EO2_BATTLE; if (!g || ozgunMu(g) || !SG || !SG.kutu || !SG.set[set] || !BT) return Promise.resolve(null);
+    const ad = 'g_' + set + '_' + kod(g).replace(/\./g, '_'); if (savasKurulan.has(ad)) return savasKurulan.get(ad);
+    const sb = g.sac === 'orig' ? 'a' : 'b', sac = 'sac_' + g.sac + '_' + g.sacRenk, K = SG.kutu;
+    const L = ['govde_' + set + '_1', sac + '_a', 'govde_' + set + '_2', sac + '_m', 'govde_' + set + '_3', 'yuz_' + g.goz + '_' + g.gozRenk + '_' + sb, sac + '_o', 'kulak_' + sb].filter(k => SG.var[k]);
+    const soz = Promise.all(L.map(savasResim)).then(R => { const cv = document.createElement('canvas'); cv.width = K.cols * K.cw; cv.height = K.rows * K.ch; const x = cv.getContext('2d'), n = Object.keys(K.frames).length, DON = SG.set[set].don; x.imageSmoothingQuality = 'high';
+      R.forEach((im, j) => { const ad = L[j], tur = /^yuz_/.test(ad) ? 'yuz' : /^kulak_/.test(ad) ? 'kulak' : /^sac_.*_o$/.test(ad) ? 'sacOn' : /^sac_.*_m$/.test(ad) ? 'sacOrta' : /^sac_.*_a$/.test(ad) ? 'sacArka' : '';
+        if (!tur) { x.drawImage(im, 0, 0); return; } const D = DON[tur], H = K.hucre[tur]; if (!D || !H) return;   /* baş parçası az hücrelidir: her kareye o karenin hücresi, o karenin dönüşümüyle çizilir */
+        for (let i = 0; i < n; i++) { const cx = (i % K.cols) * K.cw, cy = Math.floor(i / K.cols) * K.ch, m = D[i]; x.save(); x.beginPath(); x.rect(cx, cy, K.cw, K.ch); x.clip(); x.setTransform(m[0], m[1], m[2], m[3], m[4] + cx, m[5] + cy); x.drawImage(im, H[i] * K.cw, 0, K.cw, K.ch, 0, 0, K.cw, K.ch); x.restore(); } });
+      BT.sets[ad] = { cw: K.cw, ch: K.ch, cols: K.cols, rows: K.rows, ax: K.ax, ay: K.ay, tall: K.tall, frames: K.frames, muzzle: SG.set[set].muzzle || BT.sets[set].muzzle }; return { ad, cv }; });
+    savasKurulan.set(ad, soz); soz.catch(() => savasKurulan.delete(ad)); return soz; }
+  /* meydanda görünen bir oyuncunun görünüş kodu (yoldaş ve rakip savaşta böyle giydirilir) */
+  const kodOf = h => { const c = EO2.meydanAg && h ? [...EO2.meydanAg.kisiler.values()].find(x => x.handle === h) : null; return c && c.gorKod ? c.gorKod.split('|')[1] || '' : ''; };
+
   /* ---------- oyuncunun kendi görünüşü ---------- */
   const benim = () => temiz(typeof S !== 'undefined' && S && S.gorunus);
   let sonImza = '';
@@ -54,5 +70,5 @@
     body.querySelectorAll('[data-alan]').forEach(b => b.addEventListener('click', () => { if (EO2.audio && EO2.audio.ui) EO2.audio.ui(); sec(b.dataset.alan, b.dataset.v); G.redraw(); }));
     const oz = body.querySelector('[data-gr-ozgun]'); if (oz) oz.addEventListener('click', () => { S.gorunus = Object.assign({}, OZGUN); if (typeof saveGame === 'function') saveGame(); uygula(); G.redraw(); });
   } });
-  EO2.gorunum = { kur, uzak, sec, kod: () => kod(benim()), benim, secenekler: () => GA.ad };
+  EO2.gorunum = { kur, savas, kodOf, uzak, sec, kod: () => kod(benim()), benim, secenekler: () => GA.ad };
 })();

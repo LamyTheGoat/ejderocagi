@@ -178,8 +178,8 @@
       asama: [
         { ad: 'Tarsus Kehribar Kuyusu', alt: 'Bronz engerek muhafızları kapıyı tutuyor', bg: I('sahmeran/sahmeran_gate_bg.webp'), f: kapi, ipucu: 'Önce yaklaşanı vur: yerdeki muhafız her tur sana doğru yürür.',
           moblar: d => [{ tip: 'cobra', ad: 'Bronz Engerek Muhafızı', hp: Math.round(700 * d), x: 1680 }, { tip: 'oracle', ad: 'Engerek Rahibesi', hp: Math.round(740 * d), x: 2320 }] },
-        { ad: 'Sırça Köprü ve Zümrüt Şelale', alt: 'Uçan sırça engerekleri', bg: I('sahmeran/sahmeran_bridge_bg.webp'), f: kopru, ipucu: 'Uçan engerek yerinden kıpırdamaz: yüksek açıyla aşırt.',
-          moblar: d => [{ tip: 'cobra', ad: 'Bronz Engerek Muhafızı', hp: Math.round(760 * d), x: 1680 }, { tip: 'viper', ad: 'Uçan Sırça Engereği', hp: Math.round(800 * d), x: 2320, yuk: 590 }] },
+        { ad: 'Sırça Köprü ve Zümrüt Şelale', alt: 'Sırça engerekleri', bg: I('sahmeran/sahmeran_bridge_bg.webp'), f: kopru, ipucu: 'Köprünün iki ucunda engerek var: önce yaklaşanı vur.',
+          moblar: d => [{ tip: 'cobra', ad: 'Bronz Engerek Muhafızı', hp: Math.round(760 * d), x: 1680 }, { tip: 'cobra', ad: 'Sırça Engerek', hp: Math.round(800 * d), x: 2320 }   /* uçan engerek yok (kullanıcı, 2026-11-17: hiçbir zaman olmayacak) */] },
         { ad: 'Sırça Kristal Mahzeni', alt: 'Ara boss: Sırça Kristal Yılan Golemi', bg: I('extreme/ex_sah_vault_bg.webp'), f: mahzen, ipucu: 'Golemin başına nişan al. Kalkanı varken Krater Güllesi deler.',
           boss: d => ({ tip: 'sirca_golem', ad: 'Sırça Kristal Yılan Golemi', unvan: 'Camasb\'ın mahzen muhafızı', hp: Math.round(2600 * d), kalkan: 250, x: 2560 }), moblar: () => [{ tip: 'cobra', ad: 'Mahzen Nöbetçisi', hp: 620, x: 1840 }] },
         { ad: 'Yılan Kraliçe Şahmeran', alt: 'Sırça Saray\'ın iç mabedi', bg: I('sahmeran/sahmeran_bg.webp'), f: mabet, ipucu: 'Tacına nişan al. Durduğun yere ok yağdırır: her tur yerini değiştir, sonra ateş et.',
