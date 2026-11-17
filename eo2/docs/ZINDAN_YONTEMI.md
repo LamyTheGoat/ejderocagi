@@ -107,6 +107,8 @@ Bugün: düşman ve boss türleri `eo2/js/topcu_veri.js` içinde tanımlı (eski
 - Sunucuya ulaşılamazsa tek kişilik giriş eski yola düşer.
 - Ödül oyuncunun kendi ekranında yazılır; ortak oda servisi sunucunun belleğindedir.
 - Sefer Kampı tektir ve her zindanda aynıdır.
+- Bağlantı ve yenileme (2026-11-17): sayfa yenilenince ya da bağlantı kopup gelince oyuncu savaşa geri döner (düşman canları ve sıra sunucudaki hâlden sürer). Çark sırasında yenilenirse o aşamanın çarkı geçilir (ödül iki kez yazılmasın diye yeniden açılmaz); grup bekletilmez. Ayrılan ya da kopan yoldaşın topçusu öteki ekranlarda yere serilir, sırası atlanır.
+- Yoldaşın ateş topundan kalan lav havuzu öteki ekranlarda da görünür (hasarını havuzun sahibi verir).
 
 ## 7. Açık sorular (kullanıcı kararı)
 
