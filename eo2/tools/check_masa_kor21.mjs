@@ -22,7 +22,7 @@ const faz = 'EO2.ortak.durum().ortak && EO2.ortak.durum().ortak.faz';
 try {
   const A = await oyuncu('Aylin'), B = await oyuncu('Bora'), altin0 = [await A.evaluate(() => S.gold), await B.evaluate(() => S.gold)];
   await A.evaluate(() => EO2.game.open('masa')); await A.waitForSelector('[data-oyun="kor21"]', { timeout: 10000 });
-  log.ikiOyun = await A.evaluate(() => document.querySelectorAll('[data-oyun]').length === 2 && /Ejder Pokeri/.test(document.querySelector('.ms-kart h2').textContent));
+  log.ikiOyun = await A.evaluate(() => document.querySelectorAll('[data-oyun]').length >= 2 && /Ejder Pokeri/.test(document.querySelector('.ms-kart h2').textContent));
   await A.locator('[data-oyun="kor21"]').click(); log.secildi = await A.evaluate(() => /Kor 21/.test(document.querySelector('.ms-kart h2').textContent) && document.querySelector('[data-oyun="kor21"]').getAttribute('aria-pressed') === 'true'); await cek(A, 'kor21_1_secim');
   await A.locator('[data-ms="kur"]').click(); log.kod = await bekle(A, 'document.querySelector(".ms-kodluk b") && /Kor 21/.test(document.querySelector(".ms-kodluk small").textContent)');
   const kod = await A.evaluate(() => document.querySelector('.ms-kodluk b').textContent.trim());

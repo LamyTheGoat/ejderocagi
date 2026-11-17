@@ -165,3 +165,5 @@
 .ui2 #scrB.yeniden *, .ui2 #scrB.yeniden *::before, .ui2 #scrB.yeniden *::after { animation-delay: -30s !important; transition-duration: 0s !important; }
 /* defter ayraçları: üstüne gelinen ayraç uzarken komşuları onunla birlikte uzamaz */
 .ui2 .ayraclar { align-items: flex-start; }
+/* sipariş kâğıdı: üstüne gelince yerinden oynamaz (eğimi ve yeri aynı kalır); yalnız parlar */
+.ui2 .kagit:hover { transform: rotate(var(--egim)); filter: brightness(1.06); box-shadow: 0 .5em 1.2em rgba(30, 16, 6, .6), 0 0 0 2px rgba(246, 217, 138, .55); }
