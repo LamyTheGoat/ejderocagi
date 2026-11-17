@@ -61,6 +61,9 @@ const KIR_PVP = require('./server/kiraathane_pvp').createKiraathanePvp({ store: 
 ORTAK.kaydet('kiraathane', KIR_PVP.tanim);
 // Ortak zindan seferi (server/zindan_ortak.js): Zümrüt Saray; ortak düşman canı sunucuda, ödül istemcide mevcut kurallarla
 ORTAK.kaydet('zindan', require('./server/zindan_ortak').createZindanOrtak().tanim);
+// Yarı açık bağlantılar: istemci 25 saniyede bir 'ping' yollar. 90 saniyedir hiç veri gelmeyen bağlantı (ağ sessizce kopmuş: telefon uykuya geçti,
+// kablosuz ağ değişti) kapatılır; böylece meydanda, odalarda ve sıralarda "hayalet" oyuncu birikmez. Kapanış olağan 'close' yolundan temizlenir.
+setInterval(() => { const t = Date.now(); for (const s of WS_CLIENTS) if (t - (s.sonVeri || t) > 90000) { try { s.destroy(); } catch (_) { } } }, 30000).unref();
 // Takım Meydanı (server/takim_ortak.js): ejder topçusu 2v2; sıra ve can sunucuda, ödül yok
 ORTAK.kaydet('takim', require('./server/takim_ortak').createTakimOrtak().tanim);
 // Oyuncu profili (künye) ve parti: ikisi de bellekte, ekonomiye dokunmaz (server/profil_service.js, server/parti_service.js)
@@ -565,7 +568,7 @@ async function handleWsUpgrade(req, socket, head) {
     marketListings: [],
   }));
 
-  wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size });
+  wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size, meydan: MEYDAN.sayim() });
   DUEL_SERVER.onConnect(socket);
   PVP_ROOMS.onConnect(socket);
 
@@ -585,13 +588,14 @@ async function handleWsUpgrade(req, socket, head) {
       WS_CLIENTS.delete(socket);
       MEYDAN.onDisconnect(socket);
       socket.end();
-      wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size });
+      wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size, meydan: MEYDAN.sayim() });
       return;
     }
     for (const msg of messages) {
       track(handleWsMessage(socket, msg)).catch(()=>socket.destroy());
     }
   };
+  socket.sonVeri = Date.now(); socket.on('data', () => { socket.sonVeri = Date.now(); });   // yarı açık bağlantı süpürücüsü için (aşağıda)
   socket.on('data', onData);
   if (head && head.length) onData(head);
 
@@ -603,7 +607,7 @@ async function handleWsUpgrade(req, socket, head) {
     ORTAK.onDisconnect(socket);
     ZIYARET.onDisconnect(socket);
     PARTI.onDisconnect(socket);
-    wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size });
+    wsBroadcast({ type: 'online_count', count: WS_CLIENTS.size, meydan: MEYDAN.sayim() });
   });
   socket.on('error', () => {
     WS_CLIENTS.delete(socket);

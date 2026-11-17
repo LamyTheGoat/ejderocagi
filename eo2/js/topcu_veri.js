@@ -138,8 +138,15 @@
         if (b.anim === 'hit') return son(38, 9, (0.5 - b.animT) / 0.5); return Math.floor(t * 7.5) % 18; } } }); })();
   /* Zümrüt Saray'ın yılanları (konsept çizim, kullanıcı onayı 2026-11-17: geçici). Kurallar yerdeki muhafızın (cobra) aynısıdır; yalnız çizim değişir.
      Tek duruş var: saldırı ve vuruluş karesi çizilmedi. Çizim sola bakar, alt kenarı zemindir. */
-  B.MOB.zs_vurucu = Object.assign({}, B.MOB.cobra, { spr: { idle: 'assets/zumrut/yilan_vurucu.webp' }, yon: -1, taban: 1 });
-  B.MOB.zs_agir = Object.assign({}, B.MOB.cobra, { spr: { idle: 'assets/zumrut/yilan_agir.webp' }, yon: -1, taban: 1 });
+  /* Canlandırma (2026-11-17): bekleme, ilerleme, saldırı, vuruluş, ölüm klipleri tek sayfada (tools/zumrut_yilan.mjs → js/zumrut_yilan_veri.js).
+     Ölen yılan son karede yerde kalır. Sayfa yüklenemezse tek duruşlu çizim kullanılır. */
+  const yilan = (ad, duz) => { const Y = (window.EO2_YILAN || {})[ad], D = Object.assign({}, B.MOB.cobra, { spr: { idle: duz }, yon: -1, taban: 1 }); if (!Y) return D;
+    const kl = (k, oran) => Y.dizin[k][0] + Math.max(0, Math.min(Y.dizin[k][1] - 1, Math.floor(oran * Y.dizin[k][1])));
+    return Object.assign(D, { spr: { idle: Y.src }, sayfa: { src: Y.src, cw: Y.cw, ch: Y.ch, sutun: Y.sutun, px: Y.px, py: Y.py, ceset: true,
+      kare(a, t) { if (a.dead) return kl('death', (a.olu || 0) / 0.9); if (a.anim === 'hit') return kl('hit', (0.45 - a.animT) / 0.45); if (a.anim === 'atk') return kl('attack', (0.9 - a.animT) / 0.9);
+        if (a.yuruT != null && t - a.yuruT < 0.8) return kl('move', (t - a.yuruT) / 0.8); return Y.dizin.idle[0] + Math.floor(t * 7.5 + a.x) % Y.dizin.idle[1]; } } }); };
+  B.MOB.zs_vurucu = yilan('vurucu', 'assets/zumrut/yilan_vurucu.webp');
+  B.MOB.zs_agir = yilan('agir', 'assets/zumrut/yilan_agir.webp');
   for (const k in B.BOSS) { const D = B.BOSS[k]; if (D.ek) D.ek.forEach((e, i) => { D.spr['ek' + i] = e; }); }
 
   /* ---------- deniz ve dalga çizimi (Batık Donanma) ---------- */

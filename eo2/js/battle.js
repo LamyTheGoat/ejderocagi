@@ -350,7 +350,7 @@
   }
   /* eski performSingleEnemyTurnAction: yerdekiler oyuncuya 46 piksel yaklaşır (ayazda 24), 135 hasarlık nişanlı atış */
   function mobSira(e) { const p = hedefT(), ayaz = e.chill > 0, ad = M.adim; if (e.chill > 0) e.chill--; M.faz = 'oyun';
-    sonra(0.55, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki(); e.face = p.x < e.x ? -1 : 1; if (!e.ucan && !e.D.sabit) { const lim = M.cfg.ozel && M.cfg.ozel.mobSinir || [820, 3050]; e.x = clamp(e.x + e.face * u(ayaz ? 24 : 46), X_(lim[0]), X_(lim[1])); }
+    sonra(0.55, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki(); e.face = p.x < e.x ? -1 : 1; if (!e.ucan && !e.D.sabit) { const lim = M.cfg.ozel && M.cfg.ozel.mobSinir || [820, 3050]; e.x = clamp(e.x + e.face * u(ayaz ? 24 : 46), X_(lim[0]), X_(lim[1])); e.yuruT = M.time; }
       e.anim = 'atk'; e.animT = 0.9; e.lunge = 0.35; if (e.D.soz && R() < 0.3) balon(e, e.D.soz, null, 1.6);
       sonra(0.4, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki(); const dm = Math.round(135 * M.cfg.zorluk.dmg * (ayaz ? 0.85 : 1)); nisanliAt(e, e.x + e.face * u(35), e.y + u(58) + (e.ucan ? e.h * 0.2 : 0), p.x + u(R() * 44 - 22), p.y + u(26), dm, e.el, 42, e.D.atis); M.faz = 'ucus'; M.pt = 0; M.bekle = 0; }); });
   }
@@ -483,7 +483,7 @@
     const spr = (a) => { const D = a.D, S = D.spr, P = D.sayfa; let key = P ? P.src : a.anim === 'atk' && S.atk ? S.atk : a.anim === 'hit' && S.hit ? S.hit : (D.durum && D.durum(a)) || (S.idle2 && Math.floor(M.time * 1.6) % 2 ? S.idle2 : S.idle); const im = imgs[key] || imgs[S.idle]; if (!im) return;
       const kr = P ? P.kare(a, M.time) : 0, kk = P ? a.h * sc / P.py : 0, sr = P ? [(kr % P.sutun) * P.cw, Math.floor(kr / P.sutun) * P.ch, P.cw, P.ch] : [0, 0, im.naturalWidth, im.naturalHeight];
       const h = P ? P.ch * kk : a.h * sc * (D.buyut && D.buyut[key] || 1), w = P ? P.cw * kk : h * im.naturalWidth / im.naturalHeight, ox = P ? -P.px * kk : -w * (D.cx || 0.5), oy = P ? -P.py * kk : -h * (D.taban || 0.97), bob = a.ucan ? Math.sin(M.time * 2.2 + a.x) * 0.18 * sc : (P ? 0 : Math.sin(M.time * 1.3 + a.x) * 0.012 * h), f = (a.face || -1) * (D.yon || 1), lg = a.lunge > 0 ? Math.sin(a.lunge / 0.5 * Math.PI) * 0.5 * sc * (a.face || -1) : 0, dal = D.dal ? D.dal(a) : 0;
-      x.save(); x.translate(X(a.x) + lg + (a.hurtT > 0.3 ? (Math.random() - 0.5) * 0.14 * sc : 0), Y(a.y) + bob + dal * sc); if (a.dead) { x.globalAlpha = Math.max(0, 1 - a.olu / 0.9); x.translate(0, a.olu * 0.9 * sc); } x.scale(f, 1);
+      x.save(); x.translate(X(a.x) + lg + (a.hurtT > 0.3 ? (Math.random() - 0.5) * 0.14 * sc : 0), Y(a.y) + bob + dal * sc); if (a.dead && !(P && P.ceset)) { x.globalAlpha = Math.max(0, 1 - a.olu / 0.9); x.translate(0, a.olu * 0.9 * sc); } x.scale(f, 1);
       if (!a.ucan && !D.suda && !a.dead) { x.fillStyle = 'rgba(4,6,20,.35)'; x.beginPath(); x.ellipse(0, 2, w * 0.36, 0.2 * sc, 0, 0, 6.3); x.fill(); }
       x.drawImage(im, sr[0], sr[1], sr[2], sr[3], ox, oy, w, h);
       if (a.hurtT > 0.36) { x.globalCompositeOperation = 'lighter'; x.globalAlpha = (a.hurtT - 0.36) / 0.14 * 0.75; x.drawImage(im, sr[0], sr[1], sr[2], sr[3], ox, oy, w, h); x.globalCompositeOperation = 'source-over'; } x.restore();
@@ -496,7 +496,7 @@
     for (const l of M.lav) { const g = x.createRadialGradient(X(l.x), Y(l.y), 0, X(l.x), Y(l.y), l.r * sc); g.addColorStop(0, 'rgba(255,200,90,.75)'); g.addColorStop(0.6, 'rgba(255,110,30,.45)'); g.addColorStop(1, 'rgba(255,90,20,0)'); x.fillStyle = g; x.beginPath(); x.ellipse(X(l.x), Y(l.y), l.r * sc, l.r * sc * 0.45, 0, 0, 6.3); x.fill(); }
     for (const z of M.bolge) { const col = EL[z.el] || EL.venom, gy = yerY(z.x), rc = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ','; x.fillStyle = rc + '.14)'; x.beginPath(); x.ellipse(X(z.x), Y(gy), z.r * sc, z.r * sc * 0.3, 0, 0, 6.3); x.fill(); x.strokeStyle = rc + '.95)'; x.lineWidth = Math.max(2, 0.07 * sc); x.setLineDash([0.45 * sc, 0.3 * sc]); x.lineDashOffset = -M.time * sc * 0.5; x.stroke(); x.setLineDash([]);
       x.fillStyle = rc + '.9)'; for (const s of [-1, 1]) { x.beginPath(); x.moveTo(X(z.x + s * z.r), Y(gy) - 0.9 * sc); x.lineTo(X(z.x + s * z.r) - 0.16 * sc, Y(gy) - 1.3 * sc); x.lineTo(X(z.x + s * z.r) + 0.16 * sc, Y(gy) - 1.3 * sc); x.closePath(); x.fill(); x.fillRect(X(z.x + s * z.r) - 1, Y(gy) - 0.9 * sc, 2, 0.9 * sc); } }
-    for (const a of M.act) if (a.tur === 'mob' && (!a.dead || a.olu < 0.9)) spr(a);
+    for (const a of M.act) if (a.tur === 'mob' && (!a.dead || a.olu < 0.9 || (a.D.sayfa && a.D.sayfa.ceset))) spr(a);
     if (M.boss && !M.boss.D.arkada && (!M.boss.dead || M.boss.olu < 0.9)) spr(M.boss);
     // topçular: pişmiş savaş kareleri
     const SETS = window.EO2_BATTLE.sets;
