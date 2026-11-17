@@ -100,7 +100,8 @@ function createPvpRooms(deps = {}) {
   }
   function lobbyRow(room) {
     const p = publicRoom(room);
-    return { id: p.id, code: p.code, mode: p.mode, mapId: p.mapId, state: p.state, host: p.host, players: p.players, max: p.max };
+    const kurucu = p.slots.find(s => s.host) || {};   // hostAd: listede görünen ad (terbiyecinin oyundaki adı; yoksa hesap adı)
+    return { id: p.id, code: p.code, mode: p.mode, mapId: p.mapId, state: p.state, host: p.host, hostAd: (kurucu.chibi && kurucu.chibi.ad) || kurucu.name || p.host, players: p.players, max: p.max };
   }
 
   function lobbyFor(socket) {

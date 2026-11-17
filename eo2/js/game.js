@@ -40,7 +40,7 @@
     const npcSeti = n => { const id = String(n.id || ''), k = NA.kim[id] || NA.kim[id.replace(/^[a-z]{2}-/, '')] || NPC_AD[n.name], ad = k ? 'npc_' + k : null; return ad && sets[ad] ? ad : null; };
     EO2.npcSet = { yukle: setYukle, seti: npcSeti };
     /* karakter görünüşü (js/gorunum.js): katmanlardan kurulan atlas buraya kaydolur; karakterin "gor" alanı o atlası gösterir, "set" hep asıl set adıdır */
-    EO2.setEkle = (ad, cv, m) => { sets[ad] = { tex: R.texture(cv), m, img: cv }; }; EO2.setAl = ad => sets[ad] || null;   /* start() ayrı bir fonksiyon: oradan bu iki yardımcıya buradan ulaşılır */
+    EO2.setEkle = (ad, cv, m) => { if (!m.w) m.w = cv.width; if (!m.h) m.h = cv.height;   /* çizici sayfanın ölçüsünü ister (m.w, m.h): eksikse karakter hiç çizilmez */ sets[ad] = { tex: R.texture(cv), m, img: cv }; }; EO2.setAl = ad => sets[ad] || null;   /* start() ayrı bir fonksiyon: oradan bu iki yardımcıya buradan ulaşılır */
     const tDragon = R.texture(imgs.dragon);
     /* başlangıç sahnesinin (Merkez Meydan) çizimleri inmeden perde kalkmaz: yavaş bağlantıda meydan yarım görünmesin.
        Bölüm dosyası henüz kaydolmadıysa kısa süre beklenir; çizimler için en çok 15 saniye beklenir, sonra oyun yine açılır. */

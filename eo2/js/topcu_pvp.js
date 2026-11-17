@@ -9,7 +9,7 @@
   'use strict';
   const EO2 = window.EO2, G = EO2.game, B = EO2.battle, ag = EO2.ag;
   if (!ag || !B || !EO2.topcu) return;
-  const st = { oda: null, ben: null, kuyruk: null, hata: '', mac: null, sonuc: null, rakipKoptu: false };
+  const st = { oda: null, ben: null, kuyruk: null, hata: '', mac: null, sonuc: null, rakipKoptu: false, lobi: [] };
   const esc_ = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const yolla = o => { if (!ag.gonder(o)) { st.hata = 'Sunucuya ulaşılamıyor.'; ciz(); return false; } return true; };
   const ciz = () => { if (EO2.topcu.secili() === 'meydan' && !B.active()) G.redraw(); };
@@ -27,8 +27,10 @@
         '<div class="tp-k-alt"><button type="button" class="gbtn" data-pvp="cik">Odadan çık</button>' + (bitti ? '<button type="button" class="gbtn altin buyuk" data-pvp="rovans">Rövanş iste</button>' : benKurucu ? '<button type="button" class="gbtn altin buyuk" data-pvp="baslat" ' + (rakip && rakip.ready ? '' : 'disabled') + '>Maçı başlat</button>' : '<button type="button" class="gbtn altin buyuk" data-pvp="hazir">' + (ben.ready ? 'Hazır değilim' : 'Hazırım') + '</button>') + '</div>'; }
     return bas + '<p>Başka bir terbiyeciyle sırayla atış. Altın, ün ve sıralama yazılmaz; kaybın olmaz.</p>' + hata +
       '<div class="tp-pvp-sec"><button type="button" class="gbtn altin" data-pvp="kur">Oda kur</button><button type="button" class="gbtn" data-pvp="esles">Hızlı eşleş</button></div>' +
-      '<form class="tp-pvp-kod" data-pvp-form="1"><label for="tpKod">Arkadaşının oda kodu</label><div><input id="tpKod" name="kod" maxlength="8" placeholder="EJD-ABC" autocomplete="off" autocapitalize="characters" spellcheck="false"><button type="submit" class="gbtn">Katıl</button></div></form>'; }
+      '<form class="tp-pvp-kod" data-pvp-form="1"><label for="tpKod">Arkadaşının oda kodu</label><div><input id="tpKod" name="kod" maxlength="8" placeholder="EJD-ABC" autocomplete="off" autocapitalize="characters" spellcheck="false"><button type="submit" class="gbtn">Katıl</button></div></form>' +
+      '<div class="or-liste"><h3>Açık odalar</h3>' + (st.lobi.length ? '<ul>' + st.lobi.map(r => '<li><span><b>' + esc_(r.hostAd || r.host || 'Terbiyeci') + '</b><small>Topçu düellosu</small></span><em>' + r.players + ' / ' + r.max + '</em><button type="button" class="gbtn kucuk altin" data-pvp-oda="' + esc_(r.code) + '">Katıl</button></li>').join('') + '</ul>' : '<p class="soluk">Şu an açık oda yok. Sen kurarsan burada görünür.</p>') + '</div>'; }
   function bagla(body) {
+    body.querySelectorAll('[data-pvp-oda]').forEach(b => b.addEventListener('click', () => { st.hata = ''; if (EO2.audio) EO2.audio.ui(); yolla(Object.assign({ type: 'pvp_room_join', code: b.dataset.pvpOda }, kimlik())); }));
     body.querySelectorAll('[data-pvp]').forEach(b => b.addEventListener('click', () => { const k = b.dataset.pvp, K = kimlik(); st.hata = ''; if (EO2.audio) EO2.audio.ui();
       if (k === 'baglan') { ag.baglan().then(ciz); ciz(); }
       else if (k === 'kur') yolla(Object.assign({ type: 'pvp_room_create', mode: '1v1' }, K)); else if (k === 'esles') { st.sonuc = null; yolla(Object.assign({ type: 'pvp_queue_join', mode: '1v1' }, K)); }
@@ -65,6 +67,10 @@
     else if (a === 'move_aim') B.uzak({ t: 'konum', x: m.x, y: m.y, aci: m.angle, yon: m.facing });
     else if (a === 'pass') B.uzak({ t: 'pas' }); }
   ag.dinle('pvp_match_start', macBaslat);
+  /* açık odalar: Er Meydanı künyesi açıkken sunucunun oda listesine abone olunur; bekleyen ve yeri olan odalar gösterilir */
+  ag.dinle('pvp_lobby', m => { const L = (m.rooms || []).filter(r => r.state === 'waiting' && r.players < r.max && r.host !== st.ben), imza = JSON.stringify(L); if (imza === st.lobiImza) return; st.lobiImza = imza; st.lobi = L; if (!st.oda && !st.kuyruk) ciz(); });
+  let lobiAcik = false; setInterval(() => { const acik = G.live && G.ekran && G.ekran() === 'topcu' && EO2.topcu.secili() === 'meydan' && !B.active() && !st.oda && ag.durum() === 'cevrimici';
+    if (acik && !lobiAcik) yolla({ type: 'pvp_lobby_sub' }); else if (!acik && lobiAcik && ag.durum() === 'cevrimici') yolla({ type: 'pvp_lobby_unsub' }); lobiAcik = acik; }, 800);
   ag.dinle('pvp_match_end', m => { const M_ = st.mac; if (!M_ || (m.matchId && m.matchId !== M_.id)) return; M_.sunucuBitirdi = true; M_.neden = m.reason; if (st.oda) st.oda.state = 'ended'; if (B.active() && B.state() && !B.state().over) B.sonlandir(m.winner === m.you); });
   ag.dinle('pvp_room', m => { st.oda = m.room; st.ben = m.you; st.hata = ''; if (m.room.state === 'waiting') st.rakipKoptu = false;
     if (st.davet && m.room.state === 'waiting') { const to = st.davet; st.davet = null; yolla({ type: 'pvp_room_invite', to: to.h }); }   // oda kuruldu: bekleyen davet gider

@@ -409,3 +409,13 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .pz-ors { position: absolute; right: 0; top: 0; z-index: 3; display: grid; justify-items: center; gap: .1em; height: auto; padding: .45em 1.1em; line-height: 1.15; } .ui2 .pz-ors small { display: block; }
 @media (max-width: 760px), (max-aspect-ratio: 1/1) { .ui2 .or-kok { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); align-items: stretch; gap: .6em; } .ui2 .or-top { width: 6.5em; height: 6.5em; } .ui2 .or-top img { width: 4.6em; height: 4.6em; } .ui2 .or-top b { font-size: 1.3em; } .ui2 .or-sol { grid-template-columns: auto 1fr; justify-items: start; } .ui2 .or-taslar { grid-column: 1 / -1; } .ui2 .or-sol h2, .ui2 .or-etki { text-align: left; } }
 @media (max-height: 520px) { .ui2 .or-kok { grid-template-columns: minmax(0, 15em) minmax(0, 1fr); gap: .7em; } .ui2 .or-sol, .ui2 .or-sag { padding: .5em .7em; gap: .35em; font-size: .86em; } .ui2 .or-top { width: 6em; height: 6em; } .ui2 .or-top img { width: 4.2em; height: 4.2em; } .ui2 .or-top b { font-size: 1.2em; } .ui2 .or-tas small { display: none; } .ui2 .or-hedef b { font-size: 1.4em; } }
+
+/* açık oda listesi (sefer, masa, takım, topçu düellosu lobileri) */
+.ui2 .or-liste { display: grid; gap: .35em; width: 100%; margin-top: .5em; padding: .6em .7em; border-radius: 1em; background: rgba(6, 10, 32, .5); box-shadow: inset 0 0 0 1px rgba(255, 226, 150, .28); text-align: left; }
+.ui2 .or-liste h3 { margin: 0; font: 700 max(12px, .82em) var(--f-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--varak-hi, #f6d98a); }
+.ui2 .or-liste ul { display: grid; gap: .3em; margin: 0; padding: 0; list-style: none; max-height: 9.5em; overflow-y: auto; overscroll-behavior: contain; }
+.ui2 .or-liste li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .6em; padding: .3em .35em .3em .7em; border-radius: .8em; background: rgba(255, 255, 255, .06); }
+.ui2 .or-liste li span { display: grid; min-width: 0; } .ui2 .or-liste li b { font: 700 max(13px, 1em) var(--f-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ui2 .or-liste li small { font: 600 max(12px, .8em) var(--f-ui); opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ui2 .or-liste li em { font: 700 max(12px, .9em) var(--f-ui); font-style: normal; font-variant-numeric: tabular-nums; opacity: .85; }
+.ui2 .or-liste .gbtn { min-height: 2.4em; } .ui2 .or-liste p { margin: 0; font-size: max(12px, .88em); }
+@media (pointer: coarse) { .ui2 .or-liste .gbtn { min-height: 44px; } }

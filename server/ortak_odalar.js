@@ -112,6 +112,10 @@ function createOrtakOdalar({ send, sockets, kimlik, crypto = require('node:crypt
             yay(o, { type: 'ortak_olay', olaylar: r.olaylar || [], durum: o.ortak, kim: u.id }); if (r.bitti) bitir(o, r.bitti); })
             .catch(e => { send(socket, { type: 'ortak_hata', kod: e.kod || 'hata' }); if (!e.kod) console.error('[ortak] eylem', e.message); });
           break; }
+        case 'ortak_liste': { const tur = String(msg.tur || ''); if (!turler.has(tur)) throw hata('tur_bilinmiyor');   // açık odalar: özel olmayan, bekleyen, yeri olan (en yeni önce, en çok 30)
+          const L = [...odalar.values()].filter(y => y.tur === tur && !y.ozel && y.durum === 'bekliyor' && y.uyeler.length < y.tanim.enCok).sort((p, q) => q.kuruldu - p.kuruldu).slice(0, 30)
+            .map(y => ({ kod: y.kod, anahtar: y.anahtar, kurucu: (y.uyeler.find(u => u.id === y.kurucu) || y.uyeler[0] || {}).ad || '', n: y.uyeler.length, enCok: y.tanim.enCok }));
+          send(socket, { type: 'ortak_liste', tur, odalar: L }); break; }
         case 'ortak_durum': if (o) { send(socket, { type: 'ortak_oda', oda: gorunum(o), sen: k.accountId }); if (o.durum === 'oyunda') send(socket, { type: 'ortak_basladi', oda: gorunum(o), durum: o.ortak, tohum: o.tohum, surur: true }); } else send(socket, { type: 'ortak_ayrildi' }); break;
         default: throw hata('komut_bilinmiyor');
       }
