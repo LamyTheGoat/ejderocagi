@@ -86,7 +86,11 @@
     return { c, x, mask, top, Tm };
   }
   const solid = (T, wx, wy) => { const i = Math.floor(wx * MP), j = Math.floor(wy * MP); return i >= 0 && j >= 0 && i < MW && j < MH && T.mask[j * MW + i] > 0; };
-  function carve(T, cx, cy, rad) { if (M && M.cfg && M.cfg.kirilmaz) return;   // kırılmaz zemin (ör. Şahmeran'ın defilesi): gülle çukur açmaz
+  /* Ortak savaşta (yoldaş varken) zemini yalnız adımın sahibi oyar ve yerini yayınlar ('oyuk'); öteki ekranlar aynı yerden oyar (yoldasOyuk). Böylece zemin her ekranda aynı kalır.
+     Adımın sahibi: sırası gelen oyuncu; düşman sırasında düşmanın hedefi. */
+  function carve(T, cx, cy, rad, uzak) { if (M && M.cfg && M.cfg.kirilmaz) return;   // kırılmaz zemin (ör. Şahmeran'ın defilesi): gülle çukur açmaz
+    if (!uzak && M && M.on && M.cfg.ortak && T === M.T && M.yoldas && Object.keys(M.yoldas).length) { const a = M.aktif, sahip = a === M.ben || (a && a.takim === 1 && !a.yoldas && hedefT() === M.ben); if (!sahip) return;
+      const q = v => Math.round(v * 100) / 100; cx = q(cx); cy = q(cy); rad = q(rad); yay('oyuk', { x: cx, y: cy, r: rad }); }
     const r2 = rad * rad; for (let j = Math.max(0, Math.floor((cy - rad) * MP)); j <= Math.min(MH - 1, Math.ceil((cy + rad) * MP)); j++) for (let i = Math.max(0, Math.floor((cx - rad) * MP)); i <= Math.min(MW - 1, Math.ceil((cx + rad) * MP)); i++) { const dx = (i + 0.5) / MP - cx, dy = (j + 0.5) / MP - cy; if (dx * dx + dy * dy < r2 && T.mask[j * MW + i] === 1) { T.mask[j * MW + i] = 0;   // 2 = kırılmaz hücre (blok haritada koyu gri): gülle açamaz
         if (T.delik && !(M.katman && M.katman.some(k => k.cv))) { T.x.fillStyle = 'rgb(9,12,26)'; T.x.beginPath(); T.x.arc((i + 0.5) / MP * TP, (FH - (j + 0.5) / MP) * TP, TP / MP * 0.85, 0, 6.3); T.x.fill(); } } }   // çizimi olmayan (blok haritada kırmızı) zeminde çukur koyu oyuk olarak görünür
     if (T.delik) { const sh = M.cfg.sahne; if (sh && M.katman) for (const k of M.katman) if (k.cv) { const g = k.cv.getContext('2d'); g.save(); g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.arc(cx * sh.ppu, k.cv.height - (cy - (sh.taban || 0)) * sh.ppu, rad * sh.ppu, 0, 6.3); g.fill(); g.restore(); } return; }   // kırılabilir zemin katmanının resmi oyulur: arkadaki katmanlar görünür
@@ -191,7 +195,7 @@
     for (const p of (cfg.props || [])) { const x = X_(p.x); M.props.push(Object.assign({ x, y: groundBelow(T, x, FH - 1) || 8, dead: false }, PROP[p.tip] || {}, p, { x })); }
     M.sira = cfg.ilkRakip && M.rakip ? [M.rakip, P] : [P, ...M.act.filter(a => a !== P)]; M.uzakKuyruk = []; M.hedef = M.boss || M.rakip || null;
     if (M.boss && M.boss.D.kur) M.boss.D.kur(M.boss, API);
-    $('tpAd').textContent = P.ad || 'Topçu'; api.drawPortrait($('tpYuz'), P.set, 0.66); kurHedef();
+    $('tpAd').textContent = P.ad || 'Topçu'; api.drawPortrait($('tpYuz'), P.set0 || P.set, 0.66, O.gor != null ? O.gor || undefined : true); kurHedef();
     $('tpBeceri').querySelectorAll('button').forEach(b => { const B = BECERI[b.dataset.b]; b.hidden = !!(B.yalniz && B.yalniz !== cfg.arazi.aile); });
     $('tpAsama').hidden = !cfg.asama; if (cfg.asama) $('tpAsama').innerHTML = '<small>' + cfg.asama.ad + '</small>' + Array.from({ length: cfg.asama.n }, (_, i) => '<i class="' + (i < cfg.asama.i ? 'tamam' : i === cfg.asama.i ? 'simdi' : '') + '"></i>').join('');
     $('tpBalon').hidden = true; $('tpLaf').hidden = true; $('tpBilgi').hidden = true; $('tpIpucu').textContent = matchMedia('(pointer: coarse)').matches ? 'ATEŞ\'e basılı tut, bırak' : 'Space basılı tut, bırak';
@@ -202,7 +206,7 @@
     return M.sonuc;
   }
   function kurHedef() { const h = M.hedef, el = $('tpHedef'); el.hidden = !h; if (!h) return; $('tpHAd').textContent = h.ad; $('tpHAlt').textContent = h.unvan || ''; const cv = $('tpHYuz'), x = cv.getContext('2d'); x.clearRect(0, 0, 112, 112);
-    if (h.tur === 'topcu') EO2.api.drawPortrait(cv, h.set, 0.66); else { const im = imgs[h.D.yuz || h.D.spr.idle]; if (im) { const k = h.D.yuzK || [0.5, 0.22, 0.42], s = im.naturalWidth * k[2]; x.drawImage(im, im.naturalWidth * k[0] - s / 2, im.naturalHeight * k[1] - s / 2, s, s, 0, 0, 112, 112); } } }
+    if (h.tur === 'topcu') EO2.api.drawPortrait(cv, h.set0 || h.set, 0.66, h.gorKod || undefined); else { const im = imgs[h.D.yuz || h.D.spr.idle]; if (im) { const k = h.D.yuzK || [0.5, 0.22, 0.42], s = im.naturalWidth * k[2]; x.drawImage(im, im.naturalWidth * k[0] - s / 2, im.naturalHeight * k[1] - s / 2, s, s, 0, 0, 112, 112); } } }
   function yeniRuzgar(deger) { M.wind = deger != null ? deger : Math.round((Math.random() * 4.6 - 2.3) * 10) / 10; const n = Math.round(Math.abs(M.wind) * 2.6), bars = $('tpRuzC').children; for (let i = 0; i < 6; i++) bars[i].className = i < n ? 'on' : ''; $('tpRuzC').style.transform = M.wind < 0 ? 'scaleX(-1)' : ''; $('tpRuzT').textContent = Math.abs(M.wind) < 0.05 ? 'Durgun' : Math.abs(M.wind).toFixed(1).replace('.', ',') + (M.wind > 0 ? ' →' : ' ←'); }
   const sonra = (sn, fn) => { M.zaman.push({ t: M.time + sn, fn }); };
   const halka = (x, y, s, col) => { M.parts.push({ k: 'ring', x, y, vx: 0, vy: 0, life: 0.5, max: 0.5, s, col }); };
@@ -588,6 +592,7 @@
   function yoldasKoy(id, o) { if (!M || !M.on) return null; o = o || {}; M.yoldas = M.yoldas || {}; let a = M.yoldas[id];
     if (!a) { const n = Object.keys(M.yoldas).length, set = imgs['assets/battle_' + o.set + '.webp'] ? o.set : M.ben.set, x0 = clamp(M.ben.x + (n % 2 ? 1 : -1) * (1.9 + Math.floor(n / 2) * 1.7), 1.7, FW - 1.7);
       a = mkTopcu({ takim: o.takim === 1 ? 1 : 0, yid: id, kontrol: 'yoldas', yoldas: true, ad: String(o.ad || 'Yoldaş').slice(0, 16), set, x: x0, face: o.takim === 1 ? -M.ben.face : M.ben.face, col: EL[o.el] || EL.ates, revive: 0 }); a.y = yerY(a.x); M.yoldas[id] = a; M.act.push(a); }
+    else { if (o.ad) a.ad = String(o.ad).slice(0, 16); if (o.set && !a.gorKod && a.set !== o.set && imgs['assets/battle_' + o.set + '.webp']) a.set = o.set; }   /* yoldaşın yer bildirimi adından önce geldiyse ad ve set sonradan tamamlanır */
     if (o.gor) gorGiy(a, o.gor);
     if (typeof o.x === 'number') { a.moving = Math.abs(o.x - a.x) > 0.02; a.x = clamp(o.x, 1.7, FW - 1.7); a.y = typeof o.y === 'number' ? o.y : yerY(a.x); a.fall = false; a.vy = 0; }
     if (typeof o.aci === 'number') a.angle = clamp(o.aci, -10, 70); if (o.yon === 1 || o.yon === -1) a.face = o.yon;
@@ -602,6 +607,8 @@
       M.parts.push({ k: 'flash', x: mz[0], y: mz[1], vx: 0, vy: 0, life: 0.14, max: 0.14, s: pow ? 2.2 : 1.5, col: a.col }); ses('fire'); };
     a.isinAtti = false; salla(); for (let w = 1; w < dalga; w++) sonra(w * 0.18, salla);
     if (M.cfg.ortak && M.aktif === a && M.faz === 'nisan') { M.faz = 'ucus'; M.pt = 0; M.bekle = (dalga - 1) * 0.18 + 0.05; hud(true); } return true; }
+  /* yoldaşın güllesinin açtığı oyuk: atanın ekranındaki yer (ortak savaş). Yoldaşların düştüğü yer de buna göre düzelir. */
+  function yoldasOyuk(o) { if (!M || !M.on || M.over || !o) return; const x = +o.x, y = +o.y, r = clamp(+o.r || 0, 0.2, 6); if (!Number.isFinite(x) || !Number.isFinite(y)) return; carve(M.T, x, y, r, true); for (const a of M.act) if (!a.dead && !a.ucan && Math.abs(a.x - x) < r + 1) a.fall = true; }
   function stepHayalet(dt) { for (let i = M.hayalet.length - 1; i >= 0; i--) { const s = M.hayalet[i]; let hit = false;
       for (let k = 0; k < 4 && !hit; k++) { const h = dt / 4; s.vx += s.wind * RUZ * s.ruz * h; s.vy -= G * h; s.x += s.vx * h; s.y += s.vy * h; s.t += h;
         if (solid(M.T, s.x, s.y)) hit = true; else if (M.deniz != null && s.y < M.deniz) hit = true;
@@ -609,7 +616,7 @@
         if (s.x < -8 || s.x > FW + 8 || s.y < -6 || s.t > 12) { M.hayalet.splice(i, 1); hit = null; break; } }
       if (hit === null) continue; s.trail.push([s.x, s.y]); if (s.trail.length > 26) s.trail.shift();
       if (hit && s.teleport && s.by && !s.by.dead) { M.hayalet.splice(i, 1); const by = s.by; by.x = clamp(s.x, 1.7, FW - 1.7); by.y = Math.max(s.y, yerY(by.x)); yazi(by.x, by.y + 2.6, 'Kanat Uçuşu', { col: '#ffe08a' }); toz(by.x, by.y + 0.8, 16, [255, 224, 138]); ses('chime'); continue; }
-      if (hit) { M.hayalet.splice(i, 1); M.hitX = s.x; M.hitY = s.y; carve(M.T, s.x, s.y, s.r);
+      if (hit) { M.hayalet.splice(i, 1); M.hitX = s.x; M.hitY = s.y; if (!M.cfg.ortak) carve(M.T, s.x, s.y, s.r);
         if (s.lav) { const g = groundBelow(M.T, s.x, s.y + 1.5); if (g != null && s.y - g < 2.2) M.lav.push({ x: s.x, y: g, r: u(72), tur: 2, dmg: 0, gorsel: true }); } M.shake = Math.max(M.shake, 0.3); ses('boom', 0.35);
         M.parts.push({ k: 'flash', x: s.x, y: s.y, vx: 0, vy: 0, life: 0.2, max: 0.2, s: s.r * 1.6, col: s.col }, { k: 'ring', x: s.x, y: s.y, vx: 0, vy: 0, life: 0.45, max: 0.45, s: s.r, col: s.col }); } } }
   /* ortak savaşın sırası sunucudan gelir (server/zindan_ortak.js 'sira' olayı):
@@ -640,7 +647,7 @@
   /* takım savaşında oyuncunun kendi canı da sunucudan gelir */
   function benCan(hp, max, h, bas) { if (!M || !M.on || M.over) return; const a = M.ben; if (max > 0) a.max = max; const once = a.hp; a.hp = clamp(hp, 0, a.max); if (h > 0 && once > a.hp) { a.hurtT = 0.55; a.vy = 3; a.fall = true; yazi(a.x, a.y + 2.3, h, { crit: !!bas }); M.shake = Math.max(M.shake, 0.4); ses('hit'); } yay('can', { kim: 0, hp: a.hp, max: a.max }); hud(true); }
   function benDus() { if (!M || !M.on || M.over) return; const a = M.ben; if (a.dustuKesin) return; a.hp = 0; a.dead = true; a.dustuKesin = true; a.revive = 0; pankart('Düştün', 'Takımını izliyorsun', 'kayip'); if (M.aktif === a) siradaki(); hud(true); }
-  EO2.battle = { benCan, benDus, arenaCfg, ac, kapat, uzak, sonlandir, ipucu, ortakHasar, ortakCan, ortakSira, ortakPas, pas, yoldasKoy, yoldasAtes, dinle: fn => { dinleyen.push(fn); return () => { const i = dinleyen.indexOf(fn); if (i >= 0) dinleyen.splice(i, 1); }; }, MOB, BOSS, PROP, BECERI, api: API, active: () => !!(M && M.on), state: () => M,
+  EO2.battle = { benCan, benDus, arenaCfg, ac, kapat, uzak, sonlandir, ipucu, ortakHasar, ortakCan, ortakSira, ortakPas, pas, yoldasKoy, yoldasAtes, yoldasOyuk, dinle: fn => { dinleyen.push(fn); return () => { const i = dinleyen.indexOf(fn); if (i >= 0) dinleyen.splice(i, 1); }; }, MOB, BOSS, PROP, BECERI, api: API, active: () => !!(M && M.on), state: () => M,
     start() { if (EO2.topcu) EO2.topcu.baslat('talim'); }, stop() { kapat(); } };
   const wait = setInterval(() => { if (!EO2.api) return; clearInterval(wait); EO2.frameHooks.push(dt => { if (M && M.on && M.T) { if (!M.dur) update(dt); if (M && M.on) render(); } }); }, 80);
 })();

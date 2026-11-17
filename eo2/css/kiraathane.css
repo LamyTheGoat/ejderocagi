@@ -246,3 +246,9 @@
 .ui2 .ms-sonuc { display: grid; justify-items: center; gap: .1em; padding: .5em 2em; border-radius: 1.4em; background: rgba(6, 10, 32, .6); box-shadow: inset 0 0 0 1.5px rgba(255, 226, 150, .5); } .ui2 .ms-sonuc b { font: 800 1.7em var(--f-ui); color: #fff; } .ui2 .ms-sonuc.iyi b { color: #9ff0b0; } .ui2 .ms-sonuc.kotu b { color: #ffb49a; } .ui2 .ms-sonuc small { font: 600 .92em var(--f-ui); color: #e9ecfb; }
 @media (max-width: 760px), (max-aspect-ratio: 1/1) { .ui2 .ms-lobi { grid-template-columns: 1fr; } .ui2 .ms-bahis { grid-template-columns: 1fr; grid-template-rows: minmax(0, .8fr) minmax(0, 1.2fr); gap: .6em; } .ui2 .ms-el { grid-template-columns: 1fr; gap: .3em; justify-items: center; text-align: center; } }
 @media (max-height: 500px) { .ui2 .ms-oyun { gap: .4em; padding: .5em .8em; } .ui2 .ms-zarlar { min-height: 0; gap: .35em; } .ui2 .ms-zarlar .kr-zar { width: 2.6em; height: 2.6em; min-width: 0; min-height: 0; padding: .3em; } .ui2 .ms-el { padding: .3em .8em; } .ui2 .ms-kart p.soluk { display: none; } }
+
+/* oyuncu masası: oyun seçimi ve Kor 21 eli */
+.ui2 .ms-oyunlar { margin: 0 0 .6em; } .ui2 .ms-oyunlar .gbtn[aria-pressed="true"] { color: #1b2550; background: linear-gradient(180deg, #fff3cf, #e8b84e); text-shadow: none; }
+.ui2 .ms-21 .ms-zarlar.kr-kartlar { flex-wrap: nowrap; min-height: 6.6em; gap: .5em; } .ui2 .ms-21 .kr-sayi { margin-left: .9em; }
+@media (max-height: 500px) { .ui2 .ms-21 .ms-zarlar.kr-kartlar { min-height: 0; } .ui2 .ms-21 .kr-kart { width: 2.9em; height: 4em; } .ui2 .ms-21 .kr-sayi { font-size: 1.1em; } }
+@media (max-width: 760px), (max-aspect-ratio: 1/1) { .ui2 .ms-21 .kr-kart { width: 3.4em; height: 4.8em; } .ui2 .ms-21 .kr-kartlar .kr-kart + .kr-kart { margin-left: -1.7em; } }

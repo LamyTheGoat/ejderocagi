@@ -16,6 +16,9 @@
   if (!dokunmatik) return;
   const dik = () => innerHeight > innerWidth && innerWidth < 620;
   let kutu = null;
+  /* öneri yalnız giriş ekranında durur: oyun başlayınca kalkar (dik telefonda ekranların alt düğmelerinin üstüne biniyordu) */
+  const oyunda = () => !!(window.EO2 && EO2.game && EO2.game.live);
+  setInterval(() => { if (kutu && oyunda()) kapat(false); }, 600);
   const kapat = kalici => { if (kutu) { kutu.remove(); kutu = null; } if (kalici) sakla.yaz('eo2.yatayOneri', '1'); };
   async function yatay() {
     const kok = document.documentElement;
@@ -24,7 +27,7 @@
     kapat(true);
   }
   function goster() {
-    if (kutu || !dik() || sakla.al('eo2.yatayOneri')) return;
+    if (kutu || !dik() || sakla.al('eo2.yatayOneri') || oyunda()) return;
     kutu = document.createElement('div'); kutu.className = 'yatay-oneri'; kutu.setAttribute('role', 'status');
     kutu.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7.5" y="2.5" width="9" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 20.5h13a3 3 0 0 0 3-3V15m0 0-2 2m2-2 2 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
       '<span>Telefonu yatay tutarsan meydan daha geniş görünür.</span><button type="button" class="yo-evet">Yatay oyna</button><button type="button" class="yo-hayir" aria-label="Öneriyi kapat">Kapat</button>';

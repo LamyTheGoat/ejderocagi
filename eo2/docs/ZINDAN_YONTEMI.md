@@ -146,3 +146,17 @@ Kendi çizimi henüz gelmemiş aşamalar için: klasörde yalnız `arena.json` d
 - Çizimi gelince: `"eski"` silinir, klasöre blok harita ve katmanlar konur, `arena.json` öteki arenalar gibi doldurulur. Tarifte (`zindan_tarif.js`) değişiklik gerekmez.
 - Denetim: `check_zindan_eski.mjs` iki zindanı tek kişilik seferle baştan sona oynatır (sekiz aşama). **Grupla (iki tarayıcı) denenmedi**: kırılan zeminin ve deniz olaylarının bütün ekranlarda aynı kaldığı ölçülmedi.
 - Kaldera köprüsündeki uçan wyvern eski kuralla yerinde durur. Uçan engerek hiçbir yerde yoktur: sunucuya ulaşılamadığında açılan eski Sırça Saray'daki uçan engerek de yer yılanına çevrildi.
+
+### Zemin her ekranda aynı kalır (2026-11-17 gece)
+
+Ortak savaşta (yoldaş varken) zemini yalnız **adımın sahibi** oyar ve oyuğun yerini yayınlar (`oyuk` olayı: x, y, yarıçap; yüzde bire yuvarlanmış). Öteki ekranlar aynı yerden oyar (`B.yoldasOyuk`). Adımın sahibi: sırası gelen oyuncu; düşman sırasında düşmanın hedefi. Yoldaşın ekranda uçan güllesi yalnız görüntüdür, zemini oymaz. Sunucu olayı yalnız aktarır (`server/zindan_ortak.js`, `server/takim_ortak.js`).
+
+| Parça | Nerede | Denetim |
+|---|---|---|
+| Kaldera ve Donanma grupla (zemin, düşman, can iki ekranda aynı) | `eo2/js/battle.js` (`carve`, `yoldasOyuk`) | `check_zindan_eski_grup.mjs` |
+| Portrelerde saç ve göz (oyuncu, rakip, parti, künye) | `eo2/js/game.js` (`drawPortrait`, `portreTazele`) | `check_portre.mjs` |
+| Oyuncu masasında ikinci oyun: Kor 21 | `server/kiraathane_pvp.js`, `eo2/js/masa.js` | `check_masa_kor21.mjs`, `tests/kiraathane_pvp.test.js` |
+
+Portre kuralı: `drawPortrait(tuval, set, oran, kim)`. `kim` doğruysa oyuncunun kendi görünüşü; metinse öteki oyuncunun adresi ya da görünüş kodu; boşsa setin özgün yüzü (NPC). NPC portresi oyuncunun saçını almaz.
+
+Zindan adı tek yerden gelir: haritadaki künye ortak seferin adını taşır (`zindan_tarif.js`). Eski veri "Sırça Saray" diyordu; oyunda artık her yerde "Zümrüt Saray".

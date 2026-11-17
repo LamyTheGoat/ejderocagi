@@ -93,6 +93,7 @@ function createZindanOrtak(secenek) {
         const o = { t: e.t, kim: kim.id, x: sinir(e.x, 0, 64), y: sinir(e.y, -10, 40), aci: sinir(e.aci, -10, 70), yon: e.yon === -1 ? -1 : 1 };
         if (e.t === 'ates') { o.guc = sinir(e.guc, 0, 1); o.ruz = sinir(e.ruz, -6, 6); o.mod = {}; for (const k of MODLAR) if (e.mod && e.mod[k]) o.mod[k] = true; o.el = ELLER.includes(e.el) ? e.el : ''; }   // el: topun elementi (yoldaşların ekranında lav havuzu gibi izler için; yalnız görüntü)
         olaylar.push(o); return { olaylar }; }
+      else if (e.t === 'oyuk') { if (d.faz !== 'savas') return { olaylar }; olaylar.push({ t: 'oyuk', kim: kim.id, x: sinir(e.x, -4, 68), y: sinir(e.y, -10, 40), r: sinir(e.r, 0.2, 6) }); return { olaylar }; }   // güllenin açtığı oyuk: atanın ekranındaki yer (zemin her ekranda aynı kalsın; yalnız görüntü)
       else if (e.t === 'tur_bitti') { const s = d.sav; if (d.faz !== 'savas' || !s || e.adim !== s.adim) return { olaylar };   // eski adımın bildirimi sessizce düşer
         s.bitti[kim.id] = true; const sahip = s.tip === 'oyuncu' ? s.kim === kim.id : s.tip === 'dusman' ? s.hedef === kim.id : true;
         if (sahip) { s.tb = s.tb || now(); if (Array.isArray(e.ex)) s.ex = e.ex.slice(0, d.dusman.length).map(x => sinir(x, 0, 64)); }

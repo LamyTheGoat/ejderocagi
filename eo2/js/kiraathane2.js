@@ -306,7 +306,7 @@
     on('[data-tv-sel]', b => { ACT['kir-tv-sel']({ dataset: { p: b.dataset.tvSel } }); });
     on('[data-tv-to]', b => { ACT['kir-tv-to']({ dataset: { p: b.dataset.tvTo } }); });
     const c = body.querySelector('[data-atla]'); if (c) c.addEventListener('click', () => { c.classList.add('hizli'); atla(); });
-    const cv = body.querySelector('#krYuz'); if (cv) { try { EO2.api.drawPortrait(cv, EO2.api.player.set); } catch (e) { cv.hidden = true; } }
+    const cv = body.querySelector('#krYuz'); if (cv) { try { EO2.api.drawPortrait(cv, EO2.api.player.set, 0, true); } catch (e) { cv.hidden = true; } }
     const serit = body.querySelector('#krSerit'); if (serit) { serit.scrollLeft = seritX; serit.addEventListener('scroll', () => { seritX = serit.scrollLeft; }, { passive: true }); surukleBagla(serit, body); } }
   /* sürükle bırak: heybeden bir şeyi tutup tepsiye taşı (dokunuşla koymak da aynı işi görür) */
   let seritX = 0, surukledi = false;

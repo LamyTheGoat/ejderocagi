@@ -42,8 +42,8 @@ test('parti: kopan üye çevrimdışı görünür, süresi dolunca çıkarılır
 test('profil: künye süzülür, saklanır, sorana verilir', () => {
   const { o, baglan, son } = kur(), R = createProfil(o), a = baglan('a'), b = baglan('b');
   R.onMessage(b, { type: 'profil_iste', h: '@a' }); assert.deepEqual(son(b, 'profil_kart'), { type: 'profil_kart', h: '@a', p: null, cevrimici: true });
-  R.onMessage(a, { type: 'profil', p: { ad: 'Aylin', set: 'avci', hafta: 7, un: 31.9, ejder: 3, yildiz: { name: 'Kor', el: 'ates', stage: 'genc', sex: 'F', gizli: 1 }, st: { wins: 5, kupa: -2, hile: 9 }, fazla: 'x' } });
+  R.onMessage(a, { type: 'profil', p: { ad: 'Aylin', set: 'avci', gor: 'ikiz.blue.iri.green', hafta: 7, un: 31.9, ejder: 3, yildiz: { name: 'Kor', el: 'ates', stage: 'genc', sex: 'F', gizli: 1 }, st: { wins: 5, kupa: -2, hile: 9 }, fazla: 'x' } });
   R.onMessage(b, { type: 'profil_iste', h: '@a' }); const p = son(b, 'profil_kart').p;
-  assert.deepEqual(p, { ad: 'Aylin', set: 'avci', hafta: 7, un: 31, ejder: 3, yildiz: { name: 'Kor', el: 'ates', stage: 'genc', sex: 'F' }, st: { wins: 5, losses: 0, kupa: 0, bred: 0, hatch: 0, seferler: 0, raceWins: 0 } });
+  assert.deepEqual(p, { ad: 'Aylin', set: 'avci', gor: 'ikiz.blue.iri.green', hafta: 7, un: 31, ejder: 3, yildiz: { name: 'Kor', el: 'ates', stage: 'genc', sex: 'F' }, st: { wins: 5, losses: 0, kupa: 0, bred: 0, hatch: 0, seferler: 0, raceWins: 0 } });
   assert.equal(temizProfil(null), null); assert.equal(temizProfil({ ad: 'orospu' }).ad, 'Gezgin'); assert.equal(temizProfil({ yildiz: { el: 'x' } }).yildiz, null);
 });

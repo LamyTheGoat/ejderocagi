@@ -45,6 +45,8 @@
         for (let i = 0; i < n; i++) { const cx = (i % K.cols) * K.cw, cy = Math.floor(i / K.cols) * K.ch, m = D[i]; x.save(); x.beginPath(); x.rect(cx, cy, K.cw, K.ch); x.clip(); x.setTransform(m[0], m[1], m[2], m[3], m[4] + cx, m[5] + cy); x.drawImage(im, H[i] * K.cw, 0, K.cw, K.ch, 0, 0, K.cw, K.ch); x.restore(); } });
       BT.sets[ad] = { cw: K.cw, ch: K.ch, cols: K.cols, rows: K.rows, ax: K.ax, ay: K.ay, tall: K.tall, frames: K.frames, muzzle: SG.set[set].muzzle || BT.sets[set].muzzle }; return { ad, cv }; });
     savasKurulan.set(ad, soz); soz.catch(() => savasKurulan.delete(ad)); return soz; }
+  /* portre için: görünüş koduyla kurulacak setin adı ve kurucusu */
+  const adOf = (set, s) => { const g = coz(s); return g && !ozgunMu(g) ? 'g_' + set + '_' + kod(g).replace(/\./g, '_') : ''; }, kurKod = (set, s) => { const g = coz(s); return g ? kur(set, g) : Promise.resolve(null); };
   /* meydanda görünen bir oyuncunun görünüş kodu (yoldaş ve rakip savaşta böyle giydirilir) */
   const kodOf = h => { const c = EO2.meydanAg && h ? [...EO2.meydanAg.kisiler.values()].find(x => x.handle === h) : null; return c && c.gorKod ? c.gorKod.split('|')[1] || '' : ''; };
 
@@ -70,5 +72,5 @@
     body.querySelectorAll('[data-alan]').forEach(b => b.addEventListener('click', () => { if (EO2.audio && EO2.audio.ui) EO2.audio.ui(); sec(b.dataset.alan, b.dataset.v); G.redraw(); }));
     const oz = body.querySelector('[data-gr-ozgun]'); if (oz) oz.addEventListener('click', () => { S.gorunus = Object.assign({}, OZGUN); if (typeof saveGame === 'function') saveGame(); uygula(); G.redraw(); });
   } });
-  EO2.gorunum = { kur, savas, kodOf, uzak, sec, kod: () => kod(benim()), benim, secenekler: () => GA.ad };
+  EO2.gorunum = { kur, savas, kodOf, adOf, kurKod, uzak, sec, kod: () => kod(benim()), benim, secenekler: () => GA.ad };
 })();

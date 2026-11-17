@@ -48,7 +48,7 @@
       '<button type="button" class="gbtn altin buyuk" data-or="basla" ' + (yeter(s) ? '' : 'disabled') + '>Dövmeye başla<small>' + s.adet + ' ' + TAS_AD[s.tas] + ' · ' + s.altin + ' altın' + (yeter(s) ? '' : ' · yetmiyor') + '</small></button>';
     const sn = U.son && SONUC[U.son.olay];
     return '<div class="or-kok faz-' + U.faz + (d.catlak ? ' catlak' : '') + (s ? ' b-' + s.bolge : ' zirve') + '">' +
-      '<div class="or-sol"><div class="or-top k' + (d.kademe >= 12 ? 3 : d.kademe >= 7 ? 2 : d.kademe >= 4 ? 1 : 0) + '" id="orTop"><img alt="" src="assets/ik/mdl-ors.webp"><b>+' + d.kademe + '</b>' + (d.catlak ? '<em>ÇATLAK</em>' : '') + '</div>' +
+      '<div class="or-sol"><div class="or-top k' + (d.kademe >= 12 ? 3 : d.kademe >= 7 ? 2 : d.kademe >= 4 ? 1 : 0) + '" id="orTop"><img alt="" src="assets/ik/ejder-topu.webp"><b>+' + d.kademe + '</b>' + (d.catlak ? '<em>ÇATLAK</em>' : '') + '</div>' +
         '<h2>' + esc_(K.AD(d.kademe)) + '</h2><p class="or-etki">' + (d.catlak ? 'Çatlak: artış işlemiyor' : d.kademe ? 'Topçu hasarı ve canı <b>+%' + yuzde(d.kademe) + '</b>' : 'Henüz dövülmedi') + '</p>' +
         '<div class="or-taslar">' + taslar + '</div><p class="or-kaynak">Kor taşları ve Anka Mührü zindan ganimetinden çıkar.</p></div>' +
       '<div class="or-sag">' + (s && !d.catlak ? '<div class="or-hedef"><small>Sıradaki kademe</small><b>+' + d.kademe + ' <i>➔</i> +' + (d.kademe + 1) + '</b><span>Hasar ve can +%' + yuzde(d.kademe + 1) + '</span></div>' +

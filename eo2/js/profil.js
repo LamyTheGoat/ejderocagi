@@ -10,7 +10,7 @@
   const cins = s => s === 'F' ? '♀' : '♂', EVRE = { yavru: 'Yavru', genc: 'Genç', yetiskin: 'Yetişkin' }, elAd = e => (typeof EL_AD !== 'undefined' && EL_AD[e]) || e;
   let son = '', acik = false; const bekleyen = new Map();
   function benim() { if (typeof S === 'undefined' || !S || !S.dragons) return null; const canli = S.dragons.filter(d => !d.dead), y = (typeof byId === 'function' && S.star != null && byId(S.star)) || canli[0] || null, st = S.st || {};
-    return { ad: G.ad ? G.ad() : 'Gezgin', set: (EO2.api && EO2.api.player && EO2.api.player.set) || 'temel', hafta: S.week || 1, un: Math.floor(S.un || 0), ejder: canli.length,
+    return { ad: G.ad ? G.ad() : 'Gezgin', set: (EO2.api && EO2.api.player && EO2.api.player.set) || 'temel', gor: EO2.gorunum ? EO2.gorunum.kod() : '', hafta: S.week || 1, un: Math.floor(S.un || 0), ejder: canli.length,
       yildiz: y && !y.dead ? { name: y.name, el: y.el, stage: y.stage, sex: y.sex } : null, st: { wins: st.wins || 0, losses: st.losses || 0, kupa: st.kupa || 0, bred: st.bred || 0, hatch: st.hatch || 0, seferler: st.seferler || 0, raceWins: st.raceWins || 0 } }; }
   function bildir() { if (!G.live || !AG.cevrimici()) return; const p = benim(); if (!p) return; const j = JSON.stringify(p); if (j === son) return; if (AG.gonder({ type: 'profil', p })) son = j; }
   setInterval(bildir, 5000); AG.dinle('durum', d => { if (d === 'cevrimici') { son = ''; setTimeout(bildir, 800); } });
@@ -27,7 +27,7 @@
     if (!p) { G.toast(esc_(ad || 'Bu terbiyeci') + ' için künye bulunamadı; çevrimiçi olunca görünür.'); return; }
     const dost = !kendim && EO2.dostlar && EO2.dostlar.dostMu(h), parti = !kendim && EO2.parti && durum === 'Çevrimiçi' && !EO2.parti.uyeMi(h);
     acik = true; const v = await G.pen({ k: kendim ? 'Künyen' : 'Künye', t: esc_(p.ad), body: govde(p, durum),
-      on(el) { el.classList.add('pf-pen'); const cv = el.querySelector('.pf-yuz'); try { EO2.api.drawPortrait(cv, p.set, 0.66); } catch (_) { cv.hidden = true; } },
+      on(el) { el.classList.add('pf-pen'); const cv = el.querySelector('.pf-yuz'); try { EO2.api.drawPortrait(cv, p.set, 0.66, kendim ? true : (p.gor || h)); } catch (_) { cv.hidden = true; } },
       btns: [{ t: 'Kapat', v: false }, ...(!kendim && EO2.dostlar && !dost ? [{ t: 'Dost ekle', v: 'dost' }] : []), ...(parti ? [{ t: 'Partiye çağır', cls: 'altin', v: 'parti' }] : [])] }); acik = false;
     if (v === 'dost') EO2.dostlar.ekle(h, p.ad); else if (v === 'parti') EO2.parti.davet(h, p.ad); }
   EO2.profil = { ac, benim, bildir };

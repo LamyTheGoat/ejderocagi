@@ -17,6 +17,13 @@
 //              { t: 'at', tut: [5 × bool] }            zar at; tutulan zarlar kalır (ilk atışta hepsi atılır). En çok üç atış.
 //              { t: 'ac' }                             elini aç (en az bir atıştan sonra)
 // Hamle süresi: oyuncu 45 saniye hamle yapmazsa sunucu onun adına elini açar (hiç atmadıysa bir kez atar).
+//
+// İKİNCİ OYUN: Kor 21 (masa anahtarı 'kor21'; kart değeri js/kiraathane.js bjVal ile AYNI: as 1 ya da 11, resimli kart 10).
+// Bahis, kilit, ödeme ve süre kuralları Ejder Pokeri ile aynıdır. Oyun başlayınca sunucu iki oyuncuya ikişer kart dağıtır (tek 52'lik deste).
+// Oyuncular aynı anda oynar: kart çeker ya da durur. 21'i geçen yanar. İkisi de durunca (ya da yanınca) 21'e en yakın el kazanır;
+// eller eşitse ya da ikisi de yandıysa berabere. Oyuncuya karşı masada çiftleme yoktur (ortadaki bahis emanetteki kadardır).
+// ORTAK DURUM  { oyun: 'kor21', ..., oyuncu: { <hesap>: { el: [{ r, s }], acik, son } }, son: { kazanan, eller: { <hesap>: { deger, yandi } } } | null }
+// EYLEMLER     { t: 'cek' }  kart çek (21 olunca ya da yanınca el kendiliğinden kapanır)   ·   { t: 'dur' }  dur
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -32,11 +39,15 @@ function elKurallari() {
   const a = kaynak.indexOf('const PK_NAMES'), b = kaynak.indexOf('function pkAiHold');
   if (a < 0 || b < a) throw new Error('kiraathane_kurallari_bulunamadi');
   const kutu = {}; vm.runInNewContext(kaynak.slice(a, b).replace('function pkNew()', 'function pkNew_()') + '\nthis.pkEval = pkEval; this.pkCompare = pkCompare;', kutu);
-  return { pkEval: kutu.pkEval, pkCompare: kutu.pkCompare };
+  const c = kaynak.indexOf('function bjVal'), d = kaynak.indexOf('function bjFinish');
+  if (c < 0 || d < c) throw new Error('kiraathane_kurallari_bulunamadi');
+  const kutu2 = {}; vm.runInNewContext(kaynak.slice(c, d) + '\nthis.bjVal = bjVal;', kutu2);
+  return { pkEval: kutu.pkEval, pkCompare: kutu.pkCompare, bjVal: kutu2.bjVal };
 }
+const DESTE = []; for (const s of ['♠', '♥', '♦', '♣']) for (const r of ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']) DESTE.push({ r, s });
 
-function createKiraathanePvp({ store, send, sockets, kimlik, kilitli = new Set(), now = () => Date.now(), zar = () => nodeCrypto.randomInt(1, 7), crypto = nodeCrypto }) {
-  const { pkEval, pkCompare } = elKurallari();
+function createKiraathanePvp({ store, send, sockets, kimlik, kilitli = new Set(), now = () => Date.now(), zar = () => nodeCrypto.randomInt(1, 7), kartSec = n => nodeCrypto.randomInt(0, n), crypto = nodeCrypto }) {
+  const { pkEval, pkCompare, bjVal } = elKurallari();
   const soketler = id => [...sockets()].filter(s => !s.destroyed && kimlik(s) && kimlik(s).accountId === id);
   const durt = (id, m) => { for (const s of soketler(id)) send(s, m); };
   const komut = (kim, type, ek) => store.executeTrade(kim, Object.assign({ type, requestId: crypto.randomUUID() }, ek));
@@ -62,7 +73,15 @@ function createKiraathanePvp({ store, send, sockets, kimlik, kilitli = new Set()
       return { bahis: true, odendi: false, neden: 'odeme_hatasi' };
     } finally { kilitli.delete(takas.id); for (const u of uyeler) durt(u, { type: 'trade_state', masa: true }); }
   }
-  function sonucla(d, oda) {
+  /* Kor 21: destede kalan kartlardan biri (masadaki eller desteden düşülür) */
+  function kartCek(d, id) { const elde = new Set(); for (const o of Object.values(d.oyuncu)) for (const k of o.el) elde.add(k.r + k.s); const kalan = DESTE.filter(k => !elde.has(k.r + k.s)), k = kalan[Math.max(0, Math.min(kalan.length - 1, kartSec(kalan.length) | 0))];
+    const o = d.oyuncu[id]; o.el.push({ r: k.r, s: k.s }); o.son = now(); if (bjVal(o.el) >= 21) o.acik = true; }
+  function sonucla21(d, oda) {
+    const [a, b] = oda.uyeler.map(u => u.id), va = bjVal(d.oyuncu[a].el), vb = bjVal(d.oyuncu[b].el), pa = va > 21 ? 0 : va, pb = vb > 21 ? 0 : vb;
+    d.faz = 'bitti'; d.son = { kazanan: pa > pb ? a : pb > pa ? b : null, eller: { [a]: { deger: va, yandi: va > 21 }, [b]: { deger: vb, yandi: vb > 21 } } };
+    return { olaylar: [{ t: 'sonuc', kazanan: d.son.kazanan }], bitti: { kazanan: true, kazananId: d.son.kazanan } };
+  }
+  function sonucla(d, oda) { if (d.oyun === 'kor21') return sonucla21(d, oda);
     const [a, b] = oda.uyeler.map(u => u.id), ea = pkEval(d.oyuncu[a].zar), eb = pkEval(d.oyuncu[b].zar), k = pkCompare(ea, eb);
     d.faz = 'bitti'; d.son = { kazanan: k > 0 ? a : k < 0 ? b : null, eller: { [a]: { rank: ea.rank, key: ea.key }, [b]: { rank: eb.rank, key: eb.key } } };
     return { olaylar: [{ t: 'sonuc', kazanan: d.son.kazanan }], bitti: { kazanan: true, kazananId: d.son.kazanan } };
@@ -71,8 +90,9 @@ function createKiraathanePvp({ store, send, sockets, kimlik, kilitli = new Set()
   function at(d, id, tut) { const o = d.oyuncu[id]; o.zar = o.zar.map((v, i) => (o.atis > 0 && tut && tut[i] === true && v ? v : zar())); o.atis++; o.son = now(); if (o.atis >= 3) o.acik = true; }
 
   const tanim = {
-    enAz: 2, enCok: 2, anahtarGecerli: k => k === 'poker',
-    baslat(oda) { return { faz: 'bahis', kilit: {}, takas: null, oyuncu: Object.fromEntries(oda.uyeler.map(u => [u.id, { zar: [0, 0, 0, 0, 0], atis: 0, acik: false, son: now() }])), son: null }; },
+    enAz: 2, enCok: 2, anahtarGecerli: k => k === 'poker' || k === 'kor21',
+    baslat(oda) { if (oda.anahtar === 'kor21') return { oyun: 'kor21', faz: 'bahis', kilit: {}, takas: null, oyuncu: Object.fromEntries(oda.uyeler.map(u => [u.id, { el: [], acik: false, son: now() }])), son: null };
+      return { oyun: 'poker', faz: 'bahis', kilit: {}, takas: null, oyuncu: Object.fromEntries(oda.uyeler.map(u => [u.id, { zar: [0, 0, 0, 0, 0], atis: 0, acik: false, son: now() }])), son: null }; },
     async eylem(d, uye, e, oda) {
       if (!e || typeof e !== 'object') throw hata('eylem_gecersiz');
       const ids = oda.uyeler.map(u => u.id), ben = uye.id, o = d.oyuncu[ben];
@@ -90,10 +110,14 @@ function createKiraathanePvp({ store, send, sockets, kimlik, kilitli = new Set()
           kilitli.add(id); d.takas = { id, bitis: t.expiresAt };
         }
         d.faz = 'oyun'; for (const x of ids) d.oyuncu[x].son = now();
+        if (d.oyun === 'kor21') { for (let i = 0; i < 2; i++) for (const x of ids) kartCek(d, x);   // ikişer kart; iki el de 21 ile açıldıysa oyun hemen biter
+          if (herkesAcik(d, oda)) { const r = sonucla(d, oda); r.olaylar.unshift({ t: 'basladi', bahisli: !!id }); return r; } }
         return { olaylar: [{ t: 'basladi', bahisli: !!id }] };
       }
       if (d.faz !== 'oyun') throw hata('faz_uygun_degil');
       if (o.acik) throw hata('elin_acik');
+      if (d.oyun === 'kor21') { if (e.t === 'cek') kartCek(d, ben); else if (e.t === 'dur') { o.acik = true; o.son = now(); } else throw hata('eylem_gecersiz');
+        return herkesAcik(d, oda) ? sonucla(d, oda) : { olaylar: [{ t: e.t === 'cek' ? 'cekti' : 'durdu', kim: ben }] }; }
       if (e.t === 'at') { if (e.tut != null && (!Array.isArray(e.tut) || e.tut.length !== 5)) throw hata('eylem_gecersiz'); at(d, ben, e.tut); }
       else if (e.t === 'ac') { if (o.atis < 1) throw hata('once_zar_at'); o.acik = true; o.son = now(); }
       else throw hata('eylem_gecersiz');
@@ -101,7 +125,7 @@ function createKiraathanePvp({ store, send, sockets, kimlik, kilitli = new Set()
     },
     /* hamle süresi: oyalanan oyuncu adına karar (bahsi düşürmek için beklemek işe yaramaz) */
     tik(d, oda) { if (d.faz !== 'oyun') return null; let oldu = false;
-      for (const u of oda.uyeler) { const o = d.oyuncu[u.id]; if (!o.acik && now() - o.son >= HAMLE_MS) { if (o.atis < 1) at(d, u.id, null); o.acik = true; oldu = true; } }
+      for (const u of oda.uyeler) { const o = d.oyuncu[u.id]; if (!o.acik && now() - o.son >= HAMLE_MS) { if (d.oyun !== 'kor21' && o.atis < 1) at(d, u.id, null); o.acik = true; oldu = true; } }
       if (!oldu) return null; return herkesAcik(d, oda) ? sonucla(d, oda) : { olaylar: [{ t: 'sure' }] }; },
     bitir(oda, sonuc, d) {
       if (!d) return; const ids = Object.keys(d.oyuncu);

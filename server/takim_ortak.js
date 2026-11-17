@@ -42,6 +42,7 @@ function createTakimOrtak(secenek) {
         const o = { t: e.t, kim: kim.id, x: sinir(e.x, 0, 64), y: sinir(e.y, -10, 40), aci: sinir(e.aci, -10, 70), yon: e.yon === -1 ? -1 : 1 };
         if (e.t === 'ates') { o.guc = sinir(e.guc, 0, 1); o.ruz = sinir(e.ruz, -6, 6); o.mod = {}; for (const k of MODLAR) if (e.mod && e.mod[k]) o.mod[k] = true; o.el = ELLER.includes(e.el) ? e.el : ''; }
         olaylar.push(o); return { olaylar }; }
+      if (e.t === 'oyuk') { if (!u.hayatta) return { olaylar }; olaylar.push({ t: 'oyuk', kim: kim.id, x: sinir(e.x, -4, 68), y: sinir(e.y, -10, 40), r: sinir(e.r, 0.2, 6) }); return { olaylar }; }   // güllenin açtığı oyuk (zemin iki takımın ekranında aynı kalsın)
       if (e.t === 'isabet') { const q = d.uye[e.kime], h = Math.floor(+e.h); if (!q || !(h > 0)) throw hata('eylem_gecersiz');
         if (!u.hayatta || q.takim === u.takim || !q.hayatta || d.sav.kim !== kim.id) return { olaylar };   // yalnız sırası gelen, yalnız karşı takıma
         if (!q.max) { q.max = VARSAYILAN_CAN; q.hp = q.max; } const v = Math.min(h, HASAR_UST, q.hp); q.hp -= v;

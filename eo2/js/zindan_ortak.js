@@ -17,6 +17,8 @@
   const EO2 = window.EO2, G = EO2 && EO2.game, AG = EO2 && EO2.ag, OR = EO2 && EO2.ortak, B = EO2 && EO2.battle, T = EO2 && EO2.topcu, V = EO2 && EO2.topcuVeri, app = document.getElementById('app');
   if (!G || !AG || !OR || !B || !T || !V || !V.ZINDAN.sahmeran) return;
   const TARIF = window.EO2_ZINDAN || {};
+  /* zindanın adı her yerde aynıdır: haritadaki künye, ortak seferin adını taşır (eski veri "Sırça Saray" diyordu, sefer "Zümrüt Saray") */
+  for (const k in TARIF) { const z = EO2.topcuVeri && EO2.topcuVeri.ZINDAN && EO2.topcuVeri.ZINDAN[TARIF[k].odul]; if (z && TARIF[k].ad) z.ad = TARIF[k].ad; }
   const Z = { zindan: Object.keys(TARIF)[0], zorluk: 'normal', hata: '', savas: false, savasBitti: false, sonAsama: null, islenen: -1, seyir: false, davetAcik: false, cagri: null, canT: 0 };
   const esc_ = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const HATA = { tur_bilinmiyor: 'Sefer şu an açık değil.', zaten_odada: 'Zaten bir seferde ya da masadasın.', oda_yok: 'Bu kodla bir sefer yok.', oda_mesgul: 'O sefer yola çıkmış.', oda_dolu: 'Sefer dolu (en çok dört kişi).', yalniz_kurucu: 'Seferi kuran başlatır.', hazir_degil: 'Herkes hazır değil.', cevrimdisi: 'O terbiyeci çevrimiçi değil.', baglanti_yok: 'Sunucuya ulaşılamıyor.', faz_uygun_degil: 'Şu an yapılamaz.' };
@@ -54,6 +56,7 @@
     else if (olay === 'dustum') { OR.eylem({ t: 'dustu' }); G.toast('Düştün. Savaş sürüyor: yoldaşlarını izliyorsun, aşama bitince payını alırsın.'); }
     else if (olay === 'adim_bitti') { const s = od().sav; if (s && v.adim < s.adim) siraUygula(s); else OR.eylem({ t: 'tur_bitti', adim: v.adim, ex: v.ex, x: v.x, y: v.y }); }   // bu ekran geride kaldıysa sunucudaki adıma atlar
     else if (olay === 'ates' && v.kim === 0) { const M = B.state(); OR.eylem({ t: 'ates', x: v.x, y: v.y, aci: v.aci, guc: v.guc, yon: v.yon, ruz: M ? M.wind : 0, mod: v.mod || {}, el: M && (M.ben.el === 'ates' || M.ben.el2 === 'ates') ? 'ates' : v.el }); }
+    else if (olay === 'oyuk') OR.eylem({ t: 'oyuk', x: v.x, y: v.y, r: v.r });
     else if (olay === 'konum') { const t = Date.now(); if (t - (Z.konumT || 0) > 240) { Z.konumT = t; OR.eylem({ t: 'konum', x: v.x, y: v.y, aci: v.aci, yon: v.yon }); } }
     else if (olay === 'can' && v.kim === 0) { const t = Date.now(); if (t - Z.canT > 350 || v.hp <= 0) { Z.canT = t; OR.eylem({ t: 'can', hp: Math.round(v.hp), max: Math.round(v.max) }); } } });
   const kimden = id => (id === ben() ? 'ben' : id);
@@ -136,6 +139,7 @@
       else if (o.t === 'hasar' && o.kim !== ben() && Z.savas) B.ortakHasar(o.i + 1, o.h, uyeAd(o.kim));
       else if (o.t === 'konum' && o.kim !== ben() && Z.savas) B.yoldasKoy(o.kim, o);
       else if (o.t === 'ates' && o.kim !== ben() && Z.savas) B.yoldasAtes(o.kim, o);
+      else if (o.t === 'oyuk' && o.kim !== ben() && Z.savas) B.yoldasOyuk(o);
       else if (o.t === 'can' && o.kim !== ben() && Z.savas) B.yoldasKoy(o.kim, { hp: o.hp, max: o.max });
       else if (o.t === 'sira' && Z.savas) siraUygula(o);
       else if (o.t === 'tur_bitti' && o.kim !== ben() && Z.savas) { B.yoldasKoy(o.kim, { x: o.x, y: o.y }); if (od().sav && od().sav.kim === o.kim && od().sav.adim === o.adim) B.ortakPas(o.kim); }
@@ -181,10 +185,11 @@
     if (!AG.cevrimici()) { body.innerHTML = '<div class="ar-kilit bos"><p>Ortak sefer çevrimiçi oynanır. Sunucuya ulaşılınca açılır.</p></div>'; return; }
     const o = benim() ? oda() : null;
     body.innerHTML = '<div class="zn-kok">' + (o && o.durum === 'bekliyor' ? toplanma(o) : o ? '<div class="ar-kilit bos"><p>Sefer sürüyor. Kampa dönmek için ekranı kapat.</p></div>' : lobi()) + (Z.hata ? '<p class="ms-hata" role="alert">' + esc_(Z.hata) + '</p>' : '') + '</div>';
-    if (o) body.querySelectorAll('[data-yuz]').forEach(cv => { const u = o.uyeler[+cv.dataset.yuz]; if (!cv.dataset.yuz || !u) return; const c = EO2.meydanAg && [...EO2.meydanAg.kisiler.values()].find(x => x.handle === u.h); try { EO2.api.drawPortrait(cv, u.id === ben() ? EO2.api.player.set : (c && c.set) || 'temel', 0.66); } catch (_) { } });
+    if (o) body.querySelectorAll('[data-yuz]').forEach(cv => { const u = o.uyeler[+cv.dataset.yuz]; if (!cv.dataset.yuz || !u) return; const c = EO2.meydanAg && [...EO2.meydanAg.kisiler.values()].find(x => x.handle === u.h); try { EO2.api.drawPortrait(cv, u.id === ben() ? EO2.api.player.set : (c && c.set) || 'temel', 0.66, u.id === ben() ? true : u.h); } catch (_) { } });
     body.querySelectorAll('[data-zin]').forEach(b => b.addEventListener('click', () => { Z.zindan = b.dataset.zin; ses('ui'); G.redraw(); }));
     body.querySelectorAll('[data-zor]').forEach(b => b.addEventListener('click', () => { Z.zorluk = b.dataset.zor; ses('ui'); G.redraw(); }));
-    const fk = body.querySelector('[data-zn-form]'); if (fk) { const gir = fk.elements.kod; for (const ad of ['keydown', 'keyup', 'keypress']) gir.addEventListener(ad, e => e.stopPropagation()); fk.addEventListener('submit', e => { e.preventDefault(); const kod = (gir.value || '').trim(); Z.hata = kod ? '' : 'Sefer kodunu yaz.'; if (kod) OR.katil(kod); G.redraw(); }); }
+    const fk = body.querySelector('[data-zn-form]'); if (fk) { const gir = fk.elements.kod, KY = Z.kodYazi || (Z.kodYazi = { v: '', odak: false }); gir.value = KY.v; gir.addEventListener('input', () => { KY.v = gir.value; }); gir.addEventListener('focus', () => { KY.odak = true; }); gir.addEventListener('blur', () => { if (gir.isConnected) KY.odak = false; }); if (KY.odak) { gir.focus(); try { gir.setSelectionRange(gir.value.length, gir.value.length); } catch (_) { } }   /* ekran yenilenince yazılan kod ve imleç korunur */
+      for (const ad of ['keydown', 'keyup', 'keypress']) gir.addEventListener(ad, e => e.stopPropagation()); fk.addEventListener('submit', e => { e.preventDefault(); const kod = (gir.value || '').trim(); Z.hata = kod ? '' : 'Sefer kodunu yaz.'; if (kod) OR.katil(kod); G.redraw(); }); }
     body.querySelectorAll('[data-zn]').forEach(b => b.addEventListener('click', () => { ses('ui'); const k = b.dataset.zn; Z.hata = '';
       if (k === 'kur') OR.kur('zindan', Z.zindan + '-' + Z.zorluk, { ozel: true }); else if (k === 'kuyruk') OR.kuyruk('zindan', Z.zindan + '-' + Z.zorluk); else if (k === 'kuyruk-cik') OR.kuyrukCik();
       else if (k === 'parti') { const p = EO2.parti.durum().parti, benH = (AG.kimlik() || {}).handle; Z.cagri = p.uyeler.filter(u => u.h !== benH && u.cevrimici).map(u => u.h); OR.kur('zindan', Z.zindan + '-' + Z.zorluk, { ozel: true }); }

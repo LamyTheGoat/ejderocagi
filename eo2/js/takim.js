@@ -38,6 +38,7 @@
   B.dinle((olay, v) => { if (!Z.savas || !macta()) return;
     if (olay === 'adim_bitti') { const s = od().sav; if (s && v.adim < s.adim) siraUygula(s); else OR.eylem({ t: 'tur_bitti', adim: v.adim, x: v.x, y: v.y }); }
     else if (olay === 'ates' && v.kim === 0) { const M = B.state(); OR.eylem({ t: 'ates', x: v.x, y: v.y, aci: v.aci, guc: v.guc, yon: v.yon, ruz: M ? M.wind : 0, mod: v.mod || {}, el: v.el }); }
+    else if (olay === 'oyuk') OR.eylem({ t: 'oyuk', x: v.x, y: v.y, r: v.r });
     else if (olay === 'konum') { const t = Date.now(); if (t - Z.konumT > 240) { Z.konumT = t; OR.eylem({ t: 'konum', x: v.x, y: v.y, aci: v.aci, yon: v.yon }); } }
     else if (olay === 'isabet' && v.yid && v.hasar > 0) OR.eylem({ t: 'isabet', kime: v.yid, h: Math.round(v.hasar), bas: !!v.bas, it: v.it }); });
   OR.dinle((olay, v) => {
@@ -52,6 +53,7 @@
       else if (o.kim && o.kim !== ben() && !var_(o.kim)) continue;
       else if (o.t === 'konum' && o.kim !== ben()) B.yoldasKoy(o.kim, o);
       else if (o.t === 'ates' && o.kim !== ben()) B.yoldasAtes(o.kim, o);
+      else if (o.t === 'oyuk' && o.kim !== ben()) B.yoldasOyuk(o);
       else if (o.t === 'can') { if (o.kim === ben()) B.benCan(o.hp, o.max, o.h || 0, o.bas); else B.yoldasKoy(o.kim, { hp: o.hp, max: o.max }); }
       else if (o.t === 'dustu') { if (o.kim === ben()) B.benDus(); else B.yoldasKoy(o.kim, { dustu: true }); const u = oda().uyeler.find(x => x.id === o.kim); G.toast(esc_(o.kim === ben() ? 'Düştün. Takımını izliyorsun.' : (u ? u.ad : 'Bir oyuncu') + ' düştü.')); }
       else if (o.t === 'tur_bitti' && o.kim !== ben()) { B.yoldasKoy(o.kim, { x: o.x, y: o.y }); if (od().sav && od().sav.kim === o.kim && od().sav.adim === o.adim) B.ortakPas(o.kim); } }
@@ -76,8 +78,9 @@
     if (!AG.cevrimici()) { body.innerHTML = '<div class="ar-kilit bos"><p>Takım Meydanı çevrimiçi oynanır. Sunucuya ulaşılınca açılır.</p></div>'; return; }
     const o = benim() ? oda() : null;
     body.innerHTML = '<div class="zn-kok">' + (o && o.durum === 'bekliyor' ? toplanma(o) : o ? '<div class="ar-kilit bos"><p>Maç sürüyor.</p></div>' : oda() ? '<div class="ar-kilit bos"><p>Önce bulunduğun seferden ya da masadan ayrıl.</p></div>' : lobi()) + (Z.hata ? '<p class="ms-hata" role="alert">' + esc_(Z.hata) + '</p>' : '') + '</div>';
-    if (o) body.querySelectorAll('[data-yuz]').forEach(cv => { const u = o.uyeler[+cv.dataset.yuz]; if (!cv.dataset.yuz || !u) return; try { EO2.api.drawPortrait(cv, u.id === ben() ? EO2.api.player.set : setOf(u), 0.66); } catch (_) { } });
-    const fk = body.querySelector('[data-tk-form]'); if (fk) { const gir = fk.elements.kod; for (const ad of ['keydown', 'keyup', 'keypress']) gir.addEventListener(ad, e => e.stopPropagation()); fk.addEventListener('submit', e => { e.preventDefault(); const kod = (gir.value || '').trim(); Z.hata = kod ? '' : 'Oda kodunu yaz.'; if (kod) OR.katil(kod); G.redraw(); }); }
+    if (o) body.querySelectorAll('[data-yuz]').forEach(cv => { const u = o.uyeler[+cv.dataset.yuz]; if (!cv.dataset.yuz || !u) return; try { EO2.api.drawPortrait(cv, u.id === ben() ? EO2.api.player.set : setOf(u), 0.66, u.id === ben() ? true : u.h); } catch (_) { } });
+    const fk = body.querySelector('[data-tk-form]'); if (fk) { const gir = fk.elements.kod, KY = Z.kodYazi || (Z.kodYazi = { v: '', odak: false }); gir.value = KY.v; gir.addEventListener('input', () => { KY.v = gir.value; }); gir.addEventListener('focus', () => { KY.odak = true; }); gir.addEventListener('blur', () => { if (gir.isConnected) KY.odak = false; }); if (KY.odak) { gir.focus(); try { gir.setSelectionRange(gir.value.length, gir.value.length); } catch (_) { } }   /* ekran yenilenince yazılan kod ve imleç korunur */
+      for (const ad of ['keydown', 'keyup', 'keypress']) gir.addEventListener(ad, e => e.stopPropagation()); fk.addEventListener('submit', e => { e.preventDefault(); const kod = (gir.value || '').trim(); Z.hata = kod ? '' : 'Oda kodunu yaz.'; if (kod) OR.katil(kod); G.redraw(); }); }
     body.querySelectorAll('[data-tk]').forEach(b => b.addEventListener('click', () => { ses('ui'); const k = b.dataset.tk; Z.hata = '';
       if (k === 'kur') OR.kur('takim', '2v2', { ozel: true }); else if (k === 'kuyruk') OR.kuyruk('takim', '2v2'); else if (k === 'kuyruk-cik') OR.kuyrukCik();
       else if (k === 'hazir') { const u = oda().uyeler.find(x => x.id === ben()); OR.hazir(!(u && u.hazir)); } else if (k === 'baslat') OR.baslat(); else if (k === 'cik') OR.cik();
