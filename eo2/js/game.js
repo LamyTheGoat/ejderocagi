@@ -431,7 +431,10 @@
     function enter(id, from) { const s = sceneOf(id); if (!s) return false;
       for (const c of npcs) { if (c.plate) c.plate.hidden = true; if (c.bub) c.bub.hidden = true; } if (SC && SC.w.pets) for (const o of Object.values(SC.w.pets)) if (o.bub) o.bub.hidden = true;
       SC = s; L = s.L; npcs = s.npcs; parts = s.parts; fxStatics = s.fx; mapTex = s.mapTex;
-      const sp = (from && L.entry && L.entry[from]) || L.start; player.x = sp.x; player.y = sp.y; player.dir = sp.dir || 'up'; player.moving = false; pet.x = player.x + 0.8; pet.y = player.y - 0.3; crumbs.length = 0; crumbs.push([player.x, player.y]);
+      const sp = (from && L.entry && L.entry[from]) || L.start; player.x = sp.x; player.y = sp.y; player.dir = sp.dir || 'up'; player.moving = false;
+      /* giriş noktası bir nesnenin ya da sınırın içine düşüyorsa (oyuncu sıkışıp yürüyemiyordu) en yakın boş yere alınır: halkalar hâlinde aranır */
+      if (blocked(player.x, player.y, player)) { let bulundu = false; for (let r = 0.3; r <= 6 && !bulundu; r += 0.3) for (let k = 0; k < 16 && !bulundu; k++) { const ax = sp.x + Math.cos(k / 16 * Math.PI * 2) * r, ay = sp.y + Math.sin(k / 16 * Math.PI * 2) * r; if (!blocked(ax, ay, player)) { player.x = ax; player.y = ay; bulundu = true; } } }
+      pet.x = player.x + 0.8; pet.y = player.y - 0.3; crumbs.length = 0; crumbs.push([player.x, player.y]);
       cam.x = clamp(player.x, Math.min(0, L.bounds[0] + 4.1), Math.max(0, L.bounds[1] - 4.1)); cam.y = player.y; target = null; near = null; flyer = null; flyT = 10 + Math.random() * 10; keys.clear();
       rebuildSigns(); $('locName').textContent = L.name; app.dataset.scene = id; app.classList.toggle('indoor', !!L.indoor); if (EO2.audio && EO2.audio.scene) EO2.audio.scene(L);
       if (from) { titleCard(L.name, L.sub); chatAdd('sistem', '', L.name + (L.sub ? ' · ' + L.sub : '')); } if (EO2.hooks.scene) EO2.hooks.scene(id); return true; }

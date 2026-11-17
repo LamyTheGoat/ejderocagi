@@ -98,6 +98,10 @@ if (acik) {
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_takim.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 280000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
     yaz('Takım Meydanı 2v2 (dört tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
+  // 4k4) giriş noktaları: her sahneye her komşudan girilir; oyuncu bir nesnenin içinde kalmamalı
+  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_giris_noktasi.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 280000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('sahne geçişinde oyuncu nesneye sıkışmıyor', r.status === 0 && !!j && j.ok, j ? (j.hata.concat(j.sikisan).slice(0, 3).join(' | ') || (j.uyari.length ? j.uyari.length + ' giriş noktası dolu (oyun boş yere kaydırıyor)' : '')) : String(r.stderr || '').slice(0, 200)); }
   // 4l) eksik dosya ve konsol hatası: bütün ekranlar gezilir; yüklenemeyen resim, ses ya da betik olmamalı
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_eksik_dosya.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 200000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
