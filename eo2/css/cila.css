@@ -341,3 +341,21 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .govde img.yikildi { animation: dov-yikil .9s ease-in forwards; } .ui2 .taraf.sag .govde img.yikildi { animation: dov-yikil-ters .9s ease-in forwards; }
 @keyframes dov-yikil { to { transform: translateY(9%) rotate(-7deg); filter: brightness(.5) saturate(.55); } } @keyframes dov-yikil-ters { from { transform: scaleX(-1); } to { transform: scaleX(-1) translateY(9%) rotate(-7deg); filter: brightness(.5) saturate(.55); } }
 .ui2 .dov.girdi:not(.sars):not(.sars2) { animation: none; }
+
+/* ---------- Görünüş ekranı (js/gorunum.js): solda ayna (ön, yan, arka), sağda saç ve göz seçenekleri ---------- */
+.ui2 .scr-b.gr { display: grid; min-height: 0; padding: .6em 1em 1em; }
+.ui2 .gr-kok { display: grid; grid-template-columns: minmax(0, 26em) minmax(0, 34em); gap: 1.4em; justify-content: center; align-items: center; min-height: 0; }
+.ui2 .gr-ayna { display: grid; grid-template-columns: 1.4fr 1fr; grid-template-rows: 1fr 1fr; gap: .6em; padding: 1em; border-radius: 1.4em; background: radial-gradient(circle at 50% 30%, rgba(60, 80, 150, .55), rgba(14, 20, 48, .9)); box-shadow: var(--frame); max-height: 100%; }
+.ui2 .gr-ayna canvas { width: 100%; height: auto; max-height: 26em; object-fit: contain; align-self: end; filter: drop-shadow(0 .5em .6em rgba(4, 6, 16, .6)); } .ui2 .gr-ayna canvas:first-child { grid-row: 1 / 3; }
+.ui2 .gr-secenek { display: grid; gap: .7em; align-content: start; min-height: 0; overflow-y: auto; padding: 1em 1.2em; border-radius: 1.4em; background: var(--cam-koyu, rgba(14, 20, 48, .85)); box-shadow: var(--frame); }
+.ui2 .gr-secenek h3 { margin: 0 0 .35em; font: 700 .95em var(--f-ui); color: #f6d98a; } .ui2 .gr-secenek .soluk { margin: 0; font-size: .86em; }
+.ui2 .gr-sira { display: flex; flex-wrap: wrap; gap: .4em; } .ui2 .gr-sira [aria-checked="true"].gbtn { background: linear-gradient(180deg, #8fd0ff, #4a9ae8); color: #0c1a3a; }
+.ui2 .gr-boya { position: relative; width: 2.6em; height: 2.6em; min-height: 0; padding: 0; border-radius: 50%; border: 0; cursor: pointer; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 60%, #fff), var(--c) 62%, color-mix(in srgb, var(--c) 70%, #000)); box-shadow: 0 0 0 2px rgba(8, 10, 20, .85), 0 0 0 3.5px rgba(255, 255, 255, .25); }
+.ui2 .gr-boya span { position: absolute; left: 50%; top: 100%; transform: translate(-50%, .25em); font: 600 .68em var(--f-ui); color: #e9ecfb; white-space: nowrap; opacity: 0; pointer-events: none; }
+.ui2 .gr-boya[aria-checked="true"] { box-shadow: 0 0 0 2px rgba(8, 10, 20, .85), 0 0 0 4.5px #ffe08a, 0 0 1em rgba(255, 215, 106, .7); } .ui2 .gr-boya[aria-checked="true"] span { opacity: 1; }
+.ui2 .gr-sira.renk { gap: .7em .8em; padding-bottom: 1.1em; }
+@media (max-width: 760px), (max-aspect-ratio: 1/1) { .ui2 .gr-kok { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, .8fr) minmax(0, 1.2fr); align-items: stretch; } .ui2 .gr-ayna canvas { max-height: 14em; } }
+/* Görünüş ekranı kısa ekranda (yatay telefon) taşmasın: seçenekler kendi içinde kayar, ayna küçülür */
+.ui2 .scr-b.gr { grid-template-rows: minmax(0, 1fr); } .ui2 .gr-kok { height: 100%; align-items: stretch; } .ui2 .gr-ayna, .ui2 .gr-secenek { max-height: 100%; min-height: 0; align-self: center; }
+.ui2 .gr-ayna { overflow: hidden; } .ui2 .gr-ayna canvas { min-height: 0; max-height: 100%; }
+@media (max-height: 520px) { .ui2 .gr-kok { grid-template-columns: minmax(0, 15em) minmax(0, 1fr); gap: .8em; } .ui2 .gr-ayna { padding: .5em; } .ui2 .gr-ayna canvas { max-height: 11em; } .ui2 .gr-secenek { padding: .6em .8em; gap: .45em; font-size: .9em; } .ui2 .gr-boya { width: 2.2em; height: 2.2em; } }

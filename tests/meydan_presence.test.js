@@ -18,7 +18,10 @@ test('ad süzgeci: uygun ad geçer, uygunsuz ya da biçimsiz ad Gezgin olur', ()
 
 test('durum doğrulaması: sayılar sınırlanır, bilinmeyen değerler varsayılana döner, eksik konum atılır', () => {
   const d = temizDurum({ a: 'master', x: 99999, y: -7.123456, d: 'yukari', s: 'DROP TABLE', p: 'evet', e: { k: 'heart', t: 5 }, n: 'Ali', handle: '@baskasi' });
-  assert.deepEqual(d, { a: 'master', x: 400, y: -7.12, d: 'down', s: 'temel', p: 1, e: { k: 'heart', t: 5 }, n: 'Ali' });
+  assert.deepEqual(d, { a: 'master', x: 400, y: -7.12, d: 'down', s: 'temel', gr: '', p: 1, e: { k: 'heart', t: 5 }, n: 'Ali' });
+  // görünüş kodu (saç.saçRengi.göz.gözRengi): yalnız biçime uyan geçer
+  assert.equal(temizDurum({ a: 'master', x: 0, y: 0, g: 'atkuyrugu.blue.iri.green' }).gr, 'atkuyrugu.blue.iri.green');
+  for (const kotu of ['<script>', 'a.b.c', 'A.B.C.D', 'x'.repeat(60), 12, null]) assert.equal(temizDurum({ a: 'master', x: 0, y: 0, g: kotu }).gr, '');
   assert.equal(temizDurum({ a: 'master', x: 'NaN', y: 1 }), null);
   assert.equal(temizDurum({ a: '../etc', x: 1, y: 1 }), null);
   assert.equal(temizDurum({ a: 'master', x: 1, y: 1, e: { k: 'küfür', t: 1 } }).e, null);

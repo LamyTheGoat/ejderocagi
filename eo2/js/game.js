@@ -38,7 +38,9 @@
     /* yeni bölümlerde kimlikler önekli ("ms-kerim", "cr-tuccar"): önek atılır; kimlikten bulunamazsa ada bakılır (ör. meydandaki "Hancı") */
     const NPC_AD = { 'Hancı': 'hanci', 'Bekçi': 'bekci', 'Usta Kerim': 'kerim', 'Ozan': 'ozan', 'Tüccar': 'tuccar', 'Yumurtacı': 'yumurtaci', 'Muhtar': 'muhtar', 'Çırak': 'cirak', 'Hamal': 'hamal', 'Bahçıvan': 'bahcivan', 'Kervancı': 'kervanci', 'Tavlacı': 'tavlaci', 'Talimci': 'talimci', 'Rüstem Ağa': 'bedesten', 'Baharatçı': 'baharatci' };
     const npcSeti = n => { const id = String(n.id || ''), k = NA.kim[id] || NA.kim[id.replace(/^[a-z]{2}-/, '')] || NPC_AD[n.name], ad = k ? 'npc_' + k : null; return ad && sets[ad] ? ad : null; };
-    EO2.npcSet = { yukle: setYukle, seti: npcSeti };   /* start() ayrı bir fonksiyon: oradan bu iki yardımcıya buradan ulaşılır */
+    EO2.npcSet = { yukle: setYukle, seti: npcSeti };
+    /* karakter görünüşü (js/gorunum.js): katmanlardan kurulan atlas buraya kaydolur; karakterin "gor" alanı o atlası gösterir, "set" hep asıl set adıdır */
+    EO2.setEkle = (ad, cv, m) => { sets[ad] = { tex: R.texture(cv), m, img: cv }; }; EO2.setAl = ad => sets[ad] || null;   /* start() ayrı bir fonksiyon: oradan bu iki yardımcıya buradan ulaşılır */
     const tDragon = R.texture(imgs.dragon);
     /* başlangıç sahnesinin (Merkez Meydan) çizimleri inmeden perde kalkmaz: yavaş bağlantıda meydan yarım görünmesin.
        Bölüm dosyası henüz kaydolmadıysa kısa süre beklenir; çizimler için en çok 15 saniye beklenir, sonra oyun yine açılır. */
@@ -212,7 +214,7 @@
     /* L.golgeKat (bölüm motoru): zemine düşen gölge kütlesinin içindeki kişi ve nesne koyulaşır, hafifçe morarır. ham: kütleyi yok say. */
     const litCol = (F, x, y, a = 1, ham) => { const k = F.night * lightAt(x, y) * 0.8, g = !ham && L.golgeKat ? L.golgeKat(x, y) : 1; return [Math.min(1.08, F.amb[0] + k) * g, Math.min(1.08, F.amb[1] + k * 0.72) * g * (0.985 + 0.015 * g), Math.min(1.08, F.amb[2] + k * 0.38) * (g + (1 - g) * 0.3), a]; };
     function drawChibi(R, F, c) {
-      let st = sets[c.set]; if (!st.tex) { setYukle(c.set); st = sets[c.yedekSet] || sets.temel; }   /* NPC çizimi henüz gelmediyse yedek set */
+      let st = (c.gor && sets[c.gor]) || sets[c.set]; if (!st.tex) { setYukle(c.set); st = sets[c.yedekSet] || sets.temel; }   /* NPC çizimi henüz gelmediyse yedek set */
       const m = st.m, k = CHAR_H / m.tall, vdir = c.dir === 'left' ? 'right' : c.dir;
       const key = c.moving ? vdir + '_walk_' + (Math.floor(c.ph * 16) % 16 + 16) % 16 : (c.happy > 0 && vdir !== 'up' ? vdir + '_happy' : vdir + '_idle');
       const i = m.frames[key], col = i % m.cols, row = Math.floor(i / m.cols);
@@ -354,9 +356,9 @@
     }
 
     /* ---------- HUD ---------- */
-    function drawPortrait(cv, set, k) { if (sets[set] && !sets[set].img) setYukle(set); const st = sets[set] && sets[set].img ? sets[set] : sets.temel, m = st.m, i = m.frames.down_idle, x = cv.getContext('2d'), sx = (i % m.cols) * m.cw, sy = Math.floor(i / m.cols) * m.ch, top = m.ay - m.tall, s = m.tall * (k || 0.50);
+    function drawPortrait(cv, set, k) { if (set === player.set && player.gor && sets[player.gor]) set = player.gor; if (sets[set] && !sets[set].img) setYukle(set); const st = sets[set] && sets[set].img ? sets[set] : sets.temel, m = st.m, i = m.frames.down_idle, x = cv.getContext('2d'), sx = (i % m.cols) * m.cw, sy = Math.floor(i / m.cols) * m.ch, top = m.ay - m.tall, s = m.tall * (k || 0.50);
       x.clearRect(0, 0, cv.width, cv.height); x.drawImage(st.img, sx + m.ax - s / 2, sy + top - s * 0.02, s, s, 0, 0, cv.width, cv.height); }
-    function drawFull(cv, set) { if (sets[set] && !sets[set].img) setYukle(set); const st = sets[set] && sets[set].img ? sets[set] : sets.temel, m = st.m, i = m.frames.down_idle, x = cv.getContext('2d'), sx = (i % m.cols) * m.cw, sy = Math.floor(i / m.cols) * m.ch, k = cv.height / m.ch; x.clearRect(0, 0, cv.width, cv.height); x.drawImage(st.img, sx, sy, m.cw, m.ch, (cv.width - m.cw * k) / 2, 0, m.cw * k, cv.height); }
+    function drawFull(cv, set) { if (set === player.set && player.gor && sets[player.gor]) set = player.gor; if (sets[set] && !sets[set].img) setYukle(set); const st = sets[set] && sets[set].img ? sets[set] : sets.temel, m = st.m, i = m.frames.down_idle, x = cv.getContext('2d'), sx = (i % m.cols) * m.cw, sy = Math.floor(i / m.cols) * m.ch, k = cv.height / m.ch; x.clearRect(0, 0, cv.width, cv.height); x.drawImage(st.img, sx, sy, m.cw, m.ch, (cv.width - m.cw * k) / 2, 0, m.cw * k, cv.height); }
     drawPortrait($('portrait'), player.set);
     function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 3200); }
     function setNight(v) { S.nightT = v; if (EO2.audio) EO2.audio.night(v); $('btnLight').setAttribute('aria-pressed', String(!!v)); $('btnLight').innerHTML = ICON[v ? 'moon' : 'sun']; app.classList.toggle('night', !!v); toast(v ? 'Akşam: fenerler ve mangallar yandı.' : 'Gündüz'); syncMenu(); }

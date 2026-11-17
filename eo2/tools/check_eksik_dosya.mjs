@@ -14,7 +14,7 @@ try {
   await p.goto(url); await p.waitForFunction('window.EO2 && EO2.api && EO2.game && document.querySelector(".giris")', null, { timeout: 60000 }); await p.waitForTimeout(1500);
   await p.locator('.giris .gbtn:has-text("Yeni ocak kur")').first().click(); await p.waitForTimeout(400);
   await p.locator('.pen input').first().fill('Aylin').catch(() => { }); await p.locator('.pen .gbtn:has-text("Ocağa gir")').first().click(); await p.waitForTimeout(3000);
-  const ekranlar = 'ejderhalar arena pazar bedesten han kiraathane masa dostlar siralama defter canta sandik sefer yuva saray kule divan kutuk muzayede siparis sus topcu yaris damizlik sancak kervan boss ayarlar menu zindan'.split(' ');
+  const ekranlar = 'ejderhalar arena pazar bedesten han kiraathane masa dostlar siralama defter canta sandik sefer yuva saray kule divan kutuk muzayede siparis sus topcu yaris damizlik sancak kervan boss ayarlar menu zindan gorunus takim'.split(' ');
   for (const id of ekranlar) { yer = 'ekran ' + id; const ok = await p.evaluate(id => { try { EO2.game.open(id); return EO2.game.ekran() === id; } catch (e) { return false; } }, id); await p.waitForTimeout(ok ? 900 : 100);
     await p.evaluate(() => { document.querySelectorAll('.pen-perde').forEach(w => w.remove()); try { EO2.game.close(); } catch (_) { } }); await p.waitForTimeout(150); }
   const sahneler = await p.evaluate(() => Object.keys((EO2.bolumler || EO2.api.scenes && EO2.api.scenes()) || {}));

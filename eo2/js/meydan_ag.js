@@ -79,7 +79,7 @@
       c.area = p.a; c.handle = typeof p.h === 'string' && /^@[^\s]{2,40}$/.test(p.h) ? p.h : null; kisiler.set(p.id, c); api.remotes.push(c); api.setPlate(c); say(); etkEkle(p.id, c);
     }
     if (c.name !== ad) { c.name = ad; api.setPlate(c); if (c.etk) c.etk.label = ad; }
-    c.area = p.a; c.tx = x; c.ty = y; c.set = set; c.rdir = dir;
+    c.area = p.a; c.tx = x; c.ty = y; c.set = set; c.rdir = dir; if (EO2.gorunum) EO2.gorunum.uzak(c, p.g);
     if (Math.hypot(c.x - x, c.y - y) > 12) { c.x = x; c.y = y; c.crumbs = [[x, y]]; }      // ışınlanma: araya yürütme
     if (p.p && !c.pet) c.pet = { x: c.x + 0.8, y: c.y - 0.2, face: 1, hop: 0, moving: false, cheer: 0 }; else if (!p.p && c.pet) { if (c.pet.bub) c.pet.bub.remove(); c.pet = null; }
     if (p.e && typeof p.e.t === 'number' && p.e.t !== c.lastE) { c.lastE = p.e.t; if (JEST.includes(p.e.k)) { api.say(c, p.e.k, 2.4, true); c.happy = 2.4; if (c.pet && p.e.k === 'heart') c.pet.cheer = 1.4; } }
@@ -87,7 +87,7 @@
 
   function bildir(zorla) {
     if (!api || !G.live || !AG.cevrimici()) return;
-    const p = api.player, s = { type: 'meydan', a: api.scene(), x: +p.x.toFixed(2), y: +p.y.toFixed(2), d: p.dir, s: p.set, p: api.S.companion ? 1 : 0, e: jest, n: G.ad ? G.ad() : 'Gezgin' };
+    const p = api.player, s = { type: 'meydan', a: api.scene(), x: +p.x.toFixed(2), y: +p.y.toFixed(2), d: p.dir, s: p.set, g: EO2.gorunum ? EO2.gorunum.kod() : '', p: api.S.companion ? 1 : 0, e: jest, n: G.ad ? G.ad() : 'Gezgin' };
     const j = JSON.stringify(s), t = Date.now();
     if (!zorla && (j === sonJson ? t - sonGonderim < 8000 : t - sonGonderim < 180)) return;   // değişmediyse sekiz saniyede bir nabız; değiştiyse saniyede en çok beş
     if (s.a !== alanim) { alanim = s.a; hepsiniBirak(); }
