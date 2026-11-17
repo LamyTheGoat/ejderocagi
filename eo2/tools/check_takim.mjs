@@ -36,13 +36,27 @@ try {
   if (ekran) await kim(hedef).screenshot({ path: path.join(ekran, 'takim_2_dusen_izliyor.png') });
   // üçüncü oyuncu karşı takımın kalanını indirir: maç biter, dört ekranda doğru sonuç
   await bekle(kim(sira[2]), 'EO2.battle.state().aktif === EO2.battle.state().ben && EO2.battle.state().faz === "nisan"', 30000);
-  await kim(sira[2]).evaluate(id => EO2.ortak.eylem({ t: 'isabet', kime: id, h: 99999 }), hedef2);
+  // GERÇEK ATIŞ: üçüncü oyuncu rakibinin dibine alınır ve topunu gerçekten ateşler (boşluk tuşu). Gülle isabet eder, motor isabeti kendisi bildirir,
+  // sunucu canı düşürür ve dört ekranda aynı can görünür. (Öteki adımlar isabeti doğrudan bildirir; bu adım motorun kendi yolunu ölçer.)
+  { const atanP = kim(sira[2]);
+    await atanP.evaluate(id => { const M = EO2.battle.state(), e = M.yoldas[id], yon = Math.sign(e.x - M.ben.x) || 1; M.ben.x = e.x - 1.7 * yon; M.ben.y = EO2.battle.api.yerY(M.ben.x); M.ben.face = yon; M.ben.angle = 5; }, hedef2);
+    await atanP.bringToFront(); await atanP.keyboard.down('Space'); await atanP.waitForTimeout(240); await atanP.keyboard.up('Space');
+    log.gercekAtis = await hepsi('(() => { const u = EO2.ortak.durum().ortak.uye["' + hedef2 + '"]; return u.max > 0 && u.hp < u.max; })()', 25000);
+    log.gercekHasar = await P[0].evaluate(id => { const u = EO2.ortak.durum().ortak.uye[id]; return u.max - u.hp; }, hedef2);
+    await P[0].waitForTimeout(1200);
+    log.ekranlardaAyni = (await Promise.all(P.map(p => p.evaluate(id => { const M = EO2.battle.state(), d = EO2.ortak.durum(), u = d.ortak.uye[id], a = id === d.ben ? M.ben : M.yoldas[id]; return Math.round(a.hp) === u.hp; }, hedef2)))).every(Boolean);
+    if (ekran) await atanP.screenshot({ path: path.join(ekran, 'takim_2b_gercek_atis.png') });
+    // atıştan sonra sıra dördüncü oyuncuya geçer; o geçer, sıra ilk oyuncuya gelir ve maçı o bitirir
+    log.siraDorduncude = await hepsi('EO2.ortak.durum().ortak.sav.kim === "' + sira[3] + '"', 40000);
+    await bekle(kim(sira[3]), 'EO2.battle.state().aktif === EO2.battle.state().ben && EO2.battle.state().faz === "nisan"', 30000); await kim(sira[3]).evaluate(() => EO2.battle.pas());
+    await bekle(kim(sira[0]), 'EO2.battle.state().aktif === EO2.battle.state().ben && EO2.battle.state().faz === "nisan"', 40000);
+    await kim(sira[0]).evaluate(id => EO2.ortak.eylem({ t: 'isabet', kime: id, h: 99999 }), hedef2); }
   const sonuclar = await Promise.all(P.map(p => p.waitForSelector('.pen:has-text("Takımın")', { timeout: 30000 }).then(async () => (await p.locator('.pen h2, .pen h3, .pen .pen-t').first().textContent().catch(() => '')) || await p.evaluate(() => document.querySelector('.pen').textContent.slice(0, 60)), () => 'yok')));
   log.sonuclar = sonuclar.map((s, i) => takimOf(B0[i].ben) + ':' + (/kazandı/.test(s) ? 'kazandı' : /yenildi/.test(s) ? 'yenildi' : s.slice(0, 20)));
   if (ekran) await P[0].screenshot({ path: path.join(ekran, 'takim_3_sonuc.png') });
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
 const kazanan = log.takimlar ? log.takimlar[0] : '';
-const ok = !hata.length && log.basladi && log.takimlar === 'ABAB' && log.gorunum && log.ayniSira && log.tekSira && log.canAyni && log.ekrandaCan === 400 && log.dostAtesiYok && log.siraDisiSayilmaz && log.dustuKaldi && log.dusenAtlandi && Array.isArray(log.sonuclar) && log.sonuclar.every(s => s === (s[0] === kazanan ? kazanan + ':kazandı' : s[0] + ':yenildi'));
+const ok = !hata.length && log.basladi && log.takimlar === 'ABAB' && log.gorunum && log.ayniSira && log.tekSira && log.canAyni && log.ekrandaCan === 400 && log.dostAtesiYok && log.siraDisiSayilmaz && log.dustuKaldi && log.dusenAtlandi && log.gercekAtis && log.gercekHasar > 0 && log.ekranlardaAyni && log.siraDorduncude && Array.isArray(log.sonuclar) && log.sonuclar.every(s => s === (s[0] === kazanan ? kazanan + ':kazandı' : s[0] + ':yenildi'));
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

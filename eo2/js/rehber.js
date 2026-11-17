@@ -54,7 +54,7 @@
     if (o.sn) sure = setTimeout(() => { if (simdi === o) gizle(); }, o.sn * 1000);
     serit.classList.remove(...YERLER.filter(Boolean)); if (o.tur === 'ekran') for (const ms of [380, 1200]) setTimeout(() => { if (simdi === o) yerles(); }, ms); }
   /* ekran ipucu ekranın düğmelerini örtmez: altta bir düğmeye biniyorsa üste (başlığın altına) çıkar */
-  function binen() { const q = serit.getBoundingClientRect(); if (q.width < 4) return false; for (const el of document.querySelectorAll('#app button, #app input, #app [role="button"], #app [role="tab"]')) { if (serit.contains(el) || el.closest('#hud, .quests, #chat, #emotes, #actions, #world, #anchors')) continue;
+  function binen() { const q = serit.getBoundingClientRect(); if (q.width < 4) return false; for (const el of document.querySelectorAll('#app button, #app input, #app [role="button"], #app [role="tab"], #app .ag-rozet')) {   /* .ag-rozet: arenadaki durum etiketi (ipucu onun üstüne binmesin) */ if (serit.contains(el) || el.closest('#hud, .quests, #chat, #emotes, #actions, #world, #anchors')) continue;
       const r = el.getBoundingClientRect(); if (r.width < 6 || r.height < 6) continue; const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || cs.display === 'none' || cs.pointerEvents === 'none') continue;
       if (Math.min(q.right, r.right) - Math.max(q.left, r.left) > 4 && Math.min(q.bottom, r.bottom) - Math.max(q.top, r.top) > 4) return true; } return false; }
   /* sırayla denenen yerler: altta, başlığın altında, sekmelerin altında, ekranın ortasının üstünde, ortasının altında. İlk boş olan seçilir. */
@@ -78,8 +78,8 @@
   /* ---------- ekran ipuçları: ilk açılışta bir kez ---------- */
   const IPUCU = {
     ejderhalar: 'Her ejderhaya bir emir ver. Emirler hafta sonunda işlenir.',
-    /* Er Meydanı dostça oynanır (ödül yok): arena ilk kez o sekmede açılırsa ipucu ona göre konuşur */
-    arena: () => typeof UI !== 'undefined' && UI && UI.arenaTier === 'er' ? 'Eşleşme ara, sancağını dik ya da bir terbiyeciye meydan oku. Er Meydanı dostça oynanır: ödül yok.' : 'Bir rakip seç ve Meydan oku. Zafer ün ve altın getirir.',
+    /* ipucu sekme değişince ekranda kalır: her sekmede doğru olan söz (Er Meydanı ödülsüzdür) */
+    arena: 'Bir rakip seç ve Meydan oku. Arenalar ün ve altın getirir; Er Meydanı dostça oynanır.',
     yuva: 'İki yetişkini gezintiye çıkar; yakınlaştıkça çiftleşebilirler.',
     pazar: 'Bir tezgâh seç. Yem, yumurta ve kuşam burada satılır.',
     sefer: 'Bir bölge seç ve boştaki ejderhanla yola çık.',
