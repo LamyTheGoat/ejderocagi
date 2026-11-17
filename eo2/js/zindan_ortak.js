@@ -59,6 +59,10 @@
     d.dusman.forEach((q, j) => { if (q.hp < q.max) B.ortakCan(j + 1, q.hp); });
     const me = d.uye[ben()]; if (me && me.hayatta === false) { M.ben.hp = 0; M.ben.dead = true; M.ben.dustuKesin = true; M.ben.revive = 0; } else if (me && me.max > 0 && me.hp > 0) M.ben.hp = Math.min(M.ben.max, me.hp);
     for (const u of oda().uyeler) { const q = d.uye[u.id]; if (u.id !== ben() && q) B.yoldasKoy(u.id, q.hayatta === false ? { dustu: true } : q.max ? { hp: q.hp, max: q.max } : {}); } }
+  /* savaştaki yoldaş topçuları odanın hâline uyar: ayrılan ya da bağlantısı kopan yoldaş yere serilir (sırası zaten atlanır), geri gelen ayağa kalkar */
+  function yoldasEsitle() { const M = B.state(), d = od(); if (!Z.savas || !M || !M.on || !M.yoldas || !d || d.faz !== 'savas') return;
+    for (const id in M.yoldas) { const a = M.yoldas[id], u = oda().uyeler.find(x => x.id === id), q = d.uye[id], yok = !u || !u.bagli || (q && q.hayatta === false);
+      if (yok && !a.dustuKesin) { B.yoldasKoy(id, { dustu: true }); if (!u || !u.bagli) G.toast(esc_(a.ad || 'Yoldaş') + (u ? ' bağlantısını yitirdi.' : ' seferden ayrıldı.')); } else if (!yok && a.dustuKesin) B.yoldasKoy(id, Object.assign({ dustu: false }, q && q.max ? { hp: q.hp || q.max, max: q.max } : {})); } }
   async function asamaBaslat(donus) { const d = od(); if (!d || d.faz !== 'savas' || Z.savas) return;
     if (!G.live) return;   /* giriş ekranındayken (sayfa yenilendi, kayıt henüz açılmadı) savaş kurulmaz; ocağa girilince aşağıdaki nöbetçi savaşa döndürür */
     Z.savas = true; Z.savasBitti = false; Z.sonAsama = null; seyirKapat(); G.close(); document.querySelectorAll('.pen-perde').forEach(w => w.remove());
@@ -133,7 +137,7 @@
       else if (o.t === 'kampa_don') { ses('chime'); kampaGit(); G.toast('Sıradaki aşama: <b>' + esc_(asamalar()[o.asama].ad) + '</b>. Hazır olan kapıya.', 'goal'); }
       else if (o.t === 'hazir' && o.kim !== ben() && o.v && od().faz === 'bekleme') G.toast(esc_(uyeAd(o.kim)) + ' hazır.'); }   // son hazır olan aşamayı başlatır: o an bildirim çıkmaz
     if (olay === 'bitti') seferSonu(v.sonuc);
-    yoldasCiz(); seyirCiz(); seritCiz(); if (G.ekran() === 'zindan') G.redraw(); });
+    yoldasEsitle(); yoldasCiz(); seyirCiz(); seritCiz(); if (G.ekran() === 'zindan') G.redraw(); });
   setInterval(() => { seritCiz();
     /* çark aşamasında bu ekranda çark açık değilse (sayfa çark sırasında yenilendi) grup bekletilmez: çark geçilir. Ödül iki kez yazılmasın diye çark yeniden açılmaz. */
     if (seferde() && od().faz === 'cark' && !(od().uye[ben()] || {}).cark && !Z.savas && !Z.sonAsama && !Z.carkta && !B.active() && G.live && Date.now() - (Z.carkT || 0) > 6000) { Z.carkT = Date.now(); OR.eylem({ t: 'cark' }); G.toast('Sayfa yenilendiği için bu aşamanın çarkı geçildi. Sefer sürüyor.'); }

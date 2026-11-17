@@ -92,6 +92,7 @@ try {
   log.siraB2 = await bekle(B, sirada('ben'), 30000); await B.evaluate(() => { EO2.battle.pas(); });
   log.dustuArenada = await bekle(A, 'EO2.battle.active() && EO2.battle.state().ben.dustuKesin === true && EO2.ortak.durum().ortak.uye[EO2.ortak.durum().ben].hayatta === false && !EO2.battle.state().over', 120000);
   log.dusenAtlandi = await bekle(B, sirada('ben') + ' && EO2.battle.state().tur >= 3', 120000) && await A.evaluate(() => { const M = EO2.battle.state(); return M.aktif !== M.ben && document.getElementById('tpKim').textContent; });
+  log.dusenYoldasYerde = await B.evaluate(() => { const y = Object.values(EO2.battle.state().yoldas || {}); return y.length === 1 && y[0].dustuKesin === true && y[0].dead === true; });   // öteki ekranda düşen yoldaşın topçusu yere serili
   log.lafYok = await A.evaluate(() => document.getElementById('tpLaf').hidden) && await B.evaluate(() => document.getElementById('tpLaf').hidden); await cek(A, 'zindan_5c_dusen_izliyor');
   for (let i = 0; i < 6; i++) { await B.evaluate(() => { const M = EO2.battle.state(); if (M && M.boss && !M.boss.dead) EO2.battle.api.hasarBoss(M.boss, 2000, true); }); await B.waitForTimeout(250); }
   log.asama2 = await bekle(A, faz('cark')) && await bekle(B, faz('cark'));
@@ -103,6 +104,6 @@ try {
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
 const ok = !hata.length && log.gordu && log.kod && log.davet && log.hazirGorundu && log.kamp && log.kamptaGordu && log.serit && log.tekHazirBaslamadi && log.savas && JSON.stringify(log.dusman) === '[900,855,855,900]' && log.yoldasTopcu && log.yoldasAd === 'Aylin' && log.yoldasAtes && log.yoldasYer && log.ortakCan && log.siraA && log.ruzgar[0] === log.ruzgar[1] && log.siraB && log.ruzgar2[0] === log.ruzgar2[1] && log.dusmanSirasi && log.dusmanAyni[0] === log.dusmanAyni[1] && log.turDondu && JSON.stringify(log.dusmanYer[0]) === JSON.stringify(log.dusmanYer[1]) && log.yoldasCercevesi
-  && log.asama1 && log.kampaDonus && log.altinAsama >= 150 && log.savas2 && log.kirilmaz && log.sahmeranCizim && log.siraA2 && log.siraB2 && log.dustuArenada && !!log.dusenAtlandi && log.lafYok && log.asama2 && log.sonPen && log.cikti && log.altinToplam >= 400;
+  && log.asama1 && log.kampaDonus && log.altinAsama >= 150 && log.savas2 && log.kirilmaz && log.sahmeranCizim && log.siraA2 && log.siraB2 && log.dustuArenada && !!log.dusenAtlandi && log.dusenYoldasYerde && log.lafYok && log.asama2 && log.sonPen && log.cikti && log.altinToplam >= 400;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);
