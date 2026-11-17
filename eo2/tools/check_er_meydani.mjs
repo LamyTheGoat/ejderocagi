@@ -30,9 +30,22 @@ try {
   const [sa, sb] = await Promise.all([oyna(A), oyna(B)]); log.sonuc = [sa, sb];
   if (ekran) await A.screenshot({ path: path.join(ekran, 'er_3_sonuc.png') });
   log.tutarli = (sa === 'zafer' && sb === 'yenilgi') || (sa === 'yenilgi' && sb === 'zafer') || (sa === 'berabere' && sb === 'berabere');
+  // ikinci yol: sancak. İkisi meydana döner; A sancağını diker, B onu seçip sancağına katılır; dövüş açılır, A teslim olur
+  for (const p of [A, B]) { await p.locator('.pen .gbtn:has-text("Er Meydanı")').first().click().catch(() => { }); await p.waitForTimeout(900); }
+  log.meydanaDondu = await bekle(A, 'document.querySelector("[data-er=\\"room_open\\"]") && !document.getElementById("dov")', 30000) && await bekle(B, 'document.querySelectorAll("[data-ersec]").length >= 1 && !document.getElementById("dov")', 30000);
+  await A.locator('[data-er="room_open"]').click();
+  log.sancakGorundu = await bekle(B, 'document.querySelector("[data-ersec].er-room")', 30000);
+  await B.locator('[data-ersec]').first().click(); await B.waitForTimeout(500); await B.locator('[data-er="join"]').click();
+  log.sancakDovusu = await bekle(A, '!!document.getElementById("dov")', 40000) && await bekle(B, '!!document.getElementById("dov")', 40000);
+  if (ekran) await B.screenshot({ path: path.join(ekran, 'er_4_sancak_dovusu.png') });
+  await bekle(A, 'document.querySelector("#dov [data-x=\\"teslim\\"]:not([disabled])")', 30000); await A.locator('#dov [data-x="teslim"]').click(); await A.waitForTimeout(600);
+  // teslim de bir hamledir: tur, iki taraf hamlesini yollayınca çözülür (B pençe atar)
+  await bekle(B, 'document.querySelector("#dov [data-x=\\"pence\\"]:not([disabled])")', 30000); await B.locator('#dov [data-x="pence"]').click();
+  const son = async p => { for (let i = 0; i < 60; i++) { const t = await p.evaluate(() => [...document.querySelectorAll('.pen')].map(x => x.textContent).join(' ')); if (/Zafer|Yenilgi|Teslim/.test(t) && !/teslim olacak|Teslim olursan/i.test(t)) return /Zafer/.test(t) ? 'zafer' : 'yenilgi'; await p.waitForTimeout(500); } return 'bitmedi'; };
+  log.sancakSonuc = await Promise.all([son(A), son(B)]);
   log.altinYazilmadi = (await A.evaluate(() => S.gold)) === altin0[0] && (await B.evaluate(() => S.gold)) === altin0[1];
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && log.meydanda && log.dovusAcildi && log.tutarli && log.altinYazilmadi;
+const ok = !hata.length && log.meydanda && log.dovusAcildi && log.tutarli && log.meydanaDondu && log.sancakGorundu && log.sancakDovusu && log.sancakSonuc[0] === 'yenilgi' && log.sancakSonuc[1] === 'zafer' && log.altinYazilmadi;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

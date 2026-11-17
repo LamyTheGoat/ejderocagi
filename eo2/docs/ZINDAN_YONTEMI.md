@@ -110,6 +110,19 @@ Bugün: düşman ve boss türleri `eo2/js/topcu_veri.js` içinde tanımlı (eski
 - Bağlantı ve yenileme (2026-11-17): sayfa yenilenince ya da bağlantı kopup gelince oyuncu savaşa geri döner (düşman canları ve sıra sunucudaki hâlden sürer). Çark sırasında yenilenirse o aşamanın çarkı geçilir (ödül iki kez yazılmasın diye yeniden açılmaz); grup bekletilmez. Ayrılan ya da kopan yoldaşın topçusu öteki ekranlarda yere serilir, sırası atlanır.
 - Yoldaşın ateş topundan kalan lav havuzu öteki ekranlarda da görünür (hasarını havuzun sahibi verir).
 
+### Çok oyunculu parçalar (2026-11-17 sonu)
+
+| Parça | Nerede | Denetim |
+|---|---|---|
+| Ortak zindan (1–4 kişi; tek kişi de aynı sistem) | `server/zindan_ortak.js`, `eo2/js/zindan_ortak.js` | `check_zindan.mjs`, `check_zindan_donus.mjs` |
+| Takım Meydanı 2v2 (ejder topçusu; sıra ve can sunucuda, ödül yok) | `server/takim_ortak.js`, `eo2/js/takim.js` | `check_takim.mjs` (dört tarayıcı, gerçek atış dahil) |
+| Er Meydanı (ejderha dövüşü: eşleşme sırası, sancak, meydan okuma) | `server/duel_service.js`, `eo2/js/arena.js` | `check_er_meydani.mjs` (sıra ve sancak; meydan okuma daveti denetimde yok) |
+| Topçu düellosu 1v1 (eski oda sistemi) | `server/pvp_rooms.js`, `eo2/js/topcu_pvp.js` | kalıcı denetimi yok |
+| Karakter görünüşü (saç, göz; öteki oyuncuya gider) | `eo2/js/gorunum.js`, `eo2/tools/bake_gorunus.mjs` | `check_gorunus.mjs` |
+
+Takım Meydanı ortak zindanla aynı oda altyapısını kullanır; 1v1 topçu düellosu hâlâ eski oda sistemindedir (iki ayrı yol). İleride 1v1 de Takım Meydanı'nın yoluna alınabilir.
+Savaş ekranındaki topçu (`assets/battle_<set>.webp`) karakter görünüşünü yansıtmaz: saç ve göz seçimi yalnız dünyada ve portrelerde görünür.
+
 ## 7. Açık sorular (kullanıcı kararı)
 
 1. Hayalet düşman zeminin içindeyken atışlardan etkilenir mi?
