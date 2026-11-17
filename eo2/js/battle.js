@@ -289,7 +289,7 @@
       for (const a of M.act) { if (a.dead || a.takim === 0) continue;
         if (a.tur === 'topcu') { const dH = pd(a.x, a.y + u(82)), dB = pd(a.x, a.y + u(46)); if (dH > 44 && dB > rad + 26) continue; const bas = dH <= 44, k = bas ? 1.75 : Math.max(0.55, 1 - dB / (rad + 75)); let h = Math.round(dm * k);
           if (bas) { M.ist.kritik++; pankart('Tam isabet!', '', 'hit'); } M.ist.kombo++; M.ist.enKombo = Math.max(M.ist.enKombo, M.ist.kombo); by.rage = Math.min(100, by.rage + 18);
-          const ham = h; if (a.shield > 0 && !s.delici) { h = Math.round(h * 0.55); a.shield--; } a.hp = Math.max(a.kontrol === 'uzak' ? 1 : 0, a.hp - h); a.hurtT = 0.55; a.vy = 3 + k * 2; a.fall = true; a.kx = Math.sign(a.x - x || 1) * (1 + k * 2.2); M.ist.hasar += h; yazi(a.x, a.y + 2.3, h, { crit: bas }); ses('hit'); yay('isabet', { kim: a.takim, hasar: ham, delici: !!s.delici, bas, it: Math.sign(a.x - x || 1), tur: M.tur }); }
+          const ham = h; if (a.shield > 0 && !s.delici) { h = Math.round(h * 0.55); a.shield--; } a.hp = Math.max(a.kontrol === 'uzak' || a.yoldas ? 1 : 0, a.hp - h); a.hurtT = 0.55; a.vy = 3 + k * 2; a.fall = true; a.kx = Math.sign(a.x - x || 1) * (1 + k * 2.2); M.ist.hasar += h; yazi(a.x, a.y + 2.3, h, { crit: bas }); ses('hit'); yay('isabet', { kim: a.takim, yid: a.yid, hasar: ham, delici: !!s.delici, bas, it: Math.sign(a.x - x || 1), tur: M.tur }); }
         else if (a.tur === 'boss') { if (s.bossVurdu) continue; const dB = pd(a.x, a.y + u(140)); if (dB > rad + 115) continue; if (a.D.gizli && a.D.gizli(a)) continue; if (s.ayaz) { a.chill = 2; yazi(a.x, a.y + a.h + 2.4, 'Ayaz mührü', { kucuk: 1, col: '#9fe0ff' }); } hasarBoss(a, Math.round(dm * Math.max(0.45, 1 - dB / (rad + 160))), s.delici); }
         else { const d = pd(a.x, a.y + u(48)); if (d > rad + 20) continue; let h = Math.round(dm * Math.max(0.55, 1 - d / (rad + 60))); const not = {}; if (a.D.hasar) h = a.D.hasar(a, s, h, not); if (s.ayaz) a.chill = 2; M.ist.kombo++; M.ist.enKombo = Math.max(M.ist.enKombo, M.ist.kombo); hasarMob(a, h, not); } }
     } else if (s.takim === 1 && !s.uzak) {
@@ -324,7 +324,7 @@
     return { ang: clamp(best.ang + (Math.random() - 0.5) * 2 * err, 5, 70), p: clamp(best.p + (Math.random() - 0.5) * 0.02 * err, 0.2, 1), t: 0 }; }
 
   /* ---------- sıra ---------- */
-  const dusmanKaldi = () => M.act.some(a => a.takim === 1 && !a.dead);
+  const dusmanKaldi = () => !!M.cfg.takimSavasi || M.act.some(a => a.takim === 1 && !a.dead);   // takım savaşında sonucu sunucu söyler
   function siradaki() {
     if (M.over) return; if (!dusmanKaldi()) return bitir(true); const onceki = M.aktif;
     if (M.cfg.ortak) { M.aktif = null; M.faz = 'bekle'; M.pt = 0; M.charging = false; M.charge = 0; hud(true); return yay('adim_bitti', { adim: M.adim || 0, ex: M.act.filter(a => a.takim === 1).map(a => Math.round(a.x * 100) / 100), x: M.ben.x, y: M.ben.y }); }   // ortak savaş: sıradakini sunucu söyler (ortakSira)
@@ -580,7 +580,7 @@
        yoldasAtes(kimlik, { x, y, aci, guc, yon, ruz, mod })                atışını gösterir */
   function yoldasKoy(id, o) { if (!M || !M.on) return null; o = o || {}; M.yoldas = M.yoldas || {}; let a = M.yoldas[id];
     if (!a) { const n = Object.keys(M.yoldas).length, set = imgs['assets/battle_' + o.set + '.webp'] ? o.set : M.ben.set, x0 = clamp(M.ben.x + (n % 2 ? 1 : -1) * (1.9 + Math.floor(n / 2) * 1.7), 1.7, FW - 1.7);
-      a = mkTopcu({ takim: 0, kontrol: 'yoldas', yoldas: true, ad: String(o.ad || 'Yoldaş').slice(0, 16), set, x: x0, face: M.ben.face, col: EL[o.el] || EL.ates, revive: 0 }); a.y = yerY(a.x); M.yoldas[id] = a; M.act.push(a); }
+      a = mkTopcu({ takim: o.takim === 1 ? 1 : 0, yid: id, kontrol: 'yoldas', yoldas: true, ad: String(o.ad || 'Yoldaş').slice(0, 16), set, x: x0, face: o.takim === 1 ? -M.ben.face : M.ben.face, col: EL[o.el] || EL.ates, revive: 0 }); a.y = yerY(a.x); M.yoldas[id] = a; M.act.push(a); }
     if (typeof o.x === 'number') { a.moving = Math.abs(o.x - a.x) > 0.02; a.x = clamp(o.x, 1.7, FW - 1.7); a.y = typeof o.y === 'number' ? o.y : yerY(a.x); a.fall = false; a.vy = 0; }
     if (typeof o.aci === 'number') a.angle = clamp(o.aci, -10, 70); if (o.yon === 1 || o.yon === -1) a.face = o.yon;
     if (typeof o.max === 'number' && o.max > 0) { const yeni = clamp(o.hp || 0, 0, o.max), fark = a.canBilindi ? Math.round(a.hp - yeni) : 0; a.max = o.max; a.hp = yeni; if (!a.canBilindi) a.shown = yeni; a.canBilindi = true;
@@ -629,7 +629,10 @@
       sahne: { katman: A.katman, ppu: A.ppu, taban: A.taban, ust: A.sahne.ust, alt: A.sahne.alt }, mobSinir: [1.2 * PX, (A.en - 1.2) * PX],
       moblar: A.dusman.map(m => Object.assign({ tip: m.tip, ad: m.ad, x: m.x * PX, h: m.h, hayalet: m.hayalet }, m.fizik ? {} : { ucan: true, yW: m.y })),
       boss: A.boss ? { tip: A.boss.tip, ad: A.boss.ad, unvan: A.boss.unvan, x: A.boss.x * PX, h: A.boss.h } : null }); }
-  EO2.battle = { arenaCfg, ac, kapat, uzak, sonlandir, ipucu, ortakHasar, ortakCan, ortakSira, ortakPas, pas, yoldasKoy, yoldasAtes, dinle: fn => { dinleyen.push(fn); return () => { const i = dinleyen.indexOf(fn); if (i >= 0) dinleyen.splice(i, 1); }; }, MOB, BOSS, PROP, BECERI, api: API, active: () => !!(M && M.on), state: () => M,
+  /* takım savaşında oyuncunun kendi canı da sunucudan gelir */
+  function benCan(hp, max, h, bas) { if (!M || !M.on || M.over) return; const a = M.ben; if (max > 0) a.max = max; const once = a.hp; a.hp = clamp(hp, 0, a.max); if (h > 0 && once > a.hp) { a.hurtT = 0.55; a.vy = 3; a.fall = true; yazi(a.x, a.y + 2.3, h, { crit: !!bas }); M.shake = Math.max(M.shake, 0.4); ses('hit'); } yay('can', { kim: 0, hp: a.hp, max: a.max }); hud(true); }
+  function benDus() { if (!M || !M.on || M.over) return; const a = M.ben; if (a.dustuKesin) return; a.hp = 0; a.dead = true; a.dustuKesin = true; a.revive = 0; pankart('Düştün', 'Takımını izliyorsun', 'kayip'); if (M.aktif === a) siradaki(); hud(true); }
+  EO2.battle = { benCan, benDus, arenaCfg, ac, kapat, uzak, sonlandir, ipucu, ortakHasar, ortakCan, ortakSira, ortakPas, pas, yoldasKoy, yoldasAtes, dinle: fn => { dinleyen.push(fn); return () => { const i = dinleyen.indexOf(fn); if (i >= 0) dinleyen.splice(i, 1); }; }, MOB, BOSS, PROP, BECERI, api: API, active: () => !!(M && M.on), state: () => M,
     start() { if (EO2.topcu) EO2.topcu.baslat('talim'); }, stop() { kapat(); } };
   const wait = setInterval(() => { if (!EO2.api) return; clearInterval(wait); EO2.frameHooks.push(dt => { if (M && M.on && M.T) { if (!M.dur) update(dt); if (M && M.on) render(); } }); }, 80);
 })();

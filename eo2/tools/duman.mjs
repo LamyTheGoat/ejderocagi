@@ -94,6 +94,10 @@ if (acik) {
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_zindan_donus.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 240000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
     yaz('tek kişilik sefer ve sayfa yenilenince savaşa dönüş', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
+  // 4k3) Takım Meydanı 2v2: dört tarayıcı sıraya girer, maç başlar; ortak sıra, sunucuda can, düşen izler, doğru sonuç
+  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_takim.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 280000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('Takım Meydanı 2v2 (dört tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
   // 4l) eksik dosya ve konsol hatası: bütün ekranlar gezilir; yüklenemeyen resim, ses ya da betik olmamalı
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_eksik_dosya.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 200000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }

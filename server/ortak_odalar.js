@@ -6,6 +6,8 @@
 //
 // TÜR TANIMI  kaydet(ad, tanim)
 //   enAz, enCok        : oyuncu sayısı (varsayılan 1 ve 4)
+//   oyundaEnAz         : oyun sürerken odada kalması gereken en az üye (varsayılan enAz). Takım savaşı gibi, biri ayrılınca
+//                        kalanların sürdürdüğü türler 1 verir; sonucu türün kendi kuralı söyler.
 //   anahtarGecerli(k)  : oda anahtarı (ör. zindan kimliği) geçerli mi
 //   baslat(oda)        : ortak başlangıç durumu (ör. { can, enCan, asama }); sunucuda durur
 //   eylem(durum, uye, eylem, oda) : oyuncunun eylemini işler; { olaylar: [...], bitti?: { kazanan: bool, ... } } döner ya da
@@ -57,7 +59,7 @@ function createOrtakOdalar({ send, sockets, kimlik, crypto = require('node:crypt
     o.uyeler.splice(i, 1); uyelik.delete(id); for (const s of soketler(id)) send(s, { type: 'ortak_ayrildi', neden: neden || 'cikti' });
     if (!o.uyeler.length) return odaKapat(o);
     if (o.kurucu === id) o.kurucu = o.uyeler[0].id;
-    if (o.durum === 'oyunda' && o.uyeler.length < o.tanim.enAz) return bitir(o, { kazanan: false, neden: 'oyuncu_kalmadi', ayrilan: id });
+    if (o.durum === 'oyunda' && o.uyeler.length < (o.tanim.oyundaEnAz ?? o.tanim.enAz)) return bitir(o, { kazanan: false, neden: 'oyuncu_kalmadi', ayrilan: id });
     odaYay(o); tikCalistir(o);   // kalanların beklediği koşul (herkes hazır, herkes çarkını çevirdi) ayrılanla birlikte değişmiş olabilir
   }
   function odaKapat(o) { for (const u of o.uyeler) uyelik.delete(u.id); odalar.delete(o.id); kodlar.delete(o.kod); }

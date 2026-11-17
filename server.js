@@ -61,6 +61,8 @@ const KIR_PVP = require('./server/kiraathane_pvp').createKiraathanePvp({ store: 
 ORTAK.kaydet('kiraathane', KIR_PVP.tanim);
 // Ortak zindan seferi (server/zindan_ortak.js): Zümrüt Saray; ortak düşman canı sunucuda, ödül istemcide mevcut kurallarla
 ORTAK.kaydet('zindan', require('./server/zindan_ortak').createZindanOrtak().tanim);
+// Takım Meydanı (server/takim_ortak.js): ejder topçusu 2v2; sıra ve can sunucuda, ödül yok
+ORTAK.kaydet('takim', require('./server/takim_ortak').createTakimOrtak().tanim);
 // Oyuncu profili (künye) ve parti: ikisi de bellekte, ekonomiye dokunmaz (server/profil_service.js, server/parti_service.js)
 const wsYolla = (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); };
 const PROFIL = require('./server/profil_service').createProfil({ send: wsYolla, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo });
