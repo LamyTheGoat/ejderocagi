@@ -136,6 +136,9 @@
       sayfa: { src: sayfa, cw: 465, ch: 339, sutun: 8, px: 197, py: 322, kare(b, t) { const son = (i0, n, oran) => i0 + Math.max(0, Math.min(n - 1, Math.floor(oran * n)));
         if (b.anim === 'atk') { const g = 2.4 - b.animT; return g < 1.2 ? son(18, 8, g / 1.2) : g < 1.55 ? son(26, 6, (g - 1.2) / 0.35) : son(32, 6, (g - 1.55) / 0.85); }
         if (b.anim === 'hit') return son(38, 9, (0.5 - b.animT) / 0.5); return Math.floor(t * 7.5) % 18; } } }); })();
+  /* Şahmeran'da işaretler gizli (kullanıcı, 2026-11-17: "sürekli çizerek zayıf noktasını ve atış yapacağı yeri gösterme; onlar yine olsun ama gizle"):
+     taç kritiği ve nişan aldığı bölge kural olarak aynen işler, ekrana çizilmez. Oyuncu tacı kendi bulur, her tur yerini değiştirir. */
+  B.BOSS.sahmeran.isaretGizli = B.BOSS.sahmeran_v3.isaretGizli = true;
   /* Zümrüt Saray'ın yılanları (konsept çizim, kullanıcı onayı 2026-11-17: geçici). Kurallar yerdeki muhafızın (cobra) aynısıdır; yalnız çizim değişir.
      Tek duruş var: saldırı ve vuruluş karesi çizilmedi. Çizim sola bakar, alt kenarı zemindir. */
   /* Canlandırma (2026-11-17): bekleme, ilerleme, saldırı, vuruluş, ölüm klipleri tek sayfada (tools/zumrut_yilan.mjs → js/zumrut_yilan_veri.js).
@@ -178,7 +181,7 @@
           moblar: d => [{ tip: 'cobra', ad: 'Bronz Engerek Muhafızı', hp: Math.round(760 * d), x: 1680 }, { tip: 'viper', ad: 'Uçan Sırça Engereği', hp: Math.round(800 * d), x: 2320, yuk: 590 }] },
         { ad: 'Sırça Kristal Mahzeni', alt: 'Ara boss: Sırça Kristal Yılan Golemi', bg: I('extreme/ex_sah_vault_bg.webp'), f: mahzen, ipucu: 'Golemin başına nişan al. Kalkanı varken Krater Güllesi deler.',
           boss: d => ({ tip: 'sirca_golem', ad: 'Sırça Kristal Yılan Golemi', unvan: 'Camasb\'ın mahzen muhafızı', hp: Math.round(2600 * d), kalkan: 250, x: 2560 }), moblar: () => [{ tip: 'cobra', ad: 'Mahzen Nöbetçisi', hp: 620, x: 1840 }] },
-        { ad: 'Yılan Kraliçe Şahmeran', alt: 'Sırça Saray\'ın iç mabedi', bg: I('sahmeran/sahmeran_bg.webp'), f: mabet, ipucu: 'Altın tacı zayıf noktası. Her tur yerdeki halkadan çık, sonra ateş et.',
+        { ad: 'Yılan Kraliçe Şahmeran', alt: 'Sırça Saray\'ın iç mabedi', bg: I('sahmeran/sahmeran_bg.webp'), f: mabet, ipucu: 'Tacına nişan al. Durduğun yere ok yağdırır: her tur yerini değiştir, sonra ateş et.',
           boss: d => ({ tip: 'sahmeran', ad: 'Yılan Kraliçe Şahmeran', unvan: 'Sırça Saray\'ın ebedi hükümdarı', hp: Math.round(3600 * d), x: 2680 }), moblar: d => [{ tip: 'cobra', ad: 'Sırça Taht Muhafızı', hp: Math.round(640 * d), x: 2060 }] }] },
     komutan: { ad: 'Volkanik Kaldera', rakam: 'II', boss: 'Başkomutan Kalgarot', el: 'Ateş ve Gölge', ganimet: 'Kalgarot Kor Kalıbı', kalip: 'kalgarot_kalip', prolog: 'komutan_prolog', zafer: 'komutan_zafer', destan: 'Başkomutan Kalgarot', gir: 'Volkanik Kaldera seferine gir', yuz: I('komutan/komutan_closeup.webp'), ortam: 'kor', tema: 'kaldera',
       asama: [

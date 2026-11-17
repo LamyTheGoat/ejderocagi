@@ -25,6 +25,6 @@ const yaz = (ad, H, json) => { const d = path.join(kok, ad); fs.mkdirSync(d, { r
   for (const dx of [0, -197, 197, -393]) H.kutu(603 + dx, L, 72, B, RENK.oyuncu);
   const mb = Math.round(2.4 * k); H.kutu(2046, L, 260, mb, RENK.dusman); H.kutu(2728, L, 260, mb, RENK.dusman);
   H.kutu(3620, U, 420, Math.round(6.8 * k), RENK.boss);
-  yaz('zumrut-defile', H, { ad: 'Şahmeran\'ın Defilesi', alt: 'Yılan Kraliçe yükseltide bekliyor', ipucu: 'Zemin kırılmaz. Altın tacı zayıf noktasıdır. Her tur yerdeki halkadan çık, sonra ateş et.', tema: 'sirca', ortam: 'spor', ust: '#07201a', altRenk: '#0a2a20',
+  yaz('zumrut-defile', H, { ad: 'Şahmeran\'ın Defilesi', alt: 'Yılan Kraliçe yükseltide bekliyor', ipucu: 'Zemin kırılmaz. Tacına nişan al. Durduğun yere ok yağdırır: her tur yerini değiştir, sonra ateş et.', tema: 'sirca', ortam: 'spor', ust: '#07201a', altRenk: '#0a2a20',
     dusman: [{ tip: 'zs_agir', ad: 'Sırça Taht Muhafızı', hp: 640 }, { tip: 'zs_agir', ad: 'Sırça Taht Muhafızı', hp: 640 }],
     boss: { tip: 'sahmeran_v3', ad: 'Yılan Kraliçe Şahmeran', unvan: 'Zümrüt Saray\'ın ebedi hükümdarı', hp: 3600 } }); }
