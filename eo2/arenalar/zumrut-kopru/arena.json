@@ -8,10 +8,9 @@
   "altRenk": "#e8f2fb",
   "dusman": [
     {
-      "tip": "viper",
-      "ad": "Uçan Sırça Engereği",
-      "hp": 800,
-      "fizik": false
+      "tip": "zs_kucuk",
+      "ad": "Sırça Engerek",
+      "hp": 800
     },
     {
       "tip": "zs_vurucu",
@@ -24,10 +23,9 @@
       "hp": 760
     },
     {
-      "tip": "viper",
-      "ad": "Uçan Sırça Engereği",
-      "hp": 800,
-      "fizik": false
+      "tip": "zs_kucuk",
+      "ad": "Sırça Engerek",
+      "hp": 800
     }
   ]
 }

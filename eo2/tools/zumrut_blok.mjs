@@ -13,10 +13,11 @@ const yaz = (ad, H, json) => { const d = path.join(kok, ad); fs.mkdirSync(d, { r
 { const W = 5596, Hh = 1291, L = 913, B = 149, k = B / 1.7, H = harita(W, Hh);
   H.dolu(0, L, W, Hh, RENK.kirilmaz);
   for (const dx of [0, -247, 247, -494]) H.kutu(2798 + dx, L, 90, B, RENK.oyuncu);
-  const ucan = L - Math.round(7.72 * k), yb = Math.round(2.7 * k), mb = Math.round(2.4 * k);
-  H.kutu(625, ucan, 230, yb, RENK.dusman); H.kutu(1251, L, 320, mb, RENK.dusman); H.kutu(4345, L, 320, mb, RENK.dusman); H.kutu(4971, ucan, 230, yb, RENK.dusman);
+  // uçan engerek yok (kullanıcı, 2026-11-17: "hiçbir zaman olmayacak"): dört yılan da yerde; uçlardakiler küçük yılan
+  const kb = Math.round(2.0 * k), mb = Math.round(2.4 * k);
+  H.kutu(625, L, 250, kb, RENK.dusman); H.kutu(1251, L, 320, mb, RENK.dusman); H.kutu(4345, L, 320, mb, RENK.dusman); H.kutu(4971, L, 250, kb, RENK.dusman);
   yaz('zumrut-kopru', H, { ad: 'Zümrüt Saray Köprüsü', alt: 'Yılanlar iki yandan geliyor', ipucu: 'Yılanlar iki yandan gelir. Fareyi çevirdiğin yana döner, o yana ateş edersin. Önce yaklaşanı vur.', tema: 'sirca', ortam: 'spor', ust: '#6fafFd', altRenk: '#e8f2fb',
-    dusman: [{ tip: 'viper', ad: 'Uçan Sırça Engereği', hp: 800, fizik: false }, { tip: 'zs_vurucu', ad: 'Bronz Engerek Muhafızı', hp: 760 }, { tip: 'zs_vurucu', ad: 'Bronz Engerek Muhafızı', hp: 760 }, { tip: 'viper', ad: 'Uçan Sırça Engereği', hp: 800, fizik: false }] }); }
+    dusman: [{ tip: 'zs_kucuk', ad: 'Sırça Engerek', hp: 800 }, { tip: 'zs_vurucu', ad: 'Bronz Engerek Muhafızı', hp: 760 }, { tip: 'zs_vurucu', ad: 'Bronz Engerek Muhafızı', hp: 760 }, { tip: 'zs_kucuk', ad: 'Sırça Engerek', hp: 800 }] }); }
 
 /* defile: 4459 × 1241 (üstte 300 piksel tavan payı), yürüme hattı 983; sağda boss yükseltisi (rampa 3148–3305, üst yüzey 845); oyuncu boyu 119 piksel */
 { const W = 4459, Hh = 1241, L = 983, U = 845, R0 = 3148, R1 = 3305, B = 119, k = B / 1.7, H = harita(W, Hh);

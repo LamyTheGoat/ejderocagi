@@ -150,6 +150,7 @@
         if (a.yuruT != null && t - a.yuruT < 0.8) return kl('move', (t - a.yuruT) / 0.8); return Y.dizin.idle[0] + Math.floor(t * 7.5 + a.x) % Y.dizin.idle[1]; } } }); };
   B.MOB.zs_vurucu = yilan('vurucu', 'assets/zumrut/yilan_vurucu.webp');
   B.MOB.zs_agir = yilan('agir', 'assets/zumrut/yilan_agir.webp');
+  B.MOB.zs_kucuk = yilan('kucuk', 'assets/zumrut/yilan_kucuk.webp');   // köprünün uçlarındaki küçük yılan (uçan engereğin yerine: uçan engerek hiçbir zaman olmayacak)
   for (const k in B.BOSS) { const D = B.BOSS[k]; if (D.ek) D.ek.forEach((e, i) => { D.spr['ek' + i] = e; }); }
 
   /* ---------- deniz ve dalga çizimi (Batık Donanma) ---------- */

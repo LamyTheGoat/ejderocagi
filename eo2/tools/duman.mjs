@@ -106,6 +106,10 @@ if (acik) {
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_gorunus.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 240000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
     yaz('karakter görünüşü: saç ve göz (iki tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
+  // 4k5b) Kor Örsü: bedel, çekiç oyunu, düşme, çatlama, onarım, topçu artışı, çarşıdaki giriş
+  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_ors.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 240000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('Kor Örsü: dövme, risk, onarım, topçu artışı', r.status === 0 && !!j && j.ok, j ? (j.hata.concat(j.eksik).slice(0, 3).join(' | ')) : String(r.stderr || '').slice(0, 200)); }
   // 4k6) Er Meydanı: ejderha dövüşünde herkese açık eşleşme (iki tarayıcı sıraya girer, dövüşür, tutarlı sonuç; altın yazılmaz)
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_er_meydani.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 280000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }

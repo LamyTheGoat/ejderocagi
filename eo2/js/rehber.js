@@ -79,6 +79,7 @@
   const IPUCU = {
     ejderhalar: 'Her ejderhaya bir emir ver. Emirler hafta sonunda işlenir.',
     /* ipucu sekme değişince ekranda kalır: her sekmede doğru olan söz (Er Meydanı ödülsüzdür) */
+    ors: 'Bedeli öde, ibre altın kora gelince çekici indir. Üç darbe; kademe yükseldikçe risk büyür.',
     arena: 'Bir rakip seç ve Meydan oku. Arenalar ün ve altın getirir; Er Meydanı dostça oynanır.',
     yuva: 'İki yetişkini gezintiye çıkar; yakınlaştıkça çiftleşebilirler.',
     pazar: 'Bir tezgâh seç. Yem, yumurta ve kuşam burada satılır.',

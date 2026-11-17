@@ -7,7 +7,7 @@
 import fs from 'node:fs'; import path from 'node:path'; import { createRequire } from 'node:module'; import { fileURLToPath } from 'node:url';
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..'), require = createRequire(path.join(repo, 'package.json')), { chromium } = require('playwright-core');
 const kaynak = path.join(repo, 'eo2', 'docs', 'bolumler', 'kaynak', 'zumrut-saray', 'dusman_yilan_anim');
-const YILAN = [['vurucu', 'snake_striker', [299, 151]], ['agir', 'snake_heavy', [375, 199]]];   // [oyundaki ad, kaynak klasör, ağzın ayak noktasına göre yeri (sola, yukarı)]
+const YILAN = [['vurucu', 'snake_striker', [299, 151]], ['agir', 'snake_heavy', [375, 199]], ['kucuk', 'snake_basic', [207, 128]]];   // [oyundaki ad, kaynak klasör, ağzın ayak noktasına göre yeri (sola, yukarı)]
 const KLIP = [['idle', 4], ['move', 3], ['attack', 2], ['hit', 2], ['death', 2]], SUTUN = 8;   // [klip, kaçta bir kare alınır]
 const veri = {};
 const b = await chromium.launch({ channel: 'msedge', headless: true }), p = await b.newPage();

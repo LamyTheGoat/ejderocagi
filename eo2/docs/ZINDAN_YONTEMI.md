@@ -131,3 +131,9 @@ Savaş ekranındaki topçu (`assets/battle_<set>.webp`) karakter görünüşün�
 4. Dik telefon için kamera oranı (bugün: eski yakınlaştırma).
 5. Arena genişliği sınırı büyütülsün mü (bugün en çok 37 oyuncu boyu)?
 6. Saldırı öncesi çizgi roman panelleri olacak mı?
+
+### Kor Örsü ve yasak düşman (2026-11-17)
+
+- **Uçan engerek hiçbir zaman olmayacak (KARAR).** Zümrüt Saray'da yalnız yer yılanları vardır; köprüdeki iki uçan engerek küçük yer yılanıyla (Sırça Engerek) değiştirildi. Uçan yılan çizimi istenmez.
+- **Kor Örsü** (`eo2/js/ors_kural.js` kurallar, `eo2/js/ors.js` ekran): terbiyecinin Ejder Topu +0'dan +12'ye dövülür; her kademe topçunun hasarını ve canını yüzde 2 artırır (çatlak topta artış yok). Bedel peşin ödenir (kor taşı + altın; sayılar eski oyunun birinci kademe tablosu). Üç çekiç darbeli tav oyunu şansı değiştirir; "Körüğe yüklen" kumarı; +4'ten sonra tutmayan deneme kademe düşürür, +7'den sonra topu çatlatır; Anka Mührü korur; üç altın darbe + tutan deneme iki kademe verir. Giriş: Gece Çarşısı'nda Usta Kerim'in tezgâhı ve Usta Kerim'le konuşma. Denetim: `tests/ors_kural.test.js`, `eo2/tools/check_ors.mjs` (duman testinde).
+- Örs kaydı ve taşlar oyuncunun kendi kaydındadır (tezgâh alışverişiyle aynı yol); sunucu örs denemesini doğrulamaz.

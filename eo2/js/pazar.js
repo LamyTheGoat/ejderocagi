@@ -8,7 +8,7 @@
   const SLOT_AD = { bas: 'Baş', govde: 'Gövde', pence: 'Pençe', tilsim: 'Tılsım' };
   /* Usta Kerim'in karşılaması: eski oyunun sözü terbiyeci pusatı dövmeyi ve kalıp birleştirmeyi vaat ediyordu; o sistem (Kor Örsü) 2.0'da
      kurulmadı. Oyuncu olmayan bir şeyi aramasın diye söz, tezgâhın bugün gerçekten yaptığı işi söyler (ejderha kuşamı alım satımı). */
-  if (typeof VENDORS !== 'undefined' && VENDORS.demir) VENDORS.demir.greet = ['Örsüm kor, çekicim ağır! Ejderhana baş, gövde, pençe ve tılsım kuşamı döverim; elindekini de iyi fiyata alırım.', 'Kuşam ejderhanın boyuna göre seçilir evlat; almadan önce künyesine bak.'];
+  if (typeof VENDORS !== 'undefined' && VENDORS.demir) VENDORS.demir.greet = ['Örsüm kor, çekicim ağır! Ejderhana kuşam satarım; Ejder Topu\'nu da Kor Örsü\'nde döverim. Kor taşın varsa gel.', 'Anka Mührü olmadan cehennem kademesine çekiç vurma evlat; top çatlar!'];
   const itemInfo = it => [it.atk ? 'saldırı +' + it.atk : '', it.def ? 'savunma +' + it.def : '', it.hp ? 'can +' + it.hp : '', it.crit ? 'kritik +' + it.crit : '', it.dodge ? 'kaçınma +' + it.dodge : ''].filter(Boolean).join(' · ') || (it.d || '');
   G.itemInfo = itemInfo; G.SLOT_AD = SLOT_AD;
   let stall = 'ejder';
@@ -52,8 +52,10 @@
         (L.length ? '<div class="pz-mallar kay">' + L.map((x, i) => '<button type="button" class="mal2 t' + x.tier + (x.kilit ? ' kilitli' : '') + '" data-key="' + x.key + '" aria-pressed="' + (x.key === cur.key) + '" style="animation-delay:' + Math.min(i * 0.04, 0.4) + 's' + (x.el ? ';--k1:color-mix(in srgb,' + G.ELC[x.el] + ' 45%,#1c2238);--k2:color-mix(in srgb,' + G.ELC[x.el] + ' 75%,#5a6278)' : '') + '"><span class="res"><img alt="" src="' + x.img + '"' + (x.fb ? ' onerror="this.onerror=null;this.src=\'' + x.fb + '\'"' : '') + '>' + (x.muhur ? '<i class="tz-muhur ' + x.muhurCls + '">' + x.muhur + '</i>' : '') + '</span><b>' + esc(x.ad) + '</b><small>' + esc(x.alt) + '</small><em class="' + (x.sat ? 'sat' : yetmez(x) ? 'pahali' : '') + '">' + x.fiyat + '</em></button>').join('') + '</div>' +
           '<div class="pz-kunye"><div><h3>' + esc(cur.ad) + '</h3><p>' + (cur.kilit || cur.d) + '</p></div><button type="button" class="gbtn buyuk ' + (cur.sat ? 'kor' : 'altin') + '" id="pzAl" ' + (yok ? 'disabled' : '') + '>' + cur.btn + '<small>' + (cur.sat ? '+' : '') + cur.fiyat + ' altın' + (!cur.sat && yetmez(cur) ? ' · yetmiyor' : '') + '</small></button></div>'
           : '<p class="ah-not">' + (BOS[stall][mod === 'sat' ? 1 : 0] || 'Tezgâh boş.') + '</p>') + '</div>' +
+      (stall === 'demir' && EO2.ors ? '<button type="button" class="gbtn altin pz-ors" data-ors="1">Kor Örsü<small>Ejder Topu\'nu döv · +' + EO2.ors.durum().kademe + (EO2.ors.durum().catlak ? ' · çatlak' : '') + '</small></button>' : '') +
       '<div class="kadro pz-tezgah">' + ['ejder', 'yumurta', 'yem', 'demir', 'kan'].filter(k => VENDORS[k]).map(k => '<button type="button" class="madalyon" data-stall="' + k + '" aria-pressed="' + (k === stall) + '" title="' + VENDORS[k].ad + '"><img alt="" src="' + G.npcImg(VENDORS[k].npc) + '"><span>' + VENDORS[k].tabela + '</span></button>').join('') + '</div>';
     on(body, '[data-stall]', b => { stall = b.dataset.stall; UI.vsay = null; sec = null; mod = 'al'; render(); }); on(body, '[data-mod]', b => { mod = b.dataset.mod; sec = null; render(); });
+    on(body, '[data-ors]', () => G.open('ors'));
     on(body, '[data-icen]', b => { UI.sel = +b.dataset.icen; render(); });
     on(body, '[data-key]', b => { sec = b.dataset.key; render(); }); on(body, '#pzAl', () => { if (cur) cur.go(); });
   } });
