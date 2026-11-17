@@ -50,10 +50,20 @@
   /* meydanda görünen bir oyuncunun görünüş kodu (yoldaş ve rakip savaşta böyle giydirilir) */
   const kodOf = h => { const c = EO2.meydanAg && h ? [...EO2.meydanAg.kisiler.values()].find(x => x.handle === h) : null; return c && c.gorKod ? c.gorKod.split('|')[1] || '' : ''; };
 
+  /* ---------- kuşam: zırh setleri (kullanıcı, 2026-11-17: "zırh setlerini alınabilir yapalım"; oyun çıplak setle başlar) ----------
+     Kayıt: S.kusam = { giyili, sahip: [] }. Setler yalnız görünüştür (savaş değerlerini değiştirmez). Fiyatlar burada, tek yerde durur.
+     Eski kayıtlarda (kuşam alanı yok) oyuncu o güne dek göründüğü Temel setin sahibi sayılır. */
+  const KUSAM = [['bare', 'Çıplak', 0, 'Yola çıktığın hâl'], ['temel', 'Temel', 120, 'Deri yelek, kürk yaka'], ['avci', 'Avcı', 450, 'Hafif deri, yeşil pelerin'], ['madenci', 'Madenci', 450, 'Kalın önlük, iş eldiveni'], ['muhafiz', 'Muhafız', 900, 'Çelik göğüslük, kızıl pelerin']].filter(k => GA.govde[k[0]] && AT.sets[k[0]]);
+  const ks = () => { if (typeof S === 'undefined' || !S) return { giyili: 'temel', sahip: ['bare', 'temel'] }; if (!S.kusam || !Array.isArray(S.kusam.sahip)) S.kusam = { giyili: 'temel', sahip: ['bare', 'temel'] }; if (!S.kusam.sahip.includes('bare')) S.kusam.sahip.unshift('bare'); if (!KUSAM.some(k => k[0] === S.kusam.giyili) || !S.kusam.sahip.includes(S.kusam.giyili)) S.kusam.giyili = 'bare'; return S.kusam; };
+  const kaydet = () => { if (typeof saveGame === 'function') saveGame(); };
+  function giy(set) { const k = ks(); if (!k.sahip.includes(set)) return false; k.giyili = set; kaydet(); uygula(); return true; }
+  function satinAl(set) { const k = ks(), K = KUSAM.find(x => x[0] === set); if (!K || k.sahip.includes(set) || !(S.gold >= K[2])) return false; S.gold -= K[2]; k.sahip.push(set); k.giyili = set; kaydet(); if (G.hud) G.hud(); uygula(); return true; }
+
   /* ---------- oyuncunun kendi görünüşü ---------- */
   const benim = () => temiz(typeof S !== 'undefined' && S && S.gorunus);
   let sonImza = '';
-  async function uygula() { const p = EO2.api && EO2.api.player; if (!p || !G.live) return; const g = benim(), imza = p.set + '|' + kod(g); if (imza === sonImza) return; sonImza = imza;
+  async function uygula() { const p = EO2.api && EO2.api.player; if (!p || !G.live) return; const giyili = ks().giyili; if (p.set !== giyili && AT.sets[giyili]) { p.set = giyili; p.gor = null; }   /* giyili set kayıttan gelir */
+    const g = benim(), imza = p.set + '|' + kod(g); if (imza === sonImza) return; sonImza = imza;
     try { const ad = await kur(p.set, g); if (sonImza === imza) { p.gor = ad; if (EO2.api.portreTazele) EO2.api.portreTazele(); } } catch (_) { sonImza = ''; } }
   setInterval(uygula, 400);
   function sec(alan, v) { if (!ALAN.includes(alan) || !GA.ad[alan][v]) return; S.gorunus = Object.assign(benim(), { [alan]: v }); if (typeof saveGame === 'function') saveGame(); uygula(); }
@@ -64,13 +74,24 @@
   function onizle(cv, ad, yon) { const st = EO2.setAl && EO2.setAl(ad); if (!st || !st.img) return; const m = st.m, i = m.frames[yon + '_idle'], x = cv.getContext('2d'), k = Math.min(cv.width / m.cw, cv.height / m.ch);
     x.clearRect(0, 0, cv.width, cv.height); x.imageSmoothingQuality = 'high'; x.drawImage(st.img, (i % m.cols) * m.cw, Math.floor(i / m.cols) * m.ch, m.cw, m.ch, (cv.width - m.cw * k) / 2, cv.height - m.ch * k, m.cw * k, m.ch * k); }
   const SATIR = [['sac', 'Saç'], ['sacRenk', 'Saç rengi'], ['goz', 'Göz'], ['gozRenk', 'Göz rengi']];
-  G.screen('gorunus', { k: 'Terbiyeci', t: 'Görünüş', cls: 'gr', bg: 'a:kiraathane', draw(body) { const g = benim(), p = EO2.api.player;
+  let dene = null, ilk = null;   // dene: aynada denenen (henüz alınmamış) set · ilk: oyunun başındaki seçim (kapanınca çözülen söz)
+  G.screen('gorunus', { k: 'Terbiyeci', t: 'Kuşam ve görünüş', cls: 'gr', bg: 'a:kiraathane', enter() { dene = null; }, leave() { dene = null; if (ilk) { const f = ilk; ilk = null; f(); } }, draw(body) { const g = benim(), p = EO2.api.player, k = ks(), D = dene && !k.sahip.includes(dene) ? KUSAM.find(x => x[0] === dene) : null;
     body.innerHTML = '<div class="gr-kok"><div class="gr-ayna"><canvas width="300" height="460" data-yon="down" aria-label="Önden"></canvas><canvas width="210" height="330" data-yon="right" aria-label="Yandan"></canvas><canvas width="210" height="330" data-yon="up" aria-label="Arkadan"></canvas></div>' +
-      '<div class="gr-secenek">' + SATIR.map(([alan, ad]) => '<section><h3>' + ad + '</h3><div class="gr-sira' + (BOYA[alan] ? ' renk' : '') + '" role="radiogroup" aria-label="' + ad + '">' + Object.keys(GA.ad[alan]).map(v => '<button type="button" role="radio" class="' + (BOYA[alan] ? 'gr-boya' : 'gbtn kucuk') + '" data-alan="' + alan + '" data-v="' + v + '" aria-checked="' + (g[alan] === v) + '" title="' + esc_(GA.ad[alan][v]) + '"' + (BOYA[alan] ? ' style="--c:' + BOYA[alan][v] + '"><span>' + esc_(GA.ad[alan][v]) + '</span>' : '>' + esc_(GA.ad[alan][v])) + '</button>').join('') + '</div></section>').join('') +
-        '<p class="soluk">Görünüş yalnız görüntüdür: setin ve ekipmanın aynı kalır. Meydandaki öteki terbiyeciler de seni böyle görür.</p><button type="button" class="gbtn" data-gr-ozgun="1" ' + (ozgunMu(g) ? 'disabled' : '') + '>Özgün görünüşe dön</button></div></div>';
-    const ciz = async () => { const ad = (await kur(p.set, benim()).catch(() => null)) || p.set; body.querySelectorAll('.gr-ayna canvas').forEach(cv => onizle(cv, ad, cv.dataset.yon)); }; ciz();
+      '<div class="gr-secenek">' + (ilk ? '<p class="gr-ilk">Terbiyeni seç: saçını ve gözünü belirle. Sonra da değiştirebilirsin.</p>' : '<section><h3>Zırh seti <small>' + (typeof S !== 'undefined' ? Math.floor(S.gold) : 0) + ' altın</small></h3><div class="gr-setler" role="radiogroup" aria-label="Zırh seti">' + KUSAM.map(K => { const var_ = k.sahip.includes(K[0]), giyili = k.giyili === K[0];
+          return '<button type="button" role="radio" class="gr-set' + (var_ ? '' : ' satilik') + '" data-set="' + K[0] + '" aria-checked="' + (D ? dene === K[0] : giyili) + '" title="' + esc_(K[3]) + '"><b>' + esc_(K[1]) + '</b><small>' + (giyili ? 'Giyili' : var_ ? 'Sende' : K[2] + ' altın') + '</small></button>'; }).join('') + '</div>' +
+          (D ? '<div class="gr-al"><span><b>' + esc_(D[1]) + ' seti</b> · ' + esc_(D[3]) + '</span><button type="button" class="gbtn altin" data-gr-al="' + D[0] + '" ' + (S.gold >= D[2] ? '' : 'disabled title="Yeterli altının yok"') + '>Satın al<small>' + D[2] + ' altın</small></button></div>' : '') + '</section>') + SATIR.map(([alan, ad]) => '<section><h3>' + ad + '</h3><div class="gr-sira' + (BOYA[alan] ? ' renk' : '') + '" role="radiogroup" aria-label="' + ad + '">' + Object.keys(GA.ad[alan]).map(v => '<button type="button" role="radio" class="' + (BOYA[alan] ? 'gr-boya' : 'gbtn kucuk') + '" data-alan="' + alan + '" data-v="' + v + '" aria-checked="' + (g[alan] === v) + '" title="' + esc_(GA.ad[alan][v]) + '"' + (BOYA[alan] ? ' style="--c:' + BOYA[alan][v] + '"><span>' + esc_(GA.ad[alan][v]) + '</span>' : '>' + esc_(GA.ad[alan][v])) + '</button>').join('') + '</div></section>').join('') +
+        '<p class="soluk">Kuşam ve görünüş yalnız görüntüdür: savaş gücünü değiştirmez. Meydandaki öteki terbiyeciler de seni böyle görür.</p>' + (ilk ? '<button type="button" class="gbtn altin buyuk" data-gr-hazir="1">Hazırım<small>ocağına git</small></button>' : '<button type="button" class="gbtn" data-gr-ozgun="1" ' + (ozgunMu(g) ? 'disabled' : '') + '>Özgün saç ve göze dön</button>') + '</div></div>';
+    const ciz = async () => { const set = D ? D[0] : p.set; if (EO2.setAl(set) && !EO2.setAl(set).img) { try { EO2.api.drawPortrait(document.createElement('canvas'), set, 0.5); } catch (_) { } await new Promise(r => setTimeout(r, 500)); }   /* çizimi henüz yüklenmemiş set */
+      const ad = (await kur(set, benim()).catch(() => null)) || set; body.querySelectorAll('.gr-ayna canvas').forEach(cv => onizle(cv, ad, cv.dataset.yon)); }; ciz();
+    body.querySelectorAll('[data-set]').forEach(b => b.addEventListener('click', () => { if (EO2.audio && EO2.audio.ui) EO2.audio.ui(); const s = b.dataset.set; if (ks().sahip.includes(s)) { dene = null; giy(s); } else dene = s; G.redraw(); }));
+    const al = body.querySelector('[data-gr-al]'); if (al) al.addEventListener('click', () => { const s = al.dataset.grAl, K = KUSAM.find(x => x[0] === s); if (satinAl(s)) { dene = null; if (EO2.audio && EO2.audio.chime) EO2.audio.chime(); G.toast('<b>' + esc_(K[1]) + ' seti</b> alındı ve giyildi.', 'goal'); } else G.toast('Bu set için ' + K[2] + ' altın gerek.'); G.redraw(); });
+    const hz = body.querySelector('[data-gr-hazir]'); if (hz) hz.addEventListener('click', () => { if (EO2.audio && EO2.audio.ui) EO2.audio.ui(); G.close(); });
     body.querySelectorAll('[data-alan]').forEach(b => b.addEventListener('click', () => { if (EO2.audio && EO2.audio.ui) EO2.audio.ui(); sec(b.dataset.alan, b.dataset.v); G.redraw(); }));
     const oz = body.querySelector('[data-gr-ozgun]'); if (oz) oz.addEventListener('click', () => { S.gorunus = Object.assign({}, OZGUN); if (typeof saveGame === 'function') saveGame(); uygula(); G.redraw(); });
   } });
-  EO2.gorunum = { kur, savas, kodOf, adOf, kurKod, uzak, sec, kod: () => kod(benim()), benim, secenekler: () => GA.ad };
+  /* oyunun başında: saç ve göz seçtirilir (zırh bölümü gizli); ekran kapanınca söz çözülür */
+  function ilkSecim() { return new Promise(coz => { ilk = coz; G.open('gorunus'); }); }
+  /* portreye dokununca (ve I tuşuyla) Kuşam ve görünüş açılır: görünür, tek dokunuşluk yer */
+  { const pr = document.getElementById('profile'); if (pr) { pr.title = 'Kuşam ve görünüş'; pr.addEventListener('click', e => { if (!G.live) return; e.stopImmediatePropagation(); e.preventDefault(); if (G.ekran && G.ekran() === 'gorunus') G.close(); else G.open('gorunus'); }, true); } }
+  EO2.gorunum = { kur, savas, kodOf, adOf, kurKod, uzak, sec, kod: () => kod(benim()), benim, secenekler: () => GA.ad, kusam: () => ({ giyili: ks().giyili, sahip: ks().sahip.slice(), setler: KUSAM.map(k => ({ set: k[0], ad: k[1], fiyat: k[2] })) }), giy, satinAl, ilkSecim };
 })();

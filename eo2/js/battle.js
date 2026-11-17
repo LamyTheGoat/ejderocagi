@@ -200,7 +200,7 @@
     for (const p of (cfg.props || [])) { const x = X_(p.x); M.props.push(Object.assign({ x, y: groundBelow(T, x, FH - 1) || 8, dead: false }, PROP[p.tip] || {}, p, { x })); }
     M.sira = cfg.ilkRakip && M.rakip ? [M.rakip, P] : [P, ...M.act.filter(a => a !== P)]; M.uzakKuyruk = []; M.hedef = M.boss || M.rakip || null;
     if (M.boss && M.boss.D.kur) M.boss.D.kur(M.boss, API);
-    $('tpAd').textContent = P.ad || 'Topçu'; api.drawPortrait($('tpYuz'), P.set0 || P.set, 0.66, O.gor != null ? O.gor || undefined : true); kurHedef();
+    $('tpAd').textContent = P.ad || 'Topçu'; if (O.gor != null) api.drawPortrait($('tpYuz'), P.set0 || P.set, 0.66, O.gor || undefined); else api.drawPortrait($('tpYuz'), api.player.set, 0.66, true);   /* kendi portren: meydandaki setin ve görünüşünle (savaş karesi olmayan sette de) */ kurHedef();
     $('tpBeceri').querySelectorAll('button').forEach(b => { const B = BECERI[b.dataset.b]; b.hidden = !!(B.yalniz && B.yalniz !== cfg.arazi.aile); });
     $('tpAsama').hidden = !cfg.asama; if (cfg.asama) $('tpAsama').innerHTML = '<small>' + cfg.asama.ad + '</small>' + Array.from({ length: cfg.asama.n }, (_, i) => '<i class="' + (i < cfg.asama.i ? 'tamam' : i === cfg.asama.i ? 'simdi' : '') + '"></i>').join('');
     $('tpBalon').hidden = true; $('tpLaf').hidden = true; $('tpBilgi').hidden = true; $('tpIpucu').textContent = matchMedia('(pointer: coarse)').matches ? 'ATEŞ\'e basılı tut, bırak' : 'Space basılı tut, bırak';

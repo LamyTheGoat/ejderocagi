@@ -419,3 +419,30 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .or-liste li em { font: 700 max(12px, .9em) var(--f-ui); font-style: normal; font-variant-numeric: tabular-nums; opacity: .85; }
 .ui2 .or-liste .gbtn { min-height: 2.4em; } .ui2 .or-liste p { margin: 0; font-size: max(12px, .88em); }
 @media (pointer: coarse) { .ui2 .or-liste .gbtn { min-height: 44px; } }
+
+/* kuşam: zırh setleri (Kuşam ve görünüş ekranı) */
+.ui2 .gr-secenek h3 small { margin-left: .6em; font: 600 .86em var(--f-ui); color: #e9ecfb; opacity: .8; }
+.ui2 .gr-setler { display: grid; grid-template-columns: repeat(auto-fit, minmax(5.6em, 1fr)); gap: .4em; }
+.ui2 .gr-set { display: grid; justify-items: center; gap: .1em; min-height: 3.1em; padding: .4em .5em; border: 0; border-radius: .9em; cursor: pointer; color: #eef1ff; background: rgba(255, 255, 255, .08); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .22); font: inherit; }
+.ui2 .gr-set b { font: 700 max(13px, .95em) var(--f-ui); } .ui2 .gr-set small { font: 600 max(12px, .76em) var(--f-ui); opacity: .8; }
+.ui2 .gr-set.satilik small { color: #f6d98a; opacity: 1; } .ui2 .gr-set[aria-checked="true"] { color: #0c1a3a; background: linear-gradient(180deg, #8fd0ff, #4a9ae8); box-shadow: 0 .15em .5em rgba(2, 4, 20, .5); } .ui2 .gr-set[aria-checked="true"] small { color: #0c1a3a; opacity: .85; }
+.ui2 .gr-set:focus-visible { outline: 2px solid #a6e0ff; outline-offset: 2px; }
+.ui2 .gr-al { display: flex; align-items: center; justify-content: space-between; gap: .8em; margin-top: .5em; padding: .5em .6em .5em .9em; border-radius: 1em; background: rgba(246, 217, 138, .12); box-shadow: inset 0 0 0 1px rgba(246, 217, 138, .5); font-size: max(12px, .9em); }
+.ui2 .gr-al .gbtn { display: grid; justify-items: center; height: auto; padding: .35em 1.1em; line-height: 1.15; } .ui2 .gr-al .gbtn small { display: block; }
+.ui2 .gr-ilk { margin: 0; padding: .6em .9em; border-radius: 1em; font: 600 max(13px, 1em) var(--f-ui); color: #fff3cf; background: rgba(246, 217, 138, .14); box-shadow: inset 0 0 0 1px rgba(246, 217, 138, .5); }
+.ui2 .gr-secenek [data-gr-hazir] { display: grid; justify-items: center; height: auto; padding: .5em 1.4em; line-height: 1.15; } .ui2 .gr-secenek [data-gr-hazir] small { display: block; }
+.ui2 .pz-kusam { top: 3.6em; }
+@media (pointer: coarse) { .ui2 .gr-set { min-height: 44px; } }
+
+/* hızlı seyahat haritası */
+.ui2 .hr-kok { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: .6em; justify-items: center; height: 100%; min-height: 0; }
+.ui2 .hr-pano { position: relative; height: 100%; max-width: 100%; aspect-ratio: 16 / 9; border-radius: 1.4em; overflow: hidden; box-shadow: 0 0 0 2px rgba(246, 217, 138, .7), 0 .6em 2em rgba(2, 4, 20, .6); }
+.ui2 .hr-resim { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ui2 .hr-yer { position: absolute; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: .05em; min-width: 9em; padding: .4em .9em .45em; border: 0; border-radius: 1.2em; cursor: pointer; color: #fff; background: linear-gradient(180deg, rgba(30, 44, 104, .93), rgba(12, 18, 50, .95)); box-shadow: inset 0 0 0 1.5px rgba(246, 217, 138, .75), 0 .3em .8em rgba(2, 4, 20, .6); font: inherit; transition: transform .15s, filter .15s; }
+.ui2 .hr-yer i { position: absolute; left: 50%; top: 100%; width: .9em; height: .9em; transform: translate(-50%, -45%) rotate(45deg); background: rgb(12, 18, 50); box-shadow: 1.5px 1.5px 0 rgba(246, 217, 138, .75); }
+.ui2 .hr-yer b { font: 700 max(13px, 1.02em) var(--f-ui); white-space: nowrap; } .ui2 .hr-yer small { font: 600 max(12px, .76em) var(--f-ui); color: #cfd8f6; white-space: nowrap; }
+.ui2 .hr-yer:hover, .ui2 .hr-yer:focus-visible { transform: translate(-50%, -56%) scale(1.05); filter: brightness(1.15); outline: none; }
+.ui2 .hr-yer.burada { background: linear-gradient(180deg, #fff3cf, #e8b84e); color: #2a1c06; } .ui2 .hr-yer.burada small { color: #4a3410; } .ui2 .hr-yer.burada i { background: #e8b84e; box-shadow: none; }
+.ui2 .hr-not { margin: 0; padding: .35em 1em; border-radius: 1em; font: 600 max(12px, .9em) var(--f-ui); color: #e9ecfb; background: rgba(8, 12, 40, .7); }
+@media (max-width: 760px), (max-aspect-ratio: 1/1) { .ui2 .hr-pano { height: auto; width: 100%; aspect-ratio: 3 / 4; } .ui2 .hr-yer { min-width: 0; padding: .35em .6em; } .ui2 .hr-yer small { display: none; } }
+@media (max-height: 500px) { .ui2 .hr-yer { min-width: 0; padding: .25em .7em; } .ui2 .hr-yer small { display: none; } .ui2 .hr-not { display: none; } }
