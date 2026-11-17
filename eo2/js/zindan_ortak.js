@@ -54,8 +54,15 @@
   /* yoldaşların topçuları bu ekranda da durur (js/battle.js yoldasKoy); motor savaşı kurana dek beklenir */
   function yoldaslariKur(deneme) { const M = B.state(); if (!Z.savas || !benim()) return; if (!M || !M.on || !M.ben) { if ((deneme || 0) < 40) setTimeout(() => yoldaslariKur((deneme || 0) + 1), 150); return; }
     for (const u of oda().uyeler) { if (u.id === ben() || !u.bagli) continue; const c = EO2.meydanAg && [...EO2.meydanAg.kisiler.values()].find(x => x.handle === u.h); B.yoldasKoy(u.id, { ad: u.ad, set: (c && c.set) || 'temel', x: dogus(asamalar()[od().asama], oda().uyeler.indexOf(u)) }); } }
-  async function asamaBaslat() { const d = od(); if (!d || d.faz !== 'savas' || Z.savas) return; Z.savas = true; Z.savasBitti = false; Z.sonAsama = null; seyirKapat(); G.close(); document.querySelectorAll('.pen-perde').forEach(w => w.remove());
-    const cfg = cfgKur(d), bek = B.ac(cfg); yoldaslariKur();
+  /* savaşa dönüş: bu ekran savaşı baştan kurar; düşman canları ve oyuncunun kendi durumu sunucudaki hâle getirilir. Sıra, giriş bitince sunucudaki adımdan sürer ('adim_bitti'). */
+  function canEsitle(deneme) { const M = B.state(), d = od(); if (!Z.savas || !d || d.faz !== 'savas') return; if (!M || !M.on || !M.ben) { if ((deneme || 0) < 40) setTimeout(() => canEsitle((deneme || 0) + 1), 150); return; }
+    d.dusman.forEach((q, j) => { if (q.hp < q.max) B.ortakCan(j + 1, q.hp); });
+    const me = d.uye[ben()]; if (me && me.hayatta === false) { M.ben.hp = 0; M.ben.dead = true; M.ben.dustuKesin = true; M.ben.revive = 0; } else if (me && me.max > 0 && me.hp > 0) M.ben.hp = Math.min(M.ben.max, me.hp);
+    for (const u of oda().uyeler) { const q = d.uye[u.id]; if (u.id !== ben() && q) B.yoldasKoy(u.id, q.hayatta === false ? { dustu: true } : q.max ? { hp: q.hp, max: q.max } : {}); } }
+  async function asamaBaslat(donus) { const d = od(); if (!d || d.faz !== 'savas' || Z.savas) return;
+    if (!G.live) return;   /* giriş ekranındayken (sayfa yenilendi, kayıt henüz açılmadı) savaş kurulmaz; ocağa girilince aşağıdaki nöbetçi savaşa döndürür */
+    Z.savas = true; Z.savasBitti = false; Z.sonAsama = null; seyirKapat(); G.close(); document.querySelectorAll('.pen-perde').forEach(w => w.remove());
+    const cfg = cfgKur(d), bek = B.ac(cfg); yoldaslariKur(); if (donus) canEsitle();
     setTimeout(() => { const M = B.state(); if (M && Z.savas) OR.eylem({ t: 'konum', x: M.ben.x, y: M.ben.y, aci: Math.round(M.ben.angle), yon: M.ben.face }); }, 700);
     setTimeout(() => { if (B.active() && cfg.ipucu) B.ipucu(cfg.baslik, cfg.ipucu); const M = B.state(); if (M) OR.eylem({ t: 'can', hp: Math.round(M.ben.hp), max: Math.round(M.ben.max) }); yoldasCiz(); }, window.__fastFx ? 0 : 2400);
     const r = await bek; Z.savasBitti = true;
@@ -113,7 +120,7 @@
     if (olay === 'oda' && Z.cagri && v.durum === 'bekliyor') { const c = Z.cagri; Z.cagri = null; for (const h of c) OR.davet(h); G.toast('Sefer davetin gitti.'); }
     if (olay === 'basladi') { Z.hata = ''; Z.islenen = -1; T.ornekKur({ zindan: tarif().odul, zorluk: v.durum.zorluk }); if (G.ekran()) G.close(); ses('chime'); kampaGit(); if (v.durum.faz === 'savas') setTimeout(asamaBaslat, 900); else G.toast('<b>' + zad() + '</b> seferi başladı. Hazır olan Zümrüt Kapı\'ya yürüsün.', 'goal'); }
     if (olay === 'olay') for (const o of v.olaylar) {
-      if (o.t === 'asama_basla') setTimeout(asamaBaslat, sahne() === 'kamp' ? 500 : 1400);
+      if (o.t === 'asama_basla') { Z.baslaT = Date.now(); setTimeout(asamaBaslat, sahne() === 'kamp' ? 500 : 1400); }
       else if (o.t === 'hasar' && o.kim !== ben() && Z.savas) B.ortakHasar(o.i + 1, o.h, uyeAd(o.kim));
       else if (o.t === 'konum' && o.kim !== ben() && Z.savas) B.yoldasKoy(o.kim, o);
       else if (o.t === 'ates' && o.kim !== ben() && Z.savas) B.yoldasAtes(o.kim, o);
@@ -126,7 +133,9 @@
       else if (o.t === 'hazir' && o.kim !== ben() && o.v && od().faz === 'bekleme') G.toast(esc_(uyeAd(o.kim)) + ' hazır.'); }   // son hazır olan aşamayı başlatır: o an bildirim çıkmaz
     if (olay === 'bitti') seferSonu(v.sonuc);
     yoldasCiz(); seyirCiz(); seritCiz(); if (G.ekran() === 'zindan') G.redraw(); });
-  setInterval(() => { seritCiz(); const L = EO2.api && EO2.api.sceneState && EO2.api.sceneState().L, k = L && L.id === 'kamp' && (L.interact || []).find(i => i.id === 'kapi'), d = od();
+  setInterval(() => { seritCiz();
+    // sefer savaştayken bu ekranda savaş açık değilse (sayfa yenilendi ya da bağlantı kopup geldi) savaşa geri dönülür
+    if (seferde() && od().faz === 'savas' && !Z.savas && !Z.sonAsama && !B.active() && G.live && Date.now() - (Z.donusT || 0) > 4000 && Date.now() - (Z.baslaT || 0) > 5000) {   /* aşama yeni başlıyorsa olağan başlangıç beklenir */ Z.donusT = Date.now(); G.toast('Sefer sürüyor: savaşa dönüyorsun.', 'goal'); T.ornekKur(T.ornek() || { zindan: tarif().odul, zorluk: od().zorluk }); asamaBaslat(true); } const L = EO2.api && EO2.api.sceneState && EO2.api.sceneState().L, k = L && L.id === 'kamp' && (L.interact || []).find(i => i.id === 'kapi'), d = od();
     if (k && seferde()) { const me = d.uye[ben()] || {}; k.sub = d.faz !== 'bekleme' ? 'Mühür kapalı' : me.hazir ? 'Hazırsın · vazgeç' : 'Aşama ' + (d.asama + 1) + ': hazırım'; }
     if (sahne() === 'kamp' && !seferde() && G.live && !Z.cikiyor && EO2.api.runAct) { Z.cikiyor = true; EO2.api.runAct('go:meydan'); setTimeout(() => { Z.cikiyor = false; }, 3000); } }, 500);
   (function bagla() { if (!EO2.hooks || !EO2.hooks.act) return setTimeout(bagla, 120); const a0 = EO2.hooks.act;
