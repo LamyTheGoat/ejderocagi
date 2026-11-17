@@ -34,7 +34,16 @@ try {
         const mx = Math.max(a.k.x0, c.k.x0) + w / 2, my = Math.max(a.k.y0, c.k.y0) + h / 2; if (!ust(a.el, mx, my) && !ust(c.el, mx, my)) continue;
         out.push('biniyor: ' + ad(a.el) + ' × ' + ad(c.el) + ' (' + Math.round(w) + '×' + Math.round(h) + ')'); }
       for (const a of L) { if (a.hud) continue; const q = a.q; if ((q.left < -2 || q.top < -2 || q.right > innerWidth + 2 || q.bottom > innerHeight + 2) && !kayar(a.el)) out.push('taşıyor: ' + ad(a.el)); }
-      return out.slice(0, 12); });
+      // (4) kesilen öğe: kaydırılamayan bir kabın kenarında yarım kalan düğme, giriş ya da yazı kutusu (2026-11-17: Dostlar ekranında sol kutular böyle kesiliyordu)
+      const kesen = (el, q) => { for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) { const s = getComputedStyle(a), k = a.getBoundingClientRect();
+          const yatay = /(auto|scroll|hidden|clip)/.test(s.overflowX) && (q.left < k.left - 3 || q.right > k.right + 3) && !(/(auto|scroll)/.test(s.overflowX) && a.scrollWidth > a.clientWidth + 2);
+          const dikey = /(auto|scroll|hidden|clip)/.test(s.overflowY) && (q.top < k.top - 3 || q.bottom > k.bottom + 3) && !(/(auto|scroll)/.test(s.overflowY) && a.scrollHeight > a.clientHeight + 2);
+          if (yatay || dikey) return a;
+          // kaydırılabilen bir kabın dışına taşan öğe kaydırarak görülür: yukarıdaki kaplara bakılmaz
+          if ((/(auto|scroll)/.test(s.overflowX) && a.scrollWidth > a.clientWidth + 2 && (q.left < k.left - 3 || q.right > k.right + 3)) || (/(auto|scroll)/.test(s.overflowY) && a.scrollHeight > a.clientHeight + 2 && (q.top < k.top - 3 || q.bottom > k.bottom + 3))) return null; } return null; };
+      for (const el of document.querySelectorAll('#app button, #app input, #app select, #app [role="tab"], #app section, #app article, #app h1, #app h2, #app h3')) { if (el.closest('#world, #anchors, #loading, #hud, .quests, #chat, #emotes, #actions, #partiCerceve, #joy, .bildirimler, [aria-hidden="true"]')) continue; const q = gorunur(el); if (!q) continue;
+        const k = kesen(el, q); if (k) out.push('kesiliyor: ' + ad(el) + ' ⊂ ' + ad(k).slice(0, 40)); }
+      return [...new Set(out)].slice(0, 14); });
     const sert = r.filter(s => kip === 'masa' || !/\.bildirim/.test(s)); for (const s of r) if (!sert.includes(s)) uyari.add(id + ' · bildirim bir düğmeye değiyor (boş yer yok)');
     if (sert.length) { for (const s of sert) sorun.push(id + ' · ' + s); if (ekran) await p.screenshot({ path: path.join(ekran, 'ekran_' + kip + '_' + id + '.png') }); }
     await p.evaluate(() => { document.querySelectorAll('.pen-perde').forEach(w => w.remove()); try { EO2.game.close(); } catch (_) { } }); await p.waitForTimeout(250);

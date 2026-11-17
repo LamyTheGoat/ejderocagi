@@ -308,3 +308,9 @@ html, body, #app.ui2 { overflow: clip; }
 @media (max-width: 760px), (max-aspect-ratio: 1/1) { .ui2 .scr-b.ds { grid-template-columns: minmax(0, 1fr); } }
 /* Çarşı: tezgâh boşken not küçük bir kutu olarak üstte durur (boş dev pano ve satıcı düğmelerine binme yok) */
 .ui2 .pz-raf > .ah-not { align-self: start; }
+/* Dik telefonda kaydırılan madalyon sıraları: seçili madalyon büyüyünce üstü ve kenarı kesilmesin (kab içinde pay; Yuva'da büyüme kısılır) */
+@media (max-aspect-ratio: 1/1) {
+  #app.ui2 .kadro { padding: 1.2em .9em .35em; scroll-padding-inline: .9em; }
+  .ui2 .yu-kadro { height: 6.6em; padding: .9em .7em .3em; align-items: flex-start; }
+  .ui2 .yu-kadro .madalyon[aria-pressed="true"] { transform: scale(1.06); }
+}
