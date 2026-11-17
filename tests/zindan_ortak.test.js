@@ -64,8 +64,8 @@ test('konum ve atış yoldaşlara iletilir, sayılar sınırlanır; kampta ve d�
   await eylem(a, { t: 'konum', x: 10, y: 5, aci: 40, yon: 1 }); assert.equal(olay(b, 'konum'), null, 'kampta iletilmez');
   await eylem(a, { t: 'hazir' }); await eylem(b, { t: 'hazir' });
   await eylem(a, { t: 'konum', x: 999, y: 5.123, aci: 400, yon: -1 }); assert.deepEqual(olay(b, 'konum'), { t: 'konum', kim: 'a', x: 64, y: 5.12, aci: 70, yon: -1 });
-  await eylem(a, { t: 'ates', x: 31, y: 10, aci: 45, guc: 7, yon: 1, ruz: 1.5, mod: { trident: 1, hile: 1 } });
-  assert.deepEqual(olay(b, 'ates'), { t: 'ates', kim: 'a', x: 31, y: 10, aci: 45, yon: 1, guc: 1, ruz: 1.5, mod: { trident: true } });
+  await eylem(a, { t: 'ates', x: 31, y: 10, aci: 45, guc: 7, yon: 1, ruz: 1.5, mod: { trident: 1, hile: 1 }, el: 'ates' });
+  assert.deepEqual(olay(b, 'ates'), { t: 'ates', kim: 'a', x: 31, y: 10, aci: 45, yon: 1, guc: 1, ruz: 1.5, mod: { trident: true }, el: 'ates' });
   await eylem(a, { t: 'dustu' }); await eylem(a, { t: 'ates', x: 1, y: 1, aci: 1, guc: 0.5, yon: 1 }); assert.equal(olay(b, 'ates').x, 31, 'düşen oyuncunun atışı iletilmez');
 });
 

@@ -39,6 +39,7 @@ const ZINDANLAR = tariftenKur(TARIF);
 const HASAR_UST = 6000;   // tek bildirimde kabul edilen en büyük hasar (hata ve bozuk veri süzgeci; denge kuralı değildir)
 const hata = kod => Object.assign(new Error(kod), { kod });
 const sinir = (v, a, b) => Math.round(Math.max(a, Math.min(b, Number.isFinite(+v) ? +v : 0)) * 100) / 100;
+const ELLER = ['ates', 'buz', 'firtina', 'toprak', 'golge', 'venom', 'magma', 'bluekor', 'talim'];
 const MODLAR = ['trident', 'plus1', 'plus2', 'powUlt', 'heavy', 'crater', 'teleport'];
 const SURE = { giris: 15000, oyuncu: 50000, dusman: 16000 }, GECIKME_MS = 6000;   // bağlantı koruması: oyun kuralı değil, donan ekranı beklememek için
 const partiCarpan = n => 1 + 0.5 * (Math.max(1, n) - 1);
@@ -90,7 +91,7 @@ function createZindanOrtak(secenek) {
       else if (e.t === 'can') { if (d.faz !== 'savas') return { olaylar }; u.max = Math.max(1, Math.min(99999, Math.floor(+e.max) || 1)); u.hp = Math.max(0, Math.min(u.max, Math.floor(+e.hp) || 0)); olaylar.push({ t: 'can', kim: kim.id, hp: u.hp, max: u.max }); }
       else if (e.t === 'konum' || e.t === 'ates') { if (d.faz !== 'savas' || !u.hayatta) return { olaylar };   // yoldaşların ekranında topçunun yeri, nişanı ve atışı (yalnız görüntü)
         const o = { t: e.t, kim: kim.id, x: sinir(e.x, 0, 64), y: sinir(e.y, -10, 40), aci: sinir(e.aci, -10, 70), yon: e.yon === -1 ? -1 : 1 };
-        if (e.t === 'ates') { o.guc = sinir(e.guc, 0, 1); o.ruz = sinir(e.ruz, -6, 6); o.mod = {}; for (const k of MODLAR) if (e.mod && e.mod[k]) o.mod[k] = true; }
+        if (e.t === 'ates') { o.guc = sinir(e.guc, 0, 1); o.ruz = sinir(e.ruz, -6, 6); o.mod = {}; for (const k of MODLAR) if (e.mod && e.mod[k]) o.mod[k] = true; o.el = ELLER.includes(e.el) ? e.el : ''; }   // el: topun elementi (yoldaşların ekranında lav havuzu gibi izler için; yalnız görüntü)
         olaylar.push(o); return { olaylar }; }
       else if (e.t === 'tur_bitti') { const s = d.sav; if (d.faz !== 'savas' || !s || e.adim !== s.adim) return { olaylar };   // eski adımın bildirimi sessizce düşer
         s.bitti[kim.id] = true; const sahip = s.tip === 'oyuncu' ? s.kim === kim.id : s.tip === 'dusman' ? s.hedef === kim.id : true;

@@ -51,7 +51,7 @@
     if (olay === 'dusman_hasar' && v.i > 0 && v.h > 0) OR.eylem({ t: 'hasar', i: v.i - 1, h: v.h });
     else if (olay === 'dustum') { OR.eylem({ t: 'dustu' }); G.toast('Düştün. Savaş sürüyor: yoldaşlarını izliyorsun, aşama bitince payını alırsın.'); }
     else if (olay === 'adim_bitti') { const s = od().sav; if (s && v.adim < s.adim) siraUygula(s); else OR.eylem({ t: 'tur_bitti', adim: v.adim, ex: v.ex, x: v.x, y: v.y }); }   // bu ekran geride kaldıysa sunucudaki adıma atlar
-    else if (olay === 'ates' && v.kim === 0) { const M = B.state(); OR.eylem({ t: 'ates', x: v.x, y: v.y, aci: v.aci, guc: v.guc, yon: v.yon, ruz: M ? M.wind : 0, mod: v.mod || {} }); }
+    else if (olay === 'ates' && v.kim === 0) { const M = B.state(); OR.eylem({ t: 'ates', x: v.x, y: v.y, aci: v.aci, guc: v.guc, yon: v.yon, ruz: M ? M.wind : 0, mod: v.mod || {}, el: M && (M.ben.el === 'ates' || M.ben.el2 === 'ates') ? 'ates' : v.el }); }
     else if (olay === 'konum') { const t = Date.now(); if (t - (Z.konumT || 0) > 240) { Z.konumT = t; OR.eylem({ t: 'konum', x: v.x, y: v.y, aci: v.aci, yon: v.yon }); } }
     else if (olay === 'can' && v.kim === 0) { const t = Date.now(); if (t - Z.canT > 350 || v.hp <= 0) { Z.canT = t; OR.eylem({ t: 'can', hp: Math.round(v.hp), max: Math.round(v.max) }); } } });
   const kimden = id => (id === ben() ? 'ben' : id);
@@ -159,7 +159,7 @@
     return '<div class="zn-toplan"><div class="ms-kodluk"><small>Sefer kodu · ' + zad() + ' · ' + (V.ZORLUK[zr] ? V.ZORLUK[zr].ad : '') + '</small><b>' + esc_(o.kod) + '</b></div><div class="zn-koltuklar">' + [0, 1, 2, 3].map(i => { const u = o.uyeler[i];
         return '<div class="zn-koltuk' + (u ? (u.hazir || u.id === o.kurucu ? ' hazir' : '') : ' bos') + '"><canvas width="96" height="96" aria-hidden="true" data-yuz="' + (u ? i : '') + '"></canvas><b>' + (u ? esc_(u.id === ben() ? 'Sen' : u.ad) : 'Boş yer') + '</b><em>' + (!u ? 'Yoldaş bekleniyor' : u.id === o.kurucu ? 'Seferi kurdu' : u.hazir ? 'Hazır' : 'Hazır değil') + (u && !u.bagli ? ' · koptu' : '') + '</em></div>'; }).join('') + '</div>' +
       '<div class="ms-eylem"><button type="button" class="gbtn" data-zn="cik">Seferden ayrıl</button>' + (kurucu ? '<button type="button" class="gbtn altin buyuk" data-zn="baslat" ' + (hazirlar ? '' : 'disabled') + '>Kampa çık<small>' + (o.uyeler.length === 1 ? 'tek başına' : hazirlar ? o.uyeler.length + ' terbiyeci' : 'herkes hazır olmalı') + '</small></button>' : '<button type="button" class="gbtn altin buyuk" data-zn="hazir">' + (bn.hazir ? 'Hazır değilim' : 'Hazırım') + '</button>') + '</div></div>'; }
-  G.screen('zindan', { k: 'Ortak sefer', t: zad(), cls: 'zn', bg: 'a:topcu', enter() { Z.hata = ''; if (AG.cevrimici()) AG.gonder({ type: 'ortak_durum' }); }, draw(body) {
+  G.screen('zindan', { k: 'Ortak sefer', t: zad(), cls: 'zn', bg: 'a:tp-kapilar', enter() { Z.hata = ''; if (AG.cevrimici()) AG.gonder({ type: 'ortak_durum' }); }, draw(body) {
     if (!AG.cevrimici()) { body.innerHTML = '<div class="ar-kilit bos"><p>Ortak sefer çevrimiçi oynanır. Sunucuya ulaşılınca açılır.</p></div>'; return; }
     const o = benim() ? oda() : null;
     body.innerHTML = '<div class="zn-kok">' + (o && o.durum === 'bekliyor' ? toplanma(o) : o ? '<div class="ar-kilit bos"><p>Sefer sürüyor. Kampa dönmek için ekranı kapat.</p></div>' : lobi()) + (Z.hata ? '<p class="ms-hata" role="alert">' + esc_(Z.hata) + '</p>' : '') + '</div>';

@@ -30,7 +30,11 @@ const veri = await p.evaluate(async () => {
     const ust = x.getImageData(W >> 1, PAY + 2, 1, 1).data; cik['zumrut-kopru'] = { d: c.toDataURL('image/webp', 0.86), w: W, h: H + PAY, yer: 563 + PAY, ust: [ust[0], ust[1], ust[2]] }; }
 
   /* ---- defile: 4459×941, yürüme hattı 683; 1 eski oyun pikseli = 4459/3400 tuval pikseli ---- */
-  { const W = 4459, H = 941, L = 683, K = W / 3400, S = 0.445, [c, x] = tuval(W, H), M = 'defile_modul/';
+  { const W = 4459, H = 941, L = 683, K = W / 3400, S = 0.445, TAVAN = 300, [c, x] = tuval(W, H + TAVAN), M = 'defile_modul/';
+    { const g = x.createLinearGradient(0, 0, 0, TAVAN); g.addColorStop(0, '#07201a'); g.addColorStop(1, '#114235'); x.fillStyle = g; x.fillRect(0, 0, W, TAVAN + 2);
+      for (let dx = 0; dx < W; dx += 204) { x.fillStyle = 'rgba(6,24,19,.55)'; x.fillRect(dx + 14, 30, 176, TAVAN - 70); x.strokeStyle = 'rgba(214,170,84,.38)'; x.lineWidth = 2; x.strokeRect(dx + 14, 30, 176, TAVAN - 70); x.strokeStyle = 'rgba(214,170,84,.16)'; x.strokeRect(dx + 30, 46, 144, TAVAN - 102); }
+      x.fillStyle = '#c9a04e'; x.fillRect(0, TAVAN - 22, W, 6); x.fillStyle = '#f0d28a'; x.fillRect(0, TAVAN - 16, W, 4); x.fillStyle = '#8a6a2c'; x.fillRect(0, TAVAN - 12, W, 12); }
+    x.translate(0, TAVAN);
     const [dis, bay, fon, giris, paye, koltuk, kork, dais, yuz, sandalye] = await Promise.all(['exterior_view', 'backwall_bay_v2', 'stage_backdrop', 'end_entrance', 'end_proscenium', 'balcony_seats', 'balustrade_rail_only', 'boss_dais', 'catwalk_face', 'front_chairs'].map(a => al(M + a + '.png')));
     const rampa0 = Math.round(2400 * K), rampa1 = Math.round(2520 * K), ustY = L - Math.round(105 * K);   // oyundaki yükselti: 2400–2520 arası 105 piksel
     const payeW = Math.round(977 * S), payeX = rampa0 - Math.round(702 * S), d0 = Math.round(975 * S), bayN = 6, bayW = (payeX - d0) / bayN;
@@ -57,7 +61,7 @@ const veri = await p.evaluate(async () => {
     const arkalar = []; for (let i = 1; i <= 8; i++) arkalar.push(await al('seyirci/back_' + i + '.png'));
     for (let dx = 70, i = 0; dx < W - 60; dx += 139, i++) { const im = arkalar[Math.floor(r() * 8)]; x.drawImage(im, dx - 48, H - 62 - 125, 96, 125); }
     for (let dx = 0; dx < W; dx += 836) x.drawImage(sandalye, dx, H - 150, 836, 150);
-    cik['zumrut-defile'] = { d: c.toDataURL('image/webp', 0.86), w: W, h: H, yer: L, rampa: [rampa0, rampa1, ustY] }; }
+    cik['zumrut-defile'] = { d: c.toDataURL('image/webp', 0.86), w: W, h: H + TAVAN, yer: L + TAVAN, rampa: [rampa0, rampa1, ustY] }; }
 
   /* ---- yılanlar ---- */
   for (const [ad, yol] of [['yilan_vurucu', 'snake_striker'], ['yilan_agir', 'snake_heavy'], ['yilan_kucuk', 'snake_basic']]) { const im = await al('dusman_yilan/' + yol + '.png'), [c, x] = tuval(im.naturalWidth, im.naturalHeight); x.drawImage(im, 0, 0); cik[ad] = { d: c.toDataURL('image/webp', 0.92), w: c.width, h: c.height }; }
