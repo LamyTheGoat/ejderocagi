@@ -477,6 +477,8 @@ function createPvpRooms(deps = {}) {
       case 'pvp_room_kick': onKick(socket, msg); break;
       case 'pvp_room_start': onStart(socket); break;
       case 'pvp_room_invite': onInvite(socket, msg); break;
+      case 'pvp_room_say': { const room = roomOf(keyOf(socket)), i = Math.floor(+msg.i); if (!room || !(i >= 0 && i < 8)) break; const t = now(); if (socket.pvpSozT && t - socket.pvpSozT < 900) break; socket.pvpSozT = t;   // hazır söz: serbest yazı değil, sıra numarası
+        for (const m of humanMembers(room)) send(socketOf(m), { type: 'pvp_room_say', roomId: room.id, from: handleOf(socket), i }); break; }
       case 'pvp_invite_reply': onInviteReply(socket, msg); break;
       case 'pvp_match_result': onResult(socket, msg); break;
       case 'pvp_rematch': onRematch(socket); break;

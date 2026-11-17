@@ -19,6 +19,7 @@ try {
     L.listede = await bekle(B, 'document.querySelectorAll("[data-or-liste] li").length === 1 && /Aylin/.test(document.querySelector("[data-or-liste] li").textContent)', 12000);
     L.satir = await B.evaluate(() => { const li = document.querySelector('[data-or-liste] li'); return li ? li.textContent.replace(/\s+/g, ' ').trim() : ''; });
     if (ekran) await B.screenshot({ path: path.join(ekran, 'liste_' + ad + '.png') });
+    if (ekran) { await A.waitForTimeout(1200); await A.screenshot({ path: path.join(ekran, 'oda_' + ad + '.png') }); }
     await B.locator('[data-or-liste] [data-oda-kod]').first().click(); L.katildi = await bekle(B, 'EO2.ortak.durum().oda && EO2.ortak.durum().oda.uyeler.length === 2') && await bekle(A, 'EO2.ortak.durum().oda && EO2.ortak.durum().oda.uyeler.length === 2');
     await B.locator(cik).click(); await bekle(B, '!EO2.ortak.durum().oda'); await A.locator(cik).click(); L.kapandi = await bekle(A, '!EO2.ortak.durum().oda');
     L.listedenDustu = await bekle(B, 'document.querySelector("[data-or-liste]") && !document.querySelector("[data-or-liste] li")', 12000);
@@ -32,10 +33,12 @@ try {
     if (ekran) await B.screenshot({ path: path.join(ekran, 'liste_duello.png') });
     await B.locator('[data-pvp-oda]').first().click(); L.katildi = await bekle(B, 'document.querySelector(".tp-oda b")') && await bekle(A, 'document.querySelectorAll(".tp-yuva:not(.bos)").length === 2');
     await B.locator('[data-pvp="hazir"]').click(); L.hazir = await bekle(A, 'document.querySelector("[data-pvp=baslat]") && !document.querySelector("[data-pvp=baslat]").disabled && document.querySelectorAll(".em-lamba:not(.bekle)").length === 2'); await A.waitForTimeout(900);
+    // hazır söz: B söyler, iki ekranda da B'nin üstünde balon çıkar
+    await B.locator('[data-soz="2"]').click(); L.soz = await bekle(A, 'document.querySelector(".em-balon") && /Bol şans/.test(document.querySelector(".em-balon").textContent)', 8000) && await bekle(B, 'document.querySelector(".em-balon")', 8000); await A.waitForTimeout(400);
     if (ekran) { await A.screenshot({ path: path.join(ekran, 'oda_bekleme_kurucu.png') }); await B.screenshot({ path: path.join(ekran, 'oda_bekleme_katilan.png') }); }
     await B.locator('[data-pvp="cik"]').click(); await A.locator('[data-pvp="cik"]').click(); L.listedenDustu = await bekle(B, 'document.querySelector("[data-em-liste]") && !document.querySelector(".em-sancak")', 12000); }
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && ['sefer', 'masa', 'takim'].every(k => log[k] && log[k].bosYazi && log[k].kuruldu && log[k].listede && log[k].katildi && log[k].kapandi && log[k].listedenDustu) && log.duello && log.duello.kunye && log.duello.kuruldu && log.duello.listede && log.duello.kartCizildi && log.duello.katildi && log.duello.hazir && log.duello.listedenDustu;
+const ok = !hata.length && ['sefer', 'masa', 'takim'].every(k => log[k] && log[k].bosYazi && log[k].kuruldu && log[k].listede && log[k].katildi && log[k].kapandi && log[k].listedenDustu) && log.duello && log.duello.kunye && log.duello.kuruldu && log.duello.listede && log.duello.kartCizildi && log.duello.katildi && log.duello.hazir && log.duello.soz && log.duello.listedenDustu;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

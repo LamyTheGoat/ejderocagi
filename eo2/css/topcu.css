@@ -302,3 +302,18 @@
 @media (max-height: 500px) and (min-width: 600px) { .ui2 .em-vsB { width: 2.4em; height: 2.4em; font-size: 2em; } }
 /* sefer ve takım lobisi: zindan ve zorluk düğmeleri dar ekranda alt satıra geçer (yana taşmaz) */
 .ui2 .zn-zorluk { flex-wrap: wrap; } .ui2 .zn-lobi, .ui2 .zn-kart, .ui2 .zn-secenek { min-width: 0; max-width: 100%; }
+
+/* Er Meydanı: hazır söz balonu, hazır söz düğmeleri, süren maç kartı */
+.ui2 .em-balon { position: absolute; left: 50%; top: -1.2em; transform: translateX(-50%); z-index: 3; padding: .4em 1.1em .5em; border-radius: 1.3em; font: 800 1.35em var(--f-ui); color: #1d1606; background: #fff7dc; box-shadow: 0 .4em 1em rgba(2, 4, 20, .5), inset 0 0 0 2px #e8b84e; white-space: nowrap; animation: em-balon .3s cubic-bezier(.2, 1.5, .3, 1) both; } @keyframes em-balon { from { transform: translateX(-50%) scale(.5); opacity: 0; } }
+.ui2 .em-balon::after { content: ''; position: absolute; left: 50%; top: 100%; width: .9em; height: .9em; transform: translate(-50%, -55%) rotate(45deg); background: #fff7dc; box-shadow: 2px 2px 0 #e8b84e; }
+.ui2 .em-sol { flex-wrap: wrap; } .ui2 .em-soz { white-space: nowrap; }
+.ui2 .em-sancak.dolu::after { background: linear-gradient(90deg, #8a93b8, #c1c7e0); } .ui2 .em-sancak.dolu { filter: saturate(.75); }
+@media (max-width: 900px), (max-aspect-ratio: 1/1) { .ui2 .em-balon { font-size: 1.05em; top: -.6em; } }
+
+/* takım ve sefer bekleme odaları: terbiyeciler boydan durur (Er Meydanı bekleme odasıyla aynı dil); hazır olanın altı yeşil yanar */
+.ui2 .zn-koltuk canvas.em-boy { width: 8.4em; height: 9.8em; border-radius: 0; background: none; box-shadow: none; object-fit: contain; filter: drop-shadow(0 .5em .45em rgba(2, 4, 20, .55)); }
+.ui2 .zn-koltuk:has(canvas.em-boy) { position: relative; padding-top: .4em; } .ui2 .zn-koltuk:has(canvas.em-boy)::before { content: ''; position: absolute; left: 12%; right: 12%; top: 8.6em; height: 1.6em; border-radius: 50%; background: radial-gradient(ellipse at center, rgba(143, 208, 255, .55), rgba(143, 208, 255, 0) 70%); pointer-events: none; }
+.ui2 .zn-koltuk.hazir:has(canvas.em-boy)::before { background: radial-gradient(ellipse at center, rgba(111, 224, 138, .8), rgba(111, 224, 138, 0) 70%); } .ui2 .zn-koltuk.tk-B:has(canvas.em-boy)::before { background: radial-gradient(ellipse at center, rgba(255, 106, 90, .6), rgba(255, 106, 90, 0) 70%); } .ui2 .zn-koltuk.tk-B.hazir:has(canvas.em-boy)::before { background: radial-gradient(ellipse at center, rgba(111, 224, 138, .8), rgba(111, 224, 138, 0) 70%); }
+.ui2 .zn-koltuk.bos canvas { visibility: hidden; height: 9.8em; width: 8.4em; }
+@media (max-height: 500px) { .ui2 .zn-koltuk canvas.em-boy, .ui2 .zn-koltuk.bos canvas { width: 4.6em; height: 5.4em; } .ui2 .zn-koltuk:has(canvas.em-boy)::before { top: 4.6em; } }
+@media (max-width: 760px), (max-aspect-ratio: 1/1) { .ui2 .zn-koltuk canvas.em-boy, .ui2 .zn-koltuk.bos canvas { width: 6em; height: 7em; } .ui2 .zn-koltuk:has(canvas.em-boy)::before { top: 6em; } }
