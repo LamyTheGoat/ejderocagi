@@ -15,9 +15,12 @@ const yaz = (ad, H, json) => { const d = path.join(kok, ad); fs.mkdirSync(d, { r
   for (const dx of [0, -247, 247, -494]) H.kutu(2798 + dx, L, 90, B, RENK.oyuncu);
   // uçan engerek yok (kullanıcı, 2026-11-17: "hiçbir zaman olmayacak"): dört yılan da yerde; uçlardakiler küçük yılan
   const kb = Math.round(2.0 * k), mb = Math.round(2.4 * k);
-  H.kutu(625, L, 250, kb, RENK.dusman); H.kutu(1251, L, 320, mb, RENK.dusman); H.kutu(4345, L, 320, mb, RENK.dusman); H.kutu(4971, L, 250, kb, RENK.dusman);
-  yaz('zumrut-kopru', H, { ad: 'Zümrüt Saray Köprüsü', alt: 'Yılanlar iki yandan geliyor', ipucu: 'Yılanlar iki yandan gelir. Fareyi çevirdiğin yana döner, o yana ateş edersin. Önce yaklaşanı vur.', tema: 'sirca', ortam: 'spor', ust: '#6fafFd', altRenk: '#e8f2fb',
-    dusman: [{ tip: 'zs_kucuk', ad: 'Sırça Engerek', hp: 800 }, { tip: 'zs_vurucu', ad: 'Bronz Engerek Muhafızı', hp: 760 }, { tip: 'zs_vurucu', ad: 'Bronz Engerek Muhafızı', hp: 760 }, { tip: 'zs_kucuk', ad: 'Sırça Engerek', hp: 800 }] }); }
+  /* DALGA KONTROLÜ (kullanıcı tasarımı, 2026-11-17): yılanlar üç dalga hâlinde, her dalgada iki yandan birer tane gelir.
+     1. dalga: yakındaki iki Bronz Muhafız · 2. dalga: iki Sırça Engerek · 3. dalga: uçlardan iki Sırça Taht Muhafızı. Kutular soldan sağa okunur. */
+  const ab = Math.round(2.4 * k);
+  H.kutu(330, L, 260, ab, RENK.dusman); H.kutu(625, L, 250, kb, RENK.dusman); H.kutu(1251, L, 320, mb, RENK.dusman); H.kutu(4345, L, 320, mb, RENK.dusman); H.kutu(4971, L, 250, kb, RENK.dusman); H.kutu(5266, L, 260, ab, RENK.dusman);
+  yaz('zumrut-kopru', H, { ad: 'Zümrüt Saray Köprüsü', alt: 'Yılanlar üç dalga hâlinde geliyor', ipucu: 'Yılanlar üç dalga hâlinde, iki yandan gelir. Bir dalga inince sıradaki belirir. Fareyi çevirdiğin yana döner, o yana ateş edersin.', tema: 'sirca', ortam: 'spor', ust: '#6fafFd', altRenk: '#e8f2fb',
+    dusman: [{ tip: 'zs_agir', ad: 'Sırça Taht Muhafızı', hp: 640, dalga: 3 }, { tip: 'zs_kucuk', ad: 'Sırça Engerek', hp: 800, dalga: 2 }, { tip: 'zs_vurucu', ad: 'Bronz Engerek Muhafızı', hp: 760 }, { tip: 'zs_vurucu', ad: 'Bronz Engerek Muhafızı', hp: 760 }, { tip: 'zs_kucuk', ad: 'Sırça Engerek', hp: 800, dalga: 2 }, { tip: 'zs_agir', ad: 'Sırça Taht Muhafızı', hp: 640, dalga: 3 }] }); }
 
 /* defile: 4459 × 1241 (üstte 300 piksel tavan payı), yürüme hattı 983; sağda boss yükseltisi (rampa 3148–3305, üst yüzey 845); oyuncu boyu 119 piksel */
 { const W = 4459, Hh = 1241, L = 983, U = 845, R0 = 3148, R1 = 3305, B = 119, k = B / 1.7, H = harita(W, Hh);

@@ -132,7 +132,18 @@
      Kurallar (can, fazlar, hamleler, hasarlar) eski Şahmeran'ın aynısıdır; yalnız çizim, tacın yeri ve merminin çıktığı nokta (yay) değişir.
      Klipler: bekleme 18 kare · yay germe 8 · bırakma 6 · toparlanma 6 · Mâr tıslaması 9 (vurulunca; vuruluş ve ölüm klibi yok). Çizim sola bakar. */
   B.BOSS.sahmeran_v3 = (() => { const o = { tac: [-17, 328, 60], tacAd: 'Taç kritiği', govde: [175, 122], kutu: [145, 360] }, sayfa = 'assets/sahmeran_v3.webp', yuz = 'assets/sahmeran_v3_yuz.webp';
+    /* TASARIM (kullanıcı, 2026-11-17): Şahmeran yayıyla savaşır. Hamleleri oklardır; ikinci fazdan sonra Cazibe Oku da atar.
+       Çifte Ok (2 × 185) · Ok Yaylımı (2 × 175, geniş açı) · Gökten Ok Yağmuru (2 × 185 gökten + 1 × 190) · Cazibe Oku (175 + büyü).
+       Cazibe Oku isabet ederse terbiyeci büyülenir: sırası gelince ateş edemez, Şahmeran'a doğru yürür. Kalkan büyüyü kırar. Sayılar eski hamlelerle aynıdır. */
+    const ok = (b, p, gx, gy, dx, dmg, pat, ek) => A.nisanliAt(b, b.x + (b.face || -1) * u(gx), b.y + u(gy), p.x + u(dx), p.y + u(30), dmg, 'venom', pat, Object.assign({ ok: true, col: [246, 217, 138] }, ek));
     return Object.assign({}, B.BOSS.sahmeran, { spr: { idle: sayfa, yuz }, yuz, yuzK: [0.5, 0.5, 1], durum: null, yon: -1, agiz: [160, 223], vurus: vurus(o), zayif: zayif({ tac: o.tac, tacAd: 'Altın taç' }),
+      hamle: b => { const h = b.faz >= 3 ? ['yaylim', 'cazibe', 'ok'] : b.faz >= 2 ? ['ok', 'yaylim', 'cazibe'] : ['ok', 'yaylim', 'yagmur']; return h[A.tur() % h.length]; },
+      hamleler: { ok: { ad: 'Çifte Ok', soz: 'Yayım hiç şaşmaz!' }, yaylim: { ad: 'Zehirli Ok Yaylımı', soz: 'Oklarım üstüne yağsın!' }, yagmur: { ad: 'Gökten Ok Yağmuru', soz: 'Gökyüzü oklarımla kararsın!' }, cazibe: { ad: 'Cazibe Oku', soz: 'Gözlerime bak. Bana gel!' } },
+      uygula(b, p, h, dm) { const [gx, gy] = b.D.agiz; A.sars(0.5);
+        if (h === 'ok') { ok(b, p, gx, gy, -20, Math.round(185 * dm), 48); ok(b, p, gx, gy, 22, Math.round(185 * dm), 48, { sure: 1.32 }); }
+        else if (h === 'yaylim') { ok(b, p, gx, gy - 10, -26, Math.round(175 * dm), 52); ok(b, p, gx, gy - 10, 26, Math.round(175 * dm), 52, { sure: 1.34 }); }
+        else if (h === 'cazibe') { A.halka(b.x + (b.face || -1) * u(gx), b.y + u(gy), 1.4, [255, 122, 196]); ok(b, p, gx, gy - 10, 0, Math.round(175 * dm), 48, { cazibe: true, col: [255, 122, 196], kesin: true }); }
+        else { A.meteor(b, p, 2, Math.round(185 * dm), 'venom', 54, { ok: true, col: [246, 217, 138] }); ok(b, p, gx, gy + 25, 0, Math.round(190 * dm), 52); } },
       sayfa: { src: sayfa, cw: 465, ch: 339, sutun: 8, px: 197, py: 322, kare(b, t) { const son = (i0, n, oran) => i0 + Math.max(0, Math.min(n - 1, Math.floor(oran * n)));
         if (b.anim === 'atk') { const g = 2.4 - b.animT; return g < 1.2 ? son(18, 8, g / 1.2) : g < 1.55 ? son(26, 6, (g - 1.2) / 0.35) : son(32, 6, (g - 1.55) / 0.85); }
         if (b.anim === 'hit') return son(38, 9, (0.5 - b.animT) / 0.5); return Math.floor(t * 7.5) % 18; } } }); })();

@@ -4,7 +4,7 @@
    Yalnız geniş ekranda geçerlidir; telefon düzeni (ui2.css içindeki dar ekran kuralları) aynen kalır.
    En son yüklenir: cam.css, susleme.css ve ejder.css'teki ölçülerin üstüne yazar; renk ve doku onlarda kalır. */
 /* Sohbet + ifade çubuğu + eylem çubuğu yan yana yaklaşık 95 em tutar; bu, en-boy oranı 3:2'den dar pencereye sığmaz. O pencerelerde eski ölçüler kalır. */
-@media (min-aspect-ratio: 3/2) and (min-width: 821px) and (min-height: 561px) {
+@media (min-aspect-ratio: 3/2) and (min-width: 1000px) and (min-height: 561px) {
   /* sol üst: logo 160, profil plakası 310 × 65, portre 62 */
   .ui2 .logo { width: 10em; }
   .ui2 #profile { font-size: 1.34em; }

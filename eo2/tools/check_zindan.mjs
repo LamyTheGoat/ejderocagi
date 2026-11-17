@@ -41,7 +41,8 @@ try {
   await A.evaluate(() => EO2.api.runAct('zindan:hazir')); log.tekHazirBaslamadi = await A.evaluate(() => EO2.ortak.durum().ortak.faz === 'bekleme');
   await B.locator('#seferSerit [data-sf="hazir"]').click();
   log.savas = await bekle(A, savasta, 30000) && await bekle(B, savasta, 30000);
-  log.dusman = await A.evaluate(() => EO2.battle.state().act.filter(a => a.takim === 1).map(a => a.max)); await A.waitForTimeout(1200); await cek(A, 'zindan_3_kopru');
+  log.dusman = await A.evaluate(() => EO2.battle.state().act.filter(a => a.takim === 1).map(a => a.max));
+  log.ilkDalga = await A.evaluate(() => EO2.battle.state().act.filter(a => a.takim === 1 && !a.dead).length);   // dalga kontrolü: sahnede yalnız birinci dalganın iki yılanı var await A.waitForTimeout(1200); await cek(A, 'zindan_3_kopru');
   // ortak sıra: ilk sıra seferi kuranda; iki ekranda da aynı kişi oynuyor, rüzgâr aynı
   const sirada = ad => 'EO2.battle.state() && EO2.battle.state().aktif && EO2.battle.state().faz === "nisan" && (' + (ad === 'ben' ? 'EO2.battle.state().aktif === EO2.battle.state().ben' : 'EO2.battle.state().aktif.yoldas && EO2.battle.state().aktif.ad === "' + ad + '"') + ')';
   log.siraA = await bekle(A, sirada('ben'), 20000) && await bekle(B, sirada('Aylin'), 20000);
@@ -57,8 +58,8 @@ try {
   log.yoldasYer = await B.evaluate(x => Math.abs(EO2.battle.state().act.find(a => a.yoldas).x - x) < 0.05, ax); await B.waitForTimeout(350); await cek(B, 'zindan_3b_yoldas_atis');
   log.atisSirayiUcusaGecirdi = await B.evaluate(() => ["ucus", "durul", "bekle"].includes(EO2.battle.state().faz));
   // A birinci düşmana vurur: B'nin ekranında da canı iner
-  await A.evaluate(() => { const M = EO2.battle.state(); EO2.battle.api.hasarMob(M.act[1], 300); });
-  log.ortakCan = await bekle(B, 'EO2.battle.state() && EO2.battle.state().act[1].hp <= EO2.battle.state().act[1].max - 300');
+  await A.evaluate(() => { const M = EO2.battle.state(); EO2.battle.api.hasarMob(M.act[3], 300); });   // act[3]: birinci dalganın soldaki yılanı
+  log.ortakCan = await bekle(B, 'EO2.battle.state() && EO2.battle.state().act[3].hp <= EO2.battle.state().act[3].max - 300');
   log.yoldasCercevesi = await B.evaluate(() => !document.getElementById('seferYoldas').hidden && /Aylin/.test(document.getElementById('seferYoldas').textContent));
   // A sırasını geçer: sıra B'ye gelir (A'nın ekranında "Bora nişan alıyor"); B geçer: düşman sırası iki ekranda aynı düşmanla, aynı hedefe oynar
   await A.evaluate(() => { EO2.battle.pas(); });
@@ -73,8 +74,12 @@ try {
   const yerler = () => EO2.battle.state().act.filter(a => a.takim === 1).map(a => Math.round(a.x * 10) / 10);
   log.dusmanYer = [await A.evaluate(yerler), await B.evaluate(yerler)]; await cek(B, 'zindan_3c_ortak_sira');
   // ikisi sırayla bütün düşmanları indirir
-  await A.evaluate(() => { const M = EO2.battle.state(); EO2.battle.api.hasarMob(M.act[1], 9999); EO2.battle.api.hasarMob(M.act[2], 9999); });
-  await B.evaluate(() => { const M = EO2.battle.state(); EO2.battle.api.hasarMob(M.act[3], 9999); EO2.battle.api.hasarMob(M.act[4], 9999); });
+  // dalga kontrolü: birinci dalga inince ikinci, o inince üçüncü dalga iki ekranda da belirir
+  const indir = p => p.evaluate(() => { const M = EO2.battle.state(); for (const a of M.act) if (a.takim === 1 && !a.dead) EO2.battle.api.hasarMob(a, 9999); });
+  const dalgada = n => 'EO2.battle.state() && EO2.battle.state().dalgaNo === ' + n + ' && EO2.battle.state().act.filter(a => a.takim === 1 && !a.dead).length === 2';
+  await indir(A); log.dalga2 = await bekle(A, dalgada(2), 15000) && await bekle(B, dalgada(2), 15000); await A.waitForTimeout(700); await cek(B, 'zindan_3d_dalga2');
+  await indir(B); log.dalga3 = await bekle(A, dalgada(3), 15000) && await bekle(B, dalgada(3), 15000); await A.waitForTimeout(700);
+  await indir(A);
   log.asama1 = await bekle(A, faz('cark')) && await bekle(B, faz('cark'));
   await cark(A, false); await cek(B, 'zindan_4_cark'); await cark(B, false);
   log.kampaDonus = await bekle(A, faz('bekleme') + ' && EO2.ortak.durum().ortak.asama === 1 && EO2.api.scene() === "kamp" && !EO2.battle.active()', 30000) && await bekle(B, faz('bekleme') + ' && EO2.api.scene() === "kamp" && !EO2.battle.active()', 30000);
@@ -103,7 +108,7 @@ try {
   log.altinToplam = await A.evaluate(() => S.gold) - altin0;
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && log.gordu && log.kod && log.davet && log.hazirGorundu && log.kamp && log.kamptaGordu && log.serit && log.tekHazirBaslamadi && log.savas && JSON.stringify(log.dusman) === '[900,855,855,900]' && log.yoldasTopcu && log.yoldasAd === 'Aylin' && log.yoldasAtes && log.yoldasYer && log.ortakCan && log.siraA && log.ruzgar[0] === log.ruzgar[1] && log.siraB && log.ruzgar2[0] === log.ruzgar2[1] && log.dusmanSirasi && log.dusmanAyni[0] === log.dusmanAyni[1] && log.turDondu && JSON.stringify(log.dusmanYer[0]) === JSON.stringify(log.dusmanYer[1]) && log.yoldasCercevesi
+const ok = !hata.length && log.gordu && log.kod && log.davet && log.hazirGorundu && log.kamp && log.kamptaGordu && log.serit && log.tekHazirBaslamadi && log.savas && JSON.stringify(log.dusman) === '[720,900,855,855,900,720]' && log.ilkDalga === 2 && log.dalga2 && log.dalga3 && log.yoldasTopcu && log.yoldasAd === 'Aylin' && log.yoldasAtes && log.yoldasYer && log.ortakCan && log.siraA && log.ruzgar[0] === log.ruzgar[1] && log.siraB && log.ruzgar2[0] === log.ruzgar2[1] && log.dusmanSirasi && log.dusmanAyni[0] === log.dusmanAyni[1] && log.turDondu && JSON.stringify(log.dusmanYer[0]) === JSON.stringify(log.dusmanYer[1]) && log.yoldasCercevesi
   && log.asama1 && log.kampaDonus && log.altinAsama >= 150 && log.savas2 && log.kirilmaz && log.sahmeranCizim && log.siraA2 && log.siraB2 && log.dustuArenada && !!log.dusenAtlandi && log.dusenYoldasYerde && log.lafYok && log.asama2 && log.sonPen && log.cikti && log.altinToplam >= 400;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

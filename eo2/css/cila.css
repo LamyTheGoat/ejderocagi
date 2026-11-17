@@ -276,7 +276,7 @@ html, body, #app.ui2 { overflow: clip; }
 /* pencere açıkken dünyadaki E etiketi ve ad plaketleri pencerenin üstüne çıkmaz */
 .ui2:has(> .pen-perde) #anchors .prompt, .ui2:has(> .pen-perde) #anchors .plate, .ui2:has(> .pen-perde) #anchors .bubble { visibility: hidden; }
 /* dar masaüstü: jest çubuğu sohbet kutusuyla eylem çubuğunun arasına sığmaz; eylem çubuğunun üstüne, sağa oturur */
-@media (min-width: 901px) and (max-width: 1240px) and (min-height: 501px) { .ui2 #emotes { left: auto; right: max(.9em, env(safe-area-inset-right, 0px)); bottom: calc(max(.8em, env(safe-area-inset-bottom, 0px)) + 6.6em); transform: none; } }
+@media (max-width: 1240px) and (min-height: 501px) { .ui2 #emotes { left: auto; right: max(.9em, env(safe-area-inset-right, 0px)); bottom: calc(max(.8em, env(safe-area-inset-bottom, 0px)) + 6.6em); transform: none; } }
 
 /* ekran ipucu ekranın düğmelerine biniyorsa başlığın altına çıkar (js/rehber.js yerles) */
 .ui2 .rehber[data-tur="ekran"].yer-ust { bottom: auto; top: calc(max(.5em, env(safe-area-inset-top, 0px)) + 4.4em); } .ui2 .rehber[data-tur="ekran"].yer-ust2 { bottom: auto; top: calc(max(.5em, env(safe-area-inset-top, 0px)) + 8.6em); }

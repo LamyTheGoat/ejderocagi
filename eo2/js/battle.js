@@ -189,7 +189,12 @@
     const O = cfg.oyuncu || {}, pset = imgs['assets/battle_' + O.set + '.webp'] ? O.set : 'temel';
     const P = mkTopcu(Object.assign({}, O, { takim: 0, kontrol: 'yerel', set: pset, x: X_(cfg.x0 || 460), face: cfg.yon || 1, ben: true, col: EL[O.el] || EL.ates })); P.shown = P.hp = P.max = O.hp || 1350; P.sta = P.staMax = O.sta || 125; M.ben = P; M.act.push(P); gorGiy(P, O.gor != null ? O.gor : (EO2.gorunum && EO2.gorunum.kod ? EO2.gorunum.kod() : ''));
     if (cfg.rakip) { const R = cfg.rakip, E = mkTopcu(Object.assign({}, R, { takim: 1, set: imgs['assets/battle_' + R.set + '.webp'] ? R.set : 'temel', x: X_(R.x || 2480), face: -(cfg.yon || 1), angle: 45, col: EL[R.el] || EL.talim })); E.shown = E.hp = E.max = R.hp || 1350; M.act.push(E); M.rakip = E; gorGiy(E, R.gor); }
-    for (const m of (cfg.moblar || [])) { const D = MOB[m.tip] || {}; const e = mkYaratik(Object.assign({ tip: m.tip, D, h: D.h || 2.1, ucan: !!D.ucan, el: D.el || 'venom' }, m, { x: X_(m.x) })); e.shown = e.hp = e.max = m.hp; M.act.push(e); }
+    for (const m of (cfg.moblar || [])) { const D = MOB[m.tip] || {}; const e = mkYaratik(Object.assign({ tip: m.tip, D, h: D.h || 2.1, ucan: !!D.ucan, el: D.el || 'venom' }, m, { x: X_(m.x) })); e.shown = e.hp = e.max = m.hp; M.act.push(e);
+      /* DÜŞMAN UYKUSU (arena.json: "dalga": 2, 3… ve "uyan": mesafe):
+         dalga > 1 → düşman sırası gelene dek sahnede yoktur (bekler): çizilmez, vurulmaz, sıra almaz; önceki dalgaların hepsi inince belirir.
+         uyan > 0  → düşman sahnededir ama uyur: sıra almaz; bir terbiyeci bu mesafeye (eski piksel ölçüsü) girince ya da vurulunca uyanır. */
+      e.dalga = m.dalga > 1 ? Math.floor(m.dalga) : 1; if (e.dalga > 1) { e.bekler = true; e.dead = true; e.olu = 9; } if (m.uyan > 0) { e.uyur = true; e.uyanMesafe = u(m.uyan); } }
+    M.dalgaN = Math.max(1, ...M.act.filter(a => a.tur === 'mob').map(a => a.dalga || 1)); M.dalgaNo = 1;
     if (cfg.boss) { const D = BOSS[cfg.boss.tip] || {}; const b = mkYaratik(Object.assign({ tur: 'boss', D, h: D.h || 6.8, faz: 1, kalkan: 0, sersem: 0, kiyamet: 0 }, cfg.boss, { x: X_(cfg.boss.x) })); b.shown = b.hp = b.max = cfg.boss.hp; M.act.push(b); M.boss = b; }
     for (const a of M.act) { if (a.ucan && a.yW != null) a.y = a.yW; else if (a.ucan && a.yuk != null) a.y = Y_(a.yuk); else if (a.tur === 'boss' && a.D.suda) a.y = Y_(a.D.suda); else a.y = groundBelow(T, a.x, FH - 1) || 8; }
     for (const p of (cfg.props || [])) { const x = X_(p.x); M.props.push(Object.assign({ x, y: groundBelow(T, x, FH - 1) || 8, dead: false }, PROP[p.tip] || {}, p, { x })); }
@@ -259,7 +264,7 @@
     o = o || {}; const sac = o.kesin ? 0 : u((R() - 0.5) * 95 + M.wind * 12), Tt = o.sure || 1.2, w = M.wind * RUZ, dx = tx + sac - sx, dy = ty - sy;
     M.shots.push(Object.assign({ x: sx, y: sy, vx: dx / Tt - 0.5 * w * Tt, vy: dy / Tt + 0.5 * G * Tt, by, takim: 1, col: EL[el] || EL.venom, el, dmg, patlama: patlama || 44, r: (patlama || 44) / 54 * 1.3, t: 0, trail: [], ruz: 1, dusman: true }, o)); ses('fire');
   }
-  function meteor(b, p, n, dmg, el, patlama) { for (let i = 0; i < n; i++) { const tx = clamp(p.x + u((i - (n - 1) * 0.5) * 105 + (R() - 0.5) * 36), 3, FW - 3), sx = tx + u(b.x > p.x ? 260 : -260), sy = Math.min(FH + 2, p.y + u(680 + i * 55)); nisanliAt(b, sx, sy, tx, p.y + u(24), dmg, el, patlama, { sure: 1.0 + i * 0.14, kesin: true, gok: true }); } }
+  function meteor(b, p, n, dmg, el, patlama, ek) { for (let i = 0; i < n; i++) { const tx = clamp(p.x + u((i - (n - 1) * 0.5) * 105 + (R() - 0.5) * 36), 3, FW - 3), sx = tx + u(b.x > p.x ? 260 : -260), sy = Math.min(FH + 2, p.y + u(680 + i * 55)); nisanliAt(b, sx, sy, tx, p.y + u(24), dmg, el, patlama, Object.assign({ sure: 1.0 + i * 0.14, kesin: true, gok: true }, ek)); } }
 
   /* hasar: oyuncuya (eski detonateProjectile / tehlike bölgesi) */
   function hasarTopcu(a, dmg, o) { if (a.dustuKesin) return 0;   /* ortak savaşta düşmüş oyuncu arenada durur ama hasar almaz */
@@ -304,7 +309,9 @@
         else { const d = pd(a.x, a.y + u(48)); if (d > rad + 20) continue; let h = Math.round(dm * Math.max(0.55, 1 - d / (rad + 60))); const not = {}; if (a.D.hasar) h = a.D.hasar(a, s, h, not); if (s.ayaz) a.chill = 2; M.ist.kombo++; M.ist.enKombo = Math.max(M.ist.enKombo, M.ist.kombo); hasarMob(a, h, not); } }
     } else if (s.takim === 1 && !s.uzak) {
       if (s.by && s.by.tur === 'topcu') { const dH = pd(P.x, P.y + u(82)), dB = pd(P.x, P.y + u(46)), rad = s.patlama + 55; if (dH <= 44 || dB <= rad + 26) { const bas = dH <= 44, k = bas ? 1.75 : Math.max(0.55, 1 - dB / (rad + 75)); hasarTopcu(P, s.dmg * k, { kalkanK: 0.55, crit: bas, it: k, yon: Math.sign(P.x - x || 1) }); } }
-      else if (pd(P.x, P.y + u(46)) <= s.patlama + 48) hasarTopcu(P, s.dmg, { it: 0.4, yon: Math.sign(P.x - x || 1) });
+      else if (pd(P.x, P.y + u(46)) <= s.patlama + 48) { const kalkan = P.shield > 0; hasarTopcu(P, s.dmg, { it: 0.4, yon: Math.sign(P.x - x || 1) });
+        /* cazibe oku: kalkan yoksa terbiyeci büyülenir; sırası gelince ateş edemez, oku atana doğru yürür */
+        if (s.cazibe && !P.dead && P.hp > 0) { if (kalkan) yazi(P.x, P.y + 3.4, 'Kalkan büyüyü kırdı', { kucuk: 1, col: '#ffe08a' }); else { P.cazibe = { by: s.by }; yazi(P.x, P.y + 3.4, 'Büyülendin', { col: '#ff9ad2', crit: 1 }); toz(P.x, P.y + 1.4, 22, [255, 122, 196]); halka(P.x, P.y + 1.2, 1.3, [255, 122, 196]); ses('chime'); } } }
     }
     hud(true);
   }
@@ -334,18 +341,29 @@
     return { ang: clamp(best.ang + (Math.random() - 0.5) * 2 * err, 5, 70), p: clamp(best.p + (Math.random() - 0.5) * 0.02 * err, 0.2, 1), t: 0 }; }
 
   /* ---------- sıra ---------- */
-  const dusmanKaldi = () => !!M.cfg.takimSavasi || M.act.some(a => a.takim === 1 && !a.dead);   // takım savaşında sonucu sunucu söyler
+  const dusmanKaldi = () => !!M.cfg.takimSavasi || M.act.some(a => a.takim === 1 && (!a.dead || a.bekler));
+  /* dalga ve uyku denetimi (her karede): sahnede ayakta düşman kalmadıysa sıradaki dalga belirir; yaklaşılan ya da vurulan uykucu uyanır */
+  function uykuDenetle() { if (!M || M.over || M.faz === 'giris') return;
+    const bek = M.act.filter(a => a.bekler); if (bek.length && !M.act.some(a => a.takim === 1 && a.tur === 'mob' && !a.dead)) { const d = Math.min(...bek.map(a => a.dalga)); M.dalgaNo = d;
+      for (const e of bek) if (e.dalga === d) { e.bekler = false; e.dead = false; e.olu = 0; e.hurtT = 0; e.y = e.ucan ? e.y : yerY(e.x); toz(e.x, e.y + 0.6, 26, EL[e.el] || EL.venom); halka(e.x, e.y + 0.8, 1.6, EL[e.el] || EL.venom); }
+      pankart('Dalga ' + d + ' / ' + M.dalgaN, 'Yeni düşmanlar geliyor', 'big'); ses('whoosh'); M.shake = Math.max(M.shake, 0.4); hud(true); }
+    for (const e of M.act) if (e.uyur && !e.dead) { const yakin = M.act.some(a => a.takim === 0 && a.tur === 'topcu' && !a.dead && Math.abs(a.x - e.x) <= e.uyanMesafe);
+      if (yakin || e.hp < e.max) { e.uyur = false; yazi(e.x, e.y + e.h + 0.9, 'Uyandı!', { col: '#ffd24a', crit: 1 }); toz(e.x, e.y + e.h * 0.6, 12, [255, 210, 74]); ses('turn'); } } }   // takım savaşında sonucu sunucu söyler
   function siradaki() {
     if (M.over) return; if (!dusmanKaldi()) return bitir(true); const onceki = M.aktif;
     if (M.cfg.ortak) { M.aktif = null; M.faz = 'bekle'; M.pt = 0; M.charging = false; M.charge = 0; hud(true); return yay('adim_bitti', { adim: M.adim || 0, ex: M.act.filter(a => a.takim === 1).map(a => Math.round(a.x * 100) / 100), x: M.ben.x, y: M.ben.y }); }   // ortak savaş: sıradakini sunucu söyler (ortakSira)
     for (let k = 0; k <= M.sira.length; k++) { M.si = (M.si + 1) % M.sira.length; const a = M.sira[M.si]; if (M.si === 0) { if (M.aktif) M.tur++; } if (a === M.ben || !a.dead) { if (onceki === M.ben && a !== M.ben && M.cfg.ozel && M.cfg.ozel.dusmanBasi) M.cfg.ozel.dusmanBasi(API); return baslat(a); } }
   }
   function baslat(a) {
-    M.aktif = a; M.faz = 'nisan'; M.pt = 0; M.siraNo = (M.siraNo || 0) + (a.tur === 'topcu' ? 1 : 0); M.charge = 0; M.charging = false; M.plan = null; M.hitX = undefined;
+    M.aktif = a; M.faz = 'nisan'; M.buyulu = false; M.pt = 0; M.siraNo = (M.siraNo || 0) + (a.tur === 'topcu' ? 1 : 0); M.charge = 0; M.charging = false; M.plan = null; M.hitX = undefined;
     if (a === M.ben) {
       if (a.hp <= 0 || a.dead) { if (a.revive > 0) { a.revive--; a.dead = false; a.hp = Math.round(a.max * 0.65); a.shield = 1; if (a.y < 0.5 || a.dustu) { a.x = X_(M.cfg.x0 || 460); a.dustu = false; } a.y = Math.max(a.y, yerY(a.x)); a.fall = true; a.vy = 0; yazi(a.x, a.y + 3, 'Anka Külü: dirildin', { col: '#ffe08a', crit: 1 }); toz(a.x, a.y + 1, 30, [255, 215, 106]); halka(a.x, a.y + 1, 1.1, [255, 215, 106]); ses('chime'); yay('can', { kim: 0, hp: a.hp, max: a.max }); } else if (M.cfg.ortak) { a.dead = true; a.dustuKesin = true; a.hp = 0; pankart('Düştün', 'Yoldaşlarını izliyorsun', 'kayip'); yay('dustum', {}); return siradaki(); }   // ortak savaş: düşen arenada kalır, savaş sürer; sırası atlanır
         else return bitir(false); }
       for (const k in a.cd) if (a.cd[k] > 0) a.cd[k]--;
+      if (a.cazibe) { const c = a.cazibe, yon = c.by && !c.by.dead ? Math.sign(c.by.x - a.x) || 1 : a.face, ad0 = M.adim; a.cazibe = null; a.face = yon; M.buyulu = true; M.timer = 25; M.bolge = M.cfg.ortak ? M.bolge.filter(z => z.kim !== a) : [];
+        pankart('Büyülendin', 'Bu tur ateş edemezsin: Şahmeran seni çağırıyor', 'kayip'); ses('turn'); yay('sira', { kim: 0, tur: M.tur, ruzgar: M.wind });
+        for (let i = 1; i <= 14; i++) sonra(0.5 + i * 0.09, () => { if (!M || M.over || M.aktif !== a || M.adim !== ad0) return; const nx = clamp(a.x + yon * 0.2, 1.7, FW - 1.7); if (!solid(M.T, nx, a.y + 0.6)) { a.x = nx; const gy = groundBelow(M.T, a.x, a.y + 0.6); if (gy === null || a.y - gy > 0.25) a.fall = true; else a.y = gy; } a.moving = true; if (i % 3 === 0) { M.parts.push({ k: 'ember', x: a.x, y: a.y + 2.2, vx: 0, vy: 1.4, life: 0.6, max: 0.6, s: 0.09, col: [255, 122, 196] }); yay('konum', { x: a.x, y: a.y, aci: a.angle, yon: a.face }); } });
+        sonra(2.1, () => { if (M) M.buyulu = false; if (M && !M.over && M.aktif === a && M.adim === ad0) { a.moving = false; yay('konum', { x: a.x, y: a.y, aci: a.angle, yon: a.face }); yay('pas', { kim: 0 }); siradaki(); } }); return; }
       if (M.lav.length) { for (const l of M.lav) { if (l.gorsel) { l.tur--; continue; } if (M.boss && !M.boss.dead && Math.abs(M.boss.x - l.x) <= l.r + u(120)) hasarBoss(M.boss, l.dmg, true, 'Lav havuzu yakıyor'); for (const e of M.act) if (e.tur === 'mob' && !e.dead && Math.abs(e.x - l.x) <= l.r + u(36)) hasarMob(e, l.dmg, { not: 'Lav yanığı', col: '#ffb060' }); l.tur--; } M.lav = M.lav.filter(l => l.tur > 0); if (!dusmanKaldi()) return bitir(true); }
       M.bolge = M.cfg.ortak ? M.bolge.filter(z => z.kim !== a) : []; if (M.boss && !M.boss.dead) { const D = M.boss.D; M.bolge.push({ x: a.x, y: a.y, r: u(130), dmg: D.bolge || 210, el: D.el || 'venom', kim: a }); }
       if (M.boss && M.boss.D.oyuncuSirasi) M.boss.D.oyuncuSirasi(M.boss, API);
@@ -360,6 +378,7 @@
   }
   /* eski performSingleEnemyTurnAction: yerdekiler oyuncuya 46 piksel yaklaşır (ayazda 24), 135 hasarlık nişanlı atış */
   function mobSira(e) { const p = hedefT(), ayaz = e.chill > 0, ad = M.adim; if (e.chill > 0) e.chill--; M.faz = 'oyun';
+    if (e.uyur) return sonra(0.2, () => { if (M.adim === ad) siradaki(); });   /* uyuyan düşman sırasını geçer */
     sonra(0.55, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki(); e.face = p.x < e.x ? -1 : 1; if (!e.ucan && !e.D.sabit) { const lim = M.cfg.ozel && M.cfg.ozel.mobSinir || [820, 3050]; e.x = clamp(e.x + e.face * u(ayaz ? 24 : 46), X_(lim[0]), X_(lim[1])); e.yuruT = M.time; }
       e.anim = 'atk'; e.animT = 0.9; e.lunge = 0.35; if (e.D.soz && R() < 0.3) balon(e, e.D.soz, null, 1.6);
       sonra(0.4, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki(); const dm = Math.round(135 * M.cfg.zorluk.dmg * (ayaz ? 0.85 : 1)); nisanliAt(e, e.x + e.face * u(35), e.y + u(58) + (e.ucan ? e.h * 0.2 : 0), p.x + u(R() * 44 - 22), p.y + u(26), dm, e.el, 42, e.D.atis); M.faz = 'ucus'; M.pt = 0; M.bekle = 0; }); });
@@ -391,6 +410,7 @@
   /* ---------- güncelleme ---------- */
   function update(dt) {
     if (M.hayalet && M.hayalet.length && !M.over) stepHayalet(dt);
+    uykuDenetle();
     M.time += dt; if (M.flash > 0) M.flash -= dt; if (M.stop > 0) { M.stop -= dt; return; } M.pt += dt; M.shake = Math.max(0, M.shake - dt * 2.2);
     for (let i = 0; i < M.zaman.length; i++) if (M.zaman[i].t <= M.time) { const z = M.zaman.splice(i--, 1)[0]; z.fn(); if (!M || !M.on) return; }
     const me = M.aktif, K_ = M.keys;
@@ -402,9 +422,10 @@
       M.timer -= dt; if (M.timer <= 0 && (me.kontrol === 'uzak' || me.yoldas)) M.timer = 0; else if (M.timer <= 0) { M.charging = false; M.charge = 0; me.mods = {}; yay('pas', { kim: me.takim }); siradaki(); return; }
       if (me.kontrol === 'yerel') {
         const mv = (K_.right ? 1 : 0) - (K_.left ? 1 : 0); me.moving = false;
-        if (mv && !M.charging && me.sta > 0.5 && !me.fall) { me.face = mv; const nx = clamp(me.x + mv * 2.3 * dt, 1.7, FW - 1.7); if (!solid(M.T, nx, me.y + 0.75)) { const gy = groundBelow(M.T, nx, me.y + 0.7); if (gy !== null && gy - me.y < 0.7) { me.sta = Math.max(0, me.sta - 22 * dt); me.x = nx; if (me.y - gy > 0.9) me.fall = true; else me.y = gy; me.moving = true; me.ph += dt * 1.9; } else if (gy === null) { me.x = nx; me.fall = true; } } }
+        if (M.buyulu) { M.charging = false; M.charge = 0; }   /* büyülü tur: yürüme, nişan ve ateş kapalı (aşağıdaki koşullar) */
+        if (mv && !M.buyulu && !M.charging && me.sta > 0.5 && !me.fall) { me.face = mv; const nx = clamp(me.x + mv * 2.3 * dt, 1.7, FW - 1.7); if (!solid(M.T, nx, me.y + 0.75)) { const gy = groundBelow(M.T, nx, me.y + 0.7); if (gy !== null && gy - me.y < 0.7) { me.sta = Math.max(0, me.sta - 22 * dt); me.x = nx; if (me.y - gy > 0.9) me.fall = true; else me.y = gy; me.moving = true; me.ph += dt * 1.9; } else if (gy === null) { me.x = nx; me.fall = true; } } }
         const av = (K_.up ? 1 : 0) - (K_.down ? 1 : 0); if (av) me.angle = clamp(me.angle + av * 38 * dt, -10, 70);
-        if (K_.fire && !me.fall) { if (!M.charging) { M.charging = true; M.charge = 0; } M.charge = Math.min(1, M.charge + dt / 1.5); if (Math.floor(M.time * 14) !== M.lastTick) { M.lastTick = Math.floor(M.time * 14); ses('charge', M.charge); } }
+        if (K_.fire && !me.fall && !M.buyulu) { if (!M.charging) { M.charging = true; M.charge = 0; } M.charge = Math.min(1, M.charge + dt / 1.5); if (Math.floor(M.time * 14) !== M.lastTick) { M.lastTick = Math.floor(M.time * 14); ses('charge', M.charge); } }
         else if (M.charging) { M.charging = false; const p = Math.max(0.12, M.charge); M.charge = 0; ates(me, p); }
         if ((M.konumT = (M.konumT || 0) - dt) <= 0) { const iz = Math.round(me.x * 20) + ':' + Math.round(me.angle) + ':' + me.face; if (iz !== M.konumIz) { M.konumIz = iz; M.konumT = 0.15; yay('konum', { x: me.x, y: me.y, aci: Math.round(me.angle), yon: me.face }); } }
       } else if (me.kontrol === 'uzak') { const c = M.uzakKuyruk.shift(); if (c) uzakUygula(c);
@@ -507,7 +528,8 @@
     for (const z of M.bolge) { if (M.boss && M.boss.D.isaretGizli) continue;   /* işareti gizli boss (Şahmeran): bölge yine işler, yalnız çizilmez */
       const col = EL[z.el] || EL.venom, gy = yerY(z.x), rc = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ','; x.fillStyle = rc + '.14)'; x.beginPath(); x.ellipse(X(z.x), Y(gy), z.r * sc, z.r * sc * 0.3, 0, 0, 6.3); x.fill(); x.strokeStyle = rc + '.95)'; x.lineWidth = Math.max(2, 0.07 * sc); x.setLineDash([0.45 * sc, 0.3 * sc]); x.lineDashOffset = -M.time * sc * 0.5; x.stroke(); x.setLineDash([]);
       x.fillStyle = rc + '.9)'; for (const s of [-1, 1]) { x.beginPath(); x.moveTo(X(z.x + s * z.r), Y(gy) - 0.9 * sc); x.lineTo(X(z.x + s * z.r) - 0.16 * sc, Y(gy) - 1.3 * sc); x.lineTo(X(z.x + s * z.r) + 0.16 * sc, Y(gy) - 1.3 * sc); x.closePath(); x.fill(); x.fillRect(X(z.x + s * z.r) - 1, Y(gy) - 0.9 * sc, 2, 0.9 * sc); } }
-    for (const a of M.act) if (a.tur === 'mob' && (!a.dead || a.olu < 0.9 || (a.D.sayfa && a.D.sayfa.ceset))) spr(a);
+    for (const a of M.act) if (a.tur === 'mob' && !a.bekler && (!a.dead || a.olu < 0.9 || (a.D.sayfa && a.D.sayfa.ceset))) { if (a.uyur && !a.dead) x.globalAlpha = 0.72; spr(a); x.globalAlpha = 1;
+      if (a.uyur && !a.dead) { x.font = '800 ' + Math.max(13, 0.42 * sc) + "px 'Alegreya Sans', sans-serif"; x.textAlign = 'center'; x.lineWidth = 3; x.strokeStyle = '#0f1a40'; x.fillStyle = '#cfe2ff'; const zy = Y(a.y + a.h + 0.55 + Math.sin(M.time * 2) * 0.08); x.strokeText('Zz', X(a.x), zy); x.fillText('Zz', X(a.x), zy); } }
     if (M.boss && !M.boss.D.arkada && (!M.boss.dead || M.boss.olu < 0.9)) spr(M.boss);
     // topçular: pişmiş savaş kareleri
     const SETS = window.EO2_BATTLE.sets;
@@ -530,7 +552,13 @@
     const mermiler = M.hayalet && M.hayalet.length ? M.shots.concat(M.hayalet) : M.shots;
     for (const s of mermiler) { s.trail.forEach((t, i) => { const k = i / s.trail.length; x.fillStyle = `rgba(${s.col[0]},${s.col[1]},${s.col[2]},${k * k * 0.75})`; x.beginPath(); x.arc(X(t[0]), Y(t[1]), (0.04 + k * 0.2) * sc, 0, 6.3); x.fill(); if (k > 0.55) { x.fillStyle = `rgba(255,246,214,${(k - 0.55) * 1.6})`; x.beginPath(); x.arc(X(t[0]), Y(t[1]), (k * 0.1) * sc, 0, 6.3); x.fill(); } }); }
     x.globalCompositeOperation = 'lighter';
-    for (const s of mermiler) { const rr = (s.pow ? 1.05 : 0.75) * sc, g = x.createRadialGradient(X(s.x), Y(s.y), 0, X(s.x), Y(s.y), rr); g.addColorStop(0, 'rgba(255,255,240,1)'); g.addColorStop(0.3, `rgba(${s.col[0]},${s.col[1]},${s.col[2]},.9)`); g.addColorStop(1, `rgba(${s.col[0]},${s.col[1]},${s.col[2]},0)`); x.fillStyle = g; x.beginPath(); x.arc(X(s.x), Y(s.y), rr, 0, 6.3); x.fill(); }
+    for (const s of mermiler) { if (s.ok) {   /* ok: uçuş yönüne bakan gövde, uç ve tüyler; cazibe oku pembe parlar */
+        const ang = Math.atan2(-s.vy, s.vx), L = 1.15 * sc, px = X(s.x), py = Y(s.y), c = s.cazibe ? '#ff7ac4' : '#f6d98a'; x.save(); x.translate(px, py); x.rotate(ang);
+        if (s.cazibe) { const g = x.createRadialGradient(0, 0, 0, 0, 0, 0.9 * sc); g.addColorStop(0, 'rgba(255,140,210,.75)'); g.addColorStop(1, 'rgba(255,140,210,0)'); x.fillStyle = g; x.beginPath(); x.arc(0, 0, 0.9 * sc, 0, 6.3); x.fill(); }
+        x.lineCap = 'round'; x.strokeStyle = '#1a1230'; x.lineWidth = Math.max(4, 0.13 * sc); x.beginPath(); x.moveTo(-L, 0); x.lineTo(0, 0); x.stroke(); x.strokeStyle = c; x.lineWidth = Math.max(2, 0.07 * sc); x.beginPath(); x.moveTo(-L, 0); x.lineTo(0, 0); x.stroke();
+        x.fillStyle = s.cazibe ? '#ffd1ec' : '#fff6dc'; x.strokeStyle = '#1a1230'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(0.26 * sc, 0); x.lineTo(-0.06 * sc, -0.16 * sc); x.lineTo(-0.06 * sc, 0.16 * sc); x.closePath(); x.fill(); x.stroke();
+        x.fillStyle = s.cazibe ? '#ff4fae' : '#58c9a0'; for (const k of [-1, 1]) { x.beginPath(); x.moveTo(-L, 0); x.lineTo(-L - 0.2 * sc, k * 0.17 * sc); x.lineTo(-L + 0.22 * sc, 0); x.closePath(); x.fill(); } x.restore(); continue; }
+      const rr = (s.pow ? 1.05 : 0.75) * sc, g = x.createRadialGradient(X(s.x), Y(s.y), 0, X(s.x), Y(s.y), rr); g.addColorStop(0, 'rgba(255,255,240,1)'); g.addColorStop(0.3, `rgba(${s.col[0]},${s.col[1]},${s.col[2]},.9)`); g.addColorStop(1, `rgba(${s.col[0]},${s.col[1]},${s.col[2]},0)`); x.fillStyle = g; x.beginPath(); x.arc(X(s.x), Y(s.y), rr, 0, 6.3); x.fill(); }
     for (const l of M.isin) { const k = l.t / l.max; x.strokeStyle = `rgba(${l.col[0]},${l.col[1]},${l.col[2]},${k})`; x.lineWidth = (0.1 + 0.25 * k) * sc; x.lineCap = 'round'; x.beginPath(); x.moveTo(X(l.x1), Y(l.y1)); x.lineTo(X(l.x2), Y(l.y2)); x.stroke(); x.strokeStyle = `rgba(255,255,240,${k})`; x.lineWidth = 0.06 * sc; x.stroke(); }
     for (const p of M.parts) { const k = p.life / p.max; if (p.k === 'flash') { const g = x.createRadialGradient(X(p.x), Y(p.y), 0, X(p.x), Y(p.y), p.s * sc); g.addColorStop(0, `rgba(255,250,225,${k})`); g.addColorStop(0.4, `rgba(${p.col[0]},${p.col[1]},${p.col[2]},${k * 0.8})`); g.addColorStop(1, 'rgba(255,120,40,0)'); x.fillStyle = g; x.beginPath(); x.arc(X(p.x), Y(p.y), p.s * sc, 0, 6.3); x.fill(); }
       else if (p.k === 'ember') { x.fillStyle = `rgba(${p.col[0]},${p.col[1]},${p.col[2]},${k})`; x.beginPath(); x.arc(X(p.x), Y(p.y), p.s * sc, 0, 6.3); x.fill(); }
@@ -644,7 +672,7 @@
     const maske = new Uint8Array(MW * MH); let p = 0; for (let i = 0; i < A.maske.length; i += 2) { if (A.maske[i]) maske.fill(A.maske[i], p, p + A.maske[i + 1]); p += A.maske[i + 1]; }
     return (arenaHazir[ad] = { ad: A.ad, alt: A.alt, ipucu: A.ipucu, tema: A.tema, ortam: A.ortam, en: A.en, kameraBoy: A.kamera ? Math.round(A.kamera.h / 1.7 * 100) / 100 : A.kameraBoy, oyuncu: A.oyuncu, maske,
       sahne: { katman: A.katman, ppu: A.ppu, taban: A.taban, ust: A.sahne.ust, alt: A.sahne.alt }, mobSinir: [1.2 * PX, (A.en - 1.2) * PX],
-      moblar: A.dusman.map(m => Object.assign({ tip: m.tip, ad: m.ad, x: m.x * PX, h: m.h, hayalet: m.hayalet }, m.fizik ? {} : { ucan: true, yW: m.y })),
+      moblar: A.dusman.map(m => Object.assign({ tip: m.tip, ad: m.ad, x: m.x * PX, h: m.h, hayalet: m.hayalet, dalga: m.dalga || 1, uyan: m.uyan || 0 }, m.fizik ? {} : { ucan: true, yW: m.y })),
       boss: A.boss ? { tip: A.boss.tip, ad: A.boss.ad, unvan: A.boss.unvan, x: A.boss.x * PX, h: A.boss.h } : null }); }
   /* takım savaşında oyuncunun kendi canı da sunucudan gelir */
   function benCan(hp, max, h, bas) { if (!M || !M.on || M.over) return; const a = M.ben; if (max > 0) a.max = max; const once = a.hp; a.hp = clamp(hp, 0, a.max); if (h > 0 && once > a.hp) { a.hurtT = 0.55; a.vy = 3; a.fall = true; yazi(a.x, a.y + 2.3, h, { crit: !!bas }); M.shake = Math.max(M.shake, 0.4); ses('hit'); } yay('can', { kim: 0, hp: a.hp, max: a.max }); hud(true); }

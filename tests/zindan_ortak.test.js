@@ -23,12 +23,12 @@ test('iki kişilik Zümrüt Saray: kamp, ortak düşman canı, çark, kampa dön
   let d = son(a, 'ortak_basladi').durum; assert.equal(d.faz, 'bekleme'); assert.equal(d.n, 2);
   await eylem(a, { t: 'hasar', i: 0, h: 50 }); assert.equal(son(a, 'ortak_olay').durum.faz, 'bekleme', 'kampta hasar sayılmaz');
   await eylem(a, { t: 'hazir' }); assert.equal(son(a, 'ortak_olay').durum.faz, 'bekleme'); await eylem(b, { t: 'hazir' });
-  d = son(b, 'ortak_olay').durum; assert.equal(d.faz, 'savas'); assert.deepEqual(d.dusman.map(q => q.max), [900, 855, 855, 900], '800 ve 760 × 0,75 × 1,5 (iki kişi; soldan sağa)');
-  assert.deepEqual(olay(b, 'asama_basla').dusman, [900, 855, 855, 900]);
-  await eylem(a, { t: 'hasar', i: 0, h: 300 }); assert.deepEqual(olay(b, 'hasar'), { t: 'hasar', kim: 'a', i: 0, h: 300, hp: 600 });
-  await eylem(b, { t: 'hasar', i: 0, h: 99999 }); assert.equal(olay(a, 'hasar').h, 600, 'kalan candan fazlası sayılmaz'); assert.ok(HASAR_UST >= 600);
+  d = son(b, 'ortak_olay').durum; assert.equal(d.faz, 'savas'); assert.deepEqual(d.dusman.map(q => q.max), [720, 900, 855, 855, 900, 720], '640, 800 ve 760 × 0,75 × 1,5 (iki kişi; soldan sağa)');
+  assert.deepEqual(olay(b, 'asama_basla').dusman, [720, 900, 855, 855, 900, 720]);
+  await eylem(a, { t: 'hasar', i: 1, h: 300 }); assert.deepEqual(olay(b, 'hasar'), { t: 'hasar', kim: 'a', i: 1, h: 300, hp: 600 });
+  await eylem(b, { t: 'hasar', i: 1, h: 99999 }); assert.equal(olay(a, 'hasar').h, 600, 'kalan candan fazlası sayılmaz'); assert.ok(HASAR_UST >= 600);
   await eylem(b, { t: 'can', hp: 700, max: 1900 }); assert.deepEqual(olay(a, 'can'), { t: 'can', kim: 'b', hp: 700, max: 1900 });
-  for (const i of [1, 2, 3]) await eylem(a, { t: 'hasar', i, h: 5000 });
+  for (const i of [0, 2, 3, 4, 5]) await eylem(a, { t: 'hasar', i, h: 5000 });
   assert.deepEqual(olay(b, 'asama_bitti'), { t: 'asama_bitti', zafer: true, asama: 0, son: false }); assert.equal(son(b, 'ortak_olay').durum.faz, 'cark');
   await eylem(a, { t: 'hazir' }); assert.equal(son(a, 'ortak_hata').kod, 'faz_uygun_degil');
   await eylem(a, { t: 'cark' }); assert.equal(son(a, 'ortak_olay').durum.faz, 'cark'); await eylem(b, { t: 'cark' });
@@ -44,16 +44,16 @@ test('herkes düşerse aşama başarısız: kampa dönülür, aynı aşama yenid
   const { O, baglan, son, eylem, olay, soketler, ileri } = kur(), a = baglan('a'), b = baglan('b');
   O.onMessage(a, { type: 'ortak_kur', tur: 'zindan', anahtar: 'zumrut-zor' }); O.onMessage(b, { type: 'ortak_katil', kod: son(a, 'ortak_oda').oda.kod });
   O.onMessage(b, { type: 'ortak_hazir' }); O.onMessage(a, { type: 'ortak_baslat' }); await bekle();
-  await eylem(a, { t: 'hazir' }); await eylem(b, { t: 'hazir' }); assert.equal(son(a, 'ortak_olay').durum.dusman[0].max, 1200, '800 × 1,0 × 1,5');
-  await eylem(a, { t: 'dustu' }); assert.equal(son(a, 'ortak_olay').durum.faz, 'savas'); await eylem(a, { t: 'hasar', i: 0, h: 100 }); assert.equal(son(b, 'ortak_olay').durum.dusman[0].hp, 1200, 'düşen oyuncunun hasarı sayılmaz');
+  await eylem(a, { t: 'hazir' }); await eylem(b, { t: 'hazir' }); assert.equal(son(a, 'ortak_olay').durum.dusman[1].max, 1200, '800 × 1,0 × 1,5');
+  await eylem(a, { t: 'dustu' }); assert.equal(son(a, 'ortak_olay').durum.faz, 'savas'); await eylem(a, { t: 'hasar', i: 1, h: 100 }); assert.equal(son(b, 'ortak_olay').durum.dusman[1].hp, 1200, 'düşen oyuncunun hasarı sayılmaz');
   await eylem(b, { t: 'dustu' }); let d = son(b, 'ortak_olay').durum; assert.equal(d.faz, 'bekleme'); assert.equal(d.asama, 0); assert.equal(d.deneme, 1); assert.equal(olay(b, 'asama_bitti').zafer, false);
   // b kopar: a tek başına hazır olunca aşama başlar (süpürme turu kuralı yeniden değerlendirir)
   await eylem(a, { t: 'hazir' }); assert.equal(son(a, 'ortak_olay').durum.faz, 'bekleme');
   soketler.delete(b); O.onDisconnect(b); ileri(1000); O.supur(); await bekle(8);
-  d = son(a, 'ortak_olay').durum; assert.equal(d.faz, 'savas'); assert.equal(d.dusman[0].max, 800, 'tek kişi kaldı: parti çarpanı 1');
+  d = son(a, 'ortak_olay').durum; assert.equal(d.faz, 'savas'); assert.equal(d.dusman[1].max, 800, 'tek kişi kaldı: parti çarpanı 1');
   // tek kişilik sefer
   const c = baglan('c'); O.onMessage(c, { type: 'ortak_kur', tur: 'zindan', anahtar: 'zumrut-normal' }); O.onMessage(c, { type: 'ortak_baslat' }); await bekle();
-  await eylem(c, { t: 'hazir' }); assert.equal(son(c, 'ortak_olay').durum.dusman[0].max, 600);
+  await eylem(c, { t: 'hazir' }); assert.equal(son(c, 'ortak_olay').durum.dusman[1].max, 600);
   O.onMessage(c, { type: 'ortak_kur', tur: 'zindan', anahtar: 'yok-normal' }); assert.equal(son(c, 'ortak_hata').kod, 'anahtar_gecersiz');
 });
 
@@ -84,16 +84,16 @@ test('ortak sıra: önce oyuncular sırayla, sonra yaşayan düşmanlar; rüzgâ
   await eylem(b, { t: 'tur_bitti', adim: 1 }); o = olay(a, 'sira'); assert.equal(o.adim, 2); assert.equal(o.kim, 'b'); assert.deepEqual(o.ex, [14.3, 7, 49.7, 56.8], 'düşman yerleri sıranın sahibinden gelir');
   // b bitirir, a donmuş: gecikme süresi dolunca beklenmez
   await eylem(b, { t: 'tur_bitti', adim: 2 }); assert.equal(son(a, 'ortak_olay').durum.sav.adim, 2); ileri(7000); O.supur(); await bekle(8);
-  o = olay(a, 'sira'); assert.equal(o.adim, 3); assert.equal(o.tip, 'dusman'); assert.equal(o.i, 0); assert.ok(['a', 'b'].includes(o.hedef)); assert.ok(o.tohum > 0);
-  // ikinci düşman ölü: atlanır
-  await eylem(a, { t: 'hasar', i: 1, h: 5000 }); await eylem(a, { t: 'tur_bitti', adim: 3 }); await eylem(b, { t: 'tur_bitti', adim: 3 });
-  o = olay(a, 'sira'); assert.equal(o.adim, 4); assert.equal(o.i, 2, 'ölen düşmanın sırası atlanır');
-  await eylem(a, { t: 'tur_bitti', adim: 4 }); await eylem(b, { t: 'tur_bitti', adim: 4 }); assert.equal(olay(a, 'sira').i, 3);
-  await eylem(a, { t: 'tur_bitti', adim: 5 }); await eylem(b, { t: 'tur_bitti', adim: 5 });
-  o = olay(a, 'sira'); assert.equal(o.tur, 2); assert.equal(o.kim, 'a');
+  o = olay(a, 'sira'); assert.equal(o.adim, 3); assert.equal(o.tip, 'dusman'); assert.equal(o.i, 2, 'ilk sıra birinci dalganın düşmanında: bekleyen dalgalar sıra almaz'); assert.ok(['a', 'b'].includes(o.hedef)); assert.ok(o.tohum > 0);
+  // birinci dalganın öteki düşmanı ölü: atlanır
+  await eylem(a, { t: 'hasar', i: 3, h: 5000 }); await eylem(a, { t: 'tur_bitti', adim: 3 }); await eylem(b, { t: 'tur_bitti', adim: 3 });
+  o = olay(a, 'sira'); assert.equal(o.adim, 4); assert.equal(o.tur, 2); assert.equal(o.kim, 'a', 'ölen düşman ve bekleyen dalgalar atlanır: yeni tur başlar');
+  // birinci dalga inince ikinci dalga sıra almaya başlar
+  await eylem(b, { t: 'hasar', i: 2, h: 5000 });
+  assert.equal(son(a, 'ortak_olay').durum.dusman.filter(q => q.hp > 0).length, 4);
   // a düşer: sırası hemen b'ye geçer; sonraki turda a atlanır
-  await eylem(a, { t: 'dustu' }); o = olay(b, 'sira'); assert.equal(o.kim, 'b'); assert.equal(o.adim, 7);
-  await eylem(b, { t: 'tur_bitti', adim: 7 }); o = olay(b, 'sira'); assert.equal(o.tip, 'dusman'); assert.equal(o.hedef, 'b', 'düşman yalnız ayaktakini hedef alır');
+  await eylem(a, { t: 'dustu' }); o = olay(b, 'sira'); assert.equal(o.kim, 'b'); assert.equal(o.adim, 5);
+  await eylem(b, { t: 'tur_bitti', adim: 5 }); o = olay(b, 'sira'); assert.equal(o.tip, 'dusman'); assert.equal(o.hedef, 'b', 'düşman yalnız ayaktakini hedef alır'); assert.equal(o.i, 1, 'ikinci dalganın ilk düşmanı');
   // kimse bitirmezse adım süresi dolunca ilerlenir
-  ileri(17000); O.supur(); await bekle(8); assert.equal(olay(b, 'sira').adim, 9);
+  ileri(17000); O.supur(); await bekle(8); assert.equal(olay(b, 'sira').adim, 7);
 });

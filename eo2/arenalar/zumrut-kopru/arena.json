@@ -1,16 +1,23 @@
 {
   "ad": "Zümrüt Saray Köprüsü",
-  "alt": "Yılanlar iki yandan geliyor",
-  "ipucu": "Yılanlar iki yandan gelir. Fareyi çevirdiğin yana döner, o yana ateş edersin. Önce yaklaşanı vur.",
+  "alt": "Yılanlar üç dalga hâlinde geliyor",
+  "ipucu": "Yılanlar üç dalga hâlinde, iki yandan gelir. Bir dalga inince sıradaki belirir. Fareyi çevirdiğin yana döner, o yana ateş edersin.",
   "tema": "sirca",
   "ortam": "spor",
   "ust": "#6fafFd",
   "altRenk": "#e8f2fb",
   "dusman": [
     {
+      "tip": "zs_agir",
+      "ad": "Sırça Taht Muhafızı",
+      "hp": 640,
+      "dalga": 3
+    },
+    {
       "tip": "zs_kucuk",
       "ad": "Sırça Engerek",
-      "hp": 800
+      "hp": 800,
+      "dalga": 2
     },
     {
       "tip": "zs_vurucu",
@@ -25,7 +32,14 @@
     {
       "tip": "zs_kucuk",
       "ad": "Sırça Engerek",
-      "hp": 800
+      "hp": 800,
+      "dalga": 2
+    },
+    {
+      "tip": "zs_agir",
+      "ad": "Sırça Taht Muhafızı",
+      "hp": 640,
+      "dalga": 3
     }
   ]
 }

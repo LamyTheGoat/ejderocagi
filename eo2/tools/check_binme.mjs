@@ -6,7 +6,7 @@ import path from 'node:path'; import fs from 'node:fs'; import { createRequire }
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..'), require = createRequire(path.join(repo, 'package.json')), { chromium } = require('playwright-core');
 const url = process.env.URL || 'http://localhost:3210/', ekran = process.env.EKRAN || '';
 if (ekran) fs.mkdirSync(ekran, { recursive: true });
-const BOYLAR = [[1280, 720], [1366, 768], [1100, 700], [1024, 640], [1600, 900], [1920, 1080], [844, 390], [740, 360], [390, 844], [360, 740]];
+const BOYLAR = [[1280, 720], [1366, 768], [1100, 700], [1024, 640], [900, 600], [960, 540], [1250, 700], [1600, 900], [1920, 1080], [844, 390], [740, 360], [390, 844], [360, 740]];
 // ölçülen parçalar: [ad, seçici]. Bir parçanın içindeki öteki parça (ör. hedeflerin içindeki hafta düğmesi) ayrı ölçülür.
 const PARCA = [['logo', '#hud .tl .logo'], ['profil', '#profile'], ['kese', '#hud .tc .chip'], ['ustsag', '#hud .tr .row > .rb, #hud .tr .row > button'], ['harita', '#hud .minimap'], ['hedefler', '.quests'], ['hafta', '#btnWeek'], ['parti', '#partiCerceve'], ['sefer', '#seferSerit'], ['sohbet', '#chat, #chat > *'],
   ['jest', '#emotes'], ['eylem', '#actions'], ['bildirim', '.bildirimler .bildirim'], ['ipucu', '.rehber'], ['dokun', '#btnE'], ['kol', '#joy']];
