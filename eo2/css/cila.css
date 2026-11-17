@@ -359,3 +359,7 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .scr-b.gr { grid-template-rows: minmax(0, 1fr); } .ui2 .gr-kok { height: 100%; align-items: stretch; } .ui2 .gr-ayna, .ui2 .gr-secenek { max-height: 100%; min-height: 0; align-self: center; }
 .ui2 .gr-ayna { overflow: hidden; } .ui2 .gr-ayna canvas { min-height: 0; max-height: 100%; }
 @media (max-height: 520px) { .ui2 .gr-kok { grid-template-columns: minmax(0, 15em) minmax(0, 1fr); gap: .8em; } .ui2 .gr-ayna { padding: .5em; } .ui2 .gr-ayna canvas { max-height: 11em; } .ui2 .gr-secenek { padding: .6em .8em; gap: .45em; font-size: .9em; } .ui2 .gr-boya { width: 2.2em; height: 2.2em; } }
+/* Görevler sayfası · hedef ödülü: kırmızı top yerine oyunun el çizimi altın sikkesi ve sayı (kullanıcı, 2026-11-17: "altınlar çok AI duruyor") */
+.ui2 .hedef em { display: inline-flex; align-items: center; gap: .3em; min-width: 0; height: auto; padding: .12em .7em .12em .18em; border-radius: 2em; font: 800 1em 'Alegreya Sans', sans-serif; font-style: normal; color: #5a3a12; background: linear-gradient(180deg, #fff7dc, #f0d99a); box-shadow: inset 0 0 0 1.5px rgba(150, 104, 40, .55), 0 .1em .25em rgba(60, 30, 10, .25); transform: none; }
+.ui2 .hedef em::before { content: ""; flex: none; width: 1.75em; height: 1.75em; background: url(../assets/ik/para.webp) center / contain no-repeat; filter: drop-shadow(0 .08em .1em rgba(60, 30, 10, .45)); }
+.ui2 .hedef em::after { content: none; }

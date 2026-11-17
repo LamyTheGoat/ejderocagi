@@ -6,6 +6,9 @@
   const EO2 = window.EO2, G = EO2.game;
   const on = (root, sel, fn) => root.querySelectorAll(sel).forEach(b => b.addEventListener('click', () => { if (EO2.audio) EO2.audio.ui(); fn(b); }));
   const SLOT_AD = { bas: 'Baş', govde: 'Gövde', pence: 'Pençe', tilsim: 'Tılsım' };
+  /* Usta Kerim'in karşılaması: eski oyunun sözü terbiyeci pusatı dövmeyi ve kalıp birleştirmeyi vaat ediyordu; o sistem (Kor Örsü) 2.0'da
+     kurulmadı. Oyuncu olmayan bir şeyi aramasın diye söz, tezgâhın bugün gerçekten yaptığı işi söyler (ejderha kuşamı alım satımı). */
+  if (typeof VENDORS !== 'undefined' && VENDORS.demir) VENDORS.demir.greet = ['Örsüm kor, çekicim ağır! Ejderhana baş, gövde, pençe ve tılsım kuşamı döverim; elindekini de iyi fiyata alırım.', 'Kuşam ejderhanın boyuna göre seçilir evlat; almadan önce künyesine bak.'];
   const itemInfo = it => [it.atk ? 'saldırı +' + it.atk : '', it.def ? 'savunma +' + it.def : '', it.hp ? 'can +' + it.hp : '', it.crit ? 'kritik +' + it.crit : '', it.dodge ? 'kaçınma +' + it.dodge : ''].filter(Boolean).join(' · ') || (it.d || '');
   G.itemInfo = itemInfo; G.SLOT_AD = SLOT_AD;
   let stall = 'ejder';
