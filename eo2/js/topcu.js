@@ -74,11 +74,11 @@
         return { keep: true }; } }] }); }
 
   /* ---------- maç yapılandırması: her karşılaşma bir örnek ---------- */
-  const MEYDAN = 'er-meydani';   // eo2/arenalar/er-meydani: düello ve talim meydanı (çizimi gelince kod değişmeden devreye girer)
+  const MEYDAN = 'er-meydani', MEYDAN_BG = 'assets/arena/er_meydani_bg.webp', MEYDAN_SIS = 'rgba(40,70,120,.12)';   // boyalı arka plan (gündüz: alttaki koyu sis hafif tutulur)   // eo2/arenalar/er-meydani: düello ve talim meydanı (çizimi gelince kod değişmeden devreye girer)
   function meydanUygula(cfg) { const A = B.arenaCfg && B.arenaCfg(MEYDAN); if (!A || A.oyuncu.length < 2) return cfg; const PX = B.api.PX;
     cfg.arazi = { tema: A.tema, aile: 'talim', maske: A.maske }; cfg.sahne = A.sahne; cfg.arenaEn = A.en; cfg.kameraBoy = A.kameraBoy; cfg.ortam = A.ortam; cfg.x0 = A.oyuncu[0].x * PX; cfg.rakip.x = A.oyuncu[A.oyuncu.length - 1].x * PX; return cfg; }
   function talimCfg() { const o = oyuncuDeger(false);
-    return meydanUygula({ kimlik: 'talim-' + Date.now(), kip: 'talim', baslik: 'Talim', alt: 'Ödülsüz düello', arazi: V.talimArazi(), ortam: 'yaprak', x0: 1010, oyuncu: o, zorluk: { hp: 1, dmg: 1 }, cikis: ayril,
+    return meydanUygula({ kimlik: 'talim-' + Date.now(), kip: 'talim', baslik: 'Talim', alt: 'Ödülsüz düello', arazi: V.talimArazi(), bg: MEYDAN_BG, sis: MEYDAN_SIS, ortam: 'yaprak', x0: 1010, oyuncu: o, zorluk: { hp: 1, dmg: 1 }, cikis: ayril,
       rakip: { ad: 'Talimci', unvan: 'Arena talimcisi', set: o.set === 'muhafiz' ? 'temel' : 'muhafiz', kontrol: 'yapay', hp: 1350, dmg: 210, el: 'talim', x: 2390, revive: 0 } }); }
   function asamaCfg() { const Z = V.ZINDAN[ornek.zindan], As = Z.asama[ornek.asama], zr = V.ZORLUK[ornek.zorluk], aile = Z.tema, o = oyuncuDeger(true);
     return { kimlik: ornek.kimlik + '-' + (ornek.asama + 1), kip: 'zindan', baslik: As.ad, alt: 'Aşama ' + (ornek.asama + 1) + ' / ' + Z.asama.length + ' · ' + zr.ad, arazi: Object.assign(V.arazi(As.tema || Z.tema, aile, As.f, 11 + ornek.asama * 7), {}), bg: As.bg, deniz: As.deniz, ozel: As.ozel, ortam: Z.ortam, x0: As.x0 || 460,

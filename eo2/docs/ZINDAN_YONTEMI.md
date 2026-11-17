@@ -160,3 +160,9 @@ Ortak savaşta (yoldaş varken) zemini yalnız **adımın sahibi** oyar ve oyuğ
 Portre kuralı: `drawPortrait(tuval, set, oran, kim)`. `kim` doğruysa oyuncunun kendi görünüşü; metinse öteki oyuncunun adresi ya da görünüş kodu; boşsa setin özgün yüzü (NPC). NPC portresi oyuncunun saçını almaz.
 
 Zindan adı tek yerden gelir: haritadaki künye ortak seferin adını taşır (`zindan_tarif.js`). Eski veri "Sırça Saray" diyordu; oyunda artık her yerde "Zümrüt Saray".
+
+### Er Meydanı arka planı ve çok kişili sefer (2026-11-17 gece)
+
+- Talim, topçu düellosu ve Takım Meydanı boyalı bir arka planla açılır: `eo2/assets/arena/er_meydani_bg.webp` (uçan adalar, çiçekli ağaçlar, mavi-altın sancaklı meydan duvarı). Yalnız arka plandır; zemin eskisi gibi çizilir. `eo2/arenalar/er-meydani` klasörü gelirse sahne resmi öne geçer. Geri almak için `topcu.js` ve `takim.js` içindeki `bg` alanını kaldırmak yeter.
+- Ortak zindan üç ve dört kişiyle denetlendi: `check_zindan_uc.mjs` (duman testinde üç kişiyle; `N=4` ile dört).
+- Yan yana duran topçuların can çubukları üst üste binmez: binen çubuk adıyla birlikte bir kat yukarı çizilir.

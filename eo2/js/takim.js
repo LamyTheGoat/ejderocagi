@@ -17,7 +17,7 @@
   const setOf = u => { const c = EO2.meydanAg && [...EO2.meydanAg.kisiler.values()].find(x => x.handle === u.h); return (c && c.set) || 'temel'; };
   function yerX(q) { const A = B.arenaCfg('er-meydani'), PX = B.api.PX; if (A && A.oyuncu.length >= 4) { const K = A.oyuncu, n = K.length; return (q.takim === 'A' ? K[q.yuva ? 1 : 0] : K[q.yuva ? n - 2 : n - 1]).x * PX; } return YER[q.takim][q.yuva ? 1 : 0]; }
   function cfgKur() { const d = od(), me = d.uye[ben()], o = T.oyuncuDeger(false), A = B.arenaCfg('er-meydani');
-    const cfg = { kimlik: 'takim-' + oda().id, kip: 'takim', baslik: 'Takım Meydanı', alt: '2v2 · ' + TAKIM[me.takim], arazi: V.talimArazi(), ortam: 'yaprak', x0: yerX(me), yon: me.takim === 'B' ? -1 : 1, oyuncu: Object.assign({}, o, { revive: 0 }), zorluk: { hp: 1, dmg: 1 }, ortak: true, takimSavasi: true, cikis: ayril };
+    const cfg = { kimlik: 'takim-' + oda().id, kip: 'takim', baslik: 'Takım Meydanı', alt: '2v2 · ' + TAKIM[me.takim], arazi: V.talimArazi(), bg: 'assets/arena/er_meydani_bg.webp', sis: 'rgba(40,70,120,.12)', ortam: 'yaprak', x0: yerX(me), yon: me.takim === 'B' ? -1 : 1, oyuncu: Object.assign({}, o, { revive: 0 }), zorluk: { hp: 1, dmg: 1 }, ortak: true, takimSavasi: true, cikis: ayril };
     if (A) Object.assign(cfg, { arazi: { tema: A.tema, aile: 'talim', maske: A.maske }, sahne: A.sahne, arenaEn: A.en, kameraBoy: A.kameraBoy, ortam: A.ortam }); return cfg; }
   async function ayril() { const M = B.state(); if (!M || M.over || M.dur) return; M.dur = true;
     const v = await G.pen({ k: 'Takım Meydanı', t: 'Maçtan ayrılacak mısın?', body: '<p>Ayrılırsan takımın sensiz sürdürür; bu maça geri dönemezsin.</p>', btns: [{ t: 'Maça dön', v: false }, { t: 'Ayrıl', cls: 'kor', v: true }] });
