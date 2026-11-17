@@ -155,3 +155,8 @@
   .ui2 .scr-b.mn .mk-islem { margin-top: .5em; }
 }
 .ui2 .scr-b.ay { overflow-x: hidden; }
+
+/* öğretici şeridi sohbet kutusuna ve jest çubuğuna değmesin: geniş ekranda eni iki yandaki kutulara göre sınırlanır */
+@media (min-width: 1000px) { .ui2 .rehber { max-width: min(46em, calc(100% - 58em)); } }
+/* sıra numarası şeridin boyunu büyütmez; dar ekranda gösterilmez */
+.rehber .rh-sira { padding: 0 .55em; line-height: 1.5; } @media (max-width: 999px), (max-height: 560px) { .rehber .rh-sira { display: none; } }

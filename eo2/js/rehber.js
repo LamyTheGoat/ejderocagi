@@ -17,7 +17,7 @@
 
   /* ---------- yer açma ---------- */
   function ac(yer) {
-    if (yer === 'hafta') return haftaGoster();
+    if (yer === 'hafta') return haftaGoster(); if (yer === 'harita') { if (EO2.harita) EO2.harita.ac(); return; }
     if (G.ekran && G.ekran() === yer) return;
     /* Ocak, Ejderhalar ve Arena dünyadaki kapılarla aynı yoldan açılır (Ocak 2.5D araziye götürür) */
     if ((yer === 'ocak' || yer === 'ejderhalar' || yer === 'arena') && EO2.hooks && EO2.hooks.panel) { if (G.ekran && G.ekran()) G.close(); EO2.hooks.panel(yer); return; }
@@ -68,13 +68,19 @@
 
   /* ---------- ilk hafta adımları: durumdan okunur, sıradaki ilk uygun adım gösterilir ---------- */
   const bos = () => S.dragons.some(d => !d.dead && !d.inj && !d.task);
-  const ADIM = [
-    { id: 'a-emir', k: () => S.week === 1 && !S.st.train && bos(), m: () => 'İlk iş: <b>' + kor() + '</b> için bu haftanın emrini ver.', dugme: 'Ejderhalar', git: 'ejderhalar' },
-    { id: 'a-kulucka', k: () => S.week <= 3 && !S.goals.includes('kulucka') && (S.eggs || []).some(e => !e.inK) && typeof BUILD !== 'undefined' && BUILD.kulucka && S.gold >= BUILD.kulucka.fiyat, m: () => 'Yumurta soğukta bekliyor. Ocağına bir <b>Kuluçka Ocağı</b> kur.', dugme: 'Ocak', git: 'ocak' },
+  /* ÖĞRETİCİ ZİNCİRİ (kullanıcı, 2026-11-17): oyunun mekaniklerini sırayla anlatan yedi kısa adım. Her adım tek satırdır, oyunu durdurmaz,
+     kapatılabilir; koşulu sağlanınca kendiliğinden sıradakine geçer. Sıra: kuluçka → emir → hafta → harita → kuşam → arena → bakım. */
+  const kusamTek = () => { try { return EO2.gorunum && EO2.gorunum.kusam && EO2.gorunum.kusam().sahip.length <= 1; } catch (_) { return false; } };
+  const ADIM0 = [
+    { id: 'a-kulucka', k: () => S.week <= 3 && !S.goals.includes('kulucka') && (S.eggs || []).some(e => !e.inK) && typeof BUILD !== 'undefined' && BUILD.kulucka && S.gold >= BUILD.kulucka.fiyat, m: () => 'Boş bir kareye yürü, <b>E</b> ile <b>Kuluçka Ocağı</b> kur.', dugme: 'Ocak', git: 'ocak' },
+    { id: 'a-emir', k: () => S.week === 1 && !S.st.train && bos(), m: () => '<b>' + kor() + '</b> için bu haftanın emrini ver.', dugme: 'Ejderhalar', git: 'ejderhalar' },
     { id: 'a-hafta', k: () => S.week === 1 && !bos(), m: () => 'Emirler hazır. <b>Haftayı Bitir</b> ile geceyi getir.', dugme: 'Göster', git: 'hafta' },
-    { id: 'a-arena', k: () => S.week >= 2 && S.week <= 4 && !S.st.fights, m: () => 'Yeni hafta başladı. Köy Arenası\'nda ilk dövüşünü dene.', dugme: 'Arena', git: 'arena' },
-    { id: 'a-bakim', k: () => S.week >= 2 && S.week <= 4 && (!S.st.talk || !S.st.feed), m: () => 'Ejderhanı besle ve onunla konuş; bağınız güçlenir.', dugme: 'Ejderhalar', git: 'ejderhalar' },
+    { id: 'a-harita', k: () => S.week >= 2 && S.week <= 5 && !!EO2.harita, m: () => '<b>Mini haritaya</b> dokun: kasabada hızlı seyahat et.', dugme: 'Harita', git: 'harita' },
+    { id: 'a-kusam', k: () => S.week >= 2 && S.week <= 6 && kusamTek() && S.gold >= 120, m: () => 'Hâlâ çıplaksın. <b>Portrene</b> dokun, ilk zırhını al.', dugme: 'Kuşam', git: 'gorunus' },
+    { id: 'a-arena', k: () => S.week >= 2 && S.week <= 5 && !S.st.fights, m: () => 'Köy Arenası\'nda ilk dövüşüne çık.', dugme: 'Arena', git: 'arena' },
+    { id: 'a-bakim', k: () => S.week >= 2 && S.week <= 5 && (!S.st.talk || !S.st.feed), m: () => 'Ejderhanı besle ve onunla konuş; bağınız güçlenir.', dugme: 'Ejderhalar', git: 'ejderhalar' },
   ];
+  const ADIM = ADIM0.map((a, n) => Object.assign({}, a, { m: () => '<small class="rh-sira" title="Öğretici">' + (n + 1) + ' / ' + ADIM0.length + '</small> ' + a.m() }));
   /* ---------- ekran ipuçları: ilk açılışta bir kez ---------- */
   const IPUCU = {
     ejderhalar: 'Her ejderhaya bir emir ver. Emirler hafta sonunda işlenir.',
@@ -100,6 +106,7 @@
     if (simdi && simdi.tur === 'ekran') gizle(); if (!id) tazele(); else if (simdi) gizle(); }
   let sonSahne = null;
   setInterval(() => { const A = EO2.api; if (!A || !A.scene || !G.live) return; const sc = A.scene(); if (sc === sonSahne) return; sonSahne = sc;
+    if ((sc === 'meydan' || sc === 'master' || sc === 'pazar' || sc === 'arena') && typeof S !== 'undefined' && S && S.week >= 2 && !gor['a-harita']) isaretle('a-harita');
     if (simdi && simdi.tur === 'sahne') gizle();
     if (sc === 'ocak' && EO2.ziyaret && EO2.ziyaret.evSahibi()) { goster({ id: 's-misafir', tur: 'sahne', metin: 'Misafirsin: gez, bak. Ev sahibinin yanına gel ve E ile ejderhanı eşleşmeye sun.', sn: 16 }); return; }
     if (SAHNE_IPUCU[sc] && !gor['s-' + sc] && !(G.ekran && G.ekran())) { isaretle('s-' + sc); goster({ id: 's-' + sc, tur: 'sahne', metin: SAHNE_IPUCU[sc], sn: 16 }); } else tazele(); }, 600);

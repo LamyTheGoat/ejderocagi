@@ -166,3 +166,11 @@ Zindan adı tek yerden gelir: haritadaki künye ortak seferin adını taşır (`
 - Talim, topçu düellosu ve Takım Meydanı boyalı bir arka planla açılır: `eo2/assets/arena/er_meydani_bg.webp` (uçan adalar, çiçekli ağaçlar, mavi-altın sancaklı meydan duvarı). Yalnız arka plandır; zemin eskisi gibi çizilir. `eo2/arenalar/er-meydani` klasörü gelirse sahne resmi öne geçer. Geri almak için `topcu.js` ve `takim.js` içindeki `bg` alanını kaldırmak yeter.
 - Ortak zindan üç ve dört kişiyle denetlendi: `check_zindan_uc.mjs` (duman testinde üç kişiyle; `N=4` ile dört).
 - Yan yana duran topçuların can çubukları üst üste binmez: binen çubuk adıyla birlikte bir kat yukarı çizilir.
+
+### Zümrüt Saray tasarımı, uyuyan düşman, açık oda listesi (2026-11-17 gece)
+
+- Adım adım yapım yolu: `eo2/docs/DUSMAN_VE_ZINDAN_KILAVUZU.md`.
+- Köprü üç dalgalıdır (`arena.json` içinde `dalga`); Şahmeran yayla savaşır ve Cazibe Oku atar (`topcu_veri.js` → `BOSS.sahmeran_v3`). Hasar sayıları eski hamlelerle aynıdır.
+- Uyuyan düşman: `dalga` (sırası gelene dek sahnede yok) ve `uyan` (terbiyeci yaklaşana dek uyur). Sunucu bekleyen dalgaya sıra vermez.
+- Açık oda listesi: özel olmayan, bekleyen odalar sefer, masa, takım ve topçu düellosu lobilerinde görünür (`ortak_liste`, `pvp_lobby`). Denetim: `check_oda_listesi.mjs`.
+- Kuşam, başlangıç, harita ve öğretici: `eo2/js/gorunum.js`, `eo2/js/harita.js`, `eo2/js/rehber.js`; denetim `check_baslangic.mjs`.

@@ -341,3 +341,16 @@
 /* ara boy pencere (761–999 piksel genişlik, masaüstünde küçültülmüş pencere): parti kutusu yalnız portrelerle sohbetin sağında, altta durur; sefer şeridi açıkken jest çubuğu gizlenir (aynı köşeyi paylaşıyorlardı) */
 @media (min-width: 761px) and (max-width: 999px) and (min-height: 501px) { #app #partiCerceve { top: auto; bottom: .9em; left: 29.5em; grid-auto-flow: column; } #partiCerceve .pt-uye { min-width: 0; padding-right: .3em; } #partiCerceve .pt-uye span { display: none; } }
 @media (max-width: 999px) { .ui2:has(#seferSerit:not([hidden])) #emotes { display: none; } }
+
+/* Daha tepsisi: etiketlerin alt çengelleri (ç, ş, ğ) bir alttaki satırın madalyonunun altında kalmasın */
+.ui2 #actionsMore { row-gap: 2.1em; } .ui2 #actionsMore button > span:last-child { position: relative; z-index: 2; line-height: 1.4; padding-bottom: .12em; overflow: visible; }
+
+/* Daha tepsisi: Kuşam, Harita, Han, Dostlar ve Menü madalyonları (öteki düğmelerle aynı üslup) */
+.ui2 #actions button[data-panel="kusam"] .ic { background: center / 100% 100% no-repeat url(../assets/ik/mdl-zirh.webp), radial-gradient(circle at 50% 30%, #3b4a86, #141a3a 74%); }
+.ui2 #actions button[data-panel="harita"] .ic { background: center / 100% 100% no-repeat url(../assets/ik/mdl-harita.webp), radial-gradient(circle at 50% 30%, #3b4a86, #141a3a 74%); }
+.ui2 #actions button[data-panel="sosyal"] .ic { background: center / 100% 100% no-repeat url(../assets/ik/mdl-han.webp), radial-gradient(circle at 50% 30%, #3b4a86, #141a3a 74%); }
+.ui2 #actions button[data-panel="dostlar"] .ic { background: center / 100% 100% no-repeat url(../assets/ik/mdl-dostlar.webp), radial-gradient(circle at 50% 30%, #3b4a86, #141a3a 74%); }
+.ui2 #actions button[data-panel="menu"] .ic { background: center / 100% 100% no-repeat url(../assets/ik/mdl-menu.webp), radial-gradient(circle at 50% 30%, #3b4a86, #141a3a 74%); }
+.ui2 #actions button[data-panel="kusam"] .ic svg, .ui2 #actions button[data-panel="harita"] .ic svg, .ui2 #actions button[data-panel="sosyal"] .ic svg, .ui2 #actions button[data-panel="dostlar"] .ic svg, .ui2 #actions button[data-panel="menu"] .ic svg { display: none; }
+.ui2 #actions button[data-panel="kusam"] .ic, .ui2 #actions button[data-panel="harita"] .ic, .ui2 #actions button[data-panel="sosyal"] .ic, .ui2 #actions button[data-panel="dostlar"] .ic, .ui2 #actions button[data-panel="menu"] .ic { box-shadow: 0 .22em .5em rgba(4, 6, 16, .55); }
+

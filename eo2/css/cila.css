@@ -446,3 +446,6 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .hr-not { margin: 0; padding: .35em 1em; border-radius: 1em; font: 600 max(12px, .9em) var(--f-ui); color: #e9ecfb; background: rgba(8, 12, 40, .7); }
 @media (max-width: 760px), (max-aspect-ratio: 1/1) { .ui2 .hr-pano { height: auto; width: 100%; aspect-ratio: 3 / 4; } .ui2 .hr-yer { min-width: 0; padding: .35em .6em; } .ui2 .hr-yer small { display: none; } }
 @media (max-height: 500px) { .ui2 .hr-yer { min-width: 0; padding: .25em .7em; } .ui2 .hr-yer small { display: none; } .ui2 .hr-not { display: none; } }
+
+/* öğretici zinciri: adım numarası */
+.rehber .rh-sira { display: inline-block; margin-right: .5em; padding: .08em .6em; border-radius: 1em; font: 700 max(11px, .74em) var(--f-ui); letter-spacing: .06em; text-transform: uppercase; color: #2a1c06; background: linear-gradient(180deg, #fff3cf, #e8b84e); vertical-align: middle; white-space: nowrap; }

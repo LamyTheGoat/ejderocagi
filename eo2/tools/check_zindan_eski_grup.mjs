@@ -53,7 +53,10 @@ for (const zk of (process.env.YALNIZ ? [process.env.YALNIZ] : ['kaldera', 'donan
       // B geçer; düşman sırası; tur dönünce yerler ve canlar iki ekranda aynı
       await B.evaluate(() => { EO2.battle.pas(); });
       S.turDondu = await bekle(A, sirada('ben') + ' && EO2.battle.state().tur >= 2', 150000) && await bekle(B, sirada('Aylin') + ' && EO2.battle.state().tur >= 2', 40000); await A.waitForTimeout(1500);
-      const o2 = [await A.evaluate(ozet, 'Aylin'), await B.evaluate(ozet, 'Bora')]; S.tur = o2.map(q => ({ yer: q.yer, can: q.can, zemin: q.zemin, dusman: q.dusman }));
+      /* can bildirimi ekranlara birkaç yüz milisaniyede ulaşır: ölçüm, iki ekran aynı olana dek (en çok altı saniye) yinelenir */
+      const canEs = L => Math.abs(L[0].can.Aylin - L[1].can.Aylin) <= 1 && Math.abs(L[0].can.Bora - L[1].can.Bora) <= 1;
+      let o2 = [await A.evaluate(ozet, 'Aylin'), await B.evaluate(ozet, 'Bora')]; for (let k = 0; k < 12 && !canEs(o2); k++) { await A.waitForTimeout(500); o2 = [await A.evaluate(ozet, 'Aylin'), await B.evaluate(ozet, 'Bora')]; }
+      S.tur = o2.map(q => ({ yer: q.yer, can: q.can, zemin: q.zemin, dusman: q.dusman }));
       S.yerAyni = JSON.stringify(o2[0].yer) === JSON.stringify(o2[1].yer); S.canAyni = Math.abs(o2[0].can.Aylin - o2[1].can.Aylin) <= 1 && Math.abs(o2[0].can.Bora - o2[1].can.Bora) <= 1; S.zeminAyni2 = o2[0].zemin === o2[1].zemin; S.dusmanCanAyni = JSON.stringify(o2[0].dusman) === JSON.stringify(o2[1].dusman);
       if (ekran) await B.screenshot({ path: path.join(ekran, 'grup_' + zk + '_' + (i + 1) + '_tur.png') });
       await A.evaluate(() => { const M = EO2.battle.state(); for (const a of M.act) if (a.takim === 1 && !a.dead) EO2.battle.api[a.tur === 'boss' ? 'hasarBoss' : 'hasarMob'](a, 99999); });

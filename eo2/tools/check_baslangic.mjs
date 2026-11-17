@@ -23,6 +23,9 @@ try {
   log.ocakta = await bekle('EO2.api.scene() === "ocak" && !EO2.game.ekran()', 40000); await p.waitForTimeout(1500);
   log.ciplak = await p.evaluate(() => EO2.api.player.set === 'bare' && S.kusam.giyili === 'bare' && S.kusam.sahip.length === 1 && S.gorunus.sac === 'ikiz'); await cek('baslangic_2_ocak');
   log.ogretici = await p.evaluate(() => { const s = EO2.rehber.simdi(); return s ? s.metin.replace(/<[^>]+>/g, '') : ''; });
+  // öğretici zinciri: sahne ipucundan sonra ilk adım numarasıyla gelir; ikinci haftada harita adımı "Harita" düğmesiyle haritayı açar
+  await p.evaluate(() => { document.querySelector('.rehber .rh-kapat').click(); }); log.adim1 = await bekle('EO2.rehber.simdi() && EO2.rehber.simdi().tur === "adim" && EO2.rehber.simdi().metin.includes(">1 / 7<")', 15000); await cek('baslangic_2b_ogretici');
+  log.adimHarita = await p.evaluate(async () => { const w = S.week, g = S.goals.slice(); S.week = 2; S.goals.push('kulucka'); EO2.rehber.tazele(); const s = EO2.rehber.simdi(), ok = !!s && s.metin.includes('>4 / 7<'); if (ok) document.querySelector('.rehber .rh-git').click(); await new Promise(r => setTimeout(r, 500)); const acildi = EO2.game.ekran() === 'harita'; EO2.game.close(); S.week = w; S.goals = g; EO2.rehber.tazele(); return ok && acildi; });
   // 3) portre → Kuşam ve görünüş; set dene, satın al
   const altin0 = await p.evaluate(() => S.gold);
   await p.locator('#profile').click(); log.kusamAcildi = await bekle('EO2.game.ekran() === "gorunus" && document.querySelector(".gr-setler")');
@@ -44,6 +47,6 @@ try {
   log.kayitli = await p.evaluate(() => EO2.api.player.set === 'temel' && S.kusam.sahip.join(',') === 'bare,temel' && S.gorunus.sac === 'ikiz' && !EO2.game.ekran());
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && log.secimAcildi && log.ocakta && log.ciplak && !!log.ogretici && log.kusamAcildi && log.deneme && log.alindi && log.pahali && log.giyBare && log.giyTemel && log.haritaVar && log.haritaAcildi && log.meydanaGitti && log.ocagaDondu && log.yenidenOcakta && log.kayitli;
+const ok = !hata.length && log.secimAcildi && log.ocakta && log.ciplak && !!log.ogretici && log.adim1 && log.adimHarita && log.kusamAcildi && log.deneme && log.alindi && log.pahali && log.giyBare && log.giyTemel && log.haritaVar && log.haritaAcildi && log.meydanaGitti && log.ocagaDondu && log.yenidenOcakta && log.kayitli;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

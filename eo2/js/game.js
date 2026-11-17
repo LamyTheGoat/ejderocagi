@@ -388,7 +388,7 @@
     for (const b of $('chatTabs').querySelectorAll('button')) b.addEventListener('click', () => { chat.tab = b.dataset.tab; for (const o of $('chatTabs').querySelectorAll('button')) o.setAttribute('aria-selected', String(o === b)); chatRender(); });
     $('chatForm').addEventListener('submit', e => { e.preventDefault(); const v = $('chatInput').value.trim(); if (!v) { $('chatInput').blur(); return; } const ch = chat.tab === 'parti' ? 'parti' : chat.tab; if (EO2.hooks.sohbet && EO2.hooks.sohbet(v.slice(0, 120), ch)) { /* söz sunucudan süzülmüş hâliyle geri gelir (js/meydan_ag.js) */ } else { chatAdd(ch, 'Sen', v.slice(0, 120)); say(player, v.slice(0, 80), 4.5); } if (EO2.hooks.chat) EO2.hooks.chat(v.slice(0, 120)); $('chatInput').value = ''; $('chatInput').blur(); });
     $('chatToggle').addEventListener('click', () => $('chat').classList.toggle('open'));
-    chatAdd('sistem', '', 'Meydana hoş geldin, terbiyeci.');
+    chatAdd('sistem', '', 'Hoş geldin, terbiyeci.');
 
     // emote
     const EM = ['smile', 'wave', 'heart', 'spark', 'think', 'note'];

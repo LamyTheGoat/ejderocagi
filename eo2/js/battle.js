@@ -274,7 +274,7 @@
     if (o.it) { a.vy = 3 + o.it * 2; a.fall = true; a.kx = o.yon * (1 + o.it * 2.2); }
     yazi(a.x, a.y + 2.3, dmg, { crit: !!o.crit, col: a.ben ? '#ff9a8a' : null }); ses('hit'); if (a.ben || a.kontrol !== 'uzak') yay('can', { kim: a.takim, hp: a.hp, max: a.max }); return dmg;
   }
-  function hasarMob(e, dmg, o) { o = o || {}; dmg = Math.max(1, Math.round(dmg)); if (!M.uzakHasar) yay('dusman_hasar', { i: M.act.indexOf(e), h: Math.min(dmg, Math.max(0, e.hp)) }); e.hp -= dmg; e.hurtT = 0.5; e.anim = 'hit'; e.animT = 0.45; M.stop = Math.max(M.stop, dmg >= 220 || o.crit ? 0.13 : 0.08);
+  function hasarMob(e, dmg, o) { if (e.bekler) return;   /* sırası gelmemiş dalganın düşmanı sahnede yoktur: hasar almaz */ o = o || {}; dmg = Math.max(1, Math.round(dmg)); if (!M.uzakHasar) yay('dusman_hasar', { i: M.act.indexOf(e), h: Math.min(dmg, Math.max(0, e.hp)) }); e.hp -= dmg; e.hurtT = 0.5; e.anim = 'hit'; e.animT = 0.45; M.stop = Math.max(M.stop, dmg >= 220 || o.crit ? 0.13 : 0.08);
     if (e.hp <= 0) { M.stop = Math.max(M.stop, 0.18); M.flash = Math.max(M.flash, 0.22); toz(e.x, e.y + e.h * 0.5, 26, EL[e.el] || EL.venom); halka(e.x, e.y + e.h * 0.5, e.h * 0.9, [255, 244, 214]); } if (!M.uzakHasar) { M.ist.hasar += dmg; M.ben.rage = Math.min(100, M.ben.rage + 14); } yazi(e.x, e.y + e.h + 0.5, dmg, { crit: dmg >= 220 || o.crit }); if (o.not) yazi(e.x, e.y + e.h + 1.4, o.not, { kucuk: 1, col: o.col || '#ffe08a' }); ses('hit');
     if (e.hp <= 0 && !e.dead) { e.hp = 0; e.dead = true; M.ist.mob++; yazi(e.x, e.y + e.h + 1.2, 'Yıkıldı', { col: '#8ff0a4', crit: 1 }); toz(e.x, e.y + e.h / 2, 18, EL[e.el]); ses('boom', 0.3); } }
   /* eski applyDamageToBoss: kalkan hasarın yarısını emer (delici hariç), faz geçişleri can oranına göre */

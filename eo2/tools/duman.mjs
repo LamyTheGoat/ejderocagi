@@ -138,6 +138,16 @@ if (acik) {
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_masa_kor21.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 300000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
     yaz('oyuncu masasında Kor 21 (iki tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
+  // 4k5i) açık oda listesi, Şahmeran'ın okları ve uyuyan düşman, oyunun gerçek başlangıcı (kuşam, harita, öğretici)
+  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_oda_listesi.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 400000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('açık oda listesi: sefer, masa, takım, düello (iki tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
+  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_sahmeran_ok.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 500000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('Şahmeran okları, Cazibe Oku, uyuyan düşman', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
+  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_baslangic.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 400000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('başlangıç: görünüş seçimi, ocakta başlama, kuşam, harita, öğretici', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
   // 4k6) Er Meydanı: ejderha dövüşünde herkese açık eşleşme (iki tarayıcı sıraya girer, dövüşür, tutarlı sonuç; altın yazılmaz)
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_er_meydani.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 280000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }

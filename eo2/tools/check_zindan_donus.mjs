@@ -18,19 +18,19 @@ try {
   log.kamp = await bekle('EO2.ortak.durum().ortak && EO2.api.scene() === "kamp"'); await p.waitForTimeout(1200); await p.evaluate(() => EO2.api.runAct('zindan:hazir'));
   log.savas = await bekle('EO2.battle.active() && EO2.battle.state().faz === "nisan" && EO2.battle.state().aktif === EO2.battle.state().ben && EO2.ortak.durum().ortak', 40000);
   log.once = await durum();
-  await p.evaluate(() => { const M = EO2.battle.state(); EO2.battle.api.hasarMob(M.act[2], 300); }); await p.waitForTimeout(900);
+  await p.evaluate(() => { const M = EO2.battle.state(); EO2.battle.api.hasarMob(M.act[3], 300); });   // act[3]: birinci dalganın soldaki yılanı (köprü üç dalgalıdır) await p.waitForTimeout(900);
   await p.reload(); await p.waitForFunction('window.EO2 && EO2.api && EO2.game && document.querySelector(".giris")', null, { timeout: 60000 }); await p.waitForTimeout(1500);
   await p.locator('.giris .gbtn').first().click();
   log.dondu = await bekle('EO2.battle.active() && EO2.battle.state().faz === "nisan" && EO2.battle.state().aktif === EO2.battle.state().ben', 60000);
   log.sonra = await durum();
   // çark sırasında yenileme: düşmanlar indirilir, çark açılır, sayfa yenilenir; grup bekletilmez, sefer sıradaki aşamanın kampına geçer
-  await p.evaluate(() => { const M = EO2.battle.state(); for (const a of M.act) if (a.takim === 1 && !a.dead) EO2.battle.api.hasarMob(a, 99999); });
+  for (let d = 1; d <= 3; d++) { await bekle('EO2.battle.state() && EO2.battle.state().act.some(a => a.takim === 1 && !a.dead)', 15000); await p.waitForTimeout(500); await p.evaluate(() => { const M = EO2.battle.state(); for (const a of M.act) if (a.takim === 1 && !a.dead) EO2.battle.api.hasarMob(a, 99999); }); }   // üç dalga
   log.cark = await bekle('EO2.ortak.durum().ortak && EO2.ortak.durum().ortak.faz === "cark"', 40000); await p.waitForTimeout(2500);
   await p.reload(); await p.waitForFunction('window.EO2 && EO2.api && EO2.game && document.querySelector(".giris")', null, { timeout: 60000 }); await p.waitForTimeout(1500);
   await p.locator('.giris .gbtn').first().click();
   log.carkGecildi = await bekle('EO2.ortak.durum().ortak && EO2.ortak.durum().ortak.faz === "bekleme" && EO2.ortak.durum().ortak.asama === 1', 40000);
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && log.cevrimici && log.tekBasladi && log.kamp && log.savas && log.once && log.once.uye === 1 && log.once.tekArena && log.dondu && log.sonra && log.sonra.faz === 'savas' && log.sonra.hp[1] === log.once.hp[1] - 300 && JSON.stringify(log.sonra.ekran) === JSON.stringify(log.sonra.hp) && log.cark && log.carkGecildi;
+const ok = !hata.length && log.cevrimici && log.tekBasladi && log.kamp && log.savas && log.once && log.once.uye === 1 && log.once.tekArena && log.dondu && log.sonra && log.sonra.faz === 'savas' && log.sonra.hp[2] === log.once.hp[2] - 300 && JSON.stringify(log.sonra.ekran) === JSON.stringify(log.sonra.hp) && log.cark && log.carkGecildi;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);
