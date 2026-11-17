@@ -78,7 +78,8 @@
   /* ---------- ekran ipuçları: ilk açılışta bir kez ---------- */
   const IPUCU = {
     ejderhalar: 'Her ejderhaya bir emir ver. Emirler hafta sonunda işlenir.',
-    arena: 'Bir rakip seç ve Meydan oku. Zafer ün ve altın getirir.',
+    /* Er Meydanı dostça oynanır (ödül yok): arena ilk kez o sekmede açılırsa ipucu ona göre konuşur */
+    arena: () => typeof UI !== 'undefined' && UI && UI.arenaTier === 'er' ? 'Eşleşme ara, sancağını dik ya da bir terbiyeciye meydan oku. Er Meydanı dostça oynanır: ödül yok.' : 'Bir rakip seç ve Meydan oku. Zafer ün ve altın getirir.',
     yuva: 'İki yetişkini gezintiye çıkar; yakınlaştıkça çiftleşebilirler.',
     pazar: 'Bir tezgâh seç. Yem, yumurta ve kuşam burada satılır.',
     sefer: 'Bir bölge seç ve boştaki ejderhanla yola çık.',
@@ -94,7 +95,7 @@
     let a = null; try { a = ADIM.find(x => !gor[x.id] && x.k()); } catch (_) { a = null; }
     if (!a) return gizle(); goster({ id: a.id, tur: 'adim', metin: a.m(), dugme: a.dugme, git: a.git }); }
   function ekran(id) { if (!G.live) return;
-    if (id && IPUCU[id] && !gor['e-' + id]) { isaretle('e-' + id); goster({ id: 'e-' + id, tur: 'ekran', metin: IPUCU[id], sn: 14 }); return; }
+    if (id && IPUCU[id] && !gor['e-' + id]) { isaretle('e-' + id); goster({ id: 'e-' + id, tur: 'ekran', metin: typeof IPUCU[id] === 'function' ? IPUCU[id]() : IPUCU[id], sn: 14 }); return; }
     if (simdi && simdi.tur === 'ekran') gizle(); if (!id) tazele(); else if (simdi) gizle(); }
   let sonSahne = null;
   setInterval(() => { const A = EO2.api; if (!A || !A.scene || !G.live) return; const sc = A.scene(); if (sc === sonSahne) return; sonSahne = sc;
