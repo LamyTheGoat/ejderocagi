@@ -323,3 +323,21 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .yol.kariyer b { display: block; width: auto; height: auto; border: 0; border-radius: 0; background: none; color: #f6d98a; font: 700 .98em/1.25 var(--f-ui); text-align: left; }
 .ui2 .yol.kariyer span { display: block; font: 500 .88em/1.3 var(--f-ui); color: #e0e5f2; text-decoration: none; }
 .ui2 .yol.kariyer li.tamam b { color: #b8f0a0; background: none; border: 0; } .ui2 .yol.kariyer li.tamam span { text-decoration: none; }
+
+/* ---------- Arena vuruş hissi (js/arena.js carpma): çarpma parlaması, donma, sahne yumruğu, sert savrulma, son darbe ---------- */
+.ui2 .dov-carpma { position: absolute; z-index: 6; width: 9em; height: 9em; margin: -4.5em 0 0 -4.5em; border-radius: 50%; pointer-events: none; background: radial-gradient(circle, #fff 0 16%, rgba(255, 240, 190, .9) 17% 30%, rgba(255, 200, 90, 0) 62%); mix-blend-mode: screen; animation: dov-carpma .46s ease-out both; }
+.ui2 .dov-carpma::before, .ui2 .dov-carpma::after { content: ""; position: absolute; left: 50%; top: 50%; width: 170%; height: .45em; margin: -.22em 0 0 -85%; border-radius: 1em; background: linear-gradient(90deg, rgba(255, 255, 255, 0), #fff 38% 62%, rgba(255, 255, 255, 0)); transform: rotate(27deg); }
+.ui2 .dov-carpma::after { transform: rotate(-36deg); width: 140%; margin-left: -70%; }
+.ui2 .dov-carpma.kritik { width: 14em; height: 14em; margin: -7em 0 0 -7em; background: radial-gradient(circle, #fff 0 18%, rgba(255, 226, 150, .95) 19% 34%, rgba(255, 150, 60, 0) 64%); }
+.ui2 .dov-carpma.olum { width: 20em; height: 20em; margin: -10em 0 0 -10em; animation-duration: .56s; background: radial-gradient(circle, #fff 0 22%, rgba(255, 236, 190, .95) 23% 38%, rgba(255, 120, 60, 0) 66%); }
+@keyframes dov-carpma { 0% { transform: scale(.15) rotate(-12deg); opacity: 0; } 16% { transform: scale(1.05) rotate(0); opacity: 1; } 100% { transform: scale(1.55) rotate(8deg); opacity: 0; } }
+.ui2 .dov.yumruk .govde { animation: dov-yumruk .22s ease-out; } .ui2 .dov.yumruk-agir .govde { animation: dov-yumruk-agir .34s ease-out; }
+@keyframes dov-yumruk { 30% { transform: scale(1.025); } } @keyframes dov-yumruk-agir { 22% { transform: scale(1.06) translateY(-.6%); } 55% { transform: scale(.99); } }
+.ui2 .dov.donma .govde img, .ui2 .dov.donma .dov-carpma, .ui2 .dov.donma .govde { animation-play-state: paused !important; }
+.ui2 .govde img.vuruldu.agir { animation: vuruldu-agir .5s, suzul 4s ease-in-out .5s infinite; } .ui2 .taraf.sag .govde img.vuruldu.agir { animation: vuruldu-agir-ters .5s, suzul-ters 4s ease-in-out .5s infinite; }
+@keyframes vuruldu-agir { 14% { transform: translateX(-13%) rotate(-5deg); filter: brightness(2.6) drop-shadow(0 0 1.4em #fff); } 46% { transform: translateX(5%) rotate(2deg); } 72% { transform: translateX(-2%); } }
+@keyframes vuruldu-agir-ters { 0%, 100% { transform: scaleX(-1); } 14% { transform: scaleX(-1) translateX(-13%) rotate(-5deg); filter: brightness(2.6) drop-shadow(0 0 1.4em #fff); } 46% { transform: scaleX(-1) translateX(5%) rotate(2deg); } 72% { transform: scaleX(-1) translateX(-2%); } }
+.ui2 .dov.son-darbe::after { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: radial-gradient(circle at 50% 55%, rgba(255, 255, 255, .6), rgba(255, 255, 255, 0) 62%); animation: dov-ton .95s ease-out both; }
+.ui2 .govde img.yikildi { animation: dov-yikil .9s ease-in forwards; } .ui2 .taraf.sag .govde img.yikildi { animation: dov-yikil-ters .9s ease-in forwards; }
+@keyframes dov-yikil { to { transform: translateY(9%) rotate(-7deg); filter: brightness(.5) saturate(.55); } } @keyframes dov-yikil-ters { from { transform: scaleX(-1); } to { transform: scaleX(-1) translateY(9%) rotate(-7deg); filter: brightness(.5) saturate(.55); } }
+.ui2 .dov.girdi:not(.sars):not(.sars2) { animation: none; }
