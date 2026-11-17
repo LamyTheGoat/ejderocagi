@@ -31,8 +31,12 @@
     return alan; };
   const BY = ['', 'by-ust', 'by-ust2', 'by-orta', 'by-orta2', 'by-alt2', 'by-alt', 'by-bas'], BY_AD = BY.filter(Boolean);
   /* hiçbir yer boş değilse (telefonda baştan sona düğme olan ekranlar) en az binen yer seçilir; bildirim dokunmayı engellemez ve birkaç saniyede gider */
-  function trayYer() { const biner = () => G.dugmeyeBiner([...tray.children].map(c => c.getBoundingClientRect()), tray); if (!biner()) return; let enIyi = '', enAz = Infinity;
-    for (const y of BY) { tray.classList.remove(...BY_AD); if (y) tray.classList.add(y); const a = biner(); if (!a) return; if (a < enAz) { enAz = a; enIyi = y; } } tray.classList.remove(...BY_AD); if (enIyi) tray.classList.add(enIyi); }
+  /* bildirimler boş yere oturur; hiçbir yerde düğmeye binmeden sığmıyorsa (üst üste birkaç bildirim) en eskisi bırakılır ve yeniden denenir:
+     tek bildirim de sığmıyorsa en az binen yer seçilir */
+  function trayYer() { const biner = () => G.dugmeyeBiner([...tray.children].map(c => c.getBoundingClientRect()), tray);
+    for (let tur = 0; tur < 4; tur++) { tray.classList.remove(...BY_AD); if (!biner()) return; let enIyi = '', enAz = Infinity, sigdi = false;
+      for (const y of BY) { tray.classList.remove(...BY_AD); if (y) tray.classList.add(y); const a = biner(); if (!a) { sigdi = true; break; } if (a < enAz) { enAz = a; enIyi = y; } }
+      if (sigdi) return; tray.classList.remove(...BY_AD); if (tray.children.length > 1) { tray.firstChild.remove(); continue; } if (enIyi) tray.classList.add(enIyi); return; } }
   G.toast = function (html, kind) { const t = el('div', 'bildirim cam' + (kind ? ' ' + kind : ''), html); if (!tray.children.length) tray.classList.remove(...BY_AD); tray.appendChild(t); while (tray.children.length > 4) tray.firstChild.remove(); try { trayYer(); } catch (_) { }
     setTimeout(() => { t.classList.add('git'); setTimeout(() => t.remove(), 400); }, kind === 'goal' ? 4600 : 3000); if (EO2.audio) (kind === 'goal' ? EO2.audio.chime : EO2.audio.pop)(); };
   EO2_BUS.toast = G.toast;
