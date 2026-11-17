@@ -80,7 +80,9 @@
     scr.classList.add('acik'); scr.setAttribute('aria-hidden', 'false'); app.classList.add('ekranda'); if (EO2.api) EO2.api.closePanel(); if (EO2.audio) EO2.audio.whoosh && EO2.audio.whoosh(); if (EO2.rehber) EO2.rehber.ekran(id); };
   G.close = function () { if (!cur) return; const eski = SCREENS[cur.id]; cur = null; if (eski && eski.leave) { try { eski.leave(); } catch (_) { } } scr.classList.remove('acik'); scr.setAttribute('aria-hidden', 'true'); app.classList.remove('ekranda'); hud(); if (EO2.rehber) EO2.rehber.ekran(null); };
   G.ekran = () => cur ? cur.id : null;      // açık ekranın kimliği (müzik ve rehber buna bakar)
-  function draw() { if (!cur) return; $id('scrGold').textContent = S.gold; $id('scrUn').textContent = S.un; $id('scrWeek').innerHTML = S.week >= SEASON ? 'Sezonu Bitir' : 'Haftayı Bitir'; SCREENS[cur.id].draw($id('scrB'), cur.arg); }
+  /* BASINCA KAYMA YOK (kullanıcı, 2026-11-17): bir ekran ilk açılışta giriş canlandırmasıyla gelir; aynı ekran her dokunuşta yeniden çizilirken
+     canlandırmalar baştan oynamaz (gövdeye "yeniden" sınıfı konur; css/deneyim.css giriş canlandırmalarını son hâline alır). */
+  function draw() { if (!cur) return; const govde = $id('scrB'); cur.cizim = (cur.cizim || 0) + 1; govde.classList.toggle('yeniden', cur.cizim > 1); $id('scrGold').textContent = S.gold; $id('scrUn').textContent = S.un; $id('scrWeek').innerHTML = S.week >= SEASON ? 'Sezonu Bitir' : 'Haftayı Bitir'; SCREENS[cur.id].draw($id('scrB'), cur.arg); }
   G.redraw = function () { if (!G.live) return; draw(); hud(); };
   EO2_BUS.render = G.redraw;
   $id('scrBack').addEventListener('click', () => G.close());      // çağrı anındaki G.close: başka dosya sarmışsa (kiraathane2.js) o da çalışır

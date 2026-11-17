@@ -152,6 +152,22 @@ if (acik) {
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_masa_tavla.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 400000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
     yaz('oyuncu masasında Kervan Tavlası (iki tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
+  // 4k5k) 16:9: basınca ve yeniden çizimde hiçbir şey kaymaz; düğme yazıları ortada ve taşmıyor; ekran içi binme yok (1920×1080)
+  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_kayma.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 900000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('basınca kayma yok (1280×720)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : (j.sorun || []).slice(0, 3).join(' | ')) : String(r.stderr || '').slice(0, 200)); }
+  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_kayma.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0, VP: '1920x1080' }), timeout: 900000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('basınca kayma yok (1920×1080)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : (j.sorun || []).slice(0, 3).join(' | ')) : String(r.stderr || '').slice(0, 200)); }
+  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_dugme.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 500000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('düğme yazıları ortada, taşma yok (1280×720)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : (j.sorun || []).slice(0, 3).join(' | ')) : String(r.stderr || '').slice(0, 200)); }
+  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_dugme.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0, VP: '1920x1080' }), timeout: 500000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('düğme yazıları ortada, taşma yok (1920×1080)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : (j.sorun || []).slice(0, 3).join(' | ')) : String(r.stderr || '').slice(0, 200)); }
+  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_binme_ekran.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0, VP: '1920x1080' }), timeout: 500000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('ekran içi bindirme yok (1920×1080)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : (j.sorun || []).slice(0, 3).join(' | ')) : String(r.stderr || '').slice(0, 200)); }
   // 4k6) Er Meydanı: ejderha dövüşünde herkese açık eşleşme (iki tarayıcı sıraya girer, dövüşür, tutarlı sonuç; altın yazılmaz)
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_er_meydani.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 280000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }

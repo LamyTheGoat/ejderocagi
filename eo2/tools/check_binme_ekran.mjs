@@ -5,7 +5,7 @@
 import fs from 'node:fs'; import path from 'node:path'; import { createRequire } from 'node:module'; import { fileURLToPath } from 'node:url';
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..'), require = createRequire(path.join(repo, 'package.json')), { chromium } = require('playwright-core');
 const mobil = process.argv.includes('--mobil'), dik = process.argv.includes('--dik'), url = process.env.URL || 'http://localhost:3210/', ekran = process.env.EKRAN || ''; if (ekran) fs.mkdirSync(ekran, { recursive: true });
-const kip = dik ? 'dik' : mobil ? 'mobil' : 'masa', vp = dik ? { width: 390, height: 844 } : mobil ? { width: 844, height: 390 } : { width: 1280, height: 720 };
+const kip = dik ? 'dik' : mobil ? 'mobil' : 'masa', vp = process.env.VP ? { width: +process.env.VP.split('x')[0], height: +process.env.VP.split('x')[1] } : dik ? { width: 390, height: 844 } : mobil ? { width: 844, height: 390 } : { width: 1280, height: 720 };   /* VP=1920x1080 ile başka masaüstü boyu */
 const b = await chromium.launch({ channel: 'msedge', headless: true, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const ctx = await b.newContext(mobil || dik ? { viewport: vp, hasTouch: true, isMobile: true } : { viewport: vp }), p = await ctx.newPage(), hata = [], sorun = [], uyari = new Set();
 p.on('pageerror', e => hata.push(String(e.message).slice(0, 160)));

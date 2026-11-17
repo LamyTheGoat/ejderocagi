@@ -160,3 +160,8 @@
 @media (min-width: 1000px) { .ui2 .rehber { max-width: min(46em, calc(100% - 58em)); } }
 /* sıra numarası şeridin boyunu büyütmez; dar ekranda gösterilmez */
 .rehber .rh-sira { padding: 0 .55em; line-height: 1.5; } @media (max-width: 999px), (max-height: 560px) { .rehber .rh-sira { display: none; } }
+
+/* yeniden çizimde giriş canlandırmaları baştan oynamaz: her canlandırma son karesinden başlar (süren döngüler etkilenmez: sonsuz olanlar akmaya devam eder) */
+.ui2 #scrB.yeniden *, .ui2 #scrB.yeniden *::before, .ui2 #scrB.yeniden *::after { animation-delay: -30s !important; transition-duration: 0s !important; }
+/* defter ayraçları: üstüne gelinen ayraç uzarken komşuları onunla birlikte uzamaz */
+.ui2 .ayraclar { align-items: flex-start; }
