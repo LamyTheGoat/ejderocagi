@@ -14,7 +14,7 @@ try {
   await p.locator('.giris .gbtn:has-text("Yeni ocak kur")').first().click(); await p.waitForTimeout(400);
   await p.locator('.pen input').first().fill('Aylin').catch(() => { }); await p.locator('.pen .gbtn:has-text("Ocağa gir")').first().click(); await p.waitForTimeout(2500);
   await p.evaluate(() => { const y = document.querySelector('.yatay-oneri .yo-hayir'); if (y) y.click(); });
-  const ekranlar = (process.env.EKRANLAR || 'ejderhalar arena pazar bedesten han kiraathane masa dostlar siralama defter canta sandik sefer yuva saray kule divan kutuk muzayede siparis sus topcu yaris damizlik sancak kervan boss ayarlar menu gorunus takim ors').split(/\s+/);
+  const ekranlar = (process.env.EKRANLAR || 'ejderhalar arena pazar bedesten han kiraathane masa dostlar siralama defter canta sandik sefer yuva saray kule divan kutuk muzayede siparis sus topcu yaris damizlik sancak kervan boss ayarlar menu gorunus takim ors harita ermeydani zindan').split(/\s+/);
   for (const id of ekranlar) {
     const acildi = await p.evaluate(id => { try { EO2.game.open(id); return EO2.game.ekran() === id; } catch (e) { return String(e.message); } }, id);
     if (acildi !== true) { await p.evaluate(() => { document.querySelectorAll('.pen-perde').forEach(w => w.remove()); try { EO2.game.close(); } catch (_) { } }); continue; }

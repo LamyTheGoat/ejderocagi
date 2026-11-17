@@ -101,7 +101,8 @@ function createPvpRooms(deps = {}) {
   function lobbyRow(room) {
     const p = publicRoom(room);
     const kurucu = p.slots.find(s => s.host) || {};   // hostAd: listede görünen ad (terbiyecinin oyundaki adı; yoksa hesap adı)
-    return { id: p.id, code: p.code, mode: p.mode, mapId: p.mapId, state: p.state, host: p.host, hostAd: (kurucu.chibi && kurucu.chibi.ad) || kurucu.name || p.host, players: p.players, max: p.max };
+    return { id: p.id, code: p.code, mode: p.mode, mapId: p.mapId, state: p.state, host: p.host, hostAd: (kurucu.chibi && kurucu.chibi.ad) || kurucu.name || p.host, players: p.players, max: p.max,
+      slots: p.slots.map(s => s.kind === 'empty' ? null : { ad: (s.chibi && s.chibi.ad) || s.name || s.handle, set: (s.chibi && typeof s.chibi.set === 'string' && /^[a-z]{2,12}$/.test(s.chibi.set)) ? s.chibi.set : 'temel', h: s.handle }) };
   }
 
   function lobbyFor(socket) {

@@ -5,7 +5,7 @@
 import path from 'node:path'; import { createRequire } from 'node:module'; import { fileURLToPath } from 'node:url';
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..'), require = createRequire(path.join(repo, 'package.json')), { chromium } = require('playwright-core');
 const url = process.env.URL || 'http://localhost:3210/', VP = (process.env.VP || '1280x720').split('x').map(Number);
-const EKRANLAR = (process.env.EKRANLAR || 'ejderhalar arena pazar bedesten han kiraathane siralama defter canta sandik sefer yuva saray kule divan kutuk muzayede siparis sus topcu yaris damizlik sancak kervan boss ayarlar menu gorunus harita masa takim zindan ors dostlar').split(/\s+/);
+const EKRANLAR = (process.env.EKRANLAR || 'ejderhalar arena pazar bedesten han kiraathane siralama defter canta sandik sefer yuva saray kule divan kutuk muzayede siparis sus topcu yaris damizlik sancak kervan boss ayarlar menu gorunus harita masa takim zindan ors dostlar ermeydani').split(/\s+/);
 const b = await chromium.launch({ channel: 'msedge', headless: true, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const p = await (await b.newContext({ viewport: { width: VP[0], height: VP[1] } })).newPage(), hata = [], sorun = [];
 p.on('pageerror', e => hata.push(String(e.message).slice(0, 160)));

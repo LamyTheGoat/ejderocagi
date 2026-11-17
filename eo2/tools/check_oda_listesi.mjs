@@ -24,15 +24,18 @@ try {
     L.listedenDustu = await bekle(B, 'document.querySelector("[data-or-liste]") && !document.querySelector("[data-or-liste] li")', 12000);
     for (const p of [A, B]) await p.evaluate(() => EO2.game.close()); await A.waitForTimeout(400); }
   // topçu düellosu: Er Meydanı künyesi
-  { const L = log.duello = {}, ac = async p => { await p.evaluate(() => EO2.game.open('topcu')); await p.waitForTimeout(500); await p.evaluate(() => { const y = document.querySelector('#scrB [data-yer="meydan"]'); if (y) y.click(); else if (EO2.topcu.sec) EO2.topcu.sec('meydan'); }); await p.waitForTimeout(500); };
-    await ac(B); L.kunye = await bekle(B, 'document.querySelector("#scrB .or-liste")');
-    await ac(A); await A.locator('[data-pvp="kur"]').click(); L.kuruldu = await bekle(A, 'document.querySelector(".tp-oda b")');
-    L.listede = await bekle(B, 'document.querySelectorAll("#scrB .or-liste li").length === 1 && /Aylin/.test(document.querySelector("#scrB .or-liste li").textContent)', 12000);
+  { const L = log.duello = {}, ac = p => p.evaluate(() => { if (EO2.game.ekran()) EO2.game.close(); EO2.game.open('ermeydani'); });
+    await ac(B); L.kunye = await bekle(B, 'EO2.game.ekran() === "ermeydani" && document.querySelector("[data-em-liste]") && !document.querySelector(".em-sancak")');
+    await ac(A); await A.locator('[data-pvp="kur"]').click(); L.kuruldu = await bekle(A, 'document.querySelector(".tp-oda b") && document.querySelectorAll(".tp-yuva.bos").length === 1');
+    L.listede = await bekle(B, 'document.querySelectorAll(".em-sancak").length === 1 && /Aylin/.test(document.querySelector(".em-sancak").textContent)', 12000);
+    L.kartCizildi = await bekle(B, '(() => { const cv = document.querySelector(".em-sancak canvas"); if (!cv || cv.width < 50) return false; const d = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height).data; let n = 0; for (let i = 3; i < d.length; i += 16) if (d[i] > 40) n++; return n > 300; })()', 10000);
     if (ekran) await B.screenshot({ path: path.join(ekran, 'liste_duello.png') });
     await B.locator('[data-pvp-oda]').first().click(); L.katildi = await bekle(B, 'document.querySelector(".tp-oda b")') && await bekle(A, 'document.querySelectorAll(".tp-yuva:not(.bos)").length === 2');
-    await B.locator('[data-pvp="cik"]').click(); await A.locator('[data-pvp="cik"]').click(); L.listedenDustu = await bekle(B, 'document.querySelector("#scrB .or-liste") && !document.querySelector("#scrB .or-liste li")', 12000); }
+    await B.locator('[data-pvp="hazir"]').click(); L.hazir = await bekle(A, 'document.querySelector("[data-pvp=baslat]") && !document.querySelector("[data-pvp=baslat]").disabled && document.querySelectorAll(".em-lamba:not(.bekle)").length === 2'); await A.waitForTimeout(900);
+    if (ekran) { await A.screenshot({ path: path.join(ekran, 'oda_bekleme_kurucu.png') }); await B.screenshot({ path: path.join(ekran, 'oda_bekleme_katilan.png') }); }
+    await B.locator('[data-pvp="cik"]').click(); await A.locator('[data-pvp="cik"]').click(); L.listedenDustu = await bekle(B, 'document.querySelector("[data-em-liste]") && !document.querySelector(".em-sancak")', 12000); }
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && ['sefer', 'masa', 'takim'].every(k => log[k] && log[k].bosYazi && log[k].kuruldu && log[k].listede && log[k].katildi && log[k].kapandi && log[k].listedenDustu) && log.duello && log.duello.kunye && log.duello.kuruldu && log.duello.listede && log.duello.katildi && log.duello.listedenDustu;
+const ok = !hata.length && ['sefer', 'masa', 'takim'].every(k => log[k] && log[k].bosYazi && log[k].kuruldu && log[k].listede && log[k].katildi && log[k].kapandi && log[k].listedenDustu) && log.duello && log.duello.kunye && log.duello.kuruldu && log.duello.listede && log.duello.kartCizildi && log.duello.katildi && log.duello.hazir && log.duello.listedenDustu;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

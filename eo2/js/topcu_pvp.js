@@ -12,12 +12,15 @@
   const st = { oda: null, ben: null, kuyruk: null, hata: '', mac: null, sonuc: null, rakipKoptu: false, lobi: [] };
   const esc_ = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const yolla = o => { if (!ag.gonder(o)) { st.hata = 'Sunucuya ulaşılamıyor.'; ciz(); return false; } return true; };
-  const ciz = () => { if (EO2.topcu.secili() === 'meydan' && !B.active()) G.redraw(); };
+  const EKRAN = 'ermeydani', acikMi = () => G.ekran && G.ekran() === EKRAN;
+  const ciz = () => { if (B.active()) return; if (acikMi() || EO2.topcu.secili() === 'meydan') G.redraw(); };
   const kimlik = () => { const o = EO2.topcu.oyuncuDeger(false); return { el: o.el, chibi: { set: o.set, ad: o.ad } }; };
   const ruzgar = tohum => n => { let h = (tohum ^ Math.imul(n, 0x9E3779B1)) >>> 0; h ^= h >>> 16; h = Math.imul(h, 0x85EBCA6B) >>> 0; h ^= h >>> 13; h = Math.imul(h, 0xC2B2AE35) >>> 0; h ^= h >>> 16; return Math.round(((h >>> 0) / 4294967296 * 4.6 - 2.3) * 10) / 10; };
 
   /* ---------- künye: sahnenin Er Meydanı köşesi ---------- */
-  function kunye() { const d = ag.durum(), o = st.oda, bas = '<div class="tp-k-bas"><small>Dostça düello · ödülsüz</small><h2>Er Meydanı</h2></div>';
+  function kunye() { const bas0 = '<div class="tp-k-bas"><small>Dostça düello · ödülsüz</small><h2>Er Meydanı</h2></div>';
+    return bas0 + '<p>Başka bir terbiyeciyle sırayla atış. Altın, ün ve sıralama yazılmaz; kaybın olmaz.</p>' + (st.oda ? '<p class="tp-k-not">Odan açık: ' + esc_(st.oda.code) + '</p>' : st.kuyruk ? '<p class="tp-k-not">Rakip aranıyor.</p>' : '') + '<div class="tp-k-alt"><button type="button" class="gbtn altin buyuk" data-pvp="gir">Er Meydanı\'na gir<small>odalar, hızlı eşleşme</small></button></div>'; }
+  function kunyeEski() { const d = ag.durum(), o = st.oda, bas = '<div class="tp-k-bas"><small>Dostça düello · ödülsüz</small><h2>Er Meydanı</h2></div>';
     if (d !== 'cevrimici') return bas + '<p>' + (d === 'baglaniyor' ? 'Sunucuya bağlanılıyor.' : 'Sunucuya ulaşılamıyor. Er Meydanı çevrimiçi oynanır; talim alanı açık.') + '</p><div class="tp-k-alt"><button type="button" class="gbtn" data-pvp="baglan">Yeniden dene</button></div>';
     const hata = st.hata ? '<p class="tp-pvp-hata" role="alert">' + esc_(st.hata) + '</p>' : '';
     if (st.kuyruk) return bas + '<p>' + (st.kuyruk === 'bulundu' ? 'Rakip bulundu. Meydan hazırlanıyor.' : 'Rakip aranıyor. Biri sıraya girince maç kendiliğinden başlar.') + '</p>' + hata + '<div class="tp-k-alt"><button type="button" class="gbtn" data-pvp="kuyruk-cik">Vazgeç</button></div>';
@@ -32,6 +35,8 @@
   function bagla(body) {
     body.querySelectorAll('[data-pvp-oda]').forEach(b => b.addEventListener('click', () => { st.hata = ''; if (EO2.audio) EO2.audio.ui(); yolla(Object.assign({ type: 'pvp_room_join', code: b.dataset.pvpOda }, kimlik())); }));
     body.querySelectorAll('[data-pvp]').forEach(b => b.addEventListener('click', () => { const k = b.dataset.pvp, K = kimlik(); st.hata = ''; if (EO2.audio) EO2.audio.ui();
+      if (k === 'gir') { G.open(EKRAN); return; } if (k === 'takim') { G.open('takim'); return; } if (k === 'ejder') { G.open('arena'); return; } if (k === 'kusam') { G.open('gorunus'); return; }
+      if (k === 'kopya') { const kod = st.oda && st.oda.code; try { navigator.clipboard.writeText(kod).then(() => G.toast('Oda kodu kopyalandı: <b>' + esc_(kod) + '</b>'), () => { }); } catch (_) { } return; }
       if (k === 'baglan') { ag.baglan().then(ciz); ciz(); }
       else if (k === 'kur') yolla(Object.assign({ type: 'pvp_room_create', mode: '1v1' }, K)); else if (k === 'esles') { st.sonuc = null; yolla(Object.assign({ type: 'pvp_queue_join', mode: '1v1' }, K)); }
       else if (k === 'kuyruk-cik') yolla({ type: 'pvp_queue_leave' }); else if (k === 'cik') { yolla({ type: 'pvp_room_leave' }); st.oda = null; st.sonuc = null; ciz(); }
@@ -69,7 +74,7 @@
   ag.dinle('pvp_match_start', macBaslat);
   /* açık odalar: Er Meydanı künyesi açıkken sunucunun oda listesine abone olunur; bekleyen ve yeri olan odalar gösterilir */
   ag.dinle('pvp_lobby', m => { const L = (m.rooms || []).filter(r => r.state === 'waiting' && r.players < r.max && r.host !== st.ben), imza = JSON.stringify(L); if (imza === st.lobiImza) return; st.lobiImza = imza; st.lobi = L; if (!st.oda && !st.kuyruk) ciz(); });
-  let lobiAcik = false; setInterval(() => { const acik = G.live && G.ekran && G.ekran() === 'topcu' && EO2.topcu.secili() === 'meydan' && !B.active() && !st.oda && ag.durum() === 'cevrimici';
+  let lobiAcik = false; setInterval(() => { const acik = G.live && G.ekran && acikMi() && !B.active() && !st.oda && ag.durum() === 'cevrimici';
     if (acik && !lobiAcik) yolla({ type: 'pvp_lobby_sub' }); else if (!acik && lobiAcik && ag.durum() === 'cevrimici') yolla({ type: 'pvp_lobby_unsub' }); lobiAcik = acik; }, 800);
   ag.dinle('pvp_match_end', m => { const M_ = st.mac; if (!M_ || (m.matchId && m.matchId !== M_.id)) return; M_.sunucuBitirdi = true; M_.neden = m.reason; if (st.oda) st.oda.state = 'ended'; if (B.active() && B.state() && !B.state().over) B.sonlandir(m.winner === m.you); });
   ag.dinle('pvp_room', m => { st.oda = m.room; st.ben = m.you; st.hata = ''; if (m.room.state === 'waiting') st.rakipKoptu = false;
@@ -78,7 +83,7 @@
   /* ---------- meydandan davet (js/meydan_ag.js çağırır) ----------
      Oyuncu meydanda yanına geldiği başka bir oyuncuyu Er Meydanı'na çağırır: oda yoksa kurulur, davet sunucudan gider.
      Çağrılan oyuncu kabul ederse odaya katılır; ikisi de Er Meydanı künyesine götürülür. Dostça, ödülsüz. */
-  const meydanAc = () => { if (!G.live || B.active()) return; if (G.ekran() !== 'topcu') G.open('topcu'); EO2.topcu.sec('meydan'); };
+  const meydanAc = () => { if (!G.live || B.active()) return; if (!acikMi()) G.open(EKRAN); else G.redraw(); };
   function davet(h, ad) {
     if (ag.durum() !== 'cevrimici') { G.toast('Sunucuya ulaşılamıyor; davet gönderilemedi.'); return false; }
     if (B.active() || st.kuyruk) { G.toast('Önce süren maçı ya da eşleşmeyi bitir.'); return false; }
@@ -107,5 +112,36 @@
   ag.dinle('pvp_peer_back', () => { st.rakipKoptu = false; if (B.active()) G.toast('Rakibin geri döndü.'); });
   ag.dinle('pvp_rematch_pending', m => { if (!m.self) { st.sonuc = 'Rakibin rövanş istiyor.'; ciz(); } });
   ag.dinle('durum', () => { if (ag.durum() !== 'cevrimici') { st.kuyruk = null; } ciz(); });
-  EO2.topcuPvp = { kunye, bagla, davet, durum: () => st };
+  /* ---------- ER MEYDANI EKRANI (taslak onayı: kullanıcı, 2026-11-18; eo2/docs/mockup/oda_arena.html) ----------
+     Oda listesi: odalar tablo değil sancak kartıdır; kartta odadaki terbiyeci kendi zırhıyla durur, boş yer "+" ile görünür.
+     Bekleme odası: iki terbiyeci sancaklarının altında karşı karşıya durur; hazır olanın lambası yanar; altta tek büyük düğme. */
+  const GR = () => EO2.gorunum, cizim = new Map();
+  function chibi(cv, set, yon, kod, benMi) { const A = EO2.api, g = GR(); if (!cv || !A || !EO2.setAl) return; set = EO2.setAl(set) ? set : 'temel';
+    let ad = set; if (benMi && A.player.set === set && A.player.gor && EO2.setAl(A.player.gor)) ad = A.player.gor; else if (kod && g && g.adOf) { const a = g.adOf(set, kod); if (a && EO2.setAl(a)) ad = a; else if (a && g.kurKod) g.kurKod(set, kod).then(() => { if (cv.isConnected) chibi(cv, set, yon, kod, benMi); }).catch(() => { }); }
+    const st0 = EO2.setAl(ad); if (!st0 || !st0.img) { try { A.drawPortrait(document.createElement('canvas'), set, 0.5); } catch (_) { } const n = (cizim.get(cv) || 0) + 1; cizim.set(cv, n); if (n < 12) setTimeout(() => { if (cv.isConnected) chibi(cv, set, yon, kod, benMi); }, 400); return; }
+    const m = st0.m, sol = yon === 'left', i = m.frames[(sol ? 'right' : yon) + '_idle']; cv.width = m.cw; cv.height = m.ch; const x = cv.getContext('2d'); x.clearRect(0, 0, m.cw, m.ch); if (sol) { x.translate(m.cw, 0); x.scale(-1, 1); }
+    x.drawImage(st0.img, (i % m.cols) * m.cw, Math.floor(i / m.cols) * m.ch, m.cw, m.ch, 0, 0, m.cw, m.ch); }
+  const kodOf = h => (GR() && GR().kodOf ? GR().kodOf(h) : '') || '';
+  const cv_ = (s, yon, buyuk) => '<canvas class="em-chibi' + (buyuk ? ' buyuk' : '') + '" data-set="' + esc_((s && s.set) || 'temel') + '" data-yon="' + yon + '" data-h="' + esc_((s && s.h) || '') + '"></canvas>';
+  function lobi() { const d = ag.durum(), hata = st.hata ? '<p class="tp-pvp-hata" role="alert">' + esc_(st.hata) + '</p>' : '';
+    if (d !== 'cevrimici') return '<div class="em-kok"><div class="em-tek cam"><h2>Er Meydanı</h2><p>' + (d === 'baglaniyor' ? 'Sunucuya bağlanılıyor.' : 'Sunucuya ulaşılamıyor. Er Meydanı çevrimiçi oynanır; talim alanı açık.') + '</p><button type="button" class="gbtn" data-pvp="baglan">Yeniden dene</button></div></div>';
+    const kartlar = st.lobi.map(r => { const S0 = (r.slots || []).filter(Boolean), ilk = S0[0] || { ad: r.hostAd || r.host, set: 'temel', h: r.host };
+      return '<div class="em-sancak cam"><div class="em-kip2"><span>Düello</span><span>' + r.players + ' / ' + r.max + '</span></div><div class="em-sahne">' + cv_(ilk, 'right') + '<span class="em-vs">VS</span><span class="em-yer"><span>+</span></span></div><div class="em-alt"><b>' + esc_(r.hostAd || r.host || 'Terbiyeci') + '<small>Rakip bekliyor</small></b><button type="button" class="gbtn altin" data-pvp-oda="' + esc_(r.code) + '">Katıl</button></div></div>'; }).join('');
+    return '<div class="em-kok"><div class="em-kipler" role="tablist" aria-label="Meydan türü"><button type="button" class="em-kip secili" role="tab" aria-selected="true">Düello<small>1\'e 1 topçu</small></button><button type="button" class="em-kip cam" role="tab" aria-selected="false" data-pvp="takim">Takım Meydanı<small>2\'ye 2 topçu</small></button><button type="button" class="em-kip cam" role="tab" aria-selected="false" data-pvp="ejder">Ejderha dövüşü<small>ejderhan dövüşür</small></button></div>' +
+      '<div class="em-sancaklar or-liste-yok" data-em-liste="1">' + kartlar + '<div class="em-bosyer"><div>' + (st.lobi.length ? 'Buraya senin odan gelir' : 'Şu an açık oda yok') + '<small>Oda kurunca herkes listede görür</small></div></div></div>' +
+      '<div class="em-sag">' + (st.kuyruk ? '<div class="em-buyuk cam ariyor"><img alt="" src="assets/ik/mdl-topcu.webp"><div><b>' + (st.kuyruk === 'bulundu' ? 'Rakip bulundu' : 'Rakip aranıyor…') + '</b><small>' + (st.kuyruk === 'bulundu' ? 'Meydan hazırlanıyor.' : 'Biri sıraya girince maç kendiliğinden başlar.') + '</small></div></div><button type="button" class="gbtn" data-pvp="kuyruk-cik">Aramayı bırak</button>'
+        : '<button type="button" class="em-buyuk ana" data-pvp="esles"><img alt="" src="assets/ik/mdl-topcu.webp"><div><b>Hızlı eşleş</b><small>Sıraya gir; ilk gelenle hemen başlar</small></div></button><button type="button" class="em-buyuk cam" data-pvp="kur"><img alt="" src="assets/ik/mdl-arena.webp"><div><b>Oda kur</b><small>Listede görünür; kodla da girilir</small></div></button>' +
+          '<form class="em-kod cam" data-pvp-form="1"><label for="tpKod">Arkadaşının oda kodu</label><div><input id="tpKod" name="kod" maxlength="8" placeholder="EJD-ABC" autocomplete="off" autocapitalize="characters" spellcheck="false"><button type="submit" class="gbtn">Katıl</button></div></form>') +
+        hata + '<p class="em-not cam"><b>Dostça oynanır.</b> Altın, ün ve sıralama yazılmaz; kaybın olmaz.</p></div></div>'; }
+  function odaHtml() { const o = st.oda, benKurucu = o.host === st.ben, ben = o.slots.find(s => s.handle === st.ben) || {}, rakip = o.slots.find(s => s.kind !== 'empty' && s.handle !== st.ben), bitti = o.state === 'ended', hata = st.hata ? '<p class="tp-pvp-hata" role="alert">' + esc_(st.hata) + '</p>' : '';
+    const taraf = (s, i) => { const bos = !s || s.kind === 'empty', benim = !bos && s.handle === st.ben, ad = bos ? 'Rakip bekleniyor' : benim ? 'Sen' : esc_((s.chibi && s.chibi.ad) || s.name || s.handle);
+      return '<div class="em-taraf ' + (i ? 'sagt' : 'sol') + ' tp-yuva' + (bos ? ' bos' : '') + (!bos && s.ready ? ' hazir' : '') + '">' + (bos ? '<span class="em-yer buyuk"><span>+</span></span>' : cv_({ set: (s.chibi && s.chibi.set) || 'temel', h: s.handle }, i ? 'left' : 'right', true)) + '<div class="em-kaide"></div><div class="em-plaka cam"><div><b>' + ad + '</b><small>' + (i ? 'Kızıl sancak' : 'Mavi sancak') + (bos ? ' · kodu arkadaşına ver' : s.host ? ' · odayı kurdu' : '') + '</small></div>' + (bos ? '' : '<span class="em-lamba' + (s.ready ? '' : ' bekle') + '">' + (s.ready ? 'Hazır' : 'Hazır değil') + '</span>') + '</div></div>'; };
+    return '<div class="em-kok oda"><button type="button" class="em-kod2 cam tp-oda" data-pvp="kopya" title="Kodu kopyala"><small>Oda kodu</small><b>' + esc_(o.code) + '</b><em>dokun: kopyala</em></button><i class="em-sancakU m" aria-hidden="true"></i><i class="em-sancakU k" aria-hidden="true"></i>' + taraf(o.slots[0], 0) + taraf(o.slots[1], 1) +
+      '<div class="em-orta"><div class="em-vsB" aria-hidden="true">VS</div><div class="em-harita"><span>Er Meydanı · rüzgâr her tur değişir</span></div><div class="em-kural cam"><b>Sırayla atış</b>Canı biten kaybeder. Ödül yok, kayıp yok.</div>' + (st.sonuc ? '<p class="em-sonuc cam">Son maç: ' + st.sonuc + '</p>' : '') + (st.rakipKoptu ? '<p class="em-sonuc cam">Rakibinin bağlantısı koptu; dönmesi bekleniyor.</p>' : '') + hata + '</div>' +
+      '<div class="em-altB"><div class="em-sol"><button type="button" class="gbtn" data-pvp="cik">Odadan çık</button></div>' + (bitti ? '<button type="button" class="gbtn altin buyuk em-hazir" data-pvp="rovans">Rövanş iste</button>' : benKurucu ? '<button type="button" class="gbtn altin buyuk em-hazir" data-pvp="baslat" ' + (rakip && rakip.ready ? '' : 'disabled') + '>Maçı başlat<small>' + (!rakip ? 'rakip bekleniyor' : rakip.ready ? 'rakibin hazır' : 'rakibin hazır olmalı') + '</small></button>' : '<button type="button" class="gbtn altin buyuk em-hazir" data-pvp="hazir">' + (ben.ready ? 'Hazır değilim' : 'Hazırım') + '<small>' + (ben.ready ? 'kurucu başlatınca maç açılır' : 'hazır olunca kurucu başlatır') + '</small></button>') +
+      '<div class="em-sagalt"><button type="button" class="gbtn" data-pvp="kusam">Kuşam</button></div></div></div>'; }
+  G.screen(EKRAN, { k: 'Dostça düello · ödülsüz', t: 'Er Meydanı', cls: 'em', bg: 'a:../arena/er_meydani_bg', enter() { st.hata = ''; }, draw(body) {
+    body.innerHTML = st.oda && ag.durum() === 'cevrimici' ? odaHtml() : lobi(); bagla(body);
+    body.querySelectorAll('canvas.em-chibi').forEach(cv => chibi(cv, cv.dataset.set, cv.dataset.yon, kodOf(cv.dataset.h), cv.dataset.h === st.ben)); } });
+  EO2.topcuPvp = { kunye, bagla, davet, durum: () => st, ac: meydanAc };
 })();
