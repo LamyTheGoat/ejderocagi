@@ -74,9 +74,12 @@
         return { keep: true }; } }] }); }
 
   /* ---------- maç yapılandırması: her karşılaşma bir örnek ---------- */
+  const MEYDAN = 'er-meydani';   // eo2/arenalar/er-meydani: düello ve talim meydanı (çizimi gelince kod değişmeden devreye girer)
+  function meydanUygula(cfg) { const A = B.arenaCfg && B.arenaCfg(MEYDAN); if (!A || A.oyuncu.length < 2) return cfg; const PX = B.api.PX;
+    cfg.arazi = { tema: A.tema, aile: 'talim', maske: A.maske }; cfg.sahne = A.sahne; cfg.arenaEn = A.en; cfg.kameraBoy = A.kameraBoy; cfg.ortam = A.ortam; cfg.x0 = A.oyuncu[0].x * PX; cfg.rakip.x = A.oyuncu[A.oyuncu.length - 1].x * PX; return cfg; }
   function talimCfg() { const o = oyuncuDeger(false);
-    return { kimlik: 'talim-' + Date.now(), kip: 'talim', baslik: 'Talim', alt: 'Ödülsüz düello', arazi: V.talimArazi(), ortam: 'yaprak', x0: 1010, oyuncu: o, zorluk: { hp: 1, dmg: 1 }, cikis: ayril,
-      rakip: { ad: 'Talimci', unvan: 'Arena talimcisi', set: o.set === 'muhafiz' ? 'temel' : 'muhafiz', kontrol: 'yapay', hp: 1350, dmg: 210, el: 'talim', x: 2390, revive: 0 } }; }
+    return meydanUygula({ kimlik: 'talim-' + Date.now(), kip: 'talim', baslik: 'Talim', alt: 'Ödülsüz düello', arazi: V.talimArazi(), ortam: 'yaprak', x0: 1010, oyuncu: o, zorluk: { hp: 1, dmg: 1 }, cikis: ayril,
+      rakip: { ad: 'Talimci', unvan: 'Arena talimcisi', set: o.set === 'muhafiz' ? 'temel' : 'muhafiz', kontrol: 'yapay', hp: 1350, dmg: 210, el: 'talim', x: 2390, revive: 0 } }); }
   function asamaCfg() { const Z = V.ZINDAN[ornek.zindan], As = Z.asama[ornek.asama], zr = V.ZORLUK[ornek.zorluk], aile = Z.tema, o = oyuncuDeger(true);
     return { kimlik: ornek.kimlik + '-' + (ornek.asama + 1), kip: 'zindan', baslik: As.ad, alt: 'Aşama ' + (ornek.asama + 1) + ' / ' + Z.asama.length + ' · ' + zr.ad, arazi: Object.assign(V.arazi(As.tema || Z.tema, aile, As.f, 11 + ornek.asama * 7), {}), bg: As.bg, deniz: As.deniz, ozel: As.ozel, ortam: Z.ortam, x0: As.x0 || 460,
       oyuncu: Object.assign(o, As.aci ? { angle: As.aci } : {}), zorluk: zr, moblar: As.moblar(zr.hp), boss: As.boss ? As.boss(zr.hp) : null, asama: { ad: Z.ad, n: Z.asama.length, i: ornek.asama }, ipucu: As.ipucu, cikis: ayril, sis: aile === 'kaldera' ? 'rgba(30,6,4,.5)' : aile === 'donanma' ? 'rgba(4,16,34,.5)' : 'rgba(4,14,20,.55)' }; }
@@ -165,7 +168,7 @@
      Gelen: EO2.battle.uzak({ t: 'ates' | 'isabet' | 'can' | 'pas' | 'ruzgar', … }). */
   async function pvpBaslat(o) { const cfg = talimCfg(); cfg.kimlik = 'pvp-' + (o.macKimlik || Date.now()); cfg.kip = 'pvp'; cfg.baslik = 'Er Meydanı'; cfg.alt = 'Topçu düellosu'; cfg.ruzgar = o.ruzgar || null;
     cfg.rakip = Object.assign(cfg.rakip, { ad: 'Rakip', unvan: 'Topçu' }, o.rakip || {}, { kontrol: 'uzak' }); cfg.ilkRakip = o.ilk === 'rakip';
-    if (o.sag) { cfg.yon = -1; cfg.x0 = 2390; cfg.rakip.x = 1010; }      // odadaki ikinci yuva sağda durur: iki uçta meydan aynı
+    if (o.sag) { cfg.yon = -1; const sol = cfg.x0; cfg.x0 = cfg.rakip.x; cfg.rakip.x = sol; }      // odadaki ikinci yuva sağda durur: iki uçta meydan aynı
     const r = await mac(cfg); if (o.sonra) await o.sonra(r); bitis(); return r; }
 
   /* ortak sefer (js/zindan_ortak.js) aynı ödül ve çark fonksiyonlarını kullanır; ornekKur etkin sefer kaydını açar ya da kapatır */

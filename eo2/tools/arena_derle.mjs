@@ -61,10 +61,11 @@ export function arenaKur(ad, json, blok, katman) {
   for (const alan of ['ad', 'alt', 'ipucu', 'tema', 'ortam', 'ust', 'altRenk']) if (typeof json[alan] !== 'string' || !json[alan]) throw new Error(ad + ': arena.json içinde "' + alan + '" eksik.');
   const dus = json.dusman || []; if (dus.length !== blok.dusman.length) throw new Error(ad + ': arena.json ' + dus.length + ' düşman sayıyor, blok haritada ' + blok.dusman.length + ' sarı kutu var.');
   if (!!json.boss !== !!blok.boss) throw new Error(ad + ': boss ' + (json.boss ? 'arena.json içinde var ama blok haritada macenta kutu yok.' : 'kutusu blok haritada var ama arena.json içinde boss yok.'));
-  if (!dus.length && !json.boss) throw new Error(ad + ': en az bir düşman ya da boss olmalı.');
+  if (json.tur === 'pvp') { if (dus.length || json.boss) throw new Error(ad + ': düello arenasında ("tur": "pvp") düşman ya da boss olmaz.'); if (blok.oyuncu.length < 2) throw new Error(ad + ': düello arenasında en az iki mavi kutu olmalı (sol ve sağ uç).'); }
+  else if (!dus.length && !json.boss) throw new Error(ad + ': en az bir düşman ya da boss olmalı (düello arenası için arena.json içine "tur": "pvp" yaz).');
   const can = (q, kim) => { if (!q.tip || !q.ad || !(Number.isInteger(q.hp) && q.hp > 0)) throw new Error(ad + ': ' + kim + ' için tip, ad ve hp (tam sayı) gerekli.'); };
   dus.forEach((q, i) => can(q, (i + 1) + '. düşman')); if (json.boss) { can(json.boss, 'boss'); if (!json.boss.unvan) throw new Error(ad + ': boss için unvan gerekli.'); }
-  return { ad: json.ad, alt: json.alt, ipucu: json.ipucu, tema: json.tema, ortam: json.ortam, sahne: { ust: json.ust, alt: json.altRenk }, katman: katman || [],
+  return { tur: json.tur === 'pvp' ? 'pvp' : 'pve', ad: json.ad, alt: json.alt, ipucu: json.ipucu, tema: json.tema, ortam: json.ortam, sahne: { ust: json.ust, alt: json.altRenk }, katman: katman || [],
     ppu: blok.ppu, en: blok.en, boy: blok.boy, taban: blok.taban, px: blok.px, kameraBoy: json.kameraBoy || KAMERA_BOY, kamera: blok.kamera, oyuncu: blok.oyuncu,
     // fizik: true = altındaki zemine düşer · false = uçar (hayalet: true ise zeminin içinden de geçer)
     dusman: dus.map((q, i) => Object.assign({ tip: q.tip, ad: q.ad, hp: q.hp, fizik: q.fizik !== false, hayalet: !!q.hayalet }, blok.dusman[i])),

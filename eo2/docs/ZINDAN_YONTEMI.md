@@ -76,6 +76,7 @@ Okuma: alfa 128'in altı boş; kanal başına ±32 hoşgörü.
 
 - `ust`, `altRenk`: çizimin üstünde ve altında kalan boşluğun rengi. `tema`: çukur ve parçacık renkleri. `ortam`: havada uçuşan parçacık.
 - `tip`: düşman ya da boss türü (`eo2/js/topcu_veri.js` MOB / BOSS). `hp`: tek oyuncu için can; sunucu zorluk ve grup çarpanını uygular (1 + 0,5 × (kişi − 1)).
+- **Düello arenası (SEÇİM):** `"tur": "pvp"` yazılır; düşman ve boss olmaz, en az iki mavi kutu gerekir (en soldaki ve en sağdaki iki oyuncunun yeridir). Düello meydanının klasör adı `er-meydani`.
 - **Düşman hareket ayarı (KARAR):** `"fizik": false` uçan düşman (zeminin içinden geçemez); buna `"hayalet": true` eklenirse zeminin içinden de geçer. Yazılmazsa düşman fiziğe uyar: altındaki zemine düşer.
 
 ## 3. Bir zindan = arenaların sırası
@@ -102,7 +103,7 @@ Bugün: düşman ve boss türleri `eo2/js/topcu_veri.js` içinde tanımlı (eski
 - Katmanlar PNG olarak oyuncuya gider; büyük arenalarda dosya boyu için ayrı bir küçültme adımı gerekebilir.
 - Uçan düşman yerinden kıpırdamaz (eski kural); "hayalet" ayarı okunuyor ama zeminin içinden geçen bir hareket henüz yok.
 - Eski üç zindanın (Sırça Saray'ın dört aşamalı hâli, Volkanik Kaldera, Batık Donanma) tek kişilik seferleri eski yolla duruyor. Zümrüt Saray'ı olan Sırça Saray girişi yeni sisteme gider; öteki ikisi arenaları çizilince taşınacak.
-- PvP arenaları henüz bu yükleyiciye bağlanmadı.
+- Düello (PvP) ve talim aynı yükleyiciye bağlı: `eo2/arenalar/er-meydani` klasörü gelince meydan oradan kurulur (geçici bir deneme meydanıyla doğrulandı). Klasör henüz yok; o gelene dek eski talim meydanı kullanılır.
 - Sunucuya ulaşılamazsa tek kişilik giriş eski yola düşer.
 - Ödül oyuncunun kendi ekranında yazılır; ortak oda servisi sunucunun belleğindedir.
 - Sefer Kampı tektir ve her zindanda aynıdır.

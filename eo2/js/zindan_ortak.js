@@ -16,7 +16,7 @@
   'use strict';
   const EO2 = window.EO2, G = EO2 && EO2.game, AG = EO2 && EO2.ag, OR = EO2 && EO2.ortak, B = EO2 && EO2.battle, T = EO2 && EO2.topcu, V = EO2 && EO2.topcuVeri, app = document.getElementById('app');
   if (!G || !AG || !OR || !B || !T || !V || !V.ZINDAN.sahmeran) return;
-  const TARIF = window.EO2_ZINDAN || {}, ARENA = window.EO2_ARENA || {};
+  const TARIF = window.EO2_ZINDAN || {};
   const Z = { zindan: Object.keys(TARIF)[0], zorluk: 'normal', hata: '', savas: false, savasBitti: false, sonAsama: null, islenen: -1, seyir: false, davetAcik: false, cagri: null, canT: 0 };
   const esc_ = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const HATA = { tur_bilinmiyor: 'Sefer şu an açık değil.', zaten_odada: 'Zaten bir seferde ya da masadasın.', oda_yok: 'Bu kodla bir sefer yok.', oda_mesgul: 'O sefer yola çıkmış.', oda_dolu: 'Sefer dolu (en çok dört kişi).', yalniz_kurucu: 'Seferi kuran başlatır.', hazir_degil: 'Herkes hazır değil.', cevrimdisi: 'O terbiyeci çevrimiçi değil.', baglanti_yok: 'Sunucuya ulaşılamıyor.', faz_uygun_degil: 'Şu an yapılamaz.' };
@@ -24,13 +24,8 @@
      hangi zindanda olduğumuz odanın anahtarından ('zumrut-normal') okunur; oda yokken sefer ekranında seçili olan geçerlidir. */
   const zid = () => { const o = OR.durum().oda, k = o && o.tur === 'zindan' ? String(o.anahtar).split('-')[0] : Z.zindan; return TARIF[k] ? k : Object.keys(TARIF)[0]; };
   const tarif = k => TARIF[k || zid()], zs = k => V.ZINDAN[tarif(k).odul], zad = k => tarif(k).ad;
-  /* aşama = arena (js/arena_veri.js): çizim, ölçek, zemin maskesi, kutulardan okunan yerler ve boylar. Motorun beklediği biçime çevrilir. */
-  const maskeAc = rle => { const m = new Uint8Array(512 * 240); let p = 0; for (let i = 0; i < rle.length; i += 2) { if (rle[i]) m.fill(rle[i], p, p + rle[i + 1]); p += rle[i + 1]; } return m; };
-  const hazirAsama = {}, asamalar = k => { k = k || zid(); return hazirAsama[k] || (hazirAsama[k] = tarif(k).asama.map(ad => { const A = ARENA[ad], PX = B.api.PX;
-    return { ad: A.ad, alt: A.alt, ipucu: A.ipucu, tema: A.tema, ortam: A.ortam, en: A.en, kameraBoy: A.kamera ? Math.round(A.kamera.h / 1.7 * 100) / 100 : A.kameraBoy, oyuncu: A.oyuncu, maske: maskeAc(A.maske),
-      sahne: { katman: A.katman, ppu: A.ppu, taban: A.taban, ust: A.sahne.ust, alt: A.sahne.alt }, mobSinir: [1.2 * PX, (A.en - 1.2) * PX],
-      moblar: A.dusman.map(m => Object.assign({ tip: m.tip, ad: m.ad, x: m.x * PX, h: m.h, hayalet: m.hayalet }, m.fizik ? {} : { ucan: true, yW: m.y })),
-      boss: A.boss ? { tip: A.boss.tip, ad: A.boss.ad, unvan: A.boss.unvan, x: A.boss.x * PX, h: A.boss.h } : null }; })); };
+  /* aşama = arena: tek yükleyici js/battle.js arenaCfg (düello meydanı da onu kullanır) */
+  const hazirAsama = {}, asamalar = k => { k = k || zid(); return hazirAsama[k] || (hazirAsama[k] = tarif(k).asama.map(ad => B.arenaCfg(ad))); };
   /* doğuş yeri: gruptaki sıraya göre mavi kutulardan biri; kutu yetmezse ilk kutunun çevresine dizilir (dünya birimi) */
   const dogus = (A, i) => { const K = A.oyuncu; i = Math.max(0, i); return i < K.length ? K[i].x : K[0].x + [0, -2.8, 2.8, -5.6][i % 4]; };
   const D = () => OR.durum(), oda = () => D().oda, od = () => D().ortak, ben = () => D().ben, benim = () => !!(oda() && oda().tur === 'zindan');

@@ -45,6 +45,10 @@ test('blok harita okuyucu: ölçek mavi kutudan, zemin kırılır ve kırılmaz,
   const A = arenaKur('deneme', json, b, [{ src: 'x', z: -1 }]); assert.deepEqual(A.dusman.map(q => [q.fizik, q.hayalet, q.hp]), [[false, true, 10], [true, false, 20]]); assert.equal(A.kameraBoy, 6); assert.equal(A.boss.h, 6.8);
   assert.throws(() => arenaKur('deneme', Object.assign({}, json, { dusman: json.dusman.slice(1) }), b), /1 düşman sayıyor, blok haritada 2 sarı kutu/);
   assert.throws(() => arenaKur('deneme', Object.assign({}, json, { boss: null }), b), /macenta|boss/);
+  // düello arenası: düşmansız, iki mavi kutu
+  const pv = Object.assign({}, json, { tur: 'pvp', dusman: [], boss: null }), bp = Object.assign({}, b, { dusman: [], boss: null });
+  assert.throws(() => arenaKur('duello', pv, bp), /en az iki mavi kutu/); assert.equal(arenaKur('duello', pv, Object.assign({}, bp, { oyuncu: [b.oyuncu[0], Object.assign({}, b.oyuncu[0], { x: 50 })] })).tur, 'pvp');
+  assert.throws(() => arenaKur('duello', Object.assign({}, pv, { dusman: json.dusman }), Object.assign({}, b, { boss: null })), /düşman ya da boss olmaz/);
   const bos = Buffer.alloc(w * h * 4); assert.throws(() => blokOku({ w, h, rgba: bos }, 'bos'), /mavi oyuncu kutusu yok/);
   dolu(40, 133, 50, 150, [0, 0, 0]); dolu(40, 140, 50, 150, RENK.oyuncu); assert.throws(() => blokOku({ w, h, rgba: d }, 'buyuk'), /çok büyük/);
 });

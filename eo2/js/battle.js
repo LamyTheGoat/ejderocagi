@@ -620,7 +620,16 @@
   function ortakCan(i, hp) { if (!M || !M.on || M.over) return; const e = M.act[i]; if (e && e.takim === 1 && !e.dead && e.hp - hp >= 1) ortakHasar(i, e.hp - hp, ''); }
   const API = { get M() { return M; }, PX, FW, X_, Y_, u, EL, rnd, clamp, sonra, halka, toz, yazi, balon, pankart, ses, nisanliAt, meteor, hasarTopcu, hasarMob, hasarBoss, tur: () => turNo(), carve: (x, y, r) => carve(M.T, x, y, r), yerY, img: k => imgs[k], isin: (x1, y1, x2, y2, col, sure) => M.isin.push({ x1, y1, x2, y2, col, t: sure || 0.6, max: sure || 0.6 }), sars: k => { M.shake = Math.max(M.shake, k); } };
   const MOB = {}, BOSS = {}, PROP = {};
-  EO2.battle = { ac, kapat, uzak, sonlandir, ipucu, ortakHasar, ortakCan, ortakSira, ortakPas, pas, yoldasKoy, yoldasAtes, dinle: fn => { dinleyen.push(fn); return () => { const i = dinleyen.indexOf(fn); if (i >= 0) dinleyen.splice(i, 1); }; }, MOB, BOSS, PROP, BECERI, api: API, active: () => !!(M && M.on), state: () => M,
+  /* TEK ARENA YÜKLEYİCİSİ (eo2/docs/ZINDAN_YONTEMI.md): eo2/arenalar/<ad> klasöründen derlenen kaydı savaşın kullanacağı biçime çevirir.
+     Zindan aşamaları (js/zindan_ortak.js) ve düello meydanı (js/topcu.js) aynı fonksiyonu kullanır. Arena yoksa null döner. */
+  const arenaHazir = {};
+  function arenaCfg(ad) { const A = (window.EO2_ARENA || {})[ad]; if (!A) return null; if (arenaHazir[ad]) return arenaHazir[ad];
+    const maske = new Uint8Array(MW * MH); let p = 0; for (let i = 0; i < A.maske.length; i += 2) { if (A.maske[i]) maske.fill(A.maske[i], p, p + A.maske[i + 1]); p += A.maske[i + 1]; }
+    return (arenaHazir[ad] = { ad: A.ad, alt: A.alt, ipucu: A.ipucu, tema: A.tema, ortam: A.ortam, en: A.en, kameraBoy: A.kamera ? Math.round(A.kamera.h / 1.7 * 100) / 100 : A.kameraBoy, oyuncu: A.oyuncu, maske,
+      sahne: { katman: A.katman, ppu: A.ppu, taban: A.taban, ust: A.sahne.ust, alt: A.sahne.alt }, mobSinir: [1.2 * PX, (A.en - 1.2) * PX],
+      moblar: A.dusman.map(m => Object.assign({ tip: m.tip, ad: m.ad, x: m.x * PX, h: m.h, hayalet: m.hayalet }, m.fizik ? {} : { ucan: true, yW: m.y })),
+      boss: A.boss ? { tip: A.boss.tip, ad: A.boss.ad, unvan: A.boss.unvan, x: A.boss.x * PX, h: A.boss.h } : null }); }
+  EO2.battle = { arenaCfg, ac, kapat, uzak, sonlandir, ipucu, ortakHasar, ortakCan, ortakSira, ortakPas, pas, yoldasKoy, yoldasAtes, dinle: fn => { dinleyen.push(fn); return () => { const i = dinleyen.indexOf(fn); if (i >= 0) dinleyen.splice(i, 1); }; }, MOB, BOSS, PROP, BECERI, api: API, active: () => !!(M && M.on), state: () => M,
     start() { if (EO2.topcu) EO2.topcu.baslat('talim'); }, stop() { kapat(); } };
   const wait = setInterval(() => { if (!EO2.api) return; clearInterval(wait); EO2.frameHooks.push(dt => { if (M && M.on && M.T) { if (!M.dur) update(dt); if (M && M.on) render(); } }); }, 80);
 })();
