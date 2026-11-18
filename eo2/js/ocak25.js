@@ -70,7 +70,7 @@
   for (let y = 6.6, k = 0; y < YB - 1; y += 2.9, k++) for (const sx of [-1, 1]) { const yy = y + (sx > 0 ? 0.9 : 0); ESYALAR.push(k % 3 === 1 ? ['pl-cicek-b', sx * (-X0 + 1.05), yy, 1.7, k % 2, 0] : ['pl-ortanca' + ((k + (sx > 0 ? 1 : 0)) % 2), sx * (-X0 + 1.0), yy, 1.25, sx > 0 ? 1 : 0, 0]); }
   const YOLLAR = [[-1.2, -4, 1.2, YT + 0.9], [X0 + 0.3, YC - 1.0, -X0 - 0.3, YC + 1.0], [-2.3, YC - 2.3, 2.3, YC + 2.3], [-5.2, YT + 0.5, 5.2, YT + 1.9]];
   const L = { id: 'ocak', name: 'Dedenin Ocağı', sub: 'Senin arazin', zemin: ['toprak', 'cim', 5.2, 9.5], flyer: true, petals: true,
-    bounds: [X0 - 0.6, -X0 + 0.6, 0.6, YT + 0.4], mapRect: [-28, -8, 56, 52], paved: YOLLAR, start: { x: 0, y: 1.9, dir: 'up' }, entry: {}, signs: [],
+    bounds: [X0 - 0.6, -X0 + 0.6, 0.6, YT + 0.4], mapRect: [-28, -8, 56, 52], paved: YOLLAR, start: { x: 0, y: 3.6, dir: 'down' }, entry: {}, signs: [],
     interact: [cikis, kare, ...ejSlot], lamps: [], braziers: [[-11.6, 4.6], [11.6, 4.6]], trees, benches: [], planters: [], stalls: [], rects: [], circles: [],
     lights: [...lamps.map(l => [l[0], l[1], 5.6, 1]), [-11.6, 4.6, 5, 1.1], [11.6, 4.6, 5, 1.1], [0, YC, 8, 1.3], [0, YT + 1.2, 6, 0.8]], embers: [[-11.6, 4.6, 1.1], [11.6, 4.6, 1.1], [0, YC - 0.4, 1.4]],
     shadows: [[1.2, YC - 1.4, 3.4, 1.5, 0.7], [1.6, YT + 2.4, 5.2, 1.5, 0.7], ...lamps.map(l => [l[0], l[1], 0.5, 0.3, 0.6]), ...ESYALAR.filter(e => e[3] > 1 && !/cicek|kenar/.test(e[0])).map(e => [e[1] + 0.25, e[2] + 0.05, e[3] * 0.62, 0.5, 0.55])],

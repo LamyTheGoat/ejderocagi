@@ -317,3 +317,9 @@
 .ui2 .zn-koltuk.bos canvas { visibility: hidden; height: 9.8em; width: 8.4em; }
 @media (max-height: 500px) { .ui2 .zn-koltuk canvas.em-boy, .ui2 .zn-koltuk.bos canvas { width: 4.6em; height: 5.4em; } .ui2 .zn-koltuk:has(canvas.em-boy)::before { top: 4.6em; } }
 @media (max-width: 760px), (max-aspect-ratio: 1/1) { .ui2 .zn-koltuk canvas.em-boy, .ui2 .zn-koltuk.bos canvas { width: 6em; height: 7em; } .ui2 .zn-koltuk:has(canvas.em-boy)::before { top: 6em; } }
+
+/* Er Meydanı: maç izleme (canlı skor) */
+.ui2 .em-can { display: block; width: 100%; height: .7em; margin-top: .45em; border-radius: .4em; background: rgba(4, 8, 28, .7); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25); overflow: hidden; } .ui2 .em-can i { display: block; height: 100%; border-radius: .4em; background: linear-gradient(90deg, #58d06a, #b9f5a0); transition: width .5s; } .ui2 .em-taraf.sagt .em-can i { background: linear-gradient(90deg, #ef5b4d, #ffb09a); }
+.ui2 .em-taraf.vuruldu .em-chibi { animation: em-vur .5s ease-out; } @keyframes em-vur { 0% { filter: brightness(2.2) drop-shadow(0 0 1em #fff); transform: translateX(0); } 30% { transform: translateX(-.5em); } 60% { transform: translateX(.4em); } 100% { transform: none; } }
+.ui2 .em-taraf.dustu .em-chibi { filter: grayscale(.9) brightness(.6); } .ui2 .em-kok.izle .em-kod2 { cursor: default; } .ui2 .em-kok.izle .em-orta { top: 9.5em; }
+@media (prefers-reduced-motion: reduce) { .ui2 .em-taraf.vuruldu .em-chibi { animation: none; } }

@@ -142,6 +142,9 @@ if (acik) {
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_oda_listesi.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 400000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
     yaz('açık oda listesi: sefer, masa, takım, düello (iki tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
+  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_izle.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 400000 });
+    let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
+    yaz('maç izleme: süren düello listeden izlenir (üç tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_sahmeran_ok.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 500000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
     yaz('Şahmeran okları, Cazibe Oku, uyuyan düşman', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }

@@ -213,6 +213,7 @@ function createPvpRooms(deps = {}) {
     const match = room.match;
     if (!match || match.ended) return;
     match.ended = true;
+    { const kazanan = room.slots.find(m => m && m.key === winnerKey); izleyeneYay(room, { type: 'pvp_watch_end', roomId: room.id, winner: kazanan ? kazanan.handle : null, neden: reason || '' }); if (room.watchers) { for (const s of room.watchers) s.pvpIzle = null; room.watchers.clear(); } }
     if (match.disconnectTimer) { clearTimeout(match.disconnectTimer); match.disconnectTimer = null; }
     const humans = humanMembers(room);
     const winner = humans.find(m => m.key === winnerKey) || null;
@@ -432,6 +433,17 @@ function createPvpRooms(deps = {}) {
       send(socket, { type: 'pvp_rematch_pending', roomId: room.id, from: me.handle, self: true, peerPresent: humans.length === room.slots.length });
     }, { state: 'ended', quiet: true });
   }
+  /* MAÇ İZLEME (2026-11-18): süren bir maç koduyla izlenir. İzleyiciye maçın özeti (terbiyeciler, canlar, tur) ve sonra canlı olaylar gider;
+     izleyici odanın üyesi değildir, ileti gönderemez. Bir soket aynı anda tek maç izler. */
+  const izleyenler = room => room.watchers || (room.watchers = new Set());
+  const izlemeOzet = room => { const p = publicRoom(room), m = room.match || {}; return { type: 'pvp_watch_state', roomId: room.id, code: room.code, turnNo: m.turnNo || 0, sira: m.turnOwner || null, hp: m.hp || {},
+    slots: p.slots.filter(s => s.kind !== 'empty').map(s => ({ h: s.handle, ad: (s.chibi && s.chibi.ad) || s.name || s.handle, set: (s.chibi && typeof s.chibi.set === 'string' && /^[a-z]{2,12}$/.test(s.chibi.set)) ? s.chibi.set : 'temel' })) }; };
+  function izlemeBirak(socket) { const id = socket.pvpIzle; if (!id) return; socket.pvpIzle = null; const room = rooms.get(id); if (room && room.watchers) room.watchers.delete(socket); }
+  function onWatch(socket, msg) { izlemeBirak(socket); const c = String(msg.code || '').toUpperCase().trim(), room = codes.has(c) ? rooms.get(codes.get(c)) : null;
+    if (!room || room.state !== 'playing' || !room.match || room.match.ended) return send(socket, { type: 'pvp_watch_end', roomId: room ? room.id : null, neden: 'mac_yok' });
+    if (roomOf(keyOf(socket)) === room) return; if (izleyenler(room).size >= 30) return send(socket, { type: 'pvp_watch_end', roomId: room.id, neden: 'dolu' });
+    izleyenler(room).add(socket); socket.pvpIzle = room.id; send(socket, izlemeOzet(room)); }
+  const izleyeneYay = (room, m) => { if (!room.watchers || !room.watchers.size) return; for (const s of [...room.watchers]) { if (!live(s)) { room.watchers.delete(s); continue; } send(s, m); } };
   function onSync(socket, msg) {
     const key = keyOf(socket);
     const room = roomOf(key);
@@ -448,6 +460,7 @@ function createPvpRooms(deps = {}) {
       const other = humanMembers(room).find(m => m.key !== key);
       match.turnOwner = other ? other.handle : me;
     }
+    if (out.action === 'hp_sync' || out.action === 'fire' || out.action === 'hit' || out.action === 'turn_handoff') izleyeneYay(room, { type: 'pvp_watch_ev', roomId: room.id, from: me, action: out.action, hp: out.hp, maxHp: out.maxHp, dmg: out.dmg, turnNo: match.turnNo, sira: match.turnOwner || null });
     for (const m of humanMembers(room)) {
       if (m.key === key) continue;
       if (out.action !== 'move_aim') { match.log.push({ to: m.key, out }); if (match.log.length > LOG_CAP) match.log.shift(); }
@@ -477,6 +490,8 @@ function createPvpRooms(deps = {}) {
       case 'pvp_room_kick': onKick(socket, msg); break;
       case 'pvp_room_start': onStart(socket); break;
       case 'pvp_room_invite': onInvite(socket, msg); break;
+      case 'pvp_watch': onWatch(socket, msg); break;
+      case 'pvp_unwatch': izlemeBirak(socket); break;
       case 'pvp_room_say': { const room = roomOf(keyOf(socket)), i = Math.floor(+msg.i); if (!room || !(i >= 0 && i < 8)) break; const t = now(); if (socket.pvpSozT && t - socket.pvpSozT < 900) break; socket.pvpSozT = t;   // hazır söz: serbest yazı değil, sıra numarası
         for (const m of humanMembers(room)) send(socketOf(m), { type: 'pvp_room_say', roomId: room.id, from: handleOf(socket), i }); break; }
       case 'pvp_invite_reply': onInviteReply(socket, msg); break;
@@ -494,7 +509,7 @@ function createPvpRooms(deps = {}) {
   function onDisconnect(socket) {
     if (!socket || socket.__pvpGone) return;
     socket.__pvpGone = true;
-    lobbySubs.delete(socket);
+    lobbySubs.delete(socket); izlemeBirak(socket);
     const key = keyOf(socket);
     if (!key) return;
     const qe = queue.find(e => e.key === key);

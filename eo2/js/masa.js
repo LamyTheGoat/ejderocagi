@@ -11,9 +11,9 @@
   if (!G || !AG || !OR || !TK) return;
   const M = { oyun: 'poker', tvSec: null, hata: '', odeme: null, tut: [false, false, false, false, false], cagri: null, davetAcik: false, takasIstendi: 0 };
   const esc_ = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const OYUN = { poker: { ad: 'Ejder Pokeri', kural: 'Beş zar, üç atış. Tuttuğun zar yerinde kalır; eli iyi olan kazanır. Zarları sunucu atar.', kisa: 'Beş zar, üç atış.' },
-    tavla: { ad: 'Kervan Tavlası', kural: 'On iki hane, altışar pul. Zar at, pullarını karşı uca yürüt; tek kalan pulu vurursun. Altı pulunu ilk toplayan kazanır. Zarları sunucu atar.', kisa: 'On iki hane, altışar pul; altısını ilk toplayan kazanır.' },
-    kor21: { ad: 'Kor 21', kural: 'Yirmi bire en yakın el kazanır; yirmi biri geçen yanar. As 1 ya da 11, resimli kartlar 10 sayılır. Kartları sunucu dağıtır.', kisa: 'Yirmi bire en yakın el kazanır.' } };
+  const OYUN = { poker: { ad: 'Ejder Pokeri', kural: 'Beş zar, üç atış. Tuttuğun zar yerinde kalır; eli iyi olan kazanır. Zarları oyun atar; hile olmaz.', kisa: 'Beş zar, üç atış.' },
+    tavla: { ad: 'Kervan Tavlası', kural: 'On iki hane, altışar pul. Zar at, pullarını karşı uca yürüt; tek kalan pulu vurursun. Altı pulunu ilk toplayan kazanır. Zarları oyun atar; hile olmaz.', kisa: 'On iki hane, altışar pul; altısını ilk toplayan kazanır.' },
+    kor21: { ad: 'Kor 21', kural: 'Yirmi bire en yakın el kazanır; yirmi biri geçen yanar. As 1 ya da 11, resimli kartlar 10 sayılır. Kartları oyun dağıtır; hile olmaz.', kisa: 'Yirmi bire en yakın el kazanır.' } };
   const TAKIM = { '♠': '♠︎', '♥': '♥︎', '♦': '♦︎', '♣': '♣︎' };
   const kart = (c, gizli) => gizli ? '<i class="kr-kart arka" style="animation:none"></i>' : '<i class="kr-kart ' + (c.s === '♥' || c.s === '♦' ? 'kizil' : '') + '" style="animation:none"><b>' + c.r + '</b><em>' + TAKIM[c.s] + '</em><span>' + TAKIM[c.s] + '</span></i>';
   /* elin değeri (kural sunucudadır; bu yalnız oyuncuya kendi elini göstermek için aynı hesabı yapar) */

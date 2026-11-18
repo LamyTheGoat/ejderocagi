@@ -107,7 +107,7 @@
         for (const k of ['ej', 'yu']) { const var_ = new Set(g.O[k + 'Ids'].map(String)); for (const id of Object.keys(E.h[k])) if (!var_.has(id)) delete E.h[k][id]; }
         if (g.O.birak) E.birak = E.birak.filter(b => !g.O.birak.includes(b.id));
         for (const [k, n] of Object.entries(r.yem || {})) { S.food[k] = (S.food[k] || 0) + n; soyle('Çarşıdan aldığın yem kilere girdi: <b>' + n + ' ' + esc((typeof FOODS !== 'undefined' && FOODS[k] && FOODS[k].ad) || k) + '</b>.', 'goal'); }
-        if (!E.bilgi) { E.bilgi = true; soyle('Ocağın hesabına işlendi.', 'goal'); }
+        E.bilgi = true;   // ilk eşlemede bildirim yok: oyuncunun bir şey yapması gerekmiyor
         degisti = true;
         const yeni = AG.kese(); if (yeni && yeni.game && yeni.game.ocak && yeni.game.ocak.id === S.ocakId && cek(yeni, E)) degisti = true;
         if (g.O.ej.length >= PARTI || g.O.yu.length >= PARTI) zamanla(400);                    // kalan parti

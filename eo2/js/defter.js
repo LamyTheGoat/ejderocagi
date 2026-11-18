@@ -152,7 +152,7 @@
       '<div class="menu-sag"><img alt="Ejder Ocağı" src="assets/logo.webp"><div class="menu-kayit"><span class="ust">Kayıtlı ocak</span>' +
         '<button type="button" class="mk-ad" data-k="ad" title="Adını değiştir"><b>' + esc(G.ad()) + '</b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>' +
         '<b>Hafta ' + S.week + ' / ' + SEASON + ' · ' + se.ad + '</b><div class="cubuk"><i style="width:' + (S.week / SEASON * 100) + '%"></i></div><p>' + S.dragons.length + ' ejderha · ' + S.gold + ' altın · ' + S.un + ' ün' + (S.seasonNo > 1 ? ' · ' + S.seasonNo + '. sezon' : '') + '</p>' +
-        '<p class="soluk">Kayıt bu tarayıcıda durur ve hesabına yedeklenir' + (S.updatedAt ? '; son yazım ' + zaman(S.updatedAt) : '') + '. Yedek için dosyaya aktar.</p>' +
+        '<p class="soluk">Oyunun kendiliğinden kaydedilir' + (S.updatedAt ? ' (en son ' + zaman(S.updatedAt) + ')' : '') + '. Aşağıdakiler yalnız başka bir cihaza taşımak içindir.</p>' +
         '<div class="mk-islem"><button type="button" class="gbtn kucuk" data-k="aktar">Dosyaya aktar</button><button type="button" class="gbtn kucuk" data-k="yukle">Dosyadan yükle</button></div>' + (EO2.hesap ? EO2.hesap.menu() : '') +
         '<div class="mk-alt">' + (yedek ? '<button type="button" class="mk-bag" data-k="geri">Önceki ocağı geri al</button>' : '<span></span>') + '<button type="button" class="mk-bag sil" data-k="sil">Kaydı sil</button></div></div></div>';
     on(body, '[data-m]', async b => { const m = b.dataset.m;

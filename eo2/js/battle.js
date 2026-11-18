@@ -42,7 +42,7 @@
   const topH = x => 2.4 + (7.3 + 1.1 * Math.sin(x * 0.21 + 1) + 0.5 * Math.sin(x * 0.63) - 4.4 * Math.exp(-Math.pow((x - 32) / 6.5, 2)) + 2.1 * Math.exp(-Math.pow((x - 21.5) / 3.1, 2)) + 2.5 * Math.exp(-Math.pow((x - 43) / 3.3, 2))) * edgeK(x);
   const botH = x => 7.2 - 5.6 * midK(x) - 1.5 * Math.abs(Math.sin(x * 1.13 + 2)) * midK(x) - 0.5 * Math.abs(Math.sin(x * 3.7));
   const TEMA = {
-    talim: { g: ['#c9a383', '#a07e72', '#5d4a63'], bant: ['rgba(70,40,70,.16)', 'rgba(255,230,200,.10)'], cat: 'rgba(58,37,48,.28)', ust: ['#3f7d45', '#58a44e', '#9bdb6c'], ot: ['#8fd064', '#58a44e'], cizgi: '#3a2530', tas: ['#3aa0e8', '#7fd8ff'], duvar: 1, cicek: 1, oyuk: 'rgba(38,20,34,.78)', kirik: '#8a6a5c' },
+    talim: { g: ['#c9a383', '#a07e72', '#5d4a63'], bant: ['rgba(70,40,70,.16)', 'rgba(255,230,200,.10)'], cat: 'rgba(58,37,48,.28)', ust: ['#3f7d45', '#58a44e', '#9bdb6c'], ot: ['#8fd064', '#58a44e'], cizgi: '#3a2530', tas: ['#3aa0e8', '#7fd8ff'], duvar: 1, cicek: 1, oyuk: 'rgba(38,20,34,.78)', kirik: '#8a6a5c', doku: ['assets/zemin/tas3.webp', 'assets/zemin/cim.webp'] },   // doku: [gövde, üst örtü] elle çizilmiş dokular (yüklüyse düz çizimin yerine geçer; Er Meydanı'nın boyalı arka planına uysun diye)
     sirca: { g: ['#3a7a70', '#22485a', '#131d36'], bant: ['rgba(8,20,40,.22)', 'rgba(160,255,220,.08)'], cat: 'rgba(6,18,30,.4)', ust: ['#174f4a', '#2b9c7c', '#9af5d2'], ot: ['#7ff0c4', '#2b9c7c'], cizgi: '#081822', tas: ['#ffae3d', '#ffe6a6'], damar: 'rgba(110,255,200,.32)', oyuk: 'rgba(4,14,24,.8)', kirik: '#2f6a66' },
     kaldera: { g: ['#5a403a', '#33252a', '#160e14'], bant: ['rgba(0,0,0,.25)', 'rgba(255,170,110,.07)'], cat: 'rgba(10,4,6,.5)', ust: ['#2a1c1e', '#5c3a30', '#ff9a4a'], ot: null, cizgi: '#0c0608', tas: ['#ff6a2a', '#ffd070'], damar: 'rgba(255,120,40,.6)', oyuk: 'rgba(60,14,4,.82)', kirik: '#4a3230' },
     donanma: { g: ['#4a7f86', '#285064', '#10233a'], bant: ['rgba(4,16,34,.22)', 'rgba(180,250,255,.08)'], cat: 'rgba(4,16,30,.4)', ust: ['#1f5a66', '#3fa3a6', '#b4f5e6'], ot: ['#8fe8d8', '#3fa3a6'], cizgi: '#071622', tas: ['#ff7fa0', '#ffd6e0'], damar: 'rgba(120,230,255,.3)', oyuk: 'rgba(4,14,26,.8)', kirik: '#33707a' },
@@ -65,23 +65,28 @@
     let seed = spec.tohum || 7; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }, rx = () => { for (let k = 0; k < 20; k++) { const v = x0 + 0.5 + r() * (x1 - x0 - 1); if (!isNaN(top(v))) return v; } return (x0 + x1) / 2; };
     path(); const g = x.createLinearGradient(0, Y(13), 0, Y(1)); g.addColorStop(0, Tm.g[0]); g.addColorStop(0.45, Tm.g[1]); g.addColorStop(1, Tm.g[2]); x.fillStyle = g; x.fill();
     x.save(); path(); x.clip();
-    if (Tm.bant) for (let b = 0; b < 9; b++) { x.beginPath(); const y0 = 1.5 + b * 1.25; for (let v = 0; v <= FW; v += 0.5) { const yy = y0 + Math.sin(v * 0.4 + b) * 0.35 + Math.sin(v * 1.3 + b * 2) * 0.12; v === 0 ? x.moveTo(X(v), Y(yy)) : x.lineTo(X(v), Y(yy)); } x.lineWidth = TP * (0.18 + (b % 3) * 0.1); x.strokeStyle = Tm.bant[b % 2]; x.stroke(); }
+    const dk = Tm.doku && imgs[Tm.doku[0]] && imgs[Tm.doku[1]] ? Tm.doku.map(src => imgs[src]) : null, desen = (im, boy) => { const k = document.createElement('canvas'); k.width = k.height = Math.round(boy * TP); k.getContext('2d').drawImage(im, 0, 0, k.width, k.height); return x.createPattern(k, 'repeat'); };
+    if (dk) { x.fillStyle = desen(dk[0], 7); x.fillRect(0, 0, c.width, c.height); x.globalCompositeOperation = 'multiply'; x.fillStyle = '#f3dfc4'; x.fillRect(0, 0, c.width, c.height); x.globalCompositeOperation = 'source-over';
+      const gg = x.createLinearGradient(0, Y(13), 0, Y(0)); gg.addColorStop(0, 'rgba(255,240,215,.16)'); gg.addColorStop(0.5, 'rgba(70,50,90,.22)'); gg.addColorStop(1, 'rgba(30,22,58,.72)'); x.fillStyle = gg; x.fillRect(0, 0, c.width, c.height); }
+    if (!dk && Tm.bant) for (let b = 0; b < 9; b++) { x.beginPath(); const y0 = 1.5 + b * 1.25; for (let v = 0; v <= FW; v += 0.5) { const yy = y0 + Math.sin(v * 0.4 + b) * 0.35 + Math.sin(v * 1.3 + b * 2) * 0.12; v === 0 ? x.moveTo(X(v), Y(yy)) : x.lineTo(X(v), Y(yy)); } x.lineWidth = TP * (0.18 + (b % 3) * 0.1); x.strokeStyle = Tm.bant[b % 2]; x.stroke(); }
     if (Tm.tahta) { // gemi güvertesi: kalaslar, ek yerleri, çiviler, bordada lombozlar
       for (let row = 0; row < 26; row++) { const yy = 13.4 - row * 0.5; x.fillStyle = row % 2 ? 'rgba(0,0,0,.10)' : 'rgba(255,220,170,.06)'; x.fillRect(0, Y(yy), FW * TP, 0.5 * TP); x.fillStyle = 'rgba(24,10,8,.55)'; x.fillRect(0, Y(yy) - 1, FW * TP, 2.5);
         for (let v = (row % 2) * 1.3 + r(); v < FW; v += 2.4 + r() * 0.8) { x.fillRect(X(v), Y(yy), 2.5, 0.5 * TP); x.fillStyle = 'rgba(255,220,160,.5)'; x.beginPath(); x.arc(X(v) + 7, Y(yy) + 0.25 * TP, 1.8, 0, 6.3); x.arc(X(v) - 6, Y(yy) + 0.25 * TP, 1.8, 0, 6.3); x.fill(); x.fillStyle = 'rgba(24,10,8,.55)'; } }
       for (const [a, b] of runs) for (let v = V(a) + 1.6; v < V(b) - 1; v += 2.6) { const cy = top(v) - 2.2; x.fillStyle = '#c99a4a'; x.beginPath(); x.arc(X(v), Y(cy), 0.44 * TP, 0, 6.3); x.fill(); x.fillStyle = '#12283c'; x.beginPath(); x.arc(X(v), Y(cy), 0.3 * TP, 0, 6.3); x.fill(); x.fillStyle = 'rgba(140,220,255,.35)'; x.beginPath(); x.arc(X(v) - 3, Y(cy) - 3, 0.1 * TP, 0, 6.3); x.fill(); } }
-    x.strokeStyle = Tm.cat; x.lineWidth = 2; for (let i = 0; i < 90; i++) { const bx = x0 + r() * (x1 - x0), by = 1 + r() * 11; x.beginPath(); x.moveTo(X(bx), Y(by)); x.lineTo(X(bx + (r() - 0.5) * 0.5), Y(by - 0.3 - r() * 0.7)); x.lineTo(X(bx + (r() - 0.5) * 0.8), Y(by - 0.9 - r() * 0.6)); x.stroke(); }
-    if (Tm.duvar) for (const [wx0, wx1, depth, rows] of [[9, 16.5, 1.2, 3], [27.5, 36, 0.9, 4], [45.5, 53, 1.3, 3], [18, 22, 3.4, 2], [40, 44.5, 3.8, 2]]) for (let row = 0; row < rows; row++) { let bx = wx0 + (row % 2) * 0.45 + r() * 0.2; while (bx < wx1) { const bw = 0.75 + r() * 0.55, by = top(bx + bw / 2) - depth - row * 0.52;
+    x.strokeStyle = Tm.cat; x.lineWidth = 2; if (!dk) for (let i = 0; i < 90; i++) { const bx = x0 + r() * (x1 - x0), by = 1 + r() * 11; x.beginPath(); x.moveTo(X(bx), Y(by)); x.lineTo(X(bx + (r() - 0.5) * 0.5), Y(by - 0.3 - r() * 0.7)); x.lineTo(X(bx + (r() - 0.5) * 0.8), Y(by - 0.9 - r() * 0.6)); x.stroke(); }
+    if (Tm.duvar && !dk) for (const [wx0, wx1, depth, rows] of [[9, 16.5, 1.2, 3], [27.5, 36, 0.9, 4], [45.5, 53, 1.3, 3], [18, 22, 3.4, 2], [40, 44.5, 3.8, 2]]) for (let row = 0; row < rows; row++) { let bx = wx0 + (row % 2) * 0.45 + r() * 0.2; while (bx < wx1) { const bw = 0.75 + r() * 0.55, by = top(bx + bw / 2) - depth - row * 0.52;
       x.fillStyle = ['#e9dcc6', '#dccbb2', '#efe4d2'][Math.floor(r() * 3)]; x.beginPath(); x.roundRect(X(bx), Y(by), bw * TP - 3, 0.48 * TP, 4); x.fill(); x.fillStyle = 'rgba(255,255,255,.25)'; x.fillRect(X(bx) + 3, Y(by) + 2, bw * TP - 9, 3); x.strokeStyle = 'rgba(58,37,48,.55)'; x.lineWidth = 2; x.beginPath(); x.roundRect(X(bx), Y(by), bw * TP - 3, 0.48 * TP, 4); x.stroke();
       if (r() < 0.12) { const cx = X(bx) + (bw * TP - 3) / 2, cy = Y(by) + 0.24 * TP, s = 0.14 * TP; x.save(); x.translate(cx, cy); x.fillStyle = '#2f7fc8'; x.fillRect(-s, -s, 2 * s, 2 * s); x.rotate(Math.PI / 4); x.fillRect(-s, -s, 2 * s, 2 * s); x.restore(); x.fillStyle = '#f7f1e2'; x.beginPath(); x.arc(cx, cy, s * 0.42, 0, 6.3); x.fill(); } bx += bw; } }
     if (Tm.damar) { x.globalCompositeOperation = 'lighter'; for (let i = 0; i < 12; i++) { let vx = rx(), vy = top(vx) - 0.5 - r() * 2; x.beginPath(); x.moveTo(X(vx), Y(vy)); for (let k = 0; k < 6; k++) { vx += (r() - 0.5) * 1.6; vy -= 0.4 + r() * 0.9; x.lineTo(X(vx), Y(vy)); } x.strokeStyle = Tm.damar; x.lineWidth = 1.5 + r() * 2; x.lineJoin = 'round'; x.globalAlpha = 0.5; x.stroke(); x.lineWidth = 8; x.globalAlpha = 0.08; x.stroke(); x.globalAlpha = 1; } x.globalCompositeOperation = 'source-over'; }
-    if (Tm.tas) for (let i = 0; i < 18; i++) { const cx = rx(), cy = Math.max(1.2, top(cx) - 1.2 - r() * 5); for (let k = 0; k < 3; k++) { x.fillStyle = Tm.tas[k ? 1 : 0]; x.beginPath(); const s = (0.16 + r() * 0.2) * TP, ox = (k - 1) * 0.2 * TP; x.moveTo(X(cx) + ox, Y(cy) - s * 1.5); x.lineTo(X(cx) + ox + s * 0.5, Y(cy)); x.lineTo(X(cx) + ox, Y(cy) + s * 0.4); x.lineTo(X(cx) + ox - s * 0.5, Y(cy)); x.closePath(); x.fill(); x.strokeStyle = 'rgba(10,20,50,.6)'; x.lineWidth = 1.5; x.stroke(); } }
+    if (Tm.tas && !dk) for (let i = 0; i < 18; i++) { const cx = rx(), cy = Math.max(1.2, top(cx) - 1.2 - r() * 5); for (let k = 0; k < 3; k++) { x.fillStyle = Tm.tas[k ? 1 : 0]; x.beginPath(); const s = (0.16 + r() * 0.2) * TP, ox = (k - 1) * 0.2 * TP; x.moveTo(X(cx) + ox, Y(cy) - s * 1.5); x.lineTo(X(cx) + ox + s * 0.5, Y(cy)); x.lineTo(X(cx) + ox, Y(cy) + s * 0.4); x.lineTo(X(cx) + ox - s * 0.5, Y(cy)); x.closePath(); x.fill(); x.strokeStyle = 'rgba(10,20,50,.6)'; x.lineWidth = 1.5; x.stroke(); } }
     x.fillStyle = 'rgba(10,8,24,.3)'; for (const [a, b] of runs) for (let i = a; i <= b; i += 4) { x.beginPath(); x.arc(X(V(i)), Y(hs[i] - 0.72), 0.36 * TP, 0, 6.3); x.fill(); }
-    ust(0.95, Tm.ust[0], 0); x.fillStyle = Tm.ust[0]; for (const [a, b] of runs) for (let i = a; i <= b; i += 4) { x.beginPath(); x.arc(X(V(i) + (r() - 0.5) * 0.1), Y(hs[i] - 0.44 - r() * 0.1), (0.2 + r() * 0.1) * TP, 0, 6.3); x.fill(); }
-    ust(0.6, Tm.ust[1], 0.06); ust(0.2, Tm.ust[2], 0.13); x.restore();
-    if (Tm.ot) for (const [a, b] of runs) for (let v = V(a) + 0.4; v < V(b) - 0.2; v += 0.16 + r() * 0.22) { const t = top(v), hgt = 0.14 + r() * 0.2; if (isNaN(t)) continue; x.beginPath(); x.moveTo(X(v - 0.07), Y(t - 0.03)); x.lineTo(X(v + (r() - 0.5) * 0.12), Y(t + hgt)); x.lineTo(X(v + 0.07), Y(t - 0.03)); x.closePath(); x.fillStyle = Tm.ot[r() > 0.5 ? 0 : 1]; x.fill();
+    if (dk) { ust(1.5, 'rgba(24,30,40,.32)', -0.16); const cim = desen(dk[1], 5); ust(1.05, '#2f6a35', 0); x.fillStyle = '#2f6a35'; for (const [a, b] of runs) for (let i = a; i <= b; i += 3) { x.beginPath(); x.arc(X(V(i) + (r() - 0.5) * 0.1), Y(hs[i] - 0.46 - r() * 0.14), (0.2 + r() * 0.14) * TP, 0, 6.3); x.fill(); }
+      ust(0.82, cim, 0.06); x.fillStyle = cim; for (const [a, b] of runs) for (let i = a + 1; i <= b; i += 3) { x.beginPath(); x.arc(X(V(i)), Y(hs[i] - 0.36 - r() * 0.1), (0.16 + r() * 0.1) * TP, 0, 6.3); x.fill(); } ust(0.12, 'rgba(214,246,150,.75)', 0.4); }
+    else { ust(0.95, Tm.ust[0], 0); x.fillStyle = Tm.ust[0]; for (const [a, b] of runs) for (let i = a; i <= b; i += 4) { x.beginPath(); x.arc(X(V(i) + (r() - 0.5) * 0.1), Y(hs[i] - 0.44 - r() * 0.1), (0.2 + r() * 0.1) * TP, 0, 6.3); x.fill(); }
+    ust(0.6, Tm.ust[1], 0.06); ust(0.2, Tm.ust[2], 0.13); } x.restore();
+    if (Tm.ot) for (const [a, b] of runs) for (let v = V(a) + 0.4; v < V(b) - 0.2; v += 0.16 + r() * 0.22) { const t = top(v), hgt = 0.14 + r() * 0.2; if (isNaN(t)) continue; x.beginPath(); x.moveTo(X(v - 0.07), Y(t - 0.03)); x.lineTo(X(v + (r() - 0.5) * 0.12), Y(t + hgt)); x.lineTo(X(v + 0.07), Y(t - 0.03)); x.closePath(); x.fillStyle = dk ? (r() > 0.5 ? '#86c860' : '#4f9a48') : Tm.ot[r() > 0.5 ? 0 : 1]; x.fill();
       if (Tm.cicek && r() < 0.07) { x.fillStyle = ['#f7a8cc', '#fff', '#ffd76a'][Math.floor(r() * 3)]; x.beginPath(); x.arc(X(v), Y(t + hgt + 0.03), 3.6, 0, 6.3); x.fill(); } }
-    path(); x.lineWidth = 3.2; x.strokeStyle = Tm.cizgi; x.lineJoin = 'round'; x.stroke();
+    path(); x.lineWidth = dk ? 2.2 : 3.2; x.strokeStyle = dk ? 'rgba(36,26,48,.8)' : Tm.cizgi; x.lineJoin = 'round'; x.stroke();
     const mask = new Uint8Array(MW * MH); for (let j = 0; j < MH; j++) for (let i = 0; i < MW; i++) { const wx = (i + 0.5) / MP, wy = (j + 0.5) / MP, t = top(wx); if (!isNaN(t) && wy < t && wy > bot(wx)) mask[j * MW + i] = 1; }
     return { c, x, mask, top, Tm };
   }
@@ -164,6 +169,12 @@
   }
   function bilgi(k) { const el = $('tpBilgi'); el.classList.remove('uzun'); if (M) M.ipucuT = 0; if (!k || !M) { el.hidden = true; return; } const B = BECERI[k], a = M.ben, cd = a.cd[k] || 0; el.hidden = false;
     el.innerHTML = '<b>' + B.ad + '</b><span>' + B.a + '</span><em>' + (B.ofke ? 'Öfke ' + Math.round(a.rage) + ' / 100' : B.m + ' nefes' + (B.cd ? ' · ' + B.cd + ' tur bekler' : '')) + (cd > 0 ? ' · ' + cd + ' tur sonra' : '') + '</em>'; }
+  /* ilk atışlar: oyuncu daha üç gülle atmadıysa sırası gelince ne yapacağı söylenir (sayı bu tarayıcıda tutulur) */
+  const ATIS_AN = 'eo2_topcu_atis', atisSay = () => { try { return +localStorage.getItem(ATIS_AN) || 0; } catch (_) { return 0; } }, atisYaz = () => { try { localStorage.setItem(ATIS_AN, String(atisSay() + 1)); } catch (_) { } };
+  const ILK_ATIS = [['İlk atışın', 'W ve S ile namluyu kaldır ya da indir. Boşluk tuşuna basılı tut, güç dolunca bırak.', 'Sağdaki oklarla namluyu kaldır ya da indir. ATEŞ düğmesine basılı tut, güç dolunca bırak.'],
+    ['Yerini seç', 'A ve D ile yürü. Rüzgâr gülleyi sürükler; üstteki ok ne yana estiğini gösterir.', 'Soldaki oklarla yürü. Rüzgâr gülleyi sürükler; üstteki ok ne yana estiğini gösterir.'],
+    ['Hünerlerin', 'Alttaki simgeler atışını güçlendirir. Üstüne gelince ne yaptığını okursun; 1 ile 9 arası tuşlar da seçer.', 'Alttaki simgeler atışını güçlendirir. Birine dokun, sonra ateş et.']];
+  function ilkAtisIpucu() { const n = atisSay(); if (n >= ILK_ATIS.length || !M || M.aktif !== M.ben) return; const q = ILK_ATIS[n]; ipucu(q[0], matchMedia('(pointer: coarse)').matches ? q[2] : q[1]); M.ipucuT = 45; M.ilkIpucu = true; }
   function ipucu(bas, metin) { if (!M) return; const el = $('tpBilgi'); el.hidden = false; el.classList.add('uzun'); el.innerHTML = '<b></b><span></span>'; el.firstChild.textContent = bas; el.lastChild.textContent = metin; M.ipucuT = 7; }
   const pankart = (t, s, cls) => { const el = $('tpPankart'); el.className = cls || ''; el.querySelector('b').textContent = t; el.querySelector('span').textContent = s || ''; void el.offsetWidth; el.classList.add('on'); };
   const yazi = (x, y, v, o) => { M.nums.push(Object.assign({ x, y, t: 0, v }, o || {})); };
@@ -177,7 +188,7 @@
   function gorGiy(a, kod) { const g = EO2.gorunum; if (!g || !g.savas || !kod || a.gorKod === kod) return; a.gorKod = kod; const m0 = M, set0 = a.set0 || a.set; a.set0 = set0;
     g.savas(set0, kod).then(r => { if (!r || M !== m0 || !M.on || a.gorKod !== kod) return; imgs['assets/battle_' + r.ad + '.webp'] = r.cv; a.set = r.ad; }).catch(() => { }); }
   async function ac(cfg) {
-    if (M && M.on) kapat(true); ensureDom(); const api = EO2.api, T = buildTerrain(cfg.arazi);
+    if (M && M.on) kapat(true); ensureDom(); { const Tm0 = TEMA[(cfg.arazi || {}).tema] || TEMA.talim; if (Tm0.doku && !(cfg.arazi || {}).maske) await Promise.all(Tm0.doku.map(load)); } const api = EO2.api, T = buildTerrain(cfg.arazi);
     const setler = new Set(['temel']); if (cfg.oyuncu && cfg.oyuncu.set) setler.add(cfg.oyuncu.set); if (cfg.rakip && cfg.rakip.set) setler.add(cfg.rakip.set);
     const bek = []; for (const s of setler) bek.push(load('assets/battle_' + s + '.webp')); if (cfg.bg) bek.push(load(cfg.bg)); bek.push(load(MEZAR)); if (cfg.sahne) for (const k of cfg.sahne.katman) bek.push(load(k.src));
     const tipler = [...(cfg.moblar || []).map(m => MOB[m.tip]), cfg.boss ? BOSS[cfg.boss.tip] : null].filter(Boolean); for (const t of tipler) for (const k in t.spr) if (typeof t.spr[k] === 'string' && /\.webp$/.test(t.spr[k])) bek.push(load(t.spr[k])); for (const p of (cfg.props || [])) if (PROP[p.tip] && PROP[p.tip].im) bek.push(load(PROP[p.tip].im));
@@ -204,7 +215,7 @@
     $('tpAd').textContent = P.ad || 'Topçu'; if (O.gor != null) api.drawPortrait($('tpYuz'), P.set0 || P.set, 0.66, O.gor || undefined); else api.drawPortrait($('tpYuz'), api.player.set, 0.66, true);   /* kendi portren: meydandaki setin ve görünüşünle (savaş karesi olmayan sette de) */ kurHedef();
     $('tpBeceri').querySelectorAll('button').forEach(b => { const B = BECERI[b.dataset.b]; b.hidden = !!(B.yalniz && B.yalniz !== cfg.arazi.aile); });
     $('tpAsama').hidden = !cfg.asama; if (cfg.asama) $('tpAsama').innerHTML = '<small>' + cfg.asama.ad + '</small>' + Array.from({ length: cfg.asama.n }, (_, i) => '<i class="' + (i < cfg.asama.i ? 'tamam' : i === cfg.asama.i ? 'simdi' : '') + '"></i>').join('');
-    $('tpBalon').hidden = true; $('tpLaf').hidden = true; $('tpBilgi').hidden = true; $('tpIpucu').textContent = matchMedia('(pointer: coarse)').matches ? 'ATEŞ\'e basılı tut, bırak' : 'Space basılı tut, bırak';
+    $('tpBalon').hidden = true; $('tpLaf').hidden = true; $('tpBilgi').hidden = true; $('tpIpucu').textContent = matchMedia('(pointer: coarse)').matches ? 'ATEŞ\'e basılı tut, bırak' : 'Boşluk tuşuna basılı tut, bırak';
     yeniRuzgar(); hudCache = {}; hud(true);
     $('tpBitis').hidden = true; $('tpBitis').className = '';
     $('tpSavas').hidden = false; $('tpSavas').className = 'tema-' + (cfg.arazi.aile || cfg.arazi.tema); $('app').classList.add('fight'); ses('battle', true); addEventListener('keydown', kd, true); addEventListener('keyup', ku, true);
@@ -240,7 +251,7 @@
   /* ---------- atış ---------- */
   function muzzleOf(a) { const m = window.EO2_BATTLE.sets[a.set], q = clamp(Math.round(a.angle / 5) * 5, -10, 70), mz = m.muzzle[q] || [150, 150]; return [a.x + a.face * mz[0] * K, a.y + mz[1] * K]; }
   /* eski firePlayerVolley: dalga sayısı, saçılma, hasar çarpanları ve patlama yarıçapı aynı */
-  function ates(a, power, uzak) {
+  function ates(a, power, uzak) { if (M && a === M.ben && !uzak) { atisYaz(); if (M.ilkIpucu) { M.ilkIpucu = false; M.ipucuT = 0; $('tpBilgi').hidden = true; } }
     const md = a.mods, pow = !!md.powUlt, dalga = pow ? 3 : 1 + (md.plus1 ? 1 : 0) + (md.plus2 ? 2 : 0), sac = md.trident ? [-6, 0, 6] : [0], sp = 8.5 + power * 19.5;
     const capaK = 1 + (a.capaBonus || 0), dmg = Math.round(a.dmg * (md.heavy ? 1.5 : 1) * (pow ? 1.65 : 1) * capaK), patlama = Math.round((md.crater ? 88 : 54) * (pow ? 1.35 : 1));
     const fir = a.el === 'firtina' || a.el2 === 'firtina', top = a.el === 'toprak' || a.el2 === 'toprak', isin = { teleport: !!md.teleport, pow, delici: !!md.crater || !!a.parilti, aci: Math.round(a.angle) };
@@ -255,7 +266,7 @@
       for (let i = 0; i < 10; i++) M.parts.push({ k: 'smoke', x: mz[0], y: mz[1], vx: face * (1 + Math.random() * 3) + (Math.random() - 0.5), vy: Math.random() * 1.6, life: 0.7 + Math.random() * 0.5, max: 1.2, s: 0.3 + Math.random() * 0.3 });
       M.parts.push({ k: 'flash', x: mz[0], y: mz[1], vx: 0, vy: 0, life: 0.14, max: 0.14, s: pow ? 2.2 : 1.5, col: a.col }); ses('fire'); };
     const md0 = Object.assign({}, md); a.lastPower = power; salla(0); for (let w = 1; w < dalga; w++) sonra(w * 0.18, () => salla(w));
-    M.bekle = (dalga - 1) * 0.18 + 0.05; a.mods = {}; M.faz = 'ucus'; M.pt = 0; if (a.takim === 0) { M.ist.tur++; M.ist.kombo = 0; } hud(true);
+    M.bekle = (dalga - 1) * 0.18 + 0.05; a.mods = {}; M.faz = 'ucus'; M.pt = 0; if (a.takim === 0) { if (a === M.ben && M.ist.tur > 0 && M.seriTur !== M.ist.tur) M.seri = 0; M.ist.tur++; M.ist.kombo = 0; } hud(true);
     if (!uzak) yay('ates', { kim: a.takim, x: a.x, y: a.y, aci: Math.round(base), guc: power, yon: face, el: a.el, hasar: dmg, mod: md0, tur: M.tur });
   }
   /* ortak savaşta (cfg.ortak) düşman hamlelerinin rastgeleliği sunucunun verdiği tohumdan gelir: bütün ekranlarda aynı saçılma */
@@ -303,12 +314,16 @@
         if (p.patlar) { carve(M.T, p.x, p.y, u(98)); toz(p.x, p.y + 0.5, 34, EL.magma); halka(p.x, p.y + 0.5, 3.4, EL.magma); M.shake = 1.2; ses('boom', 1); yazi(p.x, p.y + 2, 'Barut fıçısı patladı', { col: '#ffb060', crit: 1 }); for (const e of M.act) if (e.takim === 1 && !e.dead && Math.hypot(e.x - p.x, e.y - p.y) * PX <= 230) { if (e.tur === 'mob') hasarMob(e, 280, { not: 'Zincirleme patlama' }); else if (e.tur === 'topcu') hasarTopcu(e, 280, { crit: 1 }); } }
         else { by.hp = Math.min(by.max, by.hp + 380); by.rage = Math.min(100, by.rage + 50); toz(p.x, p.y + 0.5, 20, [255, 224, 138]); yazi(p.x, p.y + 2, 'İkmal sandığı: +380 can, +50 öfke', { col: '#8ff0a4', crit: 1 }); ses('chime'); } }
       const rad = s.patlama + 55;
+      const k0 = M.ist.kombo;
       for (const a of M.act) { if (a.dead || a.takim === 0) continue;
         if (a.tur === 'topcu') { const dH = pd(a.x, a.y + u(82)), dB = pd(a.x, a.y + u(46)); if (dH > 44 && dB > rad + 26) continue; const bas = dH <= 44, k = bas ? 1.75 : Math.max(0.55, 1 - dB / (rad + 75)); let h = Math.round(dm * k);
           if (bas) { M.ist.kritik++; pankart('Tam isabet!', '', 'hit'); } M.ist.kombo++; M.ist.enKombo = Math.max(M.ist.enKombo, M.ist.kombo); by.rage = Math.min(100, by.rage + 18);
           const ham = h; if (a.shield > 0 && !s.delici) { h = Math.round(h * 0.55); a.shield--; } a.hp = Math.max(a.kontrol === 'uzak' || a.yoldas ? 1 : 0, a.hp - h); a.hurtT = 0.55; M.stop = Math.max(M.stop, bas ? 0.15 : 0.09); a.vy = 3 + k * 2; a.fall = true; a.kx = Math.sign(a.x - x || 1) * (1 + k * 2.2); M.ist.hasar += h; yazi(a.x, a.y + 2.3, h, { crit: bas }); ses('hit'); yay('isabet', { kim: a.takim, yid: a.yid, hasar: ham, delici: !!s.delici, bas, it: Math.sign(a.x - x || 1), tur: M.tur }); }
         else if (a.tur === 'boss') { if (s.bossVurdu) continue; const dB = pd(a.x, a.y + u(140)); if (dB > rad + 115) continue; if (a.D.gizli && a.D.gizli(a)) continue; if (s.ayaz) { a.chill = 2; yazi(a.x, a.y + a.h + 2.4, 'Ayaz mührü', { kucuk: 1, col: '#9fe0ff' }); } hasarBoss(a, Math.round(dm * Math.max(0.45, 1 - dB / (rad + 160))), s.delici); }
         else { const d = pd(a.x, a.y + u(48)); if (d > rad + 20) continue; let h = Math.round(dm * Math.max(0.55, 1 - d / (rad + 60))); const not = {}; if (a.D.hasar) h = a.D.hasar(a, s, h, not); if (s.ayaz) a.chill = 2; M.ist.kombo++; M.ist.enKombo = Math.max(M.ist.enKombo, M.ist.kombo); hasarMob(a, h, not); } }
+      /* oyuncuya geri bildirim (ödül ya da hasar değişmez): art arda turlarda isabet = seri; kıl payı kaçan atışta "Az kaldı" */
+      if (by === P) { if (M.ist.kombo > k0) { if (M.seriTur !== M.ist.tur) { M.seriTur = M.ist.tur; M.seri = (M.seri || 0) + 1; if (M.seri >= 2) { yazi(P.x, P.y + 3.3, 'Seri ×' + M.seri, { col: '#ffe08a', crit: 1 }); ses('chime'); } } }
+        else if (!s.bossVurdu && M.azTur !== M.ist.tur && M.act.some(a => !a.dead && a.takim === 1 && !a.bekler && pd(a.x, a.y + u(60)) <= rad + 230)) { M.azTur = M.ist.tur; yazi(x, y + 1.8, 'Az kaldı!', { kucuk: 1, col: '#ffe08a' }); } }
     } else if (s.takim === 1 && !s.uzak) {
       if (s.by && s.by.tur === 'topcu') { const dH = pd(P.x, P.y + u(82)), dB = pd(P.x, P.y + u(46)), rad = s.patlama + 55; if (dH <= 44 || dB <= rad + 26) { const bas = dH <= 44, k = bas ? 1.75 : Math.max(0.55, 1 - dB / (rad + 75)); hasarTopcu(P, s.dmg * k, { kalkanK: 0.55, crit: bas, it: k, yon: Math.sign(P.x - x || 1) }); } }
       else if (pd(P.x, P.y + u(46)) <= s.patlama + 48) { const kalkan = P.shield > 0; hasarTopcu(P, s.dmg, { it: 0.4, yon: Math.sign(P.x - x || 1) });
@@ -370,7 +385,7 @@
       M.bolge = M.cfg.ortak ? M.bolge.filter(z => z.kim !== a) : []; if (M.boss && !M.boss.dead) { const D = M.boss.D; M.bolge.push({ x: a.x, y: a.y, r: u(130), dmg: D.bolge || 210, el: D.el || 'venom', kim: a }); }
       if (M.boss && M.boss.D.oyuncuSirasi) M.boss.D.oyuncuSirasi(M.boss, API);
       M.timer = 25; yeniRuzgar(M.cfg.ortak ? M.ruzgarGelen : M.ruzgarSirasi ? M.ruzgarSirasi(M.siraNo) : null); a.sta = a.staMax; a.capa = 0;
-      pankart('Senin sıran', M.bolge.length ? 'Halkadan çık, sonra ateş et' : 'Tur ' + M.tur, 'me'); ses('turn'); yay('sira', { kim: 0, tur: M.tur, ruzgar: M.wind });
+      pankart('Senin sıran', M.bolge.length ? 'Halkadan çık, sonra ateş et' : 'Tur ' + M.tur, 'me'); ses('turn'); ilkAtisIpucu(); yay('sira', { kim: 0, tur: M.tur, ruzgar: M.wind });
     } else if (a.yoldas) {   // ortak savaş: sıra bir yoldaşta; o kendi ekranında oynar, burada yeri, nişanı ve atışı görünür
       M.timer = 25; yeniRuzgar(M.ruzgarGelen); M.bolge = M.bolge.filter(z => z.kim !== a); if (M.boss && !M.boss.dead) { const D = M.boss.D; M.bolge.push({ x: a.x, y: a.y, r: u(130), dmg: D.bolge || 210, el: D.el || 'venom', kim: a }); }
       pankart(a.ad + ' nişan alıyor', 'Tur ' + M.tur, ''); ses('turn');
