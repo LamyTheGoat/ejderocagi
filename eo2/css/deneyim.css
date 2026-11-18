@@ -167,3 +167,7 @@
 .ui2 .ayraclar { align-items: flex-start; }
 /* sipariş kâğıdı: üstüne gelince yerinden oynamaz (eğimi ve yeri aynı kalır); yalnız parlar */
 .ui2 .kagit:hover { transform: rotate(var(--egim)); filter: brightness(1.06); box-shadow: 0 .5em 1.2em rgba(30, 16, 6, .6), 0 0 0 2px rgba(246, 217, 138, .55); }
+
+/* sade dil (2026-11-18): yetenek adları açık yazılır; üslup seçiminin ne olduğu söylenir */
+.ui2 .radar { overflow: visible; } .ui2 .uslup .uslup-ad { margin: 0 .3em 0 .7em; font: 700 .86em var(--f-ui); font-style: normal; color: var(--ref-altin, #e8b84e); white-space: nowrap; }
+@media (max-width: 900px), (max-aspect-ratio: 1/1) { .ui2 .uslup .uslup-ad { display: none; } }

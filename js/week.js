@@ -131,7 +131,7 @@ function resolveTrain(d, k, rep) {
   d.fat = clamp(d.fat + c.fat, 0, 100);
   addBond(d, 1);
   S.st.train++;
-  const parts = [`${ST_AD[k]} antrenmanı (${STYLES[d.style].ad.toLowerCase()}): <b class="good">${ST_KISA[k]} +${g}</b>${s2 ? `, ${ST_KISA[c.sk]} +${s2}` : ''}`];
+  const parts = [`${ST_AD[k]} antrenmanı (${STYLES[d.style].ad.toLowerCase()}): <b class="good">${ST_AD[k]} +${g}</b>${s2 ? `, ${ST_AD[c.sk]} +${s2}` : ''}`];
   if (dbl) parts.push('Asi bir ilhamla iki kat çalıştı!');
   if (M && g > 0) { parts.push(`${esc(M.name)} başında durup homurdanarak düzeltti (+1).`); addBond(M, 1); }
   if (SB.line) parts.push(SB.line);
