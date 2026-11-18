@@ -16,6 +16,7 @@
 
   function ac(id, ekran) {
     const G = EO2.game, A = EO2.api;
+    if (!ekran && EO2.rehber && EO2.rehber.kilitEngel && EO2.rehber.kilitEngel(id)) return;   // ilk hafta kilidi: ekranlar G.open'da, paneller burada sorulur
     if (ekran && G && G.live && G.open) { if (A && A.closePanel) A.closePanel(); G.open(ekran); return; }
     if (EO2.hooks && EO2.hooks.panel && EO2.hooks.panel(id)) return;
     if (A && A.openPanel) A.openPanel(id);

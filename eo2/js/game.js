@@ -461,7 +461,7 @@
     let switching = false;
     /* varsayılan harita master Merkez Meydan'dır: 'meydan' isteği ona gider (eski meydan yalnız ?gelistirici ile) */
     function merkez(id) { return id === 'meydan' && (EO2.sceneDefs || {}).master && !app.classList.contains('gelistirici') ? 'master' : id; }
-    function goScene(id) { id = merkez(id); if (switching || !SC || id === SC.id || !(id === 'meydan' || (EO2.sceneDefs || {})[id])) return; switching = true; const from = SC.id; if (EO2.dialog) EO2.dialog.close(); closePanel(); if (EO2.audio) EO2.audio.chime(); const yuk = EO2.sahneYukle ? EO2.sahneYukle(id) : Promise.resolve();   // sahnenin çizimleri girişte yüklenir; perde yükleme bitene dek kapalıdır
+    function goScene(id) { id = merkez(id); if (EO2.kilitYer && SC && id !== SC.id && EO2.kilitYer(id)) return; if (switching || !SC || id === SC.id || !(id === 'meydan' || (EO2.sceneDefs || {})[id])) return; switching = true; const from = SC.id; if (EO2.dialog) EO2.dialog.close(); closePanel(); if (EO2.audio) EO2.audio.chime(); const yuk = EO2.sahneYukle ? EO2.sahneYukle(id) : Promise.resolve();   // sahnenin çizimleri girişte yüklenir; perde yükleme bitene dek kapalıdır
       EO2.iris(() => yuk.then(() => { enter(id, from); }).then(() => { switching = false; }, e => { switching = false; console.error(e); })); }
 
     /* ---------- Döngü ---------- */

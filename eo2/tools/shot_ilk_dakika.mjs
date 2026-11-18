@@ -14,6 +14,8 @@ await adim('ad', async () => { await p.locator('.giris .gbtn:has-text("Yeni ocak
 await adim('gorunus_secimi', async () => { await p.locator('.pen input').first().fill('Aylin'); await p.locator('.pen .gbtn:has-text("Ocağa gir")').first().click(); await bekle('EO2.game.ekran() === "gorunus"'); await dur(1200); });
 await adim('ocak_ilk_an', async () => { await p.locator('[data-gr-hazir]').click(); await bekle('EO2.api.scene() === "ocak" && !EO2.game.ekran()', 40000); await dur(2500); });
 await adim('ocak_5sn', async () => { await dur(5000); });
+await adim('kilit_geri_cevirir', async () => { await p.evaluate(() => { EO2.game.open('arena'); }); await dur(700); });
+await adim('kilit_gecildi', async () => { await p.evaluate(() => { EO2.rehber.kilitGec(); }); await dur(900); });
 await adim('ogretici_adim', async () => { await p.evaluate(() => { const k = document.querySelector('.rehber .rh-kapat'); if (k) k.click(); }); await dur(2500); });
 for (const e of ['ejderhalar', 'ocak', 'hafta', 'defter', 'harita', 'topcu', 'ermeydani', 'arena', 'gorunus', 'menu']) await adim('ekran_' + e, async () => { await p.evaluate(id => { if (EO2.game.ekran()) EO2.game.close(); try { EO2.game.open(id); } catch (_) { } }, e); await dur(1500); });
 await adim('talim_ilk_tur', async () => { await p.evaluate(() => { if (EO2.game.ekran()) EO2.game.close(); EO2.topcu.baslat('talim'); }); await bekle('EO2.battle.active() && EO2.battle.state().faz === "nisan"', 60000); await dur(2500); });

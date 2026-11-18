@@ -47,10 +47,10 @@
 
   /* ---------- şerit: tek satır, kapatılabilir ---------- */
   const serit = document.createElement('div'); serit.className = 'rehber'; serit.hidden = true; serit.setAttribute('role', 'status'); serit.setAttribute('aria-live', 'polite');
-  serit.innerHTML = '<i class="rh-im" aria-hidden="true"></i><p></p><button type="button" class="rh-git"></button><button type="button" class="rh-kapat" aria-label="İpucunu kapat">×</button>';
+  serit.innerHTML = '<i class="rh-im" aria-hidden="true"></i><p></p><button type="button" class="rh-git"></button><button type="button" class="rh-gec" hidden>Öğreticiyi geç</button><button type="button" class="rh-kapat" aria-label="İpucunu kapat">×</button>';
   app.appendChild(serit);
   const sP = serit.querySelector('p'), sGit = serit.querySelector('.rh-git'); let simdi = null, sure = 0;
-  function goster(o) { if (simdi && simdi.id === o.id && simdi.metin === o.metin) return; simdi = o; clearTimeout(sure); sP.innerHTML = o.metin; sGit.hidden = !o.git; sGit.textContent = o.dugme || 'Git'; serit.dataset.tur = o.tur; serit.hidden = false; serit.classList.remove('gel'); void serit.offsetWidth; serit.classList.add('gel');
+  function goster(o) { if (simdi && simdi.id === o.id && simdi.metin === o.metin) return; simdi = o; clearTimeout(sure); sP.innerHTML = o.metin; sGit.hidden = !o.git; sGit.textContent = o.dugme || 'Git'; serit.dataset.tur = o.tur; serit.classList.toggle('kilit', !!o.kilit); serit.querySelector('.rh-gec').hidden = !o.kilit; serit.querySelector('.rh-kapat').hidden = !!o.kilit; serit.hidden = false; serit.classList.remove('gel'); void serit.offsetWidth; serit.classList.add('gel');
     if (o.sn) sure = setTimeout(() => { if (simdi === o) gizle(); }, o.sn * 1000);
     serit.classList.remove(...YERLER.filter(Boolean)); if (o.tur === 'ekran') for (const ms of [380, 1200]) setTimeout(() => { if (simdi === o) yerles(); }, ms); }
   /* ekran ipucu ekranın düğmelerini örtmez: altta bir düğmeye biniyorsa üste (başlığın altına) çıkar */
@@ -63,7 +63,8 @@
     for (const y of (innerWidth < innerHeight ? DIK : YERLER)) { serit.classList.remove(...adlar); if (y) serit.classList.add(y); if (!binen()) return; }
     serit.classList.remove(...adlar); serit.classList.add('yer-ust2'); }
   function gizle() { clearTimeout(sure); simdi = null; serit.hidden = true; }
-  serit.querySelector('.rh-kapat').addEventListener('click', () => { if (EO2.audio) EO2.audio.ui(); if (simdi) isaretle(simdi.id); gizle(); tazele(); });
+  serit.querySelector('.rh-kapat').addEventListener('click', () => { if (EO2.audio) EO2.audio.ui(); if (simdi && simdi.kilit) return; if (simdi) isaretle(simdi.id); gizle(); tazele(); });
+  serit.querySelector('.rh-gec').addEventListener('click', async () => { if (EO2.audio) EO2.audio.ui(); const v = await G.pen({ k: 'Öğretici', t: 'Öğreticiyi geçelim mi?', body: '<p>Her yer hemen açılır. İpuçları yine sırası gelince görünür.</p>', btns: [{ t: 'Öğreticiye dön', v: false }, { t: 'Geç', cls: 'altin', v: true }] }); if (v) kilitGec(); });
   sGit.addEventListener('click', () => { if (!simdi || !simdi.git) return; if (EO2.audio) EO2.audio.ui(); const g = simdi.git; if (simdi.tur === 'adim' && g === 'hafta') isaretle(simdi.id); ac(g); });
 
   /* ---------- ilk hafta adımları: durumdan okunur, sıradaki ilk uygun adım gösterilir ---------- */
@@ -81,6 +82,24 @@
     { id: 'a-bakim', k: () => S.week >= 2 && S.week <= 5 && (!S.st.talk || !S.st.feed), m: () => 'Ejderhanı besle ve onunla konuş; bağınız güçlenir.', dugme: 'Ejderhalar', git: 'ejderhalar' },
   ];
   const ADIM = ADIM0.map((a, n) => Object.assign({}, a, { m: () => '<small class="rh-sira" title="Öğretici">' + (n + 1) + ' / ' + ADIM0.length + '</small> ' + a.m() }));
+  /* ---------- İLK HAFTA KİLİDİ (kullanıcı kararı, 2026-11-18) ----------
+     İlk haftada oyuncu yalnız öğreticinin ilk üç adımını yapabilir: Kuluçka Ocağı'nı kur, ejderhana emir ver, haftayı bitir.
+     Bu sırada başka ekran açılmaz, ocaktan çıkılmaz, hafta erken bitirilmez; basılan yerde ne yapılacağı söylenir. İkinci haftada her şey açılır.
+     "Öğreticiyi geç" her zaman şeritte durur. Sonraki dört adım (harita, kuşam, arena, bakım) eskisi gibi öneridir, kilitlemez.
+     Otomatik denetimlerde (navigator.webdriver) kilit kapalıdır; gerçek akışı ölçen denetim window.__gercekAkis ile açar. */
+  const otoKip = () => !!navigator.webdriver && !window.__gercekAkis, KILIT_ADIM = ADIM0.slice(0, 3), ORTAK_EKRAN = ['menu', 'ayarlar', 'gorunus'];
+  const KILIT_IZIN = { 'a-kulucka': ['ocak', 'gorevler'], 'a-emir': ['ocak', 'gorevler', 'ejderhalar'], 'a-hafta': ['ocak', 'gorevler', 'ejderhalar'] };
+  function kilitAdim() { if (!G.live || typeof S === 'undefined' || !S || S.over || S.week !== 1 || gor['kilit-gec'] || otoKip()) return null;
+    if (EO2.ziyaret && EO2.ziyaret.evSahibi && EO2.ziyaret.evSahibi()) return null; try { return KILIT_ADIM.find(a => a.k()) || null; } catch (_) { return null; } }
+  let sonKilitUyari = 0;
+  function kilitUyar(a) { const t = Date.now(); if (t - sonKilitUyari < 1400) return; sonKilitUyari = t; de('Önce bunu bitirelim: ' + a.m(), 'goal'); serit.classList.remove('rh-salla'); void serit.offsetWidth; serit.classList.add('rh-salla'); tazele(); }
+  /* bir ekran, panel ya da yer kilit yüzünden kapalı mı? Kapalıysa oyuncuya söyler ve true döner. */
+  function kilitEngel(ad) { const a = kilitAdim(); if (!a) return false; if (ORTAK_EKRAN.includes(ad) || KILIT_IZIN[a.id].includes(ad)) return false; kilitUyar(a); return true; }
+  function kilitGec() { isaretle('kilit-gec'); gizle(); tazele(); de('Öğretici geçildi. Her yer açık.'); }
+  { const ac0 = G.open; G.open = function (id) { if (kilitEngel(id)) return; return ac0.apply(this, arguments); };
+    const hafta0 = G.endWeek; if (hafta0) G.endWeek = function () { const a = kilitAdim(); if (a && a.id !== 'a-hafta') { kilitUyar(a); return; } return hafta0.apply(this, arguments); };
+    EO2.kilitYer = id => { const a = kilitAdim(); if (!a || id === 'ocak') return false; kilitUyar(a); return true; }; }   /* game.js goScene buraya sorar */
+
   /* ---------- ekran ipuçları: ilk açılışta bir kez ---------- */
   const IPUCU = {
     ejderhalar: 'Her ejderhaya bir emir ver. Emirler hafta sonunda işlenir.',
@@ -99,8 +118,8 @@
   function tazele() { if (!G.live || typeof S === 'undefined' || !S || S.over) return gizle();
     if (simdi && simdi.tur !== 'adim') return;      // ekran ya da sahne ipucu görünürken adım araya girmez
     const e = G.ekran && G.ekran(); if (e) { if (simdi) gizle(); return; }
-    let a = null; try { a = ADIM.find(x => !gor[x.id] && x.k()); } catch (_) { a = null; }
-    if (!a) return gizle(); goster({ id: a.id, tur: 'adim', metin: a.m(), dugme: a.dugme, git: a.git }); }
+    const k = kilitAdim(); let a = null; try { a = k ? ADIM[ADIM0.indexOf(k)] : ADIM.find(x => !gor[x.id] && x.k()); } catch (_) { a = null; }
+    if (!a) return gizle(); goster({ id: a.id, tur: 'adim', metin: a.m(), dugme: a.dugme, git: a.git, kilit: !!k }); }
   function ekran(id) { if (!G.live) return;
     if (id && IPUCU[id] && !gor['e-' + id]) { isaretle('e-' + id); goster({ id: 'e-' + id, tur: 'ekran', metin: typeof IPUCU[id] === 'function' ? IPUCU[id]() : IPUCU[id], sn: 14 }); return; }
     if (simdi && simdi.tur === 'ekran') gizle(); if (!id) tazele(); else if (simdi) gizle(); }
@@ -119,5 +138,5 @@
     if (!n || !app.contains(n)) return; const neden = (n.dataset && n.dataset.neden) || n.getAttribute('title') || ''; if (!neden || neden.length < 4) return;
     const t = Date.now(); if (t - sonNeden < 1200) return; sonNeden = t; de(esc(neden)); }, true);
 
-  EO2.rehber = { git, ac, tazele, ekran, basla() { sonSahne = null; tazele(); }, sifirla() { gor = {}; yaz(); gizle(); }, gorulen: () => Object.assign({}, gor), simdi: () => simdi ? Object.assign({}, simdi) : null };
+  EO2.rehber = { git, ac, tazele, ekran, kilit: () => { const a = kilitAdim(); return a ? a.id : null; }, kilitEngel, kilitGec, basla() { sonSahne = null; tazele(); }, sifirla() { gor = {}; yaz(); gizle(); }, gorulen: () => Object.assign({}, gor), simdi: () => simdi ? Object.assign({}, simdi) : null };
 })();

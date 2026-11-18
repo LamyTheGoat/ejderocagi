@@ -23,6 +23,13 @@ try {
   log.ocakta = await bekle('EO2.api.scene() === "ocak" && !EO2.game.ekran()', 40000); await p.waitForTimeout(1500);
   log.ciplak = await p.evaluate(() => EO2.api.player.set === 'bare' && S.kusam.giyili === 'bare' && S.kusam.sahip.length === 1 && S.gorunus.sac === 'ikiz'); await cek('baslangic_2_ocak');
   log.ogretici = await p.evaluate(() => { const s = EO2.rehber.simdi(); return s ? s.metin.replace(/<[^>]+>/g, '') : ''; });
+  // ilk hafta kilidi: yalnız öğreticinin adımı yapılabilir. Başka ekran açılmaz, ocaktan çıkılmaz, hafta erken bitmez; şerit kapatılamaz ama "Öğreticiyi geç" vardır.
+  log.kilit = await p.evaluate(async () => { const R = EO2.rehber, o = {}; o.adim = R.kilit(); EO2.game.open('arena'); o.arenaKapali = !EO2.game.ekran(); EO2.game.open('harita'); o.haritaKapali = !EO2.game.ekran();
+    EO2.api.go('meydan'); await new Promise(r => setTimeout(r, 1500)); o.ocakta = EO2.api.scene() === 'ocak'; const h = S.week; EO2.game.endWeek(); await new Promise(r => setTimeout(r, 600)); o.haftaBitmedi = S.week === h && !document.querySelector('.gece, .pen-perde');
+    EO2.game.open('menu'); o.menuAcik = EO2.game.ekran() === 'menu'; EO2.game.close(); await new Promise(r => setTimeout(r, 700)); const s = document.querySelector('.rehber'); o.gecVar = !!s && !s.hidden && !s.querySelector('.rh-gec').hidden && s.querySelector('.rh-kapat').hidden; return o; });
+  await cek('baslangic_2a_kilit');
+  await p.locator('.rehber .rh-gec').click(); await p.waitForTimeout(400); await p.locator('.pen .gbtn:has-text("Geç")').last().click(); await p.waitForTimeout(600);
+  log.kilitAcildi = await p.evaluate(() => { const o = EO2.rehber.kilit() === null; EO2.game.open('arena'); const a = EO2.game.ekran() === 'arena'; EO2.game.close(); return o && a; }); await p.waitForTimeout(500);
   // öğretici zinciri: sahne ipucundan sonra ilk adım numarasıyla gelir; ikinci haftada harita adımı "Harita" düğmesiyle haritayı açar
   await p.evaluate(() => { const s = EO2.rehber.simdi(); if (s && s.tur !== 'adim') document.querySelector('.rehber .rh-kapat').click(); }); log.adim1 = await bekle('EO2.rehber.simdi() && EO2.rehber.simdi().tur === "adim" && EO2.rehber.simdi().metin.includes(">1 / 7<")', 15000); await cek('baslangic_2b_ogretici');
   log.adimHarita = await p.evaluate(async () => { const w = S.week, g = S.goals.slice(); S.week = 2; S.goals.push('kulucka'); EO2.rehber.tazele(); const s = EO2.rehber.simdi(), ok = !!s && s.metin.includes('>4 / 7<'); if (ok) document.querySelector('.rehber .rh-git').click(); await new Promise(r => setTimeout(r, 500)); const acildi = EO2.game.ekran() === 'harita'; EO2.game.close(); S.week = w; S.goals = g; EO2.rehber.tazele(); return ok && acildi; });
@@ -50,6 +57,7 @@ try {
   log.kayitli = await p.evaluate(() => EO2.api.player.set === 'temel' && S.kusam.sahip.join(',') === 'bare,temel,avci' && S.gorunus.sac === 'ikiz' && !EO2.game.ekran());
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && log.secimAcildi && log.ocakta && log.ciplak && !!log.ogretici && log.adim1 && log.adimHarita && log.kusamAcildi && log.deneme && log.alindi && log.pahali && log.grind && log.giyBare && log.giyTemel && log.haritaVar && log.haritaAcildi && log.meydanaGitti && log.ocagaDondu && log.yenidenOcakta && log.kayitli;
+const K = log.kilit || {};
+const ok = !hata.length && K.adim === 'a-kulucka' && K.arenaKapali && K.haritaKapali && K.ocakta && K.haftaBitmedi && K.menuAcik && K.gecVar && log.kilitAcildi && log.secimAcildi && log.ocakta && log.ciplak && !!log.ogretici && log.adim1 && log.adimHarita && log.kusamAcildi && log.deneme && log.alindi && log.pahali && log.grind && log.giyBare && log.giyTemel && log.haritaVar && log.haritaAcildi && log.meydanaGitti && log.ocagaDondu && log.yenidenOcakta && log.kayitli;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);
