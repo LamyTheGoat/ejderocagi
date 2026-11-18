@@ -125,7 +125,10 @@ if (acik) {
   // 4k5f) Kaldera ve Donanma grupla: zemin, düşman ve can iki ekranda aynı (iki tarayıcı)
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_zindan_eski_grup.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 580000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
-    yaz('Kaldera ve Donanma grupla (iki tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
+    /* tutmayan koşulu adıyla yazar (günlüğün başı her zaman geçen alanlarla doluydu); tam çıktı duman_eski_grup.json dosyasına yazılır */
+    const tutmayan = j && !j.ok ? Object.entries(j.log || {}).flatMap(([z, L]) => [...['gordu', 'davet', 'kamp'].filter(k => !L[k]).map(k => z + '.' + k), ...((L.asama || []).length === 2 ? [] : [z + ' aşama ' + (L.asama || []).length]), ...(L.asama || []).flatMap(S => ['savas', 'sira', 'ayniAcilis', 'denizVar', 'siraB', 'zeminOyuldu', 'zeminAyni', 'turDondu', 'yerAyni', 'canAyni', 'zeminAyni2', 'dusmanCanAyni', 'cark'].filter(k => !S[k]).map(k => z + '/' + S.ad + '.' + k))]) : [];
+    if (j && !j.ok) try { fs.writeFileSync(path.join(os.tmpdir(), 'duman_eski_grup.json'), r.stdout); } catch (_) { }
+    yaz('Kaldera ve Donanma grupla (iki tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : 'tutmayan: ' + (tutmayan.join(', ') || '?') + ' · tam çıktı: ' + path.join(os.tmpdir(), 'duman_eski_grup.json')) : String(r.stderr || '').slice(0, 200)); }
   // 4k5f2) ortak zindan üç kişiyle: sıra üç oyuncuyu dolaşır, zemin ve can üç ekranda aynı (üç tarayıcı)
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_zindan_uc.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 420000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
