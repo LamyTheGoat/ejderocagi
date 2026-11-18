@@ -10,6 +10,12 @@ COPY server ./server
 COPY img ./img
 COPY assets ./assets
 COPY sfx ./sfx
+# Ejder Ocağı 2.0: sayfa, betikler, stiller ve çizimler. Sunucu da eo2/js altından zindan ve arena verisini okur.
+# tools/, docs/, trailer/ ve arenalar/ (kaynak çizimler) pakete girmez.
+COPY eo2/index.html eo2/gizlilik.html eo2/kosullar.html ./eo2/
+COPY eo2/js ./eo2/js
+COPY eo2/css ./eo2/css
+COPY eo2/assets ./eo2/assets
 RUN mkdir -p /app/data
 
 # Canlı çok oyunculu veri kalıcılığı (Oyuncu Bedesteni, Kervanlar, Loncalar, Dünya Boss'u)

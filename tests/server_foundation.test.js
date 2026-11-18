@@ -23,8 +23,8 @@ async function startServer(dir) {
   });
   return {
     port: info.port,
-    async request(url, { cookie, method = 'GET', body, origin = ORIGIN } = {}) {
-      const response = await fetch(`http://127.0.0.1:${info.port}${url}`, { method, headers: {
+    async request(url, { cookie, method = 'GET', body, origin = ORIGIN, redirect = 'follow' } = {}) {
+      const response = await fetch(`http://127.0.0.1:${info.port}${url}`, { method, redirect, headers: {
         Origin: origin, ...(cookie ? { Cookie: cookie } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}),
       }, ...(body ? { body: JSON.stringify(body) } : {}) });
       const text = await response.text();
@@ -109,7 +109,8 @@ test('HTTP/WS identity, private files and economy isolation survive server resta
   for (const url of ['/server.js', '/server/economy_store.js', '/js/trade_engine.js', '/js/duel_server.js', '/js/duel_engine.js', '/data/world.json', '/data/economy.sqlite', '/data/economy.sqlite-wal', '/.git/config', '/package.json', '/tests/economy_store.test.js', '/.env']) {
     assert.equal((await server.request(url)).status, 404, url);
   }
-  for (const url of ['/', '/style.css', '/js/core.js', '/js/net.js', '/img/pose/meta.json']) assert.equal((await server.request(url)).status, 200, url);
+  { const ana = await server.request('/', { redirect: 'manual' }); assert.equal(ana.status, 302, 'ana adres 2.0 sayfasına yönlenir'); assert.equal(ana.headers.get('location'), '/eo2/'); assert.equal((await server.request('/eo2/')).status, 200); }
+  for (const url of ['/index.html', '/style.css', '/js/core.js', '/js/net.js', '/img/pose/meta.json']) assert.equal((await server.request(url)).status, 200, url);
   const maliciousName = '<script>alert(1)</script>';
   await server.request('/api/sync', { method: 'POST', cookie: a.cookie, body: { star: { name: maliciousName, st: {} } } });
   const card = await server.request('/share/card/' + encodeURIComponent(a.body.handle) + '.svg');

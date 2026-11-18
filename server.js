@@ -49,6 +49,7 @@ const ECONOMY = createEconomyStore();
 const GUEST_SESSIONS = createGuestSessions(ECONOMY, PUBLIC_URL, process.env.NODE_ENV === 'production');
 const zlib = require('node:zlib');
 const publicFile = createPublicFiles(__dirname, [DB_DIR]);
+const EO2_VAR = fs.existsSync(path.join(__dirname, 'eo2', 'index.html'));   // 2.0 sayfası pakette var mı (ana adres ona göre yönlenir)
 const REPORTS = require('./server/report_log').createReportLog(DB_DIR);
 const EO2_PAGE = require('./server/eo2_page').createEo2Page(__dirname, PUBLIC_URL);
 const SOSYAL = require('./server/social_service').createSocial({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS });
@@ -1418,7 +1419,12 @@ async function handleHttp(req, res) {
     return res.end(html);
   }
 
-  // 10b. Ana sayfa: OpenGraph etiketlerindeki mutlak adres için PUBLIC_URL yerleştirilir
+  // 10a. Ana adres Ejder Ocağı 2.0'ı açar (kullanıcı kararı, 2026-11-18): sorgu korunarak /eo2/ adresine yönlendirilir.
+  // 2.0 klasörü pakette yoksa (yalnız eski oyun kurulmuşsa) yönlendirme yapılmaz, eski oyun açılır.
+  if (pathname === '/' && EO2_VAR) { res.writeHead(302, { Location: '/eo2/' + (parsedUrl.search || ''), 'Cache-Control': 'no-cache' }); return res.end(); }
+  if (pathname === '/eski' || pathname === '/eski/') { res.writeHead(302, { Location: '/index.html', 'Cache-Control': 'no-cache' }); return res.end(); }
+
+  // 10b. Eski oyunun sayfası: OpenGraph etiketlerindeki mutlak adres için PUBLIC_URL yerleştirilir
   if (pathname === '/' || pathname === '/index.html') {
     try {
       const raw = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8').split('__PUBLIC_URL__').join(PUBLIC_URL);
