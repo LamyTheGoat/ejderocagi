@@ -88,7 +88,7 @@
      "Öğreticiyi geç" her zaman şeritte durur. Sonraki dört adım (harita, kuşam, arena, bakım) eskisi gibi öneridir, kilitlemez.
      Otomatik denetimlerde (navigator.webdriver) kilit kapalıdır; gerçek akışı ölçen denetim window.__gercekAkis ile açar. */
   const otoKip = () => !!navigator.webdriver && !window.__gercekAkis, KILIT_ADIM = ADIM0.slice(0, 3), ORTAK_EKRAN = ['menu', 'ayarlar', 'gorunus'];
-  const KILIT_IZIN = { 'a-kulucka': ['ocak', 'gorevler'], 'a-emir': ['ocak', 'gorevler', 'ejderhalar'], 'a-hafta': ['ocak', 'gorevler', 'ejderhalar'] };
+  const KILIT_IZIN = { 'a-kulucka': ['ocak', 'gorevler', 'kur:kulucka'], 'a-emir': ['ocak', 'gorevler', 'ejderhalar'], 'a-hafta': ['ocak', 'gorevler', 'ejderhalar'] };
   function kilitAdim() { if (!G.live || typeof S === 'undefined' || !S || S.over || S.week !== 1 || gor['kilit-gec'] || otoKip()) return null;
     if (EO2.ziyaret && EO2.ziyaret.evSahibi && EO2.ziyaret.evSahibi()) return null; try { return KILIT_ADIM.find(a => a.k()) || null; } catch (_) { return null; } }
   let sonKilitUyari = 0;

@@ -64,7 +64,7 @@
   const heybe = () => { if (typeof S === 'undefined' || !S) return {}; S.topcu = S.topcu || {}; S.topcu.ganimet = S.topcu.ganimet || {}; return S.topcu.ganimet; };
   const malzVar = K => Object.keys(K[4] || {}).every(m => (heybe()[m] | 0) >= K[4][m]), yeter = K => S.gold >= K[2] && malzVar(K);
   const malzHtml = K => Object.keys(K[4] || {}).map(m => '<i class="gr-malz' + ((heybe()[m] | 0) >= K[4][m] ? '' : ' eksik') + '">' + esc_(MALZ_AD[m] || m) + ' <b>' + (heybe()[m] | 0) + ' / ' + K[4][m] + '</b></i>').join('');
-  function satinAl(set) { const k = ks(), K = KUSAM.find(x => x[0] === set); if (!K || k.sahip.includes(set) || !yeter(K)) return false; S.gold -= K[2]; for (const m in K[4]) heybe()[m] = (heybe()[m] | 0) - K[4][m]; k.sahip.push(set); k.giyili = set; kaydet(); if (G.hud) G.hud(); uygula(); return true; }
+  function satinAl(set) { const k = ks(), K = KUSAM.find(x => x[0] === set); if (!K || k.sahip.includes(set) || !yeter(K)) return false; if (EO2.rehber && EO2.rehber.kilitEngel && EO2.rehber.kilitEngel('kusam-al')) return false; S.gold -= K[2]; for (const m in K[4]) heybe()[m] = (heybe()[m] | 0) - K[4][m]; k.sahip.push(set); k.giyili = set; kaydet(); if (G.hud) G.hud(); uygula(); return true; }
 
   /* ---------- oyuncunun kendi görünüşü ---------- */
   const benim = () => temiz(typeof S !== 'undefined' && S && S.gorunus);

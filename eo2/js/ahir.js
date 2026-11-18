@@ -110,7 +110,7 @@
       '<div class="ah-tepsi' + (mod ? ' acik' : '') + ' m-' + (mod || 'yok') + '">' + tray(d) + '</div>' +
       '<nav class="ah-dok' + (busyMod ? ' gizli' : '') + '">' + DOK.map(k => '<button type="button" data-mod="' + k[0] + '" aria-pressed="' + (mod === k[0]) + '"><i><img alt="" src="' + OLD + k[2] + '"></i><span>' + k[1] + '</span>' + (k[0] === 'antrenman' && T[2] === 'bos' ? '<b>!</b>' : k[0] === 'bakim' && dirt >= 40 ? '<b>!</b>' : '') + '</button>').join('') + '</nav>';
     on(body, '[data-id]', b => { UI.sel = +b.dataset.id; render(); });
-    on(body, '[data-mod]', b => { const m = b.dataset.mod; mod = mod === m ? null : m; WASH = null; PLAY = null; slotSel = null; render(); });
+    on(body, '[data-mod]', b => { const m = b.dataset.mod; if (m !== 'antrenman' && m !== 'bilgi' && EO2.rehber && EO2.rehber.kilitEngel && EO2.rehber.kilitEngel('ahir:' + m)) return; mod = mod === m ? null : m; WASH = null; PLAY = null; slotSel = null; render(); });
     on(body, '[data-style]', b => { d.style = b.dataset.style; afterAction(); });
     const seal = () => { if (FX()) FX().stars('.ah-emir', 10); const e = document.querySelector('.ah-emir'); if (e) { e.classList.remove('zipla'); void e.offsetWidth; e.classList.add('zipla'); } react('hop'); };
     on(body, '[data-train]', b => { const k = b.dataset.train; if (d.task && d.task.t === 'train' && d.task.k === k) d.task = null; else { clearPartner(d); d.task = { t: 'train', k }; } afterAction(); if (d.task) seal(); });

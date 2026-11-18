@@ -176,3 +176,6 @@
 .ui2 .rehber .rh-gec { flex: none; margin-left: .2em; padding: .2em .6em; border: 0; background: none; font: 600 .82em var(--f-ui); color: #c9d2ea; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; white-space: nowrap; } .ui2 .rehber .rh-gec:hover { color: #fff; } .ui2 .rehber .rh-gec[hidden], .ui2 .rehber .rh-kapat[hidden] { display: none; }
 .ui2 .rehber.kilit { box-shadow: 0 0 0 2px rgba(255, 215, 106, .75), 0 .5em 1.4em rgba(4, 6, 20, .55); } .ui2 .rehber.rh-salla { animation: rh-salla .45s ease-out; } @keyframes rh-salla { 20% { transform: translateX(calc(-50% - .5em)); } 45% { transform: translateX(calc(-50% + .45em)); } 70% { transform: translateX(calc(-50% - .25em)); } }
 @media (pointer: coarse) { .ui2 .rehber .rh-gec { min-height: 44px; } } @media (prefers-reduced-motion: reduce) { .ui2 .rehber.rh-salla { animation: none; } }
+
+/* ilk hafta kilidi: ocakta kurulamayan yapılar soluk durur */
+.ui2 .ocp-yapi.kilitli { opacity: .38; filter: saturate(.4); }
