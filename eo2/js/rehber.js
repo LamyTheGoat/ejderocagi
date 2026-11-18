@@ -77,7 +77,7 @@
     { id: 'a-hafta', k: () => S.week === 1 && !bos(), m: () => 'Emirler hazır. <b>Haftayı Bitir</b> ile geceyi getir.', dugme: 'Göster', git: 'hafta' },
     { id: 'a-harita', k: () => S.week >= 2 && S.week <= 5 && !!EO2.harita, m: () => '<b>Mini haritaya</b> dokun: kasabada hızlı seyahat et.', dugme: 'Harita', git: 'harita' },
     { id: 'a-kusam', k: () => S.week >= 2 && S.week <= 6 && kusamTek() && S.gold >= 120, m: () => 'Hâlâ çıplaksın. <b>Portrene</b> dokun, ilk zırhını al.', dugme: 'Kuşam', git: 'gorunus' },
-    { id: 'a-arena', k: () => S.week >= 2 && S.week <= 5 && !S.st.fights, m: () => 'Köy Arenası\'nda ilk dövüşüne çık.', dugme: 'Arena', git: 'arena' },
+    { id: 'a-arena', k: () => S.week >= 2 && S.week <= 5 && !S.st.fights, m: () => '<b>Ejder Arenası</b>\'nda ilk dövüşüne çık.', dugme: 'Arena', git: 'arena' },
     { id: 'a-bakim', k: () => S.week >= 2 && S.week <= 5 && (!S.st.talk || !S.st.feed), m: () => 'Ejderhanı besle ve onunla konuş; bağınız güçlenir.', dugme: 'Ejderhalar', git: 'ejderhalar' },
   ];
   const ADIM = ADIM0.map((a, n) => Object.assign({}, a, { m: () => '<small class="rh-sira" title="Öğretici">' + (n + 1) + ' / ' + ADIM0.length + '</small> ' + a.m() }));
@@ -86,7 +86,7 @@
     ejderhalar: 'Her ejderhaya bir emir ver. Emirler hafta sonunda işlenir.',
     /* ipucu sekme değişince ekranda kalır: her sekmede doğru olan söz (Er Meydanı ödülsüzdür) */
     ors: 'Bedeli öde, ibre altın kora gelince çekici indir. Üç darbe; kademe yükseldikçe risk büyür.',
-    arena: 'Bir rakip seç ve Meydan oku. Arenalar ün ve altın getirir; Er Meydanı dostça oynanır.',
+    arena: 'Burada ejderhan dövüşür. Bir rakip seç, Meydan oku. Kazanırsan altın ve ün gelir; Dost Dövüşü ödülsüzdür.',
     yuva: 'İki yetişkini gezintiye çıkar; yakınlaştıkça çiftleşebilirler.',
     pazar: 'Bir tezgâh seç. Yem, yumurta ve kuşam burada satılır.',
     sefer: 'Bir bölge seç ve boştaki ejderhanla yola çık.',

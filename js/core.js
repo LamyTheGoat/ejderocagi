@@ -832,7 +832,7 @@ function deathRisk(d, base) {
 /* ---------- Hedefler ---------- */
 const GOALS = [
   { id: 'kulucka', t: 'Kuluçka Ocağı kur, dedenin yumurtasını içine yerleştir', c: () => S.eggs.some(e => e.inK) || S.st.hatch > 0, r: 40 },
-  { id: 'train', t: 'Kor\'a bir antrenman ver ve haftayı bitir', c: () => S.st.train > 0, r: 30 },
+  { id: 'train', t: 'Kor\'a bir antrenman emri ver ve haftayı bitir', c: () => S.st.train > 0, r: 30 },
   { id: 'win1', t: 'Köy Arenası\'nda ilk zaferini kazan', c: () => S.st.wins > 0, r: 50 },
   { id: 'talk', t: 'Bir ejderhanla konuş ve ona ikramda bulun', c: () => S.st.talk > 0 && S.st.feed > 0, r: 30 },
   { id: 'acq', t: 'Pazardan ya da seferden yeni bir ejderha edin', c: () => S.st.acq > 0, r: 60 },

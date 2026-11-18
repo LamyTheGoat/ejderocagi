@@ -13,7 +13,7 @@ const gir = async ad => { const p = await (await b.newContext({ viewport: { widt
   await p.locator('.giris .gbtn:has-text("Yeni ocak kur")').first().click(); await p.waitForTimeout(400);
   await p.locator('.pen input').first().fill(ad).catch(() => { }); await p.locator('.pen .gbtn:has-text("Ocağa gir")').first().click(); await p.waitForTimeout(3000); await bekle(p, 'EO2.ag.cevrimici()');
   await p.evaluate(() => { window.__fastFx = true; EO2.game.open('arena'); }); await p.waitForTimeout(800);
-  await p.locator('#scr button:has-text("Er Meydanı")').first().click(); await p.waitForTimeout(1200); return p; };
+  await p.locator('#scr button:has-text("Dost Dövüşü")').first().click(); await p.waitForTimeout(1200); return p; };
 try {
   const A = await gir('Aylin'), B = await gir('Bora'), altin0 = [await A.evaluate(() => S.gold), await B.evaluate(() => S.gold)];
   log.meydanda = await bekle(A, 'document.querySelectorAll("[data-ersec]").length >= 1', 30000) && await bekle(B, 'document.querySelectorAll("[data-ersec]").length >= 1', 30000);
@@ -32,7 +32,7 @@ try {
   if (ekran) await A.screenshot({ path: path.join(ekran, 'er_3_sonuc.png') });
   log.tutarli = (sa === 'zafer' && sb === 'yenilgi') || (sa === 'yenilgi' && sb === 'zafer') || (sa === 'berabere' && sb === 'berabere');
   // ikinci yol: sancak. İkisi meydana döner; A sancağını diker, B onu seçip sancağına katılır; dövüş açılır, A teslim olur
-  for (const p of [A, B]) { await p.locator('.pen .gbtn:has-text("Er Meydanı")').first().click().catch(() => { }); await p.waitForTimeout(900); }
+  for (const p of [A, B]) { await p.locator('.pen .gbtn:has-text("Dost Dövüşü")').first().click().catch(() => { }); await p.waitForTimeout(900); }
   log.meydanaDondu = await bekle(A, 'document.querySelector("[data-er=\\"room_open\\"]") && !document.getElementById("dov")', 30000) && await bekle(B, 'document.querySelectorAll("[data-ersec]").length >= 1 && !document.getElementById("dov")', 30000);
   await A.locator('[data-er="room_open"]').click();
   log.sancakGorundu = await bekle(B, 'document.querySelector("[data-ersec].er-room")', 30000);
@@ -45,7 +45,7 @@ try {
   const son = async p => { for (let i = 0; i < 60; i++) { const t = await p.evaluate(() => [...document.querySelectorAll('.pen')].map(x => x.textContent).join(' ')); if (/Zafer|Yenilgi|Teslim/.test(t) && !/teslim olacak|Teslim olursan/i.test(t)) return /Zafer/.test(t) ? 'zafer' : 'yenilgi'; await p.waitForTimeout(500); } return 'bitmedi'; };
   log.sancakSonuc = await Promise.all([son(A), son(B)]);
   // üçüncü yol: meydan okuma daveti. İkisi meydana döner; B, A'yı seçip "Meydan oku" der; A'ya davet penceresi gelir, kabul eder; dövüş açılır, B teslim olur
-  for (const p of [A, B]) { await p.locator('.pen .gbtn:has-text("Er Meydanı")').first().click().catch(() => { }); await p.waitForTimeout(900); }
+  for (const p of [A, B]) { await p.locator('.pen .gbtn:has-text("Dost Dövüşü")').first().click().catch(() => { }); await p.waitForTimeout(900); }
   log.davetMeydan = await bekle(B, 'document.querySelectorAll("[data-ersec]").length >= 1 && !document.getElementById("dov") && !document.querySelector(".pen")', 30000) && await bekle(A, '!document.getElementById("dov") && !document.querySelector(".pen")', 30000);
   await B.locator('[data-ersec]').first().click(); await B.waitForTimeout(500);
   log.davetDugmesi = await B.locator('[data-er="invite"]').count() === 1; if (log.davetDugmesi) await B.locator('[data-er="invite"]').click();

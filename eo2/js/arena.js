@@ -4,7 +4,7 @@
    ALTIN SUNUCUDADIR (eo2/js/ag.js, server/arena_service.js): kademe, turnuva ve Gök Kulesi dövüşleri sunucuda açılır (arena.open), turlar
    sunucunun tohumuyla oynanır, bitince yalnız hamle listesi gider (arena.settle); sunucu dövüşü yeniden oynatıp ödülü kendi yazar.
    Bu dosya arena altınını yerel keseye YAZMAZ. Sunucu yoksa dövüş oynanır, altın ödülü yazılmaz ve ekranda söylenir.
-   Er Meydanı (oyuncuya karşı dostça düello) aynı dövüş sahnesinde oynanır; hamleler sunucuya gider, ödül yoktur. */
+   Dost Dövüşü (oyuncuya karşı dostça düello) aynı dövüş sahnesinde oynanır; hamleler sunucuya gider, ödül yoktur. */
 (function () {
   'use strict';
   const EO2 = window.EO2, G = EO2.game, el = G.el, app = document.getElementById('app');
@@ -62,7 +62,7 @@
 
   /* ---------- dövüş sahnesi ---------- */
   const can = x => { const p = FT.F.p; if (x === 'pence' || x === 'savun' || x === 'teslim') return true; if (x === 'nefes') return p.sta >= NEFES_COST; if (x === 'kukre') return p.sta >= 15; if (x.startsWith('card:')) { const k = x.slice(5); return p.cards.includes(k) && !(p.used || []).includes(k); } return false; };
-  /* terbiyeciler: dövüşte iki tarafın terbiyecisi avatarıyla görünür. Oyuncu kendi kuşam setiyle; öteki oyuncu (Er Meydanı)
+  /* terbiyeciler: dövüşte iki tarafın terbiyecisi avatarıyla görünür. Oyuncu kendi kuşam setiyle; öteki oyuncu (Dost Dövüşü)
      bildirdiği setle; yapay rakibin terbiyecisi adından türetilen sabit bir setle (aynı rakip hep aynı görünür). */
   const SETLER = () => Object.keys((EO2.api && EO2.api.sets) || {}).filter(k => k !== 'bare');
   const adKarma = s => { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
@@ -200,12 +200,12 @@
     return sunucuAc().then(fightUI); }
   function startTour(d) { const T = S.tour; d.tourW = d.tourW || {}; if (d.tourW[T.id] == null) d.tourW[T.id] = 0; if (typeof careerCheck === 'function') careerCheck(false); T.dragon = d.id; T.round = 0; T.hp = null; d.task = { t: 'done', what: ek(T.ad, 'loc') + ' dövüştü' }; tourRound(); }
   EO2.arena = { fight: () => FT, act, er: () => ER,
-    /* meydandaki oyuncu kartından: Er Meydanı (canlı ejderha düellosu) o oyuncu seçili olarak açılır. Oyuncu lobideyse "Meydan oku"
+    /* meydandaki oyuncu kartından: Dost Dövüşü (canlı ejderha düellosu) o oyuncu seçili olarak açılır. Oyuncu lobideyse "Meydan oku"
        düğmesi hazırdır; değilse listede görünmez ve bunu söyleriz (düello için iki tarafın da ejderhasıyla meydana girmesi gerekir). */
     erCagir(h, ad) { if (!G.live || FT) return; UI.arenaTier = 'er'; ER.sec = h; G.open('arena');
-      setTimeout(() => { const var_ = ER.lobi && ER.lobi.players.some(p => p.handle === h); toast(var_ ? esc(ad || 'Terbiyeci') + ' Er Meydanı\'nda. <b>Meydan oku</b> ile çağır.' : esc(ad || 'Terbiyeci') + ' henüz Er Meydanı\'na girmemiş. Sohbetten çağır; Arena → Er Meydanı\'na gelince burada görünür.'); }, 1200); } };
+      setTimeout(() => { const var_ = ER.lobi && ER.lobi.players.some(p => p.handle === h); toast(var_ ? esc(ad || 'Terbiyeci') + ' Dost Dövüşü\'nde. <b>Meydan oku</b> ile çağır.' : esc(ad || 'Terbiyeci') + ' henüz Dost Dövüşü\'ne girmemiş. Sohbetten çağır; Arena → Dost Dövüşü\'ne gelince burada görünür.'); }, 1200); } };
 
-  /* ================= Er Meydanı: oyuncuya karşı dostça düello =================
+  /* ================= Dost Dövüşü: oyuncuya karşı dostça düello =================
      Görev bulucu mantığı: lobiye ejderhanla girersin; kuyruğa girer (eşleşince dövüş kendiliğinden açılır), sancak diker
      (açık oda; ilk gelenle dövüşürsün), dikili bir sancağa katılır ya da birine meydan okursun. Dövüş bu dosyadaki sahnede
      oynanır; iki taraf hamlesini sunucuya yollar, turu sunucu çözer (js/duel_engine.js), iki ekran aynı sonucu oynatır.
@@ -229,10 +229,10 @@
     if (ER.sec && !diger.find(p => p.handle === ER.sec)) ER.sec = null; if (!ER.sec && diger.length) ER.sec = (diger.find(p => p.status === 'room') || diger[0]).handle;
     const r = diger.find(p => p.handle === ER.sec) || null, guc = f ? pw(f) : 0;
     const muhur = st === 'found' ? ['kolay ara', 'Rakip bulundu'] : st === 'queue' ? ['denk ara', 'Eşleşme aranıyor'] : st === 'room' ? ['kolay ara', 'Sancağın dikili · rakip bekleniyor'] : r ? [r.power > guc * 1.25 ? 'olum' : r.power > guc * 1.05 ? 'zor' : r.power > guc * 0.82 ? 'denk' : 'kolay', 'Güç ' + guc + ' · ' + r.power] : ['denk', 'Meydan boş'];
-    body.innerHTML = sekme + '<div class="ag-rozet ' + (acik ? 'acik' : 'kapali') + '"><i></i>' + (acik ? 'Dostça düello · ödül yok' : 'Bağlantı yok: Er Meydanı kapalı') + '</div>' +
+    body.innerHTML = sekme + '<div class="ag-rozet ' + (acik ? 'acik' : 'kapali') + '"><i></i>' + (acik ? 'Dostça düello · ödül yok' : 'Bağlantı yok: Dost Dövüşü kapalı') + '</div>' +
       '<div class="ar-ben" style="--el:' + (f ? G.ELC[f.el] : '#888') + '">' + (f ? '<img class="ar-ej" alt="" src="' + G.img(f) + '"><div class="ar-ad"><span class="ust">' + STAGE_AD[f.stage] + ' · ' + EL_AD[f.el] + '</span><h2>' + esc(f.name) + '</h2><small>Güç ' + guc + ' · ' + esc(ben || '') + '</small></div>' : '<p class="ah-not">Boşta dövüşçü yok: ejderlerin görevde ya da sakat.</p>') + '</div>' +
       (elig.length > 1 ? '<div class="ar-kadro">' + elig.map(d => '<button type="button" class="madalyon ejm" data-sel="' + d.id + '" aria-pressed="' + (d.id === UI.arenaSel) + '" title="' + esc(d.name) + '"' + (st === 'queue' || st === 'room' || st === 'found' ? ' disabled' : '') + '><img alt="" src="' + G.img(d) + '" style="background:radial-gradient(circle at 50% 40%, color-mix(in srgb, ' + G.ELC[d.el] + ' 55%, #151a2c), #151a2c 80%)"><span>' + esc(d.name) + '</span></button>').join('') + '</div>' : '') +
-      (!acik ? '<div class="ar-kilit"><i></i><p>Er Meydanı sunucuya bağlanınca açılır.<br>Şu an çevrimdışısın.</p><button type="button" class="gbtn altin" data-er="baglan">Yeniden bağlan</button></div>' :
+      (!acik ? '<div class="ar-kilit"><i></i><p>Dost Dövüşü sunucuya bağlanınca açılır.<br>Şu an çevrimdışısın.</p><button type="button" class="gbtn altin" data-er="baglan">Yeniden bağlan</button></div>' :
         (r ? '<div class="ar-rakip" style="--el:' + G.ELC[r.dragon.el] + '"><img class="ar-ej" alt="" src="' + G.img(r.dragon) + '"><div class="ar-ad"><span class="ust">' + esc(r.handle) + ' · ' + ET[r.status] + '</span><h2>' + esc(r.dragon.name) + '</h2><small><span class="etk el-' + r.dragon.el + '">' + EL_AD[r.dragon.el] + '</span>' + (elMult(f ? f.el : 'ates', r.dragon.el) > 1 ? '<span class="etk iyi">üstünsün</span>' : f && elMult(r.dragon.el, f.el) > 1 ? '<span class="etk kotu">dezavantaj</span>' : '') + '</small></div></div>'
            : '<div class="ar-rakip er-bos"><div class="er-siluet"></div><p>Meydanda senden başka terbiyeci yok.<br>Kuyruğa gir ya da sancağını dik; biri gelince dövüş kendiliğinden açılır.</p></div>') +
         '<div class="ar-orta er-orta"><i class="vs2">VS</i><span class="damga2 ' + muhur[0] + '">' + muhur[1] + '</span></div>' +
@@ -259,9 +259,9 @@
     if (FT) return EO2.ag.gonder({ type: 'duel_leave', roomId: m.roomId });
     if (ER.davet) { ER.davet(false); ER.davet = null; }
     const d = byId(ER.girdi) || byId(UI.arenaSel) || S.dragons[0];
-    FT = { mode: 'mp', F: cevir(m.fight, rol), d, opp: rakip.dragon, rakip: rakip.handle, oda: m.roomId, rol, log: [], auto: false, busy: false, bekle: (m.submitted || []).includes(m.you), title: 'Er Meydanı · ' + rakip.handle };
+    FT = { mode: 'mp', F: cevir(m.fight, rol), d, opp: rakip.dragon, rakip: rakip.handle, oda: m.roomId, rol, log: [], auto: false, busy: false, bekle: (m.submitted || []).includes(m.you), title: 'Dost Dövüşü · ' + rakip.handle };
     /* öteki oyuncu meydanda görünüyorsa adı ve kuşam seti oradan alınır: dövüşte kendi avatarıyla durur */
-    { const K = EO2.meydanAg && EO2.meydanAg.kisiler, c = K ? [...K.values()].find(x => x.handle === rakip.handle) : null; FT.rakipAd = c ? c.name : rakip.handle; if (c) FT.rakipSet = c.set; FT.rakipH = rakip.handle; if (c) FT.title = 'Er Meydanı · ' + c.name; }
+    { const K = EO2.meydanAg && EO2.meydanAg.kisiler, c = K ? [...K.values()].find(x => x.handle === rakip.handle) : null; FT.rakipAd = c ? c.name : rakip.handle; if (c) FT.rakipSet = c.set; FT.rakipH = rakip.handle; if (c) FT.title = 'Dost Dövüşü · ' + c.name; }
     FT.log.push({ t: '<b>' + esc(rakip.handle) + '</b> ile dostça düello. ' + (m.via === 'queue' ? 'Kuyruk eşleştirdi.' : m.via === 'room' ? 'Sancak karşılık buldu.' : 'Meydan okuma kabul edildi.') + ' Ödül yok; iki taraf hamlesini seçince tur çözülür.', c: 'soluk' });
     void ben; G.close(); fightUI(); }
   function mpHamle(x) { if (FT.bekle) return; if (!EO2.ag.gonder({ type: 'duel_action', roomId: FT.oda, round: FT.F.round + 1, action: x })) { logLine({ t: 'Bağlantı yok; hamle gönderilemedi.', c: 'kotu' }); return; } FT.bekle = true; paint(); }
@@ -274,7 +274,7 @@
     lines.push(berabere ? '<b>Berabere.</b> İki taraf da meydandan çekildi.' : won ? '<b class="iyi">Zafer!</b> ' + (kopan ? esc(FT.rakip) + ' meydanı bıraktı.' : F.surrender ? esc(FT.rakip) + ' teslim oldu.' : esc(FT.opp.name) + ' yere serildi.') : '<span class="kotu">Yenilgi.</span> ' + (kopan ? 'Meydanı bıraktın.' : F.surrender ? 'Teslim oldun.' : esc(d.name) + ' bu kez geride kaldı.'));
     lines.push('Dostça düello: altın, ün ve ganimet yazılmaz. ' + esc(d.name) + ' yorulmadı, yaralanmadı.');
     paint(); if (EO2.audio) (won ? EO2.audio.win || EO2.audio.chime : EO2.audio.pop)(); await wait(500);
-    await G.pen({ k: FT.title, t: berabere ? 'Berabere' : won ? 'Zafer' : F.surrender && !kopan ? 'Teslim' : 'Yenilgi', face: G.img(d), body: '<div class="rap">' + lines.map(l => '<div class="genel"><span>' + l + '</span></div>').join('') + '</div>', btns: [{ t: 'Er Meydanı\'na dön', cls: 'altin' }] });
+    await G.pen({ k: FT.title, t: berabere ? 'Berabere' : won ? 'Zafer' : F.surrender && !kopan ? 'Teslim' : 'Yenilgi', face: G.img(d), body: '<div class="rap">' + lines.map(l => '<div class="genel"><span>' + l + '</span></div>').join('') + '</div>', btns: [{ t: 'Dost Dövüşü\'ne dön', cls: 'altin' }] });
     closeFight(); ER.girdi = null; UI.arenaTier = 'er'; G.open('arena'); }
 
   /* ---------- ağ olayları ---------- */
@@ -284,7 +284,7 @@
     /* kuyruk eşleşmesi: "rakip bulundu" onayı ve geri sayım; iki taraf onaylayınca sunucu odayı açar */
     A.dinle('duel_match_found', async m => { if (ER.bulundu || FT) return erIste('ready', { matchId: m.matchId, accept: false });
       const sure = Math.max(1, Math.round((m.readyMs || 12000) / 1000)), o = m.opponent; let t = null;
-      const yanit = await G.pen({ k: 'Er Meydanı · kuyruk', t: 'Rakip bulundu', face: G.img(o.dragon), body: '<p><b>' + esc(o.dragon.name) + '</b> · ' + esc(o.handle) + ' · Güç ' + o.power + '</p><p>Meydana çıkmak için <b class="au" id="erSayac">' + sure + '</b> saniyen var. Dostça düello: ödül yok.</p>',
+      const yanit = await G.pen({ k: 'Dost Dövüşü · kuyruk', t: 'Rakip bulundu', face: G.img(o.dragon), body: '<p><b>' + esc(o.dragon.name) + '</b> · ' + esc(o.handle) + ' · Güç ' + o.power + '</p><p>Meydana çıkmak için <b class="au" id="erSayac">' + sure + '</b> saniyen var. Dostça düello: ödül yok.</p>',
         btns: [{ t: 'Vazgeç', v: false }, { t: 'Meydana çık', cls: 'altin', v: true }], on: (pen, done) => { ER.bulundu = done; let k = sure; t = setInterval(() => { k--; const e = pen.querySelector('#erSayac'); if (e) e.textContent = Math.max(0, k); if (k <= 0) clearInterval(t); }, 1000); } });
       clearInterval(t); ER.bulundu = null; if (yanit === 'iptal') return;
       erIste('ready', { matchId: m.matchId, accept: !!yanit }); if (yanit) toast('Hazırsın. Rakibin onayı bekleniyor.', 'iyi'); });
@@ -296,25 +296,25 @@
     A.dinle('duel_waiting', m => { if (FT && FT.mode === 'mp' && FT.oda === m.roomId && !FT.busy) { FT.bekle = (m.submitted || []).includes(benim()); paint(); } });
     A.dinle('duel_opponent_disconnected', m => { if (FT && FT.mode === 'mp' && FT.oda === m.roomId) logLine({ t: 'Rakibin bağlantısı koptu. ' + Math.round((m.graceMs || 30000) / 1000) + ' saniye içinde dönmezse meydan senin.', c: 'soluk' }); });
     A.dinle('duel_opponent_reconnected', m => { if (FT && FT.mode === 'mp' && FT.oda === m.roomId) logLine({ t: 'Rakip geri döndü.', c: 'soluk' }); });
-    A.dinle('duel_error', m => { if (FT && FT.mode === 'mp') { FT.bekle = (m.submitted || []).includes(benim()); logLine({ t: esc(m.message || 'Düello hatası'), c: 'kotu' }); paint(); } else { if (m.code === 'lobby_required' || m.code === 'sync_required') ER.girdi = null; toast(esc(m.message || 'Er Meydanı isteği reddedildi.'), 'kotu'); erTazele(); } });
+    A.dinle('duel_error', m => { if (FT && FT.mode === 'mp') { FT.bekle = (m.submitted || []).includes(benim()); logLine({ t: esc(m.message || 'Düello hatası'), c: 'kotu' }); paint(); } else { if (m.code === 'lobby_required' || m.code === 'sync_required') ER.girdi = null; toast(esc(m.message || 'Dost Dövüşü isteği reddedildi.'), 'kotu'); erTazele(); } });
     A.dinle('duel_invite_sent', () => {});
     A.dinle('duel_invite_result', m => { if (ER.davet && m.from) { ER.davet(false); ER.davet = null; } if (m.status === 'rejected') toast(esc(m.from || 'Rakip') + ' meydan okumanı geri çevirdi.', 'kotu'); else if (m.status === 'expired' && m.to) toast('Meydan okuman yanıtsız kaldı.', 'kotu'); });
     A.dinle('duel_invite', async m => { if (m.ranked) return;                      // ödüllü oda 2.0'da açık değil
       if (FT || !G.live || !G.sakin() || ER.davet) return A.gonder({ type: 'duel_invite_reply', inviteId: m.id, accept: false });
-      const kabul = await G.pen({ k: 'Er Meydanı · dostça düello', t: esc(m.from) + ' meydan okuyor', face: m.dragon ? G.img(m.dragon) : null, body: '<p><b>' + esc(m.dragon ? m.dragon.name : 'Ejderhası') + '</b> ile karşına çıkmak istiyor. Dostça düello: ödül yok, kimse yaralanmaz.</p>', btns: [{ t: 'Geri çevir', v: false }, { t: 'Kabul et', cls: 'altin', v: true }], on: (p, done) => { ER.davet = done; } });
+      const kabul = await G.pen({ k: 'Dost Dövüşü · dostça düello', t: esc(m.from) + ' meydan okuyor', face: m.dragon ? G.img(m.dragon) : null, body: '<p><b>' + esc(m.dragon ? m.dragon.name : 'Ejderhası') + '</b> ile karşına çıkmak istiyor. Dostça düello: ödül yok, kimse yaralanmaz.</p>', btns: [{ t: 'Geri çevir', v: false }, { t: 'Kabul et', cls: 'altin', v: true }], on: (p, done) => { ER.davet = done; } });
       ER.davet = null; A.gonder({ type: 'duel_invite_reply', inviteId: m.id, accept: !!kabul }); });
     A.dinle('kanal_kapandi', () => { if (FT && FT.mode === 'mp') logLine({ t: 'Sunucu bağlantısı koptu; yeniden bağlanılıyor.', c: 'kotu' }); });
   }
   agBagla();
-  /* Er Meydanı ekranından çıkılınca (başka sekme, başka ekran, meydana dönüş) lobiden ve kuyruktan düşülür */
+  /* Dost Dövüşü ekranından çıkılınca (başka sekme, başka ekran, meydana dönüş) lobiden ve kuyruktan düşülür */
   setInterval(() => { if (ER.girdi != null && !FT && !ER.bulundu && !erAcik()) erCik(); }, 500);
 
 
   /* ---------- arena ekranı ---------- */
   /* Arena: eşleşme sahnesi. Dövüşçün solda, seçili rakip sağda karşı karşıya durur; değerler ortada kıyaslanır, rakipler alttaki madalyonlardan seçilir. */
-  G.screen('arena', { k: 'Dövüş ve turnuva', t: 'Arena', cls: 'ar2', bg: 'bg-arena', enter() { if (UI.arenaTier !== 'er' && !TIERS[UI.arenaTier]) UI.arenaTier = 'koy'; UI.arenaOpp = 0; }, draw(body) {
+  G.screen('arena', { k: 'Ejderhan dövüşür', t: 'Ejder Arenası', cls: 'ar2', bg: 'bg-arena', enter() { if (UI.arenaTier !== 'er' && !TIERS[UI.arenaTier]) UI.arenaTier = 'koy'; UI.arenaOpp = 0; }, draw(body) {
     const elig = S.dragons.filter(d => canAct(d)); if (UI.arenaSel && !elig.find(d => d.id === UI.arenaSel)) UI.arenaSel = null; if (!UI.arenaSel && elig.length) UI.arenaSel = (elig.find(d => d.stage === 'yetiskin') || elig[0]).id;
-    const sekme = '<div class="ar-sekme"><div class="sekme" role="tablist">' + Object.keys(TIERS).map(k => '<button type="button" role="tab" data-tier="' + k + '" aria-selected="' + (k === UI.arenaTier) + '">' + (TIERS[k].flag && !S.flags[TIERS[k].flag] ? '???' : TIERS[k].ad) + '</button>').join('') + '<button type="button" role="tab" class="er-sekme" data-tier="er" aria-selected="' + (UI.arenaTier === 'er') + '">Er Meydanı</button></div></div>';
+    const sekme = '<div class="ar-sekme"><div class="sekme" role="tablist">' + Object.keys(TIERS).map(k => '<button type="button" role="tab" data-tier="' + k + '" aria-selected="' + (k === UI.arenaTier) + '">' + (TIERS[k].flag && !S.flags[TIERS[k].flag] ? '???' : TIERS[k].ad) + '</button>').join('') + '<button type="button" role="tab" class="er-sekme" data-tier="er" aria-selected="' + (UI.arenaTier === 'er') + '">Dost Dövüşü</button></div></div>';
     const sekmeBagla = () => on(body, '[data-tier]', b => { if (UI.arenaTier === 'er' && b.dataset.tier !== 'er') erCik(); UI.arenaTier = b.dataset.tier; UI.arenaOpp = 0; render(); });
     if (UI.arenaTier === 'er') return erCiz(body, byId(UI.arenaSel), elig, sekme, sekmeBagla);
     const f = byId(UI.arenaSel), tk = UI.arenaTier, T = TIERS[tk]; let lock = '';
