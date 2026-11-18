@@ -18,10 +18,12 @@
     ['arena', 'Topçu Arenası', 'Talim, düello, zindan kapıları', 84, 47],
     ['yol', 'Kuzey Yolu', 'Kervan kampı, sefer yolu', 49, 7],
   ];
-  const var_ = id => id === 'ocak' ? !!(EO2.ocak && EO2.ocak.git) : id === 'meydan' || !!(EO2.sceneDefs || {})[id];
+  /* Han, Çarşı ve Kuzey Yolu'nun yeni çizilmiş bölümleri varsa harita oraya götürür (meydandaki kapılar da oraya açılır); yoksa eski sahneye. */
+  const YENI = { han: 'hanici', pazar: 'carsi', yol: 'kuzeyyolu' }, hedef = id => (YENI[id] && (EO2.sceneDefs || {})[YENI[id]]) ? YENI[id] : id;
+  const var_ = id => id === 'ocak' ? !!(EO2.ocak && EO2.ocak.git) : id === 'meydan' || !!(EO2.sceneDefs || {})[hedef(id)];
   const yerler = () => YERLER.filter(y => var_(y[0]));
   const sahne = () => (EO2.api && EO2.api.scene && EO2.api.scene()) || '';
-  const burada = id => { const s = sahne(); return s === id || (id === 'meydan' && s === 'master'); };
+  const burada = id => { const s = sahne(); return s === id || s === hedef(id) || (id === 'meydan' && s === 'master'); };
   /* seyahat kapalıysa nedeni (açıksa boş) */
   function engel() { if (!G.live) return 'Oyun açık değil.'; if (EO2.battle && EO2.battle.active()) return 'Savaş sürerken seyahat edilmez.';
     const o = EO2.ortak && EO2.ortak.durum().oda; if (sahne() === 'kamp' || (o && o.tur === 'zindan' && o.durum === 'oyunda')) return 'Seferdesin. Önce seferi bitir ya da seferden ayrıl.';
@@ -29,7 +31,7 @@
     if (EO2.ziyaret && EO2.ziyaret.evSahibi && EO2.ziyaret.evSahibi()) return 'Başka bir ocakta misafirsin. Kapıdan çıkınca seyahat edebilirsin.'; return ''; }
   async function git(id) { const e = engel(); if (e) { G.toast(esc_(e)); return false; } if (!var_(id)) return false; if (G.ekran && G.ekran()) G.close(); if (burada(id)) return true;
     if (EO2.audio && EO2.audio.whoosh) EO2.audio.whoosh();
-    if (id === 'ocak') { await EO2.ocak.git(); return true; } if (EO2.api.go) EO2.api.go(id); else EO2.api.runAct('go:' + id); return true; }
+    if (id === 'ocak') { await EO2.ocak.git(); return true; } if (EO2.api.go) EO2.api.go(hedef(id)); else EO2.api.runAct('go:' + hedef(id)); return true; }
   function ac() { const e = engel(); if (e) { G.toast(esc_(e)); return; } G.open('harita'); }
 
   G.screen('harita', { k: 'Hızlı seyahat', t: 'Harita', cls: 'hr', bg: 'a:harita', draw(body) {
