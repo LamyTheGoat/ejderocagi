@@ -69,3 +69,24 @@ playwright-report/
 
 # Yerel çalışma dosyaları
 .git.kopuk-worktree-isaretcisi
+
+# ====================================================
+# 5. ÇALIŞMA ARTIKLARI (oyunda kullanılmaz, yayın paketine girmez)
+# Ekran görüntüleri, deneme ve pazarlama görselleri, ham kaynak çizimler bilgisayarda kalır;
+# metin belgeleri (md, json, mjs, txt) repoda durur.
+# ====================================================
+prototype/
+eo2_oyun/
+CLAUDE.local.md
+.claude/
+claude-context/chibi_master/
+firestore-debug.log
+eo2/docs/**/*.png
+eo2/docs/**/*.webp
+eo2/docs/**/*.jpg
+eo2/docs/**/*.mp4
+eo2/pazarlama/**/*.png
+eo2/pazarlama/**/*.webp
+eo2/pazarlama/**/*.jpg
+eo2/pazarlama/**/*.mp4
+claude-context/**/*.png
