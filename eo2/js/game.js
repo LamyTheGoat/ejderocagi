@@ -478,7 +478,8 @@
       requestAnimationFrame(frame);
     }
     enter(merkez('meydan'), null);
-    EO2.api = { W, titleCard, player, pet, remotes, go: goScene, scene: () => SC.id, sceneState: () => SC, cam, setNight, setCam, setHud, openPanel, closePanel, emote, R, S, sets, mkChar, setPlate, dropChar, say, chatAdd, toast, runAct, drawPortrait, portreTazele, PANELS, ICON, step(dt) { update(dt); render(dt); updateAnchors(dt); } };
+    EO2.api = { W, titleCard, player, pet, remotes, go: goScene, scene: () => SC.id, sceneState: () => SC, cam, setNight, setCam, setHud, openPanel, closePanel, emote, R, S, sets, mkChar, setPlate, dropChar, say, chatAdd, toast, runAct, drawPortrait, portreTazele, PANELS, ICON, walkTo(x, y) { target = { x: clamp(x, L.bounds[0], L.bounds[1]), y: clamp(y, L.bounds[2], L.bounds[3]), t: 0, stuck: 0 }; },      // rehber: terbiyeciyi bir noktaya yürütür (tıklayarak yürümenin aynısı)
+    step(dt) { update(dt); render(dt); updateAnchors(dt); } };
     Object.defineProperty(EO2.api, 'npcs', { get: () => npcs }); Object.defineProperty(EO2.api, 'L', { get: () => L });
     requestAnimationFrame(t => { last = t; frame(t); });
     if (coarse) app.classList.add('touch');
