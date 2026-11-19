@@ -34,7 +34,8 @@
       ...[...YENI, 'ev', 'kule', 'cali0', 'cali1', 'cali2', 'cit'].map(k => yukle('assets/dunya/an/oc-' + k + '.webp').then(im => { if (im) EO2.ext['on-' + k] = im; })),
       ...ESYA.map(k => yukle('assets/dunya/an/' + k + '.webp').then(im => { if (im) EO2.ext['on-' + k] = im; })),
       ...['cim', 'toprak', 'tas'].map(k => yukle('assets/zemin/' + k + '.webp').then(im => { if (im) EO2.ext['zm-' + k] = im; })), yukle('assets/dunya/an/ky-cim.webp').then(im => { if (im) EO2.ext['zm-cayir'] = im; }),
-      yukle('assets/bg/ocak-ufuk.webp').then(im => { if (im) EO2.ext['oc-ufuk'] = im; })]);
+      yukle('assets/bg/ocak-ufuk.webp').then(im => { if (im) EO2.ext['oc-ufuk'] = im; }),
+      ...[...ELS, 'soy'].map(k => yukle('assets/ik/yum-' + k + '.webp?v=2').then(im => { if (im) EO2.ext['yum-' + k] = im; }))]);
     /* yol dokusu: toprağın karşıtlığı azaltılmış kopyası. Motor zemin kabartmasını döşeme dokusundan çıkarıp bütün zemine uygular; ham dokuda taş izleri çime de çıkıyordu. */
     const tp = EO2.ext['zm-toprak']; if (tp && EO2.doku && EO2.doku.zemin) { EO2.doku.zemin['oc-yol'] = cv(1024, 1024, (x, w) => { x.drawImage(tp, 0, 0, w, w); x.fillStyle = 'rgba(206,172,122,.62)'; x.fillRect(0, 0, w, w); }); L.zemin = ['oc-yol', 'cim', 5.2, 9.5]; } })());
   (EO2.sahneOnce = EO2.sahneOnce || {}).ocak = onYukle;   // çizimler açılışta değil, Ocak'a girilirken yüklenir (game.js goScene bekler)
@@ -198,7 +199,8 @@
       for (let i = 0; i < 4; i++) tas(x, S * (0.18 + rn() * 0.64), S * (0.18 + rn() * 0.64), 8 + rn() * 6, 6 + rn() * 3, ['#8f8a86', '#6a6a6c']); } })));
     const tPed = [0, 1, 2].map(v => tex(leke(zTop, 256, 3600 + v * 29, 2.4, { kare: true, k: 0.375, ek(x, S) { for (const [a, b] of [[40, 214], [214, 216], [128, 232]]) tas(x, a + (rn() - 0.5) * 20, b - rn() * 8, 9 + rn() * 4, 6 + rn() * 2, TAS_RENK[Math.floor(rn() * 3)]); } })));
     const tKose = tex(cv(128, 128, (x, w, hh2) => { x.strokeStyle = '#ffe9a8'; x.lineWidth = 5; x.lineCap = 'round'; x.lineJoin = 'round'; const k = 24, m = 7; for (const [a, b, sx, sy] of [[m, m, 1, 1], [w - m, m, -1, 1], [m, hh2 - m, 1, -1], [w - m, hh2 - m, -1, -1]]) { x.beginPath(); x.moveTo(a + sx * k, b); x.lineTo(a, b); x.lineTo(a, b + sy * k); x.stroke(); } }));
-    const tCali = [0, 1, 2].map(v => { const c = cali(v), t = R.texture(c); return { t, w: TS * 0.98, h: TS * 0.98 * c.height / c.width }; }), tYum = R.texture(yumurta());
+    const tCali = [0, 1, 2].map(v => { const c = cali(v), t = R.texture(c); return { t, w: TS * 0.98, h: TS * 0.98 * c.height / c.width }; }), tYum = R.texture(yumurta()), tYumE = {}; [...ELS, 'soy'].forEach(k => { const im = (EO2.ext || {})['yum-' + k]; if (im) tYumE[k] = R.texture(cv(im.naturalWidth, im.naturalHeight, x => x.drawImage(im, 0, 0))); });
+    const yumDoku = q => { const m = /yum-(\w+)\.webp/.exec(G.yumurtaResim(q) || ''); return (m && tYumE[m[1]]) || tYum; };
     const KT = [...tYab, ...tPed, ...tBos];
     h.push({ key: 898, draw(R, F) { const S = W(); if (!S || !S.grid) return;
       const a = TS / 2 - 0.02; for (const tt of KT) S.grid.forEach((t, i) => { if ((!t.open ? tYab[i % 2] : t.b ? tPed[i % 3] : tBos[i % 2]) !== tt) return; const x = cx(i), y = cy(i), f = i % 2, g = (i >> 1) % 2;
@@ -223,7 +225,7 @@
         const I = ISIK[t.b]; if (I && (yeniC || eskiC)) { const gk = (0.12 + F.night * 0.7 + Math.sin(F.time * 3.1 + i) * 0.04) * a * it.cover, gz = bh * I[3], gr = Math.max(bw, bh) * 0.55; R.quad(h.T.fx, [x - gr, it.y - 0.04, gz - gr], [x + gr, it.y - 0.04, gz - gr], [x + gr, it.y - 0.04, gz + gr], [x - gr, it.y - 0.04, gz + gr], glow[0], glow[1], glow[2], glow[3], [I[0] * gk, I[1] * gk, I[2] * gk, 1], true, 0); }
         if (t.b === 'kulucka') { const eggs = (S.eggs || []).filter(q => q.inK), n = S.grid.filter(q => q.b === 'kulucka').length || 1, ki = S.grid.slice(0, i).filter(q => q.b === 'kulucka').length; eggs.filter((q, j) => j % n === ki).slice(0, 2).forEach((q, j) => { const ex = x + (j ? 0.42 : -0.02), ez = (yeniC ? 0.36 : 0.34) + Math.sin(F.time * 2 + j) * 0.03, g2 = 0.9 + Math.sin(F.time * 3 + j) * 0.25;
             R.quad(h.T.fx, [ex - 0.8, it.y - 0.04, ez - 0.4], [ex + 0.8, it.y - 0.04, ez - 0.4], [ex + 0.8, it.y - 0.04, ez + 1.2], [ex - 0.8, it.y - 0.04, ez + 1.2], glow[0], glow[1], glow[2], glow[3], [0.9 * g2 * a, 0.5 * g2 * a, 0.15 * g2 * a, 1], true, 0);
-            R.quad(tYum, [ex - 0.27, it.y - 0.05, ez], [ex + 0.27, it.y - 0.05, ez], [ex + 0.27, it.y - 0.05, ez + 0.68], [ex - 0.27, it.y - 0.05, ez + 0.68], 0, 0, 1, 1, c); }); } } }; h.push(it); }
+            R.quad(yumDoku(q), [ex - 0.26, it.y - 0.05, ez], [ex + 0.26, it.y - 0.05, ez], [ex + 0.26, it.y - 0.05, ez + 0.69], [ex - 0.26, it.y - 0.05, ez + 0.69], 0, 0, 1, 1, c); }); } } }; h.push(it); }
     /* ejderhalar: gerçek boylarında, nefes alır, yürürken hafifçe sallanır */
     const gorT = new Map();   // gen renkli görünüş resimlerinin dokuları
     for (let k = 0; k < ejSlot.length; k++) { const it = { key: -99, draw(R, F) { const S = W(), d = S && S.dragons ? S.dragons.filter(q => !q.dead)[k] : null, g = d && gez[d.id]; if (!g) { it.key = -99; return; } it.key = g.y; const gi = G.gorunusIm && d.genes ? G.gorunusIm(d) : null; let e = null; if (gi) { e = gorT.get(gi); if (!e) { e = { t: R.texture(gi), w: gi.naturalWidth, h: gi.naturalHeight }; gorT.set(gi, e); } } else e = h.ext('dr-' + d.el + '-' + d.stage); if (!e) return;

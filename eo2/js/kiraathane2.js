@@ -54,7 +54,7 @@
     if (e.t === 'yem') { const F = FOODS[e.k] || {}; return { ad: F.ad || e.k, alt: 'Yem ve iksir', img: OLD + 'img/' + (e.k === 'genclik' ? 'ic-feed' : 'food-' + e.k) + '.webp', deger: F.fiyat || 0, var: (S.food && S.food[e.k]) || 0 }; }
     if (e.t === 'tas') { const T = TAS0[e.k] || [e.k, 'stone_kor_t1', 0]; return { ad: T[0], alt: CEVHER.includes(e.k) ? 'Cevher' : 'Taş', img: OLD + 'img/ui/items/' + T[1] + '.webp', deger: tasFiyat(e.k), var: tasSay(e.k) }; }
     if (e.t === 'yumurta') { const y = e.veri || (S.eggs || []).find(x => x.id === e.id); if (!y) return { ad: 'Yumurta', alt: '', img: G.yumurtaResim(null), deger: 0, var: 0 };
-      return { ad: EL_AD[yumEl(y)] + ' yumurtası', alt: y.origin || 'Yumurta', img: OLD + 'img/ui/egg-' + yumEl(y) + '.webp', deger: Math.round(lotValue({ kind: 'egg', egg: y })), var: 1, nesne: y }; }
+      return { ad: EL_AD[yumEl(y)] + ' yumurtası', alt: y.origin || 'Yumurta', img: G.yumurtaResim(y), deger: Math.round(lotValue({ kind: 'egg', egg: y })), var: 1, nesne: y }; }
     if (e.t === 'ejder') { const d = e.veri || byId(e.id); if (!d) return { ad: 'Ejderha', alt: '', img: '', deger: 0, var: 0 };
       return { ad: d.name, alt: EL_AD[d.el] + ' · ' + STAGE_AD[d.stage], img: G.img(d), deger: value(d), var: 1, nesne: d }; }
     if (e.t === 'kusam') { const x = e.veri || (S.inv || []).find(i => i.uid === e.id), it = x && ITEMS[x.id]; if (!it) return { ad: 'Kuşam', alt: '', img: '', deger: 0, var: 0 };

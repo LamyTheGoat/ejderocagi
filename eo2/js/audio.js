@@ -34,7 +34,8 @@
   const A = 220, SC = [A, A * 1.0905, A * 1.189, A * 1.335, A * 1.498, A * 1.652, A * 1.782, A * 2];
   const RIFFS = [[0, 2, 1, 0, 3, 2, 1, 2, 0], [4, 3, 2, 3, 4, 5, 4, 3, 2], [0, 1, 2, 3, 2, 1, 0, 1, 0], [4, 5, 6, 7, 6, 5, 4, 3, 4], [2, 3, 4, 3, 2, 1, 0, 1, 0]];
   let sazT = 0, riffI = 0;
-  function sazTick() { if (!ctx || !on || st.battle) return; const d = Math.hypot(st.ox, st.oy), g = Math.max(0, 1 - d / 13); if (g <= 0.02 && st.sazBoost <= 0) { sazT = 0; return; }
+  /* Ozan kendiliğinden çalmaz (kullanıcı kararı 2026-11-19: sürekli çalgı sinir bozucuydu); yalnız türkü istenince kısa bir süre çalar */
+  function sazTick() { if (!ctx || !on || st.battle) return; const d = Math.hypot(st.ox, st.oy), g = Math.max(0, 1 - d / 13); if (st.sazBoost <= 0) { sazT = 0; return; }
     const t = now(); if (sazT < t + 0.1) sazT = t + 0.15; const beat = st.sazBoost > 0 ? 0.2 : 0.27;
     while (sazT < t + 1.2) { const r = RIFFS[riffI++ % RIFFS.length], k = (0.16 + st.sazBoost * 0.12) * (0.25 + g * 0.75), pan = Math.max(-0.8, Math.min(0.8, st.ox / 8));
       for (let i = 0; i < 9; i++) { const acc = i === 0 || i === 2 || i === 4 || i === 6; playBuf(pluck(SC[r[i]]), sazT + i * beat, k * (acc ? 1 : 0.6), pan, 0, gAmb); if (acc) playBuf(pluck(A / 2), sazT + i * beat, k * 0.5, pan, 0, gAmb); }
@@ -72,8 +73,8 @@
   function muzik(liste) { const L = !liste ? [] : Array.isArray(liste) ? liste : [liste], key = L.join('|'); if (key === mz.key) return; mz.key = key; mz.liste = L; mz.i = 0; gecis(); }
   /* açma, kapama, sekme ve düzey değişince: çalması gerekiyorsa başlat, gerekmiyorsa sustur */
   function muzikTazele() { if (!ctx) return; if (!muzikAcik()) { if (mz.a) { muzikSus(mz.a, true); mz.a = null; } } else if (!mz.a && mz.liste.length) gecis(); }
-  /* Ozan'ın sazına yaklaşınca müzik geri çekilir: iki ezgi üst üste binmez */
-  function kisTick() { if (!ctx) return; const d = Math.hypot(st.ox, st.oy), g = Math.max(st.sazBoost, Math.max(0, 1 - d / 13)); gKis.gain.setTargetAtTime(st.battle ? 1 : 1 - 0.85 * Math.min(1, g * 1.6), now(), 0.5); }
+  /* Ozan türkü çalarken müzik geri çekilir: iki ezgi üst üste binmez */
+  function kisTick() { if (!ctx) return; const g = st.sazBoost; gKis.gain.setTargetAtTime(st.battle ? 1 : 1 - 0.85 * Math.min(1, g * 1.6), now(), 0.5); }
   /* hangi sahnede ne çalar (eski oyunun eşlemesi temel alındı: js/fx.js BGM) */
   const DUNYA = ['mus-ocak', 'mus-ocak-2'];
   const SAHNE_M = { yol: ['mus-sefer-2'], kuzeyyolu: ['mus-sefer-2'], pazar: ['mus-pazar'], carsi: ['mus-pazar'], han: ['mus-gece'], hanici: ['mus-gece'] };

@@ -67,7 +67,7 @@
       const acik = !EO2.audio || !EO2.audio.isOn || EO2.audio.isOn();
       body.innerHTML = '<div class="ay-pencere cam">' +
         '<section class="ay-bolum"><h2>Ses</h2>' + (acik ? '' : '<p class="ay-uyari">Ses kapalı. <button type="button" class="ay-bag" data-sesac>Sesi aç</button></p>') +
-          surgu('muzik', 'Müzik', 'Meydanın, hanın ve arenanın ezgileri') + surgu('efekt', 'Efektler', 'Adımlar, düğmeler, dövüş') + surgu('ortam', 'Ortam', 'Çeşme, rüzgâr, kuşlar, Ozan\'ın sazı') + '</section>' +
+          surgu('muzik', 'Müzik', 'Meydanın, hanın ve arenanın ezgileri') + surgu('efekt', 'Efektler', 'Adımlar, düğmeler, dövüş') + surgu('ortam', 'Ortam', 'Çeşme, rüzgâr, kuşlar') + '</section>' +
         '<section class="ay-bolum"><h2>Görüntü</h2>' +
           '<div class="ay-secim"><span class="ay-ad">Arayüz boyu<small>Yazılar ve düğmeler</small></span>' + hap('olcek', [['kucuk', 'Küçük'], ['normal', 'Normal'], ['buyuk', 'Büyük']]) + '</div>' +
           '<div class="ay-secim"><span class="ay-ad">Çizim kalitesi<small>' + (a.kalite === 'dengeli' ? 'Dengeli: daha akıcı, pili daha az yer' : 'Yüksek: en keskin görüntü') + '</small></span>' + hap('kalite', [['yuksek', 'Yüksek'], ['dengeli', 'Dengeli']]) + '</div>' +
