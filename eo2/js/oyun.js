@@ -190,6 +190,8 @@
   /* ---------- giriş ekranı ---------- */
   let giris = null;
   function title() { if (giris) giris.remove(); const sv = loadGame(), ok = sv && (!sv.over || sv.ending !== 'iflas');
+    /* kostüm sayfaları açılışta inmez (game.js): giriş ekranı okunurken oyuncunun giyeceği set arkadan istenir (yeni ocak çıplak setle başlar) */
+    try { if (EO2.npcSet) EO2.npcSet.yukle(ok ? (sv.kusam && sv.kusam.giyili) || 'temel' : 'bare'); } catch (_) { }
     giris = el('div', 'giris', '<div class="giris-ic"><img src="assets/logo.webp" alt="Ejder Ocağı"><p>Dedenden kalan harabe bir ocak. Yaşlı bir ateş ejderhası. Soğumaya yüz tutmuş bir yumurta.<br>Yirmi hafta sonra Kızıl Taç başlıyor.</p><div class="dugmeler"></div><div class="not">Oyunun kendiliğinden kaydedilir. <button type="button" class="giris-bag" data-kurtar>Kurtarma kodum var</button></div><div class="kunye">Sürüm ' + EO2.surum + ' · <a href="gizlilik.html" target="_blank" rel="noopener">Gizlilik</a> · <a href="kosullar.html" target="_blank" rel="noopener">Kullanım koşulları</a></div></div>');
     const box = giris.querySelector('.dugmeler'), add = (t, sub, cls, fn) => { const b = el('button', 'gbtn buyuk ' + cls, t + (sub ? '<small>' + sub + '</small>' : '')); b.type = 'button'; b.addEventListener('click', fn); box.appendChild(b); return b; };
     if (ok) add('Ocağa dön', sv.over ? (sv.seasonNo || 1) + '. sezon bitti' : 'Hafta ' + sv.week + ' · ' + (sv.dragons || []).length + ' ejderha · ' + sv.gold + ' altın', 'altin', () => { S = sv; if (typeof careerRepair === 'function') careerRepair(); if (typeof registerAllHeirlooms === 'function') registerAllHeirlooms(); UI.sel = S.dragons[0] ? S.dragons[0].id : null; enter(false); });
