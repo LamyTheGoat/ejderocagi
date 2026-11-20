@@ -27,6 +27,7 @@ kor taşı, cevher, kalıp ve öz `S.topcu.ganimet` defterine (chibi sistemi 2.0
 - Abra'nın tsunami itmesi, kuyruk yeri ve boyun vuruş kutusu eski koddan okunmadan yaklaşık kuruldu.
 - Kervan baskınında eski kipteki yoldaş yok; ödül formülündeki yoldaş payı (+1 cevher) korunuyor.
 - `S.topcu.ganimet` defterindeki taşları harcayan ekran (Kor Örsü) 2.0'da yok.
-- PvP: yeniden bağlanma (`pvp_match_resume`, `pvp_resync`), davet ve prova botu bağlanmadı; harita seçimi yok (hep talim adası).
+- PvP: yeniden bağlanma (`pvp_match_resume`, `pvp_resync`), davet ve prova botu bağlanmadı.
+- **Harita seçimi (2026-11-20):** kurucu bekleme odasında Talim Adası, Zümrüt Saray Köprüsü, Şahmeran'ın Defilesi ya da Rastgele seçer (`topcu.js` PVP_HARITA, sunucu `EO2_MAP_IDS`). Rastgele maç başında sunucuda çekilir. Kaldera ve Donanma arenaları çizimsiz olduğu için açılmadı. Denetim: `eo2/tools/check_harita_kart.mjs`.
 - Sahne çizimi 1536×768; 1600 piksel genişlikte biraz yumuşak (büyütme isteği Midjourney bakiyesi bittiği için yapılamadı).
 - `eo2/tools/check_battle.mjs` eski gösterim düellosunun kimliklerine bakar; yeni motorla çalışmaz.
