@@ -13,6 +13,7 @@ const { validateCommand, reduceCommand, gameEconomy, fail } = require('./economy
 
 const recovery = require('./account_recovery');
 const huni = require('./huni_service');
+const defter = require('./ekonomi_defteri');
 const MAX_GOLD = 2_000_000_000;
 const SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
@@ -74,6 +75,18 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
   // oyuncu hunisi (server/huni_service.js): hesap başına ilk geçilen adımlar ve kohort günü başına sayaçlar
   db.exec(`CREATE TABLE IF NOT EXISTS funnel_accounts (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), json TEXT NOT NULL) STRICT;
     CREATE TABLE IF NOT EXISTS funnel_days (day INTEGER NOT NULL, step TEXT NOT NULL, n INTEGER NOT NULL CHECK (n >= 0), PRIMARY KEY (day, step)) STRICT;`);
+  // ekonomi defteri (server/ekonomi_defteri.js): gün × kalem başına altın sayacı; komutla aynı transaction'da artar
+  db.exec(`CREATE TABLE IF NOT EXISTS economy_ledger (day INTEGER NOT NULL, item TEXT NOT NULL, gold_in INTEGER NOT NULL CHECK (gold_in >= 0), gold_out INTEGER NOT NULL CHECK (gold_out >= 0),
+    n INTEGER NOT NULL CHECK (n >= 0), volume INTEGER NOT NULL CHECK (volume >= 0), PRIMARY KEY (day, item)) STRICT;`);
+  function ledgerWrite(rows) {
+    if (!rows.length) return;
+    const day = huni.gunNo(now()), up = db.prepare(`INSERT INTO economy_ledger(day, item, gold_in, gold_out, n, volume) VALUES (?, ?, ?, ?, 1, ?)
+      ON CONFLICT(day, item) DO UPDATE SET gold_in = gold_in + excluded.gold_in, gold_out = gold_out + excluded.gold_out, n = n + 1, volume = volume + excluded.volume`);
+    for (const r of rows) up.run(day, r.kalem, r.giris, r.cikis, r.hacim);
+  }
+  function readLedger(ilkGun, sonGun) {
+    return db.prepare('SELECT day AS gun, item AS kalem, gold_in AS giris, gold_out AS cikis, n, volume AS hacim FROM economy_ledger WHERE day BETWEEN ? AND ?').all(ilkGun, sonGun).map(r => ({ ...r }));
+  }
   // ENG-07 Bedesten: ilan, hesap başı rezervasyon (hold) ve makbuz. Hepsi aynı transaction'da yazılır.
   db.exec(`CREATE TABLE IF NOT EXISTS market_listings (id TEXT PRIMARY KEY, seller_id TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL, json TEXT NOT NULL) STRICT;
     CREATE INDEX IF NOT EXISTS market_open ON market_listings(status, created_at);
@@ -344,6 +357,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
       for (const l of refreshed) db.prepare('UPDATE market_listings SET json = ? WHERE id = ?').run(JSON.stringify(l), l.id);
       db.prepare('INSERT INTO game_states VALUES (?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET version=excluded.version, game_json=excluded.game_json').run(accountId, version + 1, JSON.stringify(next.game));
       db.prepare('INSERT INTO command_receipts VALUES (?, ?, ?, ?, ?)').run(accountId, command.requestId, hash, version + 1, JSON.stringify(next.result));
+      ledgerWrite(defter.komutKalemleri(command.type, command.args, state ? JSON.parse(state.game_json).gold : 0, next.game.gold));
       return { replayed: false, appliedVersion: version + 1, result: next.result, economy: gameEconomy(accountId, version + 1, next.game), listingsRefreshed: refreshed.length };
     });
   }
@@ -379,6 +393,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
       db.prepare('INSERT INTO market_listings VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status, json=excluded.json').run(l.id, l.sellerId, l.status, l.createdAt, JSON.stringify(l));
       const result = { ...out.result, replayed: false };
       writeTradeRow('market_receipts', receiptId, { hash, result, createdAt: now() });
+      if (command.op === 'buy') ledgerWrite(defter.pazarKalemleri(out.result.sale));
       return result;
     });
   }
@@ -448,7 +463,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
 
   return Object.freeze({
     checkDuelEntry, openMatch, finalizeMatch, settleGameplay, readMatch,
-    backend: 'sqlite', putDurable, getDurable, listDurable, executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, recordFunnel, readFunnel, findAccountByHandle, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
+    backend: 'sqlite', putDurable, getDurable, listDurable, executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, recordFunnel, readFunnel, readLedger, findAccountByHandle, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
     revokeSession(token) { if (typeof token === 'string') db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token)); },
     close() { db.close(); },
   });

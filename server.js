@@ -23,7 +23,7 @@ const path = require('path');
 const { createDragonDuelServer } = require('./js/duel_server.js');
 const { createPvpRooms } = require('./server/pvp_rooms.js');
 const { createEconomyStore } = require('./server/store_factory');
-const { createMarketService, publicListing } = require('./server/market_service');
+const { createMarketService, publicListing, MARKET_FEE_BPS } = require('./server/market_service');
 const { createMarketReadCache } = require('./server/market_read_cache');
 const { consume } = require('./server/service_security');
 const { COMMAND_TYPES } = require('./server/economy_commands');
@@ -57,6 +57,8 @@ const SORUN_PANELI_MOD = require('./server/sorun_paneli');
 const SORUN_PANELI = SORUN_PANELI_MOD.createSorunPaneli({ reports: REPORTS, anahtar: process.env.YONETIM_ANAHTAR || '' });
 const HUNI_MOD = require('./server/huni_service');
 const HUNI = HUNI_MOD.createHuni({ store: ECONOMY, anahtar: process.env.HUNI_ANAHTAR || '' });
+const DEFTER_MOD = require('./server/ekonomi_defteri');
+const DEFTER = DEFTER_MOD.createDefter({ store: ECONOMY, huni: HUNI });
 const EO2_PAGE = require('./server/eo2_page').createEo2Page(__dirname, PUBLIC_URL);
 const POSTA = require('./server/posta_service').createPosta({ store: ECONOMY });
 const SOSYAL = require('./server/social_service').createSocial({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS });
@@ -1059,6 +1061,14 @@ async function handleHttp(req, res) {
       return sendJson(res, 200, await HUNI.oku(parsedUrl.searchParams.get('gun')));
     } catch (error) { const known = Number.isInteger(error.status); if (!known) console.error('[huni]', error.message); return sendJson(res, known ? error.status : 503, { ok: false, error: known ? (error.code || error.message) : 'funnel_unavailable' }); }
   }
+  // Ekonomi defteri (server/ekonomi_defteri.js): gün × kalem altın sayaçları. Yalnız okuma, hunininkiyle aynı anahtar.
+  if (pathname === '/api/ekonomi' && req.method === 'GET') {
+    try {
+      await ECONOMY.consumeRate('huni-oku:' + req.socket.remoteAddress, 20, 600000);
+      if (!DEFTER.okumaIzni(req)) return sendJson(res, 404, { ok: false, error: 'not_found' });
+      return sendJson(res, 200, await DEFTER.oku(parsedUrl.searchParams.get('gun')));
+    } catch (error) { const known = Number.isInteger(error.status); if (!known) console.error('[ekonomi]', error.message); return sendJson(res, known ? error.status : 503, { ok: false, error: known ? (error.code || error.message) : 'ledger_unavailable' }); }
+  }
   if (pathname.startsWith('/api/trade') && req.headers['x-trade-account'] && req.headers['x-trade-account'] !== req.identity?.accountId) return sendJson(res,409,{ok:false,error:'trade_account_changed'});
   // Ocak Postası (server/posta_service.js): yalnız okur; satış altını zaten aktarılmıştır.
   if (pathname === '/api/posta' && req.method === 'GET') {
@@ -1422,7 +1432,7 @@ async function handleHttp(req, res) {
   if (pathname === '/api/market' && req.method === 'GET') {
     try {
       const view = await MARKET_READS.view(req.identity?.accountId || null);
-      return sendJson(res, 200, { ok: true, settlementReady: true, ...view, serverNow: Date.now() });
+      return sendJson(res, 200, { ok: true, settlementReady: true, ...view, feeBps: MARKET_FEE_BPS, serverNow: Date.now() });
     } catch (_) { return sendJson(res, 503, { ok: false, error: 'market_unavailable' }); }
   }
   if (pathname === '/api/market' && req.method === 'POST') {
@@ -1505,6 +1515,7 @@ async function handleHttp(req, res) {
       'Content-Security-Policy': `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'` });
     return res.end(SORUN_PANELI_MOD.sayfa(nonce)); }
   // 10e. Oyuncu hunisi okuma sayfası: gizli bilgi taşımaz, veriyi anahtarla /api/huni'den okur
+  if (pathname === '/ekonomi') { res.writeHead(200, { 'Content-Type': MIME_TYPES['.html'], 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }); return res.end(DEFTER_MOD.DEFTER_SAYFA); }
   if (pathname === '/huni') { res.writeHead(200, { 'Content-Type': MIME_TYPES['.html'], 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }); return res.end(HUNI_MOD.HUNI_SAYFA); }
   if (pathname === '/eo2') { res.writeHead(302, { Location: '/eo2/' }); return res.end(); }
   if (pathname === '/eo2/' || pathname === '/eo2/index.html') {

@@ -7,6 +7,7 @@ const duel = require('./duel_service');
 const { validateCommand, reduceCommand, gameEconomy, fail } = require('./economy_commands');
 const recovery = require('./account_recovery');
 const huni = require('./huni_service');
+const defter = require('./ekonomi_defteri');
 const SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
 
@@ -72,6 +73,17 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
       tx.set(huniGun.doc(String(kohort)), artis, { merge: true });
       return yeni;
     }, { maxAttempts: 5 });
+  }
+  // ekonomi defteri (server/ekonomi_defteri.js): eo_eko_gun/<gün>_<kalem> sayaçları; komut transaction'ında artırılır (okumasız)
+  const ekoGun = db.collection('eo_eko_gun');
+  function ledgerWrite(tx, rows) {
+    if (!rows.length) return;
+    const { FieldValue } = require('@google-cloud/firestore'), gun = huni.gunNo(now());
+    for (const r of rows) tx.set(ekoGun.doc(gun + '_' + r.kalem), { gun, kalem: r.kalem, giris: FieldValue.increment(r.giris), cikis: FieldValue.increment(r.cikis), n: FieldValue.increment(1), hacim: FieldValue.increment(r.hacim) }, { merge: true });
+  }
+  async function readLedger(ilkGun, sonGun) {
+    const q = await ekoGun.where('gun', '>=', ilkGun).where('gun', '<=', sonGun).get();
+    return q.docs.map(d => { const v = d.data(); return { gun: v.gun, kalem: v.kalem, giris: v.giris, cikis: v.cikis, n: v.n, hacim: v.hacim }; });
   }
   async function readFunnel(ilkGun, sonGun) {
     const q = await huniGun.where('gun', '>=', ilkGun).where('gun', '<=', sonGun).get();
@@ -227,6 +239,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
       tx.set(listingRef, { json: JSON.stringify(l), status: l.status, sellerId: l.sellerId, createdAt: l.createdAt });
       const result = { ...out.result, replayed: false };
       tx.create(receiptRef, { hash, resultJson: JSON.stringify(result), createdAt: now() });
+      if (command.op === 'buy') ledgerWrite(tx, defter.pazarKalemleri(out.result.sale));
       return result;
     }, { maxAttempts: 5 });
   }
@@ -270,6 +283,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
       tx.update(accountRef, { version, gameJson: JSON.stringify(next.game) });
       for (const l of refreshed) tx.update(listings.doc(l.id), { json: JSON.stringify(l) });
       tx.create(receiptRef, { hash, version, type: command.type, createdAt: now(), resultJson: JSON.stringify(next.result) });
+      ledgerWrite(tx, defter.komutKalemleri(command.type, command.args, record.gameJson ? JSON.parse(record.gameJson).gold : 0, next.game.gold));
       return { replayed: false, appliedVersion: version, result: next.result, economy: gameEconomy(accountId, version, next.game), listingsRefreshed: refreshed.length };
     }, { maxAttempts: 5 });
   }
@@ -335,7 +349,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
   async function readMatch(matchId) { return duel.MATCH_ID.test(matchId || '') ? matchOf(await matches.doc(matchId).get()) : null; }
   return {
     checkDuelEntry, openMatch, finalizeMatch, settleGameplay, readMatch,
-    backend: 'firestore', putDurable, getDurable, listDurable, executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, recordFunnel, readFunnel, findAccountByHandle, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
+    backend: 'firestore', putDurable, getDurable, listDurable, executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, recordFunnel, readFunnel, readLedger, findAccountByHandle, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
     async revokeSession(token) { if (typeof token === 'string') await sessions.doc(hashToken(token)).delete(); },
     async close() { await db.terminate(); },
   };
