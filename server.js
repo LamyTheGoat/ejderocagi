@@ -51,6 +51,8 @@ const zlib = require('node:zlib');
 const publicFile = createPublicFiles(__dirname, [DB_DIR]);
 const EO2_VAR = fs.existsSync(path.join(__dirname, 'eo2', 'index.html'));   // 2.0 sayfası pakette var mı (ana adres ona göre yönlenir)
 const REPORTS = require('./server/report_log').createReportLog(DB_DIR);
+const SORUN_PANELI_MOD = require('./server/sorun_paneli');
+const SORUN_PANELI = SORUN_PANELI_MOD.createSorunPaneli({ reports: REPORTS, anahtar: process.env.YONETIM_ANAHTAR || '' });
 const EO2_PAGE = require('./server/eo2_page').createEo2Page(__dirname, PUBLIC_URL);
 const SOSYAL = require('./server/social_service').createSocial({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS });
 // Ortak PvE altyapısı: örnek odaları ve görev bulucu (server/ortak_odalar.js). Oynanış türleri ORTAK.kaydet ile eklenir; bugün kayıtlı tür yok.
@@ -1011,6 +1013,14 @@ async function handleHttp(req, res) {
       return sendJson(res, known ? error.status : 500, { ok: false, error: known ? (error.code || error.message) : 'report_failed' });
     }
   }
+  // Şikâyet ve sorun bildirimi okuma (server/sorun_paneli.js): salt okunur, yalnız YONETIM_ANAHTAR ile; anahtar yoksa ya da yanlışsa 404.
+  if (pathname === '/api/sorunlar' && req.method === 'GET') {
+    try {
+      await ECONOMY.consumeRate('sorun-oku:' + req.socket.remoteAddress, 60, 600000);   // anahtar tahminine karşı: IP başına on dakikada altmış okuma
+      if (!SORUN_PANELI.okumaIzni(req)) return sendJson(res, 404, { ok: false, error: 'not_found' });
+      return sendJson(res, 200, SORUN_PANELI.oku(parsedUrl.searchParams.get('adet')));
+    } catch (error) { const known = Number.isInteger(error.status); if (!known) console.error('[sorunlar]', error.message); return sendJson(res, known ? error.status : 503, { ok: false, error: known ? (error.code || error.message) : 'reports_unavailable' }); }
+  }
   if (pathname.startsWith('/api/trade') && req.headers['x-trade-account'] && req.headers['x-trade-account'] !== req.identity?.accountId) return sendJson(res,409,{ok:false,error:'trade_account_changed'});
   if (pathname === '/api/trade/state' && req.method === 'GET') {
     if(!req.identity)return sendJson(res,401,{ok:false,error:'guest_session_required'});
@@ -1437,6 +1447,11 @@ async function handleHttp(req, res) {
   }
 
   // 10c. Ejder Ocağı 2.0 sayfası (eo2/index.html); betik, stil ve çizimleri aşağıdaki izin listesi sunar
+  // 10d. Şikâyet okuma sayfası: gizli bilgi taşımaz, veriyi anahtarla /api/sorunlar'dan okur. Betik ve stil yalnız bu isteğin nonce'uyla çalışır.
+  if (pathname === '/sorunlar') { const nonce = require('node:crypto').randomBytes(16).toString('base64');
+    res.writeHead(200, { 'Content-Type': MIME_TYPES['.html'], 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY',
+      'Content-Security-Policy': `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'` });
+    return res.end(SORUN_PANELI_MOD.sayfa(nonce)); }
   if (pathname === '/eo2') { res.writeHead(302, { Location: '/eo2/' }); return res.end(); }
   if (pathname === '/eo2/' || pathname === '/eo2/index.html') {
     try {

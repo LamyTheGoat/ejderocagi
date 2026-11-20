@@ -15,3 +15,5 @@ body { margin: 0; min-height: 100vh; background: radial-gradient(120% 80% at 50%
 .belge a { color: #8fd0ff; text-underline-offset: .15em; }
 .belge a:hover, .belge a:focus-visible { color: #fff; }
 .belge .don { margin-top: 3em; text-align: center; }
+/* yayından önce doldurulacak yer tutucular ([İŞLETMECİ ADI], [İLETİŞİM E-POSTASI]): gözden kaçmasın diye vurgulu */
+.belge .eksik { color: #ffb3a1; background: rgba(217, 105, 74, .18); border-radius: .25em; padding: 0 .2em; }

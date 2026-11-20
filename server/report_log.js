@@ -7,7 +7,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const LIMIT = 5, PENCERE = 10 * 60 * 1000, TAVAN = 20 * 1024 * 1024;
+const LIMIT = 5, PENCERE = 10 * 60 * 1000, TAVAN = 20 * 1024 * 1024, OKUMA_BAYT = 4 * 1024 * 1024;
 const kes = (v, n) => (typeof v === 'string' ? v : v == null ? '' : String(v)).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').slice(0, n);
 const hata = (code, status) => Object.assign(new Error(code), { code, status });
 
@@ -36,7 +36,21 @@ function createReportLog(dir, now = () => Date.now()) {
     fs.appendFileSync(dosya, JSON.stringify(satir) + '\n');
     return { ok: true };
   }
-  return { add, dosya };
+  // Yönetici okuması (server/sorun_paneli.js): dosyanın sonundan en çok `adet` kayıt, yeniden eskiye.
+  // Dosyanın tamamı değil, yalnız son OKUMA_BAYT okunur; bozuk ya da yarım satır atlanır.
+  function son(adet = 300) {
+    const n = Math.max(1, Math.min(1000, Math.floor(Number(adet)) || 300));
+    let fd; try { fd = fs.openSync(dosya, 'r'); } catch (_) { return []; }
+    try {
+      const boy = fs.fstatSync(fd).size, bas = Math.max(0, boy - OKUMA_BAYT), buf = Buffer.alloc(boy - bas);
+      fs.readSync(fd, buf, 0, buf.length, bas);
+      const satirlar = buf.toString('utf8').split('\n'); if (bas > 0) satirlar.shift();   // ilk satır yarım olabilir
+      const out = [];
+      for (let i = satirlar.length - 1; i >= 0 && out.length < n; i--) { if (!satirlar[i]) continue; try { out.push(JSON.parse(satirlar[i])); } catch (_) { /* yarım satır */ } }
+      return out;
+    } finally { fs.closeSync(fd); }
+  }
+  return { add, son, dosya };
 }
 
 module.exports = { createReportLog };
