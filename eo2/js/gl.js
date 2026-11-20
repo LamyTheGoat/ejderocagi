@@ -292,13 +292,14 @@
     R.flush = flush;
 
     /* Zemin: tek büyük dörtgen, kendi programıyla. */
+    const isikBuf = new Float32Array(64);
     R.ground = function (mapTex, rect, g) {
       flush(); gl.useProgram(progG.p); setUniforms(progG);
       gl.uniform1f(progG.u.u_screen, 0);
       gl.uniform4f(progG.u.u_mapRect, g.map[0], g.map[1], 1 / g.map[2], 1 / g.map[3]);
       gl.uniform3fv(progG.u.u_amb, g.amb); gl.uniform1f(progG.u.u_night, g.night); gl.uniform1f(progG.u.u_time, g.time);
       gl.uniform4fv(progG.u.u_fount, g.fount); gl.uniform4fv(progG.u.u_emb, g.emb); gl.uniform1f(progG.u.u_mode, g.mode || 0); gl.uniform2fv(progG.u.u_road, g.road || [0, 1e6]);
-      const L = new Float32Array(64); g.lights.slice(0, 16).forEach((l, i) => L.set(l, i * 4));
+      const L = isikBuf; L.fill(0); for (let i = 0; i < g.lights.length && i < 16; i++) L.set(g.lights[i], i * 4);   // tek tampon: her kare yeni dizi açılmaz (çöp toplayıcı daha seyrek çalışır)
       gl.uniform4fv(progG.u.u_lights, L); gl.uniform1i(progG.u.u_nl, Math.min(16, g.lights.length));
       gl.uniform1f(progG.u.u_kab, g.kab === undefined ? R.kabartma : g.kab); const t1 = g.t1, t2 = g.t2; gl.uniform4f(progG.u.u_dok, t1 ? 1 : 0, t2 ? 1 : 0, g.s1 || 6, g.s2 || 7); gl.uniform1i(progG.u.u_t1, 1); gl.uniform1i(progG.u.u_t2, 2);
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, (t1 || mapTex).t); gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, (t2 || mapTex).t); gl.activeTexture(gl.TEXTURE0);
