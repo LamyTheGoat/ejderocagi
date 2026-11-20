@@ -354,3 +354,37 @@
 .ui2 #actions button[data-panel="kusam"] .ic svg, .ui2 #actions button[data-panel="harita"] .ic svg, .ui2 #actions button[data-panel="sosyal"] .ic svg, .ui2 #actions button[data-panel="dostlar"] .ic svg, .ui2 #actions button[data-panel="menu"] .ic svg { display: none; }
 .ui2 #actions button[data-panel="kusam"] .ic, .ui2 #actions button[data-panel="harita"] .ic, .ui2 #actions button[data-panel="sosyal"] .ic, .ui2 #actions button[data-panel="dostlar"] .ic, .ui2 #actions button[data-panel="menu"] .ic { box-shadow: 0 .22em .5em rgba(4, 6, 16, .55); }
 
+
+/* ================= ÜST ŞERİT, telefon (UX denetimi, 2026-11-20) =================
+   Sekmeler altın sayacına biniyor, "Süs Dolabı" iki satıra kayıyor, başlık "Ejde…" diye kesiliyordu.
+   Telefonda ◂ Meydan yalnız ok olur (adı ekran okuyucuya kalır); dik ekranda başlık tek başına ilk sırada durur. */
+@media (max-width: 620px), (max-height: 500px) {
+  #app .scr-h #scrBack { width: 44px; min-width: 44px; padding: 0; justify-content: center; font-size: 18px; }
+  #app .scr-h #scrBack .geri-ad { display: none; }
+}
+@media (max-width: 620px) {
+  /* 1. sıra: geri + başlık (tam en) · 2. sıra: kese, ün, Haftayı Bitir · 3. sıra: sekmeler */
+  #app .scr-h .ad { flex: 1 1 calc(100% - 60px); }
+  #app .scr-h .ad h1, #app .scr-h small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #app .scr-h #scrWeek { margin-left: auto; }
+}
+@media (min-width: 621px) and (max-height: 500px) {
+  /* yatay: sekmeler tek satır ve sabit genişlikte; sığmazsa kendi içinde kayar, altına ya da keseye binmez */
+  #app .scr-h #scrNav { flex: 0 1 auto; display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  #app .scr-h #scrNav::-webkit-scrollbar { display: none; }
+  #app .scr-h #scrNav button { flex: none; white-space: nowrap; padding-left: 10px; padding-right: 10px; }
+  #app .scr-h .ad { flex: 0 1 auto; min-width: 5em; }
+  #app .scr-h .res2:not(.un) { margin-left: auto; }
+}
+@media (min-width: 621px) and (max-width: 760px) and (max-height: 500px) {
+  /* dar yatay telefon: sekmeli ekranda ün sayacı yer açar (Ün Tablosu'nda ve meydanda görünür); üst yazı gizlenir, başlık kalır */
+  #app .scr-h:has(#scrNav:not([hidden])) .res2.un { display: none; }
+  #app .scr-h:has(#scrNav:not([hidden])) .ad small { display: none; }
+  #app .scr-h:has(#scrNav:not([hidden])) .ad { flex: none; }   /* başlık kesilmez; sekmeler daralır, gerekirse kendi içinde kayar */
+  #app .scr-h #scrNav { min-width: 0; flex: 1 1 auto; }
+}
+
+/* ekran ipucu, yatay telefon: ortadaki yerler kalbe, adlara ya da şartlara biniyorsa alt köşelerden biri denenir (js/rehber.js YERLER) */
+.ui2 .rehber[data-tur="ekran"].yer-sagalt, .ui2 .rehber[data-tur="ekran"].yer-solalt { top: auto; bottom: max(.8em, env(safe-area-inset-bottom, 0px)); transform: none; max-width: min(24em, 38%); animation: none; }
+.ui2 .rehber[data-tur="ekran"].yer-sagalt { left: auto; right: max(.8em, env(safe-area-inset-right, 0px)); }
+.ui2 .rehber[data-tur="ekran"].yer-solalt { left: max(.8em, env(safe-area-inset-left, 0px)); }

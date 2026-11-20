@@ -113,6 +113,24 @@
      Misafir yalnız bakar: kare panosu açılmaz, ejderhaya dokununca eşleşme teklifi çıkar. */
   const ziy = () => !!(EO2.ziyaret && EO2.ziyaret.tablo()), W = () => (EO2.ziyaret && EO2.ziyaret.tablo()) || (typeof S === 'undefined' ? null : S);
   function bosKare() { const S = W(), o = []; S.grid.forEach((t, i) => { if (t.open && !t.b) o.push(i); }); return o.length ? o[Math.floor(Math.random() * o.length)] : -1; }
+  /* ilk adım (UX denetimi, 2026-11-20): Kuluçka Ocağı yokken boş açık kareler altın köşelerle ışıldar; şeritteki "Yolu göster" terbiyeciyi en yakınına yürütür */
+  const kuluckaYok = () => { const S = W(); return !ziy() && !!S && !!S.grid && !S.grid.some(t => t.b === 'kulucka') && S.grid.some(t => t.open && !t.b); };
+  function yakinBos() { const S = W(), p = EO2.api && EO2.api.player; if (!S || !S.grid || !p) return -1; let en = -1, m = 1e9; S.grid.forEach((t, i) => { if (!t.open || t.b) return; const d = Math.hypot(cx(i) - p.x, cy(i) - p.y); if (d < m) { m = d; en = i; } }); return en; }
+  const dokunmatik = () => matchMedia('(pointer: coarse)').matches;
+  /* yol: çalılıklar ve eşyalar düz yürümeyi keser; yarım metrelik ızgarada en kısa yol aranır, görüş hattıyla birkaç ara noktaya indirilir */
+  function yolBul(hx, hy) { const p = EO2.api.player, h = 0.5, r = 0.5, x0 = L.bounds[0], y0 = L.bounds[2], nx = Math.ceil((L.bounds[1] - x0) / h) + 1, ny = Math.ceil((L.bounds[3] - y0) / h) + 1;
+    const serbest = (x, y) => !L.rects.some(q => x > q[0] - r && x < q[1] + r && y > q[2] - r && y < q[3] + r) && !L.circles.some(c => Math.hypot(x - c[0], y - c[1]) < c[2] + r);
+    const gorur = (a, b) => { const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.2); for (let s = 1; s < n; s++) if (!serbest(a[0] + (b[0] - a[0]) * s / n, a[1] + (b[1] - a[1]) * s / n)) return false; return true; };
+    const hc = (x, y) => Math.max(0, Math.min(ny - 1, Math.round((y - y0) / h))) * nx + Math.max(0, Math.min(nx - 1, Math.round((x - x0) / h))), nok = c => [x0 + (c % nx) * h, y0 + Math.floor(c / nx) * h];
+    const bas = hc(p.x, p.y), son = hc(hx, hy), onc = new Int32Array(nx * ny).fill(-1), K = [bas]; onc[bas] = bas;
+    for (let q = 0; q < K.length && onc[son] < 0; q++) { const c = K[q], i = c % nx, j = (c - i) / nx; for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = i + di, b = j + dj; if (a < 0 || b < 0 || a >= nx || b >= ny) continue; const n = b * nx + a; if (onc[n] >= 0) continue; const [x, y] = nok(n); if (n !== son && !serbest(x, y)) continue; onc[n] = c; K.push(n); } }
+    if (onc[son] < 0) return null; const P = []; for (let c = son; c !== bas; c = onc[c]) P.push(nok(c)); P.reverse(); if (!P.length) return [[hx, hy]]; P[P.length - 1] = [hx, hy];
+    const Y = []; let cur = [p.x, p.y], k = -1; while (k < P.length - 1) { let en = k + 1; for (let m = P.length - 1; m > k + 1; m--) if (gorur(cur, P[m])) { en = m; break; } Y.push(P[en]); cur = P[en]; k = en; } return Y; }
+  let yol = null;   // { P: ara noktalar, k: sıradaki, t: son ilerleme }
+  function yolIzle() { if (!yol) return; const A = EO2.api, p = A.player, q = yol.P[yol.k], now = performance.now(), d = Math.hypot(q[0] - p.x, q[1] - p.y);
+    if (d < yol.en - 0.05) { yol.en = d; yol.t = now; } if (A.scene() !== 'ocak' || now - yol.t > 2500) { yol = null; return; }      // oyuncu başka yöne yürürse ya da takılırsa rehber bırakır
+    if (d < 0.35) { yol.k++; yol.t = now; if (yol.k >= yol.P.length) { yol = null; return; } yol.en = 1e9; A.walkTo(yol.P[yol.k][0], yol.P[yol.k][1]); } }
+  function yolGoster() { const i = yakinBos(); if (i < 0 || !EO2.api.walkTo) return false; const P = yolBul(cx(i), cy(i)); if (!P) return false; yol = { P, k: 0, t: performance.now(), en: 1e9 }; EO2.api.walkTo(P[0][0], P[0][1]); toast(dokunmatik() ? 'Işıklı boş kareye gidiyorsun. Varınca <b>Yapı kur</b> düğmesine dokun.' : 'Işıklı boş kareye gidiyorsun. Varınca <b>E</b> ile yapı kur.'); return true; }
   /* emrin yeri: antrenman emri o yeteneğin yapısına (yoksa Talim Meydanı'na), dinlenme ine (yoksa Sıcak Kaynak'a), çift emirleri Yuva Bahçesi'ne götürür.
      Yalnız gösterimdir: emir, verim ve sonuç oyunun kendi kuralıyla hafta sonunda işlenir. */
   const IS_YAPI = { gu: 'agirlik', ce: 'parkur', da: 'kaynak', ze: 'magara' };
@@ -131,7 +149,7 @@
   function odak() { if (ziy()) { kare.i = -1; kare.r = 0; kare.y = -50; return; } const A = EO2.api, p = A.player, v = YON[p.dir] || [0, 1]; const on = tileAt(p.x + v[0] * 1.9, p.y + v[1] * 1.9), alt = tileAt(p.x, p.y); let i = on >= 0 && (!S.grid[on].open || S.grid[on].b) ? on : alt >= 0 ? alt : on;      // önünde çalılık ya da yapı varsa o; yoksa üstünde durduğu kare
     kare.i = i; if (i < 0 || document.getElementById('ocTepsi')) { kare.r = 0; kare.y = -50; return; } const t = S.grid[i]; kare.x = cx(i); kare.y = cy(i) - (t.open && !t.b ? 0 : TS * 0.45); kare.r = TS * 1.5; kare.act = 'kare:' + i; kare.z = t.b ? 2.6 : t.open ? 0.5 : 1.5;
     if (!t.open) { const ok = canClear(i); kare.label = ok ? 'Araziyi aç' : 'Çalılık'; kare.sub = ok ? clearCost() + ' altın' : 'Önce yanındaki araziyi aç'; } else if (t.b) { kare.label = BUILD[t.b].ad; const eg = t.b === 'kulucka' ? (S.eggs || []).filter(q => q.inK).length : 0, B = BUILD[t.b], cs = (B.stat || t.b === 'talim') ? (S.dragons || []).filter(d => !d.dead && d.task && d.task.t === 'train' && (!B.stat || d.task.k === B.stat)).length : 0; kare.sub = eg ? eg + ' yumurta kuluçkada' : cs ? cs + ' ejderha çalışıyor' : 'Yapıya bak'; } else { kare.label = 'Yapı kur'; kare.sub = 'Boş arazi'; } }
-  EO2.frameHooks.push(() => { if (!EO2.api || EO2.api.scene() !== 'ocak' || !G.live) return; adim(Math.min(0.05, (performance.now() - (adim.son || performance.now())) / 1000)); adim.son = performance.now(); odak(); });
+  EO2.frameHooks.push(() => { if (!EO2.api || EO2.api.scene() !== 'ocak' || !G.live) return; adim(Math.min(0.05, (performance.now() - (adim.son || performance.now())) / 1000)); adim.son = performance.now(); odak(); yolIzle(); });
 
   let onizle = null;   // panoda seçili yapı: { i: kare, k: yapı }; karede yarı saydam durur
   D.ocak = { L, build(h) { h.addSky(); const art = h.art, R = h.R, tx = h.tx, sh = h.uv('shadow'), wv = h.uv('white'), ring = h.uv('ring'), glow = h.uv('glow');
@@ -205,7 +223,8 @@
     h.push({ key: 898, draw(R, F) { const S = W(); if (!S || !S.grid) return;
       const a = TS / 2 - 0.02; for (const tt of KT) S.grid.forEach((t, i) => { if ((!t.open ? tYab[i % 2] : t.b ? tPed[i % 3] : tBos[i % 2]) !== tt) return; const x = cx(i), y = cy(i), f = i % 2, g = (i >> 1) % 2;
         R.quad(tt, [x - a, y - a, 0.012], [x + a, y - a, 0.012], [x + a, y + a, 0.012], [x - a, y + a, 0.012], f, g, 1 - f, 1 - g, F.lit(x, y, 1), false, 1); });
-      S.grid.forEach((t, i) => { const x = cx(i), y = cy(i);
+      const vurgu = kuluckaYok(); S.grid.forEach((t, i) => { const x = cx(i), y = cy(i);
+        if (vurgu && t.open && !t.b) { const k = 0.6 + Math.sin(F.time * 3.2 + i) * 0.3, b = a - 0.04, rr = TS * 0.62; R.quad(h.T.fx, [x - rr, y - rr, 0.0138], [x + rr, y - rr, 0.0138], [x + rr, y + rr, 0.0138], [x - rr, y + rr, 0.0138], glow[0], glow[1], glow[2], glow[3], [0.95 * k, 0.78 * k, 0.3 * k, 1], true, 0); R.quad(tKose, [x - b, y - b, 0.014], [x + b, y - b, 0.014], [x + b, y + b, 0.014], [x - b, y + b, 0.014], 0, 0, 1, 1, [1, 0.92, 0.55, k], false, 1); }
         if (!t.open && !ziy() && canClear(i)) { const k = 0.34 + Math.sin(F.time * 2.4 + i) * 0.14, b = a - 0.1; R.quad(tKose, [x - b, y - b, 0.014], [x + b, y - b, 0.014], [x + b, y + b, 0.014], [x - b, y + b, 0.014], 0, 0, 1, 1, [1, 1, 1, k], false, 1); } });
       const oi = onizle ? onizle.i : kare.i >= 0 && kare.r > 0 ? kare.i : -1; if (oi >= 0) { const x = cx(oi), y = cy(oi), k = (onizle ? 0.62 : 0.3) + Math.sin(F.time * 4) * 0.06, rr = TS * 0.6; R.quad(h.T.fx, [x - rr, y - rr, 0.017], [x + rr, y - rr, 0.017], [x + rr, y + rr, 0.017], [x - rr, y + rr, 0.017], ring[0], ring[1], ring[2], ring[3], onizle ? [0.62 * k, 0.86 * k, 1 * k, 1] : [1 * k, 0.9 * k, 0.6 * k, 1], true, 0); } } });
     /* her kare için dik duran şey: kapalı karede sık çalı öbeği (alçak, oyuncuyu örtmez), açık karede kurulu yapı; kuluçkadaki yumurtalar yapının önünde durur */
@@ -290,10 +309,13 @@
   addEventListener('keydown', e => { const w = document.getElementById('ocTepsi'); if (!w) return; if (e.key === 'Escape') { e.stopPropagation(); kapat(); } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Enter') && w.dataset.tur === 'yapi' && !w.contains(document.activeElement)) { const b = w.querySelector('.ocp-yapi.sec'); if (b) { e.stopPropagation(); e.preventDefault(); b.focus({ preventScroll: true }); if (e.key !== 'Enter') w.onkeydown(e); } } }, true);
 
   /* ---------- bağlantılar ---------- */
-  async function git() { if (!G.live) return; if (ziy()) { toast('Başka bir ocakta misafirsin. Kapıdan çıkınca kendi ocağına dönebilirsin.'); return; } await onYukle(); carp(); if (EO2.api.scene() === 'ocak') { toast('Ocaktasın. Bir karenin önüne gel ve <b>E</b> ile dokun.'); return; } G.close(); EO2.api.go('ocak'); }
-  EO2.ocak = { git, ac, kapat, cx, cy, TS, carp, tileAt, mahalle, YC, L };
+  async function git() { if (!G.live) return; if (ziy()) { toast('Başka bir ocakta misafirsin. Kapıdan çıkınca kendi ocağına dönebilirsin.'); return; } await onYukle(); carp(); if (EO2.api.scene() === 'ocak') { toast(dokunmatik() ? 'Ocaktasın. Bir karenin önüne gel, beliren düğmeye dokun.' : 'Ocaktasın. Bir karenin önüne gel ve <b>E</b> ile dokun.'); return; } G.close(); EO2.api.go('ocak'); }
+  /* öğretici şeridindeki "Yolu göster": ocaktaysa terbiyeciyi en yakın boş kareye yürütür, değilse ocağa götürüp sonra yürütür */
+  async function yolaCik() { if (!G.live) return; if (ziy() || !kuluckaYok()) return git(); await onYukle(); carp(); if (EO2.api.scene() === 'ocak') { G.close(); if (!yolGoster()) git(); return; } yolIste = true; G.close(); EO2.api.go('ocak'); }
+  let yolIste = false;   // ocağa başka yerden gelindiyse sahne kurulunca yol gösterilir
+  EO2.ocak = { git, yolaCik, ac, kapat, cx, cy, TS, carp, tileAt, mahalle, YC, L };
   (function bagla() { if (!EO2.hooks.panel || !EO2.hooks.act) return setTimeout(bagla, 80); const p0 = EO2.hooks.panel, a0 = EO2.hooks.act, s0 = EO2.hooks.scene;
     EO2.hooks.panel = id => { if (id === 'ocak') { if (G.live) git(); return true; } return p0(id); };
     EO2.hooks.act = act => { if (!G.live) return true; if (ziy() && (act.startsWith('kare:') || act.startsWith('ejder:'))) { if (act.startsWith('ejder:')) EO2.ziyaret.ejder(act.slice(6)); return true; } if (act.startsWith('kare:')) { ac(+act.slice(5)); return true; } if (act.startsWith('ejder:')) { const d = byId(+act.slice(6)); if (d) { UI.sel = d.id; const g = gez[d.id]; if (g) g.sevin = 1.2; if (EO2.audio) EO2.audio.chirp(); G.open('ejderhalar'); } return true; } return a0(act); };
-    EO2.hooks.scene = id => { if (s0) s0(id); if (id === 'ocak') carp(); else kapat(); }; })();
+    EO2.hooks.scene = id => { if (s0) s0(id); if (id === 'ocak') { carp(); if (yolIste) { yolIste = false; setTimeout(() => { if (EO2.api.scene() === 'ocak' && kuluckaYok()) yolGoster(); }, 700); } } else { yolIste = false; kapat(); } }; })();
 })();
