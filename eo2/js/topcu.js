@@ -8,6 +8,12 @@
   'use strict';
   const EO2 = window.EO2, G = EO2.game, B = EO2.battle, V = EO2.topcuVeri, el = G.el, OLD = G.OLD;
   const fmt = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  /* AŞAMA YOLU (ekonomi raporu 2026-11-20, O1): yeni yöntemle kurulmuş zindanın (js/zindan_tarif.js) çevrimdışı tek kişilik
+     seferi, çevrimiçi seferle aynı sayıda aşama oynar: tarifteki aşama sayısı kadar, son aşama hep boss. Böylece çevrimiçi ve
+     çevrimdışı aynı ödülü verir (Zümrüt Saray: 1 ara aşama + Şahmeran). Tarifi olmayan zindan eski aşamalarının hepsini oynar. */
+  const yolu = z => { const Z = V.ZINDAN[z], tum = Z.asama.map((_, i) => i), tarif = Object.values(window.EO2_ZINDAN || {}).find(t => t && t.odul === z);
+    const n = tarif && Array.isArray(tarif.asama) ? tarif.asama.length : 0;
+    return n >= 1 && n < tum.length ? [...tum.slice(0, n - 1), tum.length - 1] : tum; };
   const kilitli = () => typeof canEnterZindanOrTopcu === 'function' ? !canEnterZindanOrTopcu() : false;
   const kayit = () => { S.topcu = S.topcu || {}; const T = S.topcu; T.ganimet = T.ganimet || {}; T.zafer = T.zafer || {}; T.okundu = T.okundu || {}; T.zorluk = T.zorluk || {}; return T; };
   const sofra = () => !!(S.sofraBuff && S.sofraBuff.week === S.week);
@@ -80,9 +86,9 @@
   function talimCfg() { const o = oyuncuDeger(false);
     return meydanUygula({ kimlik: 'talim-' + Date.now(), kip: 'talim', baslik: 'Talim', alt: 'Ödülsüz düello', arazi: V.talimArazi(), bg: MEYDAN_BG, sis: MEYDAN_SIS, ortam: 'yaprak', x0: 1010, oyuncu: o, zorluk: { hp: 1, dmg: 1 }, cikis: ayril,
       rakip: { ad: 'Talimci', unvan: 'Arena talimcisi', set: o.set === 'muhafiz' ? 'temel' : 'muhafiz', kontrol: 'yapay', hp: 1350, dmg: 210, el: 'talim', x: 2390, revive: 0 } }); }
-  function asamaCfg() { const Z = V.ZINDAN[ornek.zindan], As = Z.asama[ornek.asama], zr = V.ZORLUK[ornek.zorluk], aile = Z.tema, o = oyuncuDeger(true);
-    return { kimlik: ornek.kimlik + '-' + (ornek.asama + 1), kip: 'zindan', baslik: As.ad, alt: 'Aşama ' + (ornek.asama + 1) + ' / ' + Z.asama.length + ' · ' + zr.ad, arazi: Object.assign(V.arazi(As.tema || Z.tema, aile, As.f, 11 + ornek.asama * 7), {}), bg: As.bg, deniz: As.deniz, ozel: As.ozel, ortam: Z.ortam, x0: As.x0 || 460,
-      oyuncu: Object.assign(o, As.aci ? { angle: As.aci } : {}), zorluk: zr, moblar: As.moblar(zr.hp), boss: As.boss ? As.boss(zr.hp) : null, asama: { ad: Z.ad, n: Z.asama.length, i: ornek.asama }, ipucu: As.ipucu, cikis: ayril, sis: aile === 'kaldera' ? 'rgba(30,6,4,.5)' : aile === 'donanma' ? 'rgba(4,16,34,.5)' : 'rgba(4,14,20,.55)' }; }
+  function asamaCfg() { const Z = V.ZINDAN[ornek.zindan], As = Z.asama[ornek.yol[ornek.asama]], zr = V.ZORLUK[ornek.zorluk], aile = Z.tema, o = oyuncuDeger(true);
+    return { kimlik: ornek.kimlik + '-' + (ornek.asama + 1), kip: 'zindan', baslik: As.ad, alt: 'Aşama ' + (ornek.asama + 1) + ' / ' + ornek.yol.length + ' · ' + zr.ad, arazi: Object.assign(V.arazi(As.tema || Z.tema, aile, As.f, 11 + ornek.asama * 7), {}), bg: As.bg, deniz: As.deniz, ozel: As.ozel, ortam: Z.ortam, x0: As.x0 || 460,
+      oyuncu: Object.assign(o, As.aci ? { angle: As.aci } : {}), zorluk: zr, moblar: As.moblar(zr.hp), boss: As.boss ? As.boss(zr.hp) : null, asama: { ad: Z.ad, n: ornek.yol.length, i: ornek.asama }, ipucu: As.ipucu, cikis: ayril, sis: aile === 'kaldera' ? 'rgba(30,6,4,.5)' : aile === 'donanma' ? 'rgba(4,16,34,.5)' : 'rgba(4,14,20,.55)' }; }
   function kervanCfg(cv) { const K = V.KERVAN, o = oyuncuDeger(true);
     return { kimlik: 'kervan-' + (cv ? cv.id : 'x') + '-' + Date.now(), kip: 'kervan', baslik: K.ad, alt: cv ? cv.guild + ' kervanı · ' + cv.route : K.alt, arazi: V.arazi(K.tema, 'kervan', K.f, 23), bg: K.bg, ortam: K.ortam, x0: 460, oyuncu: o, zorluk: { hp: 1, dmg: 1 }, moblar: K.moblar(), props: K.props, ipucu: K.ipucu, cikis: ayril, sis: 'rgba(60,30,16,.35)' }; }
   async function ayril() { const M = B.state(); if (!M || M.over || M.dur) return; M.dur = true;
@@ -109,9 +115,9 @@
   async function zindan(z, zorluk, ilkAsama) { if (kilitli()) return kilitPen(); const Z = V.ZINDAN[z], T = kayit();
     /* Tek kişi = içinde tek kişi olan aynı zindan (kullanıcı, 2026-11-17). Yeni yöntemle kurulmuş zindan (js/zindan_tarif.js) varsa tek kişilik sefer açılır. */
     if (!ilkAsama && EO2.zindan && EO2.zindan.tekVar && EO2.zindan.tekVar(z)) { if (!T.okundu[z]) { await destan(z, 'prolog'); T.okundu[z] = 1; if (typeof saveGame === 'function') saveGame(); } if (EO2.zindan.tekBasla(z, zorluk)) return; }
-    ornek = { kimlik: z + '-' + zorluk + '-' + Date.now(), zindan: z, zorluk, asama: ilkAsama || 0, altin: 0, ganimet: [], hasar: 0 };      // ilkAsama yalnız denetim betikleri içindir; oyunda sefer hep ilk aşamadan başlar
+    ornek = { kimlik: z + '-' + zorluk + '-' + Date.now(), zindan: z, zorluk, yol: yolu(z), asama: ilkAsama || 0, altin: 0, ganimet: [], hasar: 0 };      // ilkAsama yalnız denetim betikleri içindir; oyunda sefer hep ilk aşamadan başlar
     if (!T.okundu[z]) { await destan(z, 'prolog'); T.okundu[z] = 1; if (typeof saveGame === 'function') saveGame(); }
-    for (;;) { const cfg = asamaCfg(), r = await mac(cfg); if (r.terk) break; ornek.hasar += r.ist.hasar; const son = ornek.asama === Z.asama.length - 1;
+    for (;;) { const cfg = asamaCfg(), r = await mac(cfg); if (r.terk) break; ornek.hasar += r.ist.hasar; const son = ornek.asama === ornek.yol.length - 1;
       if (!r.zafer) { const v = await G.pen({ k: Z.ad + ' · Aşama ' + (ornek.asama + 1), t: 'Yenildin', body: '<p>Anka külün tükendi. Aynı aşamayı yeniden deneyebilir ya da seferi bırakabilirsin.</p>' + ozet(r), btns: [{ t: 'Seferi bırak', v: false }, { t: 'Yeniden dene', cls: 'altin', v: true }] }); if (!v) break; continue; }
       if (!son) { const s = odulYaz('asama'); ornek.ganimet.push(...s); dondur();
         await cark('Aşama ' + (ornek.asama + 1) + ' temizlendi', '150 altın kesene girdi. Çarkı bir kez çevir.', kucukCark(ornek.asama + 1), false); ornek.asama++; continue; }
@@ -138,7 +144,7 @@
         '<div class="tp-k-alt">' + (kil ? '<span class="tp-muhur">Mühürlü: omuz ejderi gerek</span><button type="button" class="gbtn" data-kilit="1">Nasıl açılır?</button>' : '<button type="button" class="gbtn altin buyuk" data-git="kervan" ' + (cv ? '' : 'disabled') + '>Baskına çık</button>') + '</div>'; }
     const Z = V.ZINDAN[y.k], zr = T.zorluk[y.k] || 'normal', zafer = T.zafer[y.k] || 0;
     return '<img class="tp-k-yuz" alt="" src="' + Z.yuz + '"><div class="tp-k-bas"><small>Zindan ' + Z.rakam + ' · ' + Z.el + '</small><h2>' + Z.ad + '</h2><em>' + Z.boss + (zafer ? ' · ' + zafer + ' zafer' : '') + '</em></div>' +
-      '<ol class="tp-yol" aria-label="Aşamalar">' + Z.asama.map((a, i) => '<li class="' + (a.boss ? 'boss' : '') + '"><i>' + (i + 1) + '</i><span><b>' + a.ad + '</b><small>' + a.alt + '</small></span></li>').join('') + '</ol>' +
+      '<ol class="tp-yol" aria-label="Aşamalar">' + yolu(y.k).map(j => Z.asama[j]).map((a, i) => '<li class="' + (a.boss ? 'boss' : '') + '"><i>' + (i + 1) + '</i><span><b>' + a.ad + '</b><small>' + a.alt + '</small></span></li>').join('') + '</ol>' +
       '<div class="tp-zor" role="radiogroup" aria-label="Zorluk">' + Object.keys(V.ZORLUK).map(k => '<button type="button" role="radio" aria-checked="' + (k === zr) + '" data-zor="' + k + '"><b>' + V.ZORLUK[k].ad + '</b><small>' + (k === 'normal' ? 'Düşman canı dörtte üç' : 'Tam güç') + '</small></button>').join('') + '</div>' +
       '<p class="tp-k-not">Her ara aşama: 150 altın ve Öncü Ganimet Çarkı. Final: ' + (zr === 'normal' ? '250 altın, 1 ' + Z.ganimet + ', 2 Harlı Kor Taşı' : '500 altın, 2 ' + Z.ganimet + ', 2 Harlı Kor Taşı') + ' ve Ulu Kader Çarkı.</p>' +
       '<div class="tp-k-alt">' + (kil ? '<span class="tp-muhur">Mühürlü: omuz ejderi gerek</span><button type="button" class="gbtn" data-kilit="1">Nasıl açılır?</button>' : '<button type="button" class="gbtn" data-destan="' + y.k + '">Destanı oku</button><button type="button" class="gbtn altin buyuk" data-git="zindan">Sefere çık</button>') + '</div>'; }

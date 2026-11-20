@@ -86,7 +86,7 @@ Model: `ekonomi/model.js` (haftalık altın), `ekonomi/ors_mc.js` (Kor Örsü, g
 
 | # | Boşluk | Etki | Öneri |
 |---|---|---|---|
-| O1 | Aynı zindan iki ödülde: çevrimiçi Zümrüt Saray (tek kişi ve grup) 2 aşama, çevrimdışı tek kişilik Sırça Saray 4 aşama | Çevrimdışı oynayan %70 fazla altın alır (Normal 995 / 582, Ağır 1.240 / 827). "Tek kişi = aynı zindan" ilkesine aykırı | Çevrimdışı yol da 2 aşamalı tarife geçsin (sayı değişmez, aşama listesi değişir) |
+| O1 | Aynı zindan iki ödülde: çevrimiçi Zümrüt Saray (tek kişi ve grup) 2 aşama, çevrimdışı tek kişilik Sırça Saray 4 aşama | Çevrimdışı oynayan %70 fazla altın alır (Normal 995 / 582, Ağır 1.240 / 827). "Tek kişi = aynı zindan" ilkesine aykırı | **Uygulandı:** çevrimdışı sefer tarifteki aşama sayısı kadar oynar, son aşama boss (`eo2/js/topcu.js` `yolu`). Zümrüt: 1 ara aşama + Şahmeran; Kaldera ve Donanma değişmez |
 | O2 | Ödül istemcide yazılıyor (`odulYaz`), sunucu seferi bildiği hâlde altını kendisi yazmıyor | PR 14 ile bağlı girer: hile açığı değil ama Topçu altını takas edilemez | Ortak sefer bitişinde sunucu `topcu.clear`/`topcu.spin` ile yazsın; altının takas edilip edilmeyeceği ayrı karar |
 | O3 | Ücretli ulu çark net kaynak (B4) | Altın harcamadan taş ve yumurta basılır | Sayı değişmeden çözüm yok; karar: ya böyle kalsın (eğlence), ya ücretli çevirme sefer başına sınırlansın |
 | O4 | Haftalık sınır yok, kişi sayısı ödülü bölmüyor | İlkeye uygun (§5.2). Grupta düşman canı ×2,5, süre benzer | Dokunma |
@@ -96,7 +96,7 @@ Model: `ekonomi/model.js` (haftalık altın), `ekonomi/ors_mc.js` (Kor Örsü, g
 
 1. **Ekonomi defteri (ölçüm). Uygulandı:** `server/ekonomi_defteri.js`; her komutun altın farkı gün × kalem başına, komutla aynı işlemde sayılır. Okuma: `/ekonomi` sayfası (HUNI_ANAHTAR ile). Takas ve düello sayılmaz (oyuncular arası aktarım).
 2. **D7: Bedesten %5** (§4).
-3. **O1: çevrimdışı Sırça Saray'ı 2 aşamaya hizala.**
+3. **O1: çevrimdışı Sırça Saray'ı 2 aşamaya hizala. Uygulandı.**
 4. **Yeni gider:** §5.2 gereği her kaynağın bir çıkışı olmalı. Topçu altınının çıkışı bugün yalnız Örs. Ejdere dönen, tekrar eden bir altın gideri gerekiyor (örnek: ocak süsleri, kuşam boyası, soy defteri mührü). Ayrı tasarım kararı.
 5. **Sezon geçişi (B5):** kesenin taşınması bilinçli bir karar mı, sorulmalı. Değiştirmek kural değişikliği olur; şimdilik yalnız not.
 
