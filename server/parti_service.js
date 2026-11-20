@@ -2,7 +2,8 @@
 // Parti (Ejder Ocağı 2.0, 2026-11-16): en çok dört terbiyecilik kalıcı olmayan grup.
 // Parti üyeleri birbirinin nerede olduğunu görür ve parti sohbetinde konuşur (alan sohbetinden bağımsız, her yerden).
 // Oynanışa ve ekonomiye dokunmaz. Ortak PvE (server/ortak_odalar.js) ileride partiyi birlikte kuyruğa sokmak için uyeler() ucunu kullanabilir.
-// Kimlik soketten gelir. Bellekte tutulur: sunucu yeniden başlayınca partiler dağılır. Tek sunucu örneği varsayar.
+// Kimlik soketten gelir. Bellekte tutulur, tek sunucu örneği varsayar. Yeniden başlatma (2026-11-20): anlik() depoya yazılır
+// (server/kalici_durum.js), açılışta geriYukle() partileri geri kurar; üyeler çevrimdışı döner ve KOPMA_MS içinde bağlanırlarsa partide kalır.
 //
 //   parti_davet { to }     lider (ya da partisi olmayan) → hedef: parti_davet { h, ad }   (90 sn geçerli)
 //   parti_kabul { lider }  davet edenin partisine katılır (partisi yoksa ikisiyle kurulur)
@@ -64,7 +65,18 @@ function createParti({ send, sockets, kimlik, yer = () => null, now = () => Date
   function onConnect(socket) { const k = kimlik(socket); if (!k) return; const p = partiOf(k.accountId); if (!p) return; const u = p.uyeler.find(x => x.id === k.accountId); if (u) u.kopma = 0; yay(p); }
   function supur() { const t = now(); for (const p of [...partiler.values()]) for (const u of [...p.uyeler]) if (u.kopma && t - u.kopma > KOPMA_MS && !soketler(u.id).length) cikar(p, u.id);
     for (const [a, d] of davet) if (d.t <= t) davet.delete(a); }
-  return { onMessage, onDisconnect, onConnect, supur, uyeler: id => { const p = partiOf(id); return p ? p.uyeler.map(u => u.id) : []; }, sayim: () => ({ parti: partiler.size, uye: uyelik.size }) };
+  const anlik = () => ({ sira, partiler: [...partiler.values()].map(p => ({ id: p.id, uyeler: p.uyeler.map(u => ({ id: u.id, h: u.h, ad: u.ad })) })) });
+  function geriYukle(v) {
+    if (!v || !Array.isArray(v.partiler)) return 0; let n = 0; const t = now(); sira = Math.max(sira, Number.isInteger(v.sira) ? v.sira : 0);
+    for (const r of v.partiler) {
+      if (!r || typeof r.id !== 'string' || partiler.has(r.id) || !Array.isArray(r.uyeler)) continue;
+      const uyeler = r.uyeler.filter(u => u && typeof u.id === 'string' && !uyelik.has(u.id)).slice(0, EN_COK).map(u => ({ id: u.id, h: String(u.h || ''), ad: temizAd(u.ad), kopma: t }));
+      if (uyeler.length < 2) continue;
+      const p = { id: r.id, uyeler }; partiler.set(p.id, p); for (const u of uyeler) uyelik.set(u.id, p.id); n++;
+    }
+    return n;
+  }
+  return { onMessage, onDisconnect, onConnect, supur, anlik, geriYukle, uyeler: id => { const p = partiOf(id); return p ? p.uyeler.map(u => u.id) : []; }, sayim: () => ({ parti: partiler.size, uye: uyelik.size }) };
 }
 
 module.exports = { createParti, EN_COK, DAVET_MS, KOPMA_MS };

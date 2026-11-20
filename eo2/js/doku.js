@@ -53,7 +53,13 @@
   const K = EO2.doku = { im: {}, isik: {}, kab: {}, kabT: {}, olcu: OLCU, hazir: false, tam: false };
   let secim = null; try { secim = localStorage.getItem('eo2.meydan3'); } catch (e) { /* gizli pencere */ }
   /* zemin dokuları: assets/zemin/<ad>.webp (üstten, kenardan kenara çizilmiş; motor aynalı döşer) */
-  K.zemin = {}; for (const ad of ['tas', 'tas2', 'tas3', 'tas4', 'tas5', 'cim', 'ahsap', 'kum', 'toprak']) yukle('assets/zemin/' + ad + '.webp').then(im => { if (im) K.zemin[ad] = im; });
+  /* Açılışta hepsi inmez (dokuzu ~1,6 MB): sahne hangi ikisini kullanıyorsa sahneye girilirken (EO2.sahneYukle) ya da ilk çizildiğinde istenir. */
+  const ZEMIN_ADLAR = ['tas', 'tas2', 'tas3', 'tas4', 'tas5', 'cim', 'ahsap', 'kum', 'toprak'], zeminP = {};
+  K.zemin = {};
+  K.zeminIste = ad => !ad || K.zemin[ad] || !ZEMIN_ADLAR.includes(ad) ? Promise.resolve() : zeminP[ad] || (zeminP[ad] = yukle('assets/zemin/' + ad + '.webp').then(im => { if (im) K.zemin[ad] = im; }));
+  /* sahnenin zemin seçimi (game.js zeminDoku da bunu kullanır): L.zemin = [döşeme, yer, karo1, karo2]; yoksa zemin türünden */
+  K.zeminSec = L => (L && L.zemin) || ({ wood: ['ahsap', null, 4.2], sand: ['tas', 'kum', 4.4, 8], kar: [null, null], kul: [null, null], kaya: [null, null] })[L && L.floor] || ['tas', 'cim', 4.4, 7];
+  K.zeminYukle = L => Promise.all(K.zeminSec(L).slice(0, 2).map(K.zeminIste));
   /* bölüm çizimleri: bölüm motoru (js/bolum.js) kendi çizimlerini adlarıyla ister; yüklü olan yeniden yüklenmez */
   K.ekle = (adlar, klasor) => Promise.all((adlar || []).filter(ad => ad && !K.im[ad]).map(ad => yukle((klasor || 'assets/dunya/an/') + ad + '.webp').then(im => { if (im) K.im[ad] = im; return [ad, !!im]; })));
   /* YÜKLEME: çizimler açılışta topluca inmez (2026-11-16; açılışta 45 MB görsel iniyordu). Başlangıç sahnesi (master Merkez Meydan)
@@ -74,7 +80,8 @@
   K.yuklendi = Promise.resolve();   // eski ad (pilot.js ayarlarını bununla uygular); çizimlerin tamamı için K.tumu()
   /* sahneye girmeden önce gereken çizimler. Başka dosyalar kendi yükleyicisini EO2.sahneOnce[kimlik] ile kaydeder (ocak25.js). Hiç reddetmez. */
   EO2.sahneOnce = EO2.sahneOnce || {};
-  EO2.sahneYukle = id => { const b = EO2.bolum && EO2.bolum.hepsi && EO2.bolum.hepsi[id], is = [];
+  EO2.sahneYukle = id => { const b = EO2.bolum && EO2.bolum.hepsi && EO2.bolum.hepsi[id], is = [], tanim = EO2.sceneDefs && EO2.sceneDefs[id];
+    if (tanim && tanim.L && EO2.meydanUslup === 'cizim') is.push(K.zeminYukle(tanim.L));
     if (b) { if (b.yukle) is.push(b.yukle()); }
     else if (EO2.meydanUslup === 'cizim') is.push(id === 'pilot' ? K.tumu() : Promise.all([K.ortak(), ...(GRUP[id] || []).map(al)]));
     if (EO2.sahneOnce[id]) is.push(EO2.sahneOnce[id]());

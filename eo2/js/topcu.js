@@ -8,6 +8,12 @@
   'use strict';
   const EO2 = window.EO2, G = EO2.game, B = EO2.battle, V = EO2.topcuVeri, el = G.el, OLD = G.OLD;
   const fmt = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  /* AŞAMA YOLU (ekonomi raporu 2026-11-20, O1): yeni yöntemle kurulmuş zindanın (js/zindan_tarif.js) çevrimdışı tek kişilik
+     seferi, çevrimiçi seferle aynı sayıda aşama oynar: tarifteki aşama sayısı kadar, son aşama hep boss. Böylece çevrimiçi ve
+     çevrimdışı aynı ödülü verir (Zümrüt Saray: 1 ara aşama + Şahmeran). Tarifi olmayan zindan eski aşamalarının hepsini oynar. */
+  const yolu = z => { const Z = V.ZINDAN[z], tum = Z.asama.map((_, i) => i), tarif = Object.values(window.EO2_ZINDAN || {}).find(t => t && t.odul === z);
+    const n = tarif && Array.isArray(tarif.asama) ? tarif.asama.length : 0;
+    return n >= 1 && n < tum.length ? [...tum.slice(0, n - 1), tum.length - 1] : tum; };
   const kilitli = () => typeof canEnterZindanOrTopcu === 'function' ? !canEnterZindanOrTopcu() : false;
   const kayit = () => { S.topcu = S.topcu || {}; const T = S.topcu; T.ganimet = T.ganimet || {}; T.zafer = T.zafer || {}; T.okundu = T.okundu || {}; T.zorluk = T.zorluk || {}; return T; };
   const sofra = () => !!(S.sofraBuff && S.sofraBuff.week === S.week);
@@ -80,9 +86,9 @@
   function talimCfg() { const o = oyuncuDeger(false);
     return meydanUygula({ kimlik: 'talim-' + Date.now(), kip: 'talim', baslik: 'Talim', alt: 'Ödülsüz düello', arazi: V.talimArazi(), bg: MEYDAN_BG, sis: MEYDAN_SIS, ortam: 'yaprak', x0: 1010, oyuncu: o, zorluk: { hp: 1, dmg: 1 }, cikis: ayril,
       rakip: { ad: 'Talimci', unvan: 'Arena talimcisi', set: o.set === 'muhafiz' ? 'temel' : 'muhafiz', kontrol: 'yapay', hp: 1350, dmg: 210, el: 'talim', x: 2390, revive: 0 } }); }
-  function asamaCfg() { const Z = V.ZINDAN[ornek.zindan], As = Z.asama[ornek.asama], zr = V.ZORLUK[ornek.zorluk], aile = Z.tema, o = oyuncuDeger(true);
-    return { kimlik: ornek.kimlik + '-' + (ornek.asama + 1), kip: 'zindan', baslik: As.ad, alt: 'Aşama ' + (ornek.asama + 1) + ' / ' + Z.asama.length + ' · ' + zr.ad, arazi: Object.assign(V.arazi(As.tema || Z.tema, aile, As.f, 11 + ornek.asama * 7), {}), bg: As.bg, deniz: As.deniz, ozel: As.ozel, ortam: Z.ortam, x0: As.x0 || 460,
-      oyuncu: Object.assign(o, As.aci ? { angle: As.aci } : {}), zorluk: zr, moblar: As.moblar(zr.hp), boss: As.boss ? As.boss(zr.hp) : null, asama: { ad: Z.ad, n: Z.asama.length, i: ornek.asama }, ipucu: As.ipucu, cikis: ayril, sis: aile === 'kaldera' ? 'rgba(30,6,4,.5)' : aile === 'donanma' ? 'rgba(4,16,34,.5)' : 'rgba(4,14,20,.55)' }; }
+  function asamaCfg() { const Z = V.ZINDAN[ornek.zindan], As = Z.asama[ornek.yol[ornek.asama]], zr = V.ZORLUK[ornek.zorluk], aile = Z.tema, o = oyuncuDeger(true);
+    return { kimlik: ornek.kimlik + '-' + (ornek.asama + 1), kip: 'zindan', baslik: As.ad, alt: 'Aşama ' + (ornek.asama + 1) + ' / ' + ornek.yol.length + ' · ' + zr.ad, arazi: Object.assign(V.arazi(As.tema || Z.tema, aile, As.f, 11 + ornek.asama * 7), {}), bg: As.bg, deniz: As.deniz, ozel: As.ozel, ortam: Z.ortam, x0: As.x0 || 460,
+      oyuncu: Object.assign(o, As.aci ? { angle: As.aci } : {}), zorluk: zr, moblar: As.moblar(zr.hp), boss: As.boss ? As.boss(zr.hp) : null, asama: { ad: Z.ad, n: ornek.yol.length, i: ornek.asama }, ipucu: As.ipucu, cikis: ayril, sis: aile === 'kaldera' ? 'rgba(30,6,4,.5)' : aile === 'donanma' ? 'rgba(4,16,34,.5)' : 'rgba(4,14,20,.55)' }; }
   function kervanCfg(cv) { const K = V.KERVAN, o = oyuncuDeger(true);
     return { kimlik: 'kervan-' + (cv ? cv.id : 'x') + '-' + Date.now(), kip: 'kervan', baslik: K.ad, alt: cv ? cv.guild + ' kervanı · ' + cv.route : K.alt, arazi: V.arazi(K.tema, 'kervan', K.f, 23), bg: K.bg, ortam: K.ortam, x0: 460, oyuncu: o, zorluk: { hp: 1, dmg: 1 }, moblar: K.moblar(), props: K.props, ipucu: K.ipucu, cikis: ayril, sis: 'rgba(60,30,16,.35)' }; }
   async function ayril() { const M = B.state(); if (!M || M.over || M.dur) return; M.dur = true;
@@ -109,9 +115,9 @@
   async function zindan(z, zorluk, ilkAsama) { if (kilitli()) return kilitPen(); const Z = V.ZINDAN[z], T = kayit();
     /* Tek kişi = içinde tek kişi olan aynı zindan (kullanıcı, 2026-11-17). Yeni yöntemle kurulmuş zindan (js/zindan_tarif.js) varsa tek kişilik sefer açılır. */
     if (!ilkAsama && EO2.zindan && EO2.zindan.tekVar && EO2.zindan.tekVar(z)) { if (!T.okundu[z]) { await destan(z, 'prolog'); T.okundu[z] = 1; if (typeof saveGame === 'function') saveGame(); } if (EO2.zindan.tekBasla(z, zorluk)) return; }
-    ornek = { kimlik: z + '-' + zorluk + '-' + Date.now(), zindan: z, zorluk, asama: ilkAsama || 0, altin: 0, ganimet: [], hasar: 0 };      // ilkAsama yalnız denetim betikleri içindir; oyunda sefer hep ilk aşamadan başlar
+    ornek = { kimlik: z + '-' + zorluk + '-' + Date.now(), zindan: z, zorluk, yol: yolu(z), asama: ilkAsama || 0, altin: 0, ganimet: [], hasar: 0 };      // ilkAsama yalnız denetim betikleri içindir; oyunda sefer hep ilk aşamadan başlar
     if (!T.okundu[z]) { await destan(z, 'prolog'); T.okundu[z] = 1; if (typeof saveGame === 'function') saveGame(); }
-    for (;;) { const cfg = asamaCfg(), r = await mac(cfg); if (r.terk) break; ornek.hasar += r.ist.hasar; const son = ornek.asama === Z.asama.length - 1;
+    for (;;) { const cfg = asamaCfg(), r = await mac(cfg); if (r.terk) break; ornek.hasar += r.ist.hasar; const son = ornek.asama === ornek.yol.length - 1;
       if (!r.zafer) { const v = await G.pen({ k: Z.ad + ' · Aşama ' + (ornek.asama + 1), t: 'Yenildin', body: '<p>Anka külün tükendi. Aynı aşamayı yeniden deneyebilir ya da seferi bırakabilirsin.</p>' + ozet(r), btns: [{ t: 'Seferi bırak', v: false }, { t: 'Yeniden dene', cls: 'altin', v: true }] }); if (!v) break; continue; }
       if (!son) { const s = odulYaz('asama'); ornek.ganimet.push(...s); dondur();
         await cark('Aşama ' + (ornek.asama + 1) + ' temizlendi', '150 altın kesene girdi. Çarkı bir kez çevir.', kucukCark(ornek.asama + 1), false); ornek.asama++; continue; }
@@ -122,6 +128,8 @@
   function kilitPen() { const n = (S.food && S.food.genclik) || 0, yavru = S.dragons.find(d => d.stage === 'yavru');
     return G.pen({ k: 'Mühürlü', t: 'Topçunun bir omuz ejderi olmalı', face: OLD + 'img/ui/ik-genclik.webp', body: '<p>Zindanlara ve kervan yoluna yalnız <b>Sonsuz Gençlik İksiri</b> içmiş bir yavruyla çıkılır: iksir onu ebediyen genç tutar, o da topunun üstüne kurulur.</p><p>İksir Pazar\'daki yem tezgâhında satılır ve yalnız yavrular içebilir. ' + (n ? 'Kilerinde <b>' + n + '</b> iksir var; ' + (yavru ? 'Ejderhalar ekranında <b>' + esc(yavru.name) + '</b> içebilir.' : 'ama ocağında yavru yok.') : 'Kilerinde iksir yok.') + '</p>',
       btns: [{ t: 'Anladım', v: 0 }, n && yavru ? { t: 'Ejderhalara git', cls: 'altin', v: 2 } : { t: 'Pazara git', cls: 'altin', v: 1 }] }).then(v => { if (v === 1) G.open('pazar'); else if (v === 2) G.open('ejderhalar'); }); }
+  /* İLK GİRİŞ (UX denetimi, 2026-11-20): "omuz ejderi" tek cümleyle anlatılır; kural kilitPen'deki ile aynıdır, yeni kural yok */
+  const OMUZ = '<b>Omuz ejderi</b>, Sonsuz Gençlik İksiri içip topunun üstüne kurulan bir yavrundur; iksir Pazar\'daki yem tezgâhında satılır.';
   const bosKervan = () => { if (typeof ensureCaravans !== 'function' || typeof ensureHub !== 'function') return null; const H = ensureHub(), r = H.raidedCaravans || {}; return ensureCaravans().find(c => !r[c.id]) || null; };
 
   /* ================= SAHNE: kip seçimi ================= */
@@ -134,23 +142,23 @@
   const yerAd = y => y.tur === 'zindan' ? ['Zindan ' + V.ZINDAN[y.k].rakam, V.ZINDAN[y.k].ad] : y.tur === 'talim' ? ['Talim alanı', 'Talim'] : y.tur === 'pvp' ? ['Dostça düello', 'Er Meydanı'] : ['Kervan yolu', 'Kervan Baskını'];
   function kunye(y) { const kil = kilitli(), T = kayit();
     if (y.tur === 'pvp') return EO2.topcuPvp ? EO2.topcuPvp.kunye() : '<div class="tp-k-bas"><small>Dostça düello</small><h2>Er Meydanı</h2></div><p>Oda sistemi yüklenemedi.</p>';
-    if (y.tur === 'talim') return '<div class="tp-k-bas"><small>Talim alanı</small><h2>Talim</h2></div><p>Arena talimcisiyle sırayla atış. Rüzgârı, açıyı, gücü ve becerileri burada denersin. Ödülsüzdür; kaybın da olmaz.</p><div class="tp-k-alt"><button type="button" class="gbtn altin buyuk" data-git="talim">Talime başla</button></div>';
+    if (y.tur === 'talim') return '<div class="tp-k-bas"><small>Talim alanı</small><h2>Talim</h2></div><p>Arena talimcisiyle sırayla atış. Rüzgârı, açıyı, gücü ve becerileri burada denersin. Ödülsüzdür; kaybın da olmaz.</p>' + (kil ? '<p class="tp-k-not tp-omuz"><b>Önce burada başla.</b> ' + OMUZ + '</p>' : '') + '<div class="tp-k-alt">' + (kil ? '<button type="button" class="gbtn" data-kilit="1">Omuz ejderi nasıl edinilir?</button>' : '') + '<button type="button" class="gbtn altin buyuk" data-git="talim">Talime başla</button></div>';
     if (y.tur === 'kervan') { const cv = bosKervan(); return '<div class="tp-k-bas"><small>Kervan yolu · tek aşama</small><h2>Kervan Baskını</h2></div><p>' + (cv ? '<b>' + esc(cv.guild) + '</b> kervanı ' + esc(cv.route) + ' üzerinde. Üç haydut pusuda; arabanın yükü kazananın.' : 'Bu hafta yolda baskın verilecek kervan kalmadı.') + '</p><p class="tp-k-not">Zaferde 180 altın, 8 ün, rotanın cevheri ve Harlı Kor Taşı.</p>' +
         '<div class="tp-k-alt">' + (kil ? '<span class="tp-muhur">Mühürlü: omuz ejderi gerek</span><button type="button" class="gbtn" data-kilit="1">Nasıl açılır?</button>' : '<button type="button" class="gbtn altin buyuk" data-git="kervan" ' + (cv ? '' : 'disabled') + '>Baskına çık</button>') + '</div>'; }
     const Z = V.ZINDAN[y.k], zr = T.zorluk[y.k] || 'normal', zafer = T.zafer[y.k] || 0;
     return '<img class="tp-k-yuz" alt="" src="' + Z.yuz + '"><div class="tp-k-bas"><small>Zindan ' + Z.rakam + ' · ' + Z.el + '</small><h2>' + Z.ad + '</h2><em>' + Z.boss + (zafer ? ' · ' + zafer + ' zafer' : '') + '</em></div>' +
-      '<ol class="tp-yol" aria-label="Aşamalar">' + Z.asama.map((a, i) => '<li class="' + (a.boss ? 'boss' : '') + '"><i>' + (i + 1) + '</i><span><b>' + a.ad + '</b><small>' + a.alt + '</small></span></li>').join('') + '</ol>' +
+      '<ol class="tp-yol" aria-label="Aşamalar">' + yolu(y.k).map(j => Z.asama[j]).map((a, i) => '<li class="' + (a.boss ? 'boss' : '') + '"><i>' + (i + 1) + '</i><span><b>' + a.ad + '</b><small>' + a.alt + '</small></span></li>').join('') + '</ol>' +
       '<div class="tp-zor" role="radiogroup" aria-label="Zorluk">' + Object.keys(V.ZORLUK).map(k => '<button type="button" role="radio" aria-checked="' + (k === zr) + '" data-zor="' + k + '"><b>' + V.ZORLUK[k].ad + '</b><small>' + (k === 'normal' ? 'Düşman canı dörtte üç' : 'Tam güç') + '</small></button>').join('') + '</div>' +
       '<p class="tp-k-not">Her ara aşama: 150 altın ve Öncü Ganimet Çarkı. Final: ' + (zr === 'normal' ? '250 altın, 1 ' + Z.ganimet + ', 2 Harlı Kor Taşı' : '500 altın, 2 ' + Z.ganimet + ', 2 Harlı Kor Taşı') + ' ve Ulu Kader Çarkı.</p>' +
       '<div class="tp-k-alt">' + (kil ? '<span class="tp-muhur">Mühürlü: omuz ejderi gerek</span><button type="button" class="gbtn" data-kilit="1">Nasıl açılır?</button>' : '<button type="button" class="gbtn" data-destan="' + y.k + '">Destanı oku</button><button type="button" class="gbtn altin buyuk" data-git="zindan">Sefere çık</button>') + '</div>'; }
   function yerlestir(body) { const pano = body.querySelector('.tp-pano'), tuval = body.querySelector('.tp-tuval'); if (!pano) return; const w = pano.clientWidth, h = pano.clientHeight; if (!w || !h) return; const k = Math.max(w / 2, h), tw = Math.round(k * 2), th = Math.round(k);
     tuval.style.width = tw + 'px'; tuval.style.height = th + 'px'; tuval.style.marginTop = Math.min(0, h - th) + 'px'; pano.classList.toggle('kayar', tw > w + 2); if (tw > w + 2 && !pano.dataset.kaydi) { pano.dataset.kaydi = '1'; const y = YER.find(v => v.k === secili); pano.style.scrollBehavior = 'auto'; pano.scrollLeft = y ? y.x * tw - w / 2 : sonKaydir != null ? sonKaydir : (tw - w) / 2; pano.style.scrollBehavior = ''; pano.addEventListener('scroll', () => { sonKaydir = pano.scrollLeft; }, { passive: true }); } }
-  G.screen('topcu', { k: 'Topunla sen dövüşürsün', t: 'Topçu Arenası', cls: 'tp', enter() { secili = null; }, draw(body) {
+  G.screen('topcu', { k: 'Topunla sen dövüşürsün', t: 'Topçu Arenası', cls: 'tp', enter() { secili = kilitli() ? 'talim' : null; }, draw(body) {   /* omuz ejderi yokken (yeni oyuncu) Talim seçili açılır */
     kapat(); const kil = kilitli(), T = kayit(), y = YER.find(v => v.k === secili);
     body.innerHTML = '<div class="tp-pano"><div class="tp-tuval"><img class="tp-resim" alt="Üç zindan kapısı, talim alanı ve kervan yolu" src="assets/bg/tp-kapilar.webp" draggable="false">' +
       YER.map(v => { const ad = yerAd(v), kk = kil && v.tur !== 'talim' && v.tur !== 'pvp', zf = v.tur === 'zindan' ? T.zafer[v.k] || 0 : 0;
         return '<button type="button" class="tp-yer ' + v.tur + (kk ? ' kilitli' : '') + '" data-yer="' + v.k + '" aria-pressed="' + (secili === v.k) + '" style="left:' + (v.x * 100) + '%;top:' + (v.y * 100) + '%;width:' + (v.w * 100) + '%;height:' + (v.h * 100) + '%"><i class="tp-cerceve"></i><span class="tp-plaka"><small>' + ad[0] + '</small><b>' + ad[1] + '</b>' + (kk ? '<em class="kilit">Mühürlü</em>' : zf ? '<em>' + zf + ' zafer</em>' : '') + '</span></button>'; }).join('') + '</div></div>' +
-      '<p class="tp-rehber cam"' + (y ? ' hidden' : '') + '>' + (kil ? 'Zindanlar ve kervan yolu için omuz ejderi gerek; kapıya dokun, nasıl açılacağını söyler. Talim ve Er Meydanı herkese açık.' : 'Bir kapıya, talim alanına ya da kervan arabasına dokun.') + '</p>' +
+      '<p class="tp-rehber cam"' + (y ? ' hidden' : '') + '>' + (kil ? 'Zindanlar ve kervan yolu mühürlü. ' + OMUZ + ' Talim ve Er Meydanı herkese açık.' : 'Bir kapıya, talim alanına ya da kervan arabasına dokun.') + '</p>' +
       '<aside class="tp-kunye cam"' + (y ? '' : ' hidden') + '>' + (y ? '<button type="button" class="tp-k-kapat" aria-label="Kapat">' + ((EO2.icons || {}).close || '×') + '</button>' + kunye(y) : '') + '</aside>';
     yerlestir(body); requestAnimationFrame(() => yerlestir(body));
     const on = (sel, fn) => body.querySelectorAll(sel).forEach(b => b.addEventListener('click', e => { if (EO2.audio) EO2.audio.ui(); fn(b, e); }));
@@ -169,12 +177,24 @@
      ag.js o mesajla EO2.topcu.pvpBaslat({ rakip: { ad, set, el, hp }, ilk: 'ben'|'rakip', ruzgar: tur => sayı }) çağırır; dönen Promise maç sonucudur.
      Giden: EO2.battle.dinle((olay, veri) => …) → 'ates' (pvp_sync fire), 'isabet' (hit), 'can' (hp_sync), 'pas', 'mac_bitti' (pvp_match_result).
      Gelen: EO2.battle.uzak({ t: 'ates' | 'isabet' | 'can' | 'pas' | 'ruzgar', … }). */
-  async function pvpBaslat(o) { const cfg = talimCfg(); cfg.kimlik = 'pvp-' + (o.macKimlik || Date.now()); cfg.kip = 'pvp'; cfg.baslik = 'Er Meydanı'; cfg.alt = 'Topçu düellosu'; cfg.ruzgar = o.ruzgar || null;
+  /* ER MEYDANI HARİTALARI (EKSIK_OZELLIKLER §4 ilk adım, 2026-11-20): zindan arenaları dostça düelloya açılır. Adlar sunucudaki EO2_MAP_IDS ile aynı (server/pvp_rooms.js).
+     'er-meydani' bugünkü talim adasıdır (kırılır zemin). Zümrüt arenalarının zemini kırılmaz; iki terbiyeci aynı yükseklikte, ortaya eşit uzaklıkta durur (x: dünya birimi).
+     Eski oyunun harita adı gelirse (hızlı eşleşme) sabit tabloyla 2.0 haritasına eşlenir: iki uç aynı haritayı görür. Kaldera ve Donanma arenaları çizimsiz; bekletiliyor. */
+  const PVP_HARITA = [
+    { id: 'er-meydani', ad: 'Talim Adası', kisa: 'Talim Adası', alt: 'Kırılır zemin: atış çukur açar', resim: 'assets/arena/harita-er-meydani.webp' },
+    { id: 'zumrut-kopru', ad: 'Zümrüt Saray Köprüsü', kisa: 'Zümrüt Köprü', alt: 'Uzun düz köprü, kırılmaz zemin', resim: 'assets/arena/harita-zumrut-kopru.webp', x: [19, 45] },
+    { id: 'zumrut-defile', ad: "Şahmeran'ın Defilesi", kisa: 'Şahmeran Defilesi', alt: 'Loş salon, kırılmaz zemin', resim: 'assets/arena/harita-zumrut-defile.webp', x: [10, 36] }];
+  const ESKI_HARITA = { steppe_canyon: 'er-meydani', seljuk_ruins: 'er-meydani', sky_archipelago: 'zumrut-kopru', dragon_caldera: 'zumrut-kopru', sandstorm: 'zumrut-defile', glacier: 'zumrut-defile' };
+  const haritaBul = id => PVP_HARITA.find(h => h.id === (ESKI_HARITA[id] || id)) || PVP_HARITA[0];
+  function haritaUygula(cfg, id) { const H = haritaBul(id), A = H.x && B.arenaCfg && B.arenaCfg(H.id); if (!A) return cfg; const PX = B.api.PX;
+    Object.assign(cfg, { arazi: { tema: A.tema, aile: A.tema, maske: A.maske }, bg: null, sahne: A.sahne, arenaEn: A.en, kameraBoy: A.kameraBoy, ortam: A.ortam, sis: 'rgba(4,14,20,.45)', x0: H.x[0] * PX, harita: H.id });
+    cfg.rakip.x = H.x[1] * PX; return cfg; }
+  async function pvpBaslat(o) { const cfg = haritaUygula(talimCfg(), o.harita); cfg.kimlik = 'pvp-' + (o.macKimlik || Date.now()); cfg.kip = 'pvp'; cfg.baslik = 'Er Meydanı'; cfg.alt = haritaBul(o.harita).ad; cfg.ruzgar = o.ruzgar || null;
     cfg.rakip = Object.assign(cfg.rakip, { ad: 'Rakip', unvan: 'Topçu' }, o.rakip || {}, { kontrol: 'uzak' }); cfg.ilkRakip = o.ilk === 'rakip';
     if (o.sag) { cfg.yon = -1; const sol = cfg.x0; cfg.x0 = cfg.rakip.x; cfg.rakip.x = sol; }      // odadaki ikinci yuva sağda durur: iki uçta meydan aynı
     const r = await mac(cfg); if (o.sonra) await o.sonra(r); bitis(); return r; }
 
   /* ortak sefer (js/zindan_ortak.js) aynı ödül ve çark fonksiyonlarını kullanır; ornekKur etkin sefer kaydını açar ya da kapatır */
   const ornekKur = o => { ornek = o ? { kimlik: 'ortak-' + Date.now(), zindan: o.zindan, zorluk: o.zorluk, asama: 0, altin: (ornek && ornek.ortak ? ornek.altin : 0), ganimet: (ornek && ornek.ortak ? ornek.ganimet : []), hasar: 0, ortak: true } : null; };
-  EO2.topcu = { baslat, pvpBaslat, odulYaz, oyuncuDeger, ornek: () => ornek, kilitli, ornekKur, cark, kucukCark, buyukCark, ganimetHtml, YER, sec: k => { secili = k; G.redraw(); }, secili: () => secili };
+  EO2.topcu = { baslat, pvpBaslat, PVP_HARITA, haritaBul, odulYaz, oyuncuDeger, ornek: () => ornek, kilitli, ornekKur, cark, kucukCark, buyukCark, ganimetHtml, YER, sec: k => { secili = k; G.redraw(); }, secili: () => secili };
 })();

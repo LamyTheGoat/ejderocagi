@@ -44,3 +44,20 @@ test('otomatik hata bildirimi işaretlenir; işaret yalnız tam true ise geçer'
   const [k1, k2] = oku(log);
   assert.equal(k1.otomatik, true); assert.equal(k1.hatalar[0].yer, 'game.js:12'); assert.equal(k2.otomatik, false);
 });
+
+test('saklama: 365 günden eski bildirimler günde bir kez silinir; eski .1 dosyası tümden silinir', () => {
+  const GUN = 24 * 60 * 60 * 1000; let t = Date.UTC(2026, 0, 1);
+  const { log } = yeni(() => t);
+  log.add({ accountId: 'a', body: { metin: 'eski bildirim' } });
+  t += 200 * GUN; log.add({ accountId: 'b', body: { metin: 'orta bildirim' } });
+  fs.writeFileSync(log.dosya + '.1', '{}\n'); fs.utimesSync(log.dosya + '.1', new Date(t - 400 * GUN), new Date(t - 400 * GUN));
+  t += 170 * GUN;   // ilk bildirim 370, ikincisi 170 günlük
+  log.add({ accountId: 'c', body: { metin: 'yeni bildirim' } });
+  assert.deepEqual(oku(log).map(k => k.metin), ['orta bildirim', 'yeni bildirim']);
+  assert.equal(fs.existsSync(log.dosya + '.1'), false);
+  // aynı gün içinde yeniden budanmaz; ertesi gün yeniden bakılır ve yeterince yeni ilk satırda dosyaya dokunulmaz
+  const once = fs.statSync(log.dosya).ino;
+  t += GUN; log.add({ accountId: 'c', body: { metin: 'ertesi gün' } });
+  assert.equal(fs.statSync(log.dosya).ino, once);
+  assert.equal(oku(log).length, 3);
+});

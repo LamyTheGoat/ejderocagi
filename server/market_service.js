@@ -9,9 +9,11 @@ const { debtOf, assertNoDebt } = require('./economy_debt');
 const { transfer, guardReservation } = require('./trade_service');
 const { normalizeOffer } = require('../js/trade_engine');
 
-// D7 (komisyon/harç) ONAY BEKLİYOR. Tek yapılandırma noktası; 0 dışı değer açılışta reddedilir.
-const MARKET_FEE_BPS = 0;
-if (MARKET_FEE_BPS !== 0) throw new Error('market_fee_not_approved');
+// D7 KARARI (Mehmet, 2026-11-20; ekonomi raporu EKONOMI_DENGESI_2026-11-20 §4): Bedesten satışında %5 kesinti.
+// Satıcının eline geçen kazanılmış altından düşer ve HİÇBİR YERE yazılmaz (yakılır: altın gideri). Alıcı ilan fiyatını öder.
+// Doğrudan takasta (trade_service) kesinti yok. Tek yapılandırma noktası burasıdır; istemci oranı /api/market'ten okur.
+const MARKET_FEE_BPS = 500;
+const marketFee = total => Math.floor(total * MARKET_FEE_BPS / 10000);
 
 // Yalnız teknik sınırlar. Fiyat önerisi/formülü yoktur (serbest fiyat, D-016).
 const LIMITS = Object.freeze({
@@ -230,17 +232,23 @@ function marketTransition(actor, command, ctx) {
   }
   guardReservation(before[actor], games[actor].game, ctx.tradeLocks[actor], now);
   guardReservation(before[seller], games[seller].game, ctx.tradeLocks[seller], now);
+  // Kesinti: satıcıya az önce kazanılmış olarak giren bedelden düşer (satıcı borçsuz; yukarıda denetlendi).
+  const fee = marketFee(total), sellerGame = games[seller].game;
+  if (fee > 0) {
+    if (sellerGame.funds.earned < fee) fail('market_fee_unavailable');
+    sellerGame.funds.earned -= fee; sellerGame.gold -= fee;
+  }
   const hold = holds[seller];
   releaseHold(hold, listing, command.quantity);
   listing.remaining -= command.quantity;
   listing.sold += command.quantity;
   if (!listing.remaining) { listing.status = 'sold'; hold.listings = hold.listings.filter(id => id !== listing.id); }
-  listing.sales = [{ id: saleId, at: now, quantity: command.quantity, total, buyer: ctx.handles[actor] || null }, ...listing.sales].slice(0, LIMITS.salesKept);
+  listing.sales = [{ id: saleId, at: now, quantity: command.quantity, total, fee, buyer: ctx.handles[actor] || null }, ...listing.sales].slice(0, LIMITS.salesKept);
   listing.updatedAt = now; listing.stateVersion += 1;
   guardMarketHold(games[seller].game, hold);
   guardMarketHold(games[actor].game, holds[actor]);
   return { listing, games, holds, result: {
-    sale: { id: saleId, listingId: listing.id, kind: listing.kind, quantity: command.quantity, unitPrice: command.unitPrice, total, fee: 0, at: now,
+    sale: { id: saleId, listingId: listing.id, kind: listing.kind, quantity: command.quantity, unitPrice: command.unitPrice, total, fee, net: total - fee, at: now,
       assetId: listing.kind === 'food' ? null : listing.assetId, foodKey: listing.foodKey },
     listing: publicListing(listing, actor) } };
 }
@@ -275,4 +283,4 @@ function createMarketService({ store }) {
 }
 
 module.exports = { createMarketService, validateMarket, marketTransition, guardMarketHold, guardTradeAgainstHolds,
-  publicListing, listingIdFor, emptyHold, refreshListings, LIMITS, MARKET_FEE_BPS };
+  publicListing, listingIdFor, emptyHold, refreshListings, LIMITS, MARKET_FEE_BPS, marketFee };

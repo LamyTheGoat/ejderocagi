@@ -24,19 +24,28 @@
   const tray = el('div', 'bildirimler'); tray.setAttribute('aria-live', 'polite'); app.appendChild(tray);
   /* bildirim tepsisi düğmelerin üstüne çıkmaz: olağan yerinde bir düğmeye biniyorsa sırayla öteki yerler denenir, ilk boş olan seçilir.
      G.dugmeyeBiner(kutular): verilen kutulardan biri görünen bir düğmeye, girişe ya da sekmeye değiyor mu (js/rehber.js de kullanır). */
+  /* ÖRTÜLMEZ (UX denetimi, 2026-11-20): düğme olmasa da üstüne bildirim ya da ipucu binmemesi gereken bilgiler: Yuva'daki yakınlık kalbi ve şartlar,
+     ejderha adları, Ahır'daki durum halkaları. Telefonda ipucu şeridi bunların üstüne biniyordu. js/rehber.js de kullanır. */
+  G.ORTULMEZ = '#app .yu-kalp2, #app .yu-tahmin, #app .yu-sart, #app .ar-ad h2, #app .ah-kimlik h2, #app .ah-durum';
   G.dugmeyeBiner = function (kutular, haric) { const L = kutular.filter(q => q && q.width > 3 && q.height > 3); let alan = 0; if (!L.length) return 0;
-    for (const b of document.querySelectorAll('#app button, #app input, #app select, #app [role="button"], #app [role="tab"], #app > .rehber:not([hidden])')) {   /* öğretici şeridi de engeldir: bildirim onun yazısına binmez */ if ((haric && haric.contains(b)) || b.closest('#world, #anchors, #loading')) continue;
+    for (const b of document.querySelectorAll('#app button, #app input, #app select, #app [role="button"], #app [role="tab"], #app > .rehber:not([hidden]), ' + G.ORTULMEZ)) {   /* öğretici şeridi de engeldir: bildirim onun yazısına binmez */ if ((haric && haric.contains(b)) || b.closest('#world, #anchors, #loading')) continue;
       const r = b.getBoundingClientRect(); if (r.width < 6 || r.height < 6) continue; const cs = getComputedStyle(b); if (cs.visibility === 'hidden' || cs.display === 'none' || cs.pointerEvents === 'none' || +cs.opacity < 0.05) continue;
       for (const q of L) if (Math.min(q.right, r.right) - Math.max(q.left, r.left) > 3 && Math.min(q.bottom, r.bottom) - Math.max(q.top, r.top) > 3) { const t = document.elementFromPoint((Math.max(q.left, r.left) + Math.min(q.right, r.right)) / 2, (Math.max(q.top, r.top) + Math.min(q.bottom, r.bottom)) / 2); if (t && (t === b || b.contains(t) || t.contains(b))) alan += (Math.min(q.right, r.right) - Math.max(q.left, r.left)) * (Math.min(q.bottom, r.bottom) - Math.max(q.top, r.top)); } }
     return alan; };
-  const BY = ['', 'by-ust', 'by-ust2', 'by-orta', 'by-orta2', 'by-alt2', 'by-alt', 'by-bas'], BY_AD = BY.filter(Boolean);
+  const BY = ['', 'by-ust', 'by-ust2', 'by-orta', 'by-orta2', 'by-alt2', 'by-alt', 'by-bas',
+    /* dar yedekler (telefonda düğmeyle dolu ekranlar): bildirim küçülür, köşelerdeki ve düğme aralarındaki boşluğa sığar */
+    'by-dar by-ust', 'by-dar by-orta', 'by-dar by-orta2', 'by-dar by-alt2', 'by-dar by-alt', 'by-dar by-sol', 'by-dar by-sag', 'by-dar by-sol by-alt', 'by-dar by-sag by-alt', 'by-dar by-bas'],
+    BY_AD = [...new Set(BY.join(' ').split(' ').filter(Boolean)), 'by-tara'];
   /* hiçbir yer boş değilse (telefonda baştan sona düğme olan ekranlar) en az binen yer seçilir; bildirim dokunmayı engellemez ve birkaç saniyede gider */
   /* bildirimler boş yere oturur; hiçbir yerde düğmeye binmeden sığmıyorsa (üst üste birkaç bildirim) en eskisi bırakılır ve yeniden denenir:
      tek bildirim de sığmıyorsa en az binen yer seçilir */
-  function trayYer() { const biner = () => G.dugmeyeBiner([...tray.children].map(c => c.getBoundingClientRect()), tray);
+  function trayYer() { /* ekrandan taşan bildirim de dolu yer sayılır (2026-11-20: yatay telefonda iki bildirimli tepsi alttan taşıyordu) */
+    const biner = () => { const K = [...tray.children].map(c => c.getBoundingClientRect()); let tas = 0; for (const q of K) tas += Math.max(0, -q.top) + Math.max(0, q.bottom - innerHeight) + Math.max(0, -q.left) + Math.max(0, q.right - innerWidth); return G.dugmeyeBiner(K, tray) + (tas > 2 ? tas * 400 : 0); };
     for (let tur = 0; tur < 4; tur++) { tray.classList.remove(...BY_AD); if (!biner()) return; let enIyi = '', enAz = Infinity, sigdi = false;
-      for (const y of BY) { tray.classList.remove(...BY_AD); if (y) tray.classList.add(y); const a = biner(); if (!a) { sigdi = true; break; } if (a < enAz) { enAz = a; enIyi = y; } }
-      if (sigdi) return; tray.classList.remove(...BY_AD); if (tray.children.length > 1) { tray.firstChild.remove(); continue; } if (enIyi) tray.classList.add(enIyi); return; } }
+      for (const y of BY) { tray.classList.remove(...BY_AD); if (y) tray.classList.add(...y.split(' ')); const a = biner(); if (!a) { sigdi = true; break; } if (a < enAz) { enAz = a; enIyi = y; } }
+      /* hazır yerlerin hepsi doluysa dar tepsi ekranı yukarıdan aşağı tarar (solda, ortada, sağda): düğme araları da denenir */
+      if (!sigdi) for (const yan of ['', 'by-sol', 'by-sag']) { for (let yy = 6; yy <= 90 && !sigdi; yy += 4) { tray.classList.remove(...BY_AD); tray.classList.add('by-dar', 'by-tara', ...(yan ? [yan] : [])); tray.style.setProperty('--by-y', yy + '%'); if (!biner()) sigdi = true; } if (sigdi) break; }
+      if (sigdi) return; tray.classList.remove(...BY_AD); tray.style.removeProperty('--by-y'); if (tray.children.length > 1) { tray.firstChild.remove(); continue; } if (enIyi) tray.classList.add(...enIyi.split(' ')); return; } }
   G.toast = function (html, kind) { const t = el('div', 'bildirim cam' + (kind ? ' ' + kind : ''), html); if (!tray.children.length) tray.classList.remove(...BY_AD); tray.appendChild(t); while (tray.children.length > 4) tray.firstChild.remove(); try { trayYer(); } catch (_) { }
     setTimeout(() => { t.classList.add('git'); setTimeout(() => t.remove(), 400); }, kind === 'goal' ? 4600 : 3000); if (EO2.audio) (kind === 'goal' ? EO2.audio.chime : EO2.audio.pop)(); };
   EO2_BUS.toast = G.toast;
@@ -72,7 +81,7 @@
 
   /* ---------- ekran çerçevesi ---------- */
   const scr = el('section', 'scr'); scr.id = 'scr'; scr.setAttribute('aria-hidden', 'true');
-  scr.innerHTML = '<header class="scr-h"><button type="button" class="gbtn" id="scrBack">◂ Meydan</button><div class="ad"><small id="scrK"></small><h1 id="scrT"></h1></div><div class="sekme" id="scrNav" role="tablist" hidden></div><span class="res2" title="Altın"><i></i><b id="scrGold"></b></span><span class="res2 un" title="Ün"><i></i><b id="scrUn"></b></span><button type="button" class="gbtn altin" id="scrWeek"></button></header><div class="scr-b" id="scrB"></div>';
+  scr.innerHTML = '<header class="scr-h"><button type="button" class="gbtn" id="scrBack" aria-label="Meydana dön"><span aria-hidden="true">◂</span><span class="geri-ad"> Meydan</span></button><div class="ad"><small id="scrK"></small><h1 id="scrT"></h1></div><div class="sekme" id="scrNav" role="tablist" hidden></div><span class="res2" title="Altın"><i></i><b id="scrGold"></b></span><span class="res2 un" title="Ün"><i></i><b id="scrUn"></b></span><button type="button" class="gbtn altin" id="scrWeek"></button></header><div class="scr-b" id="scrB"></div>';
   app.appendChild(scr);
   const SCREENS = {}; let cur = null;
   G.screen = (id, def) => { SCREENS[id] = def; };
@@ -109,8 +118,9 @@
      Sunucuya yazılmaz: sunucudaki kimlik (oturum handle'ı) ayrı bir iştir. */
   const AD_ONERI = ['Aybars', 'Elçin', 'Toygar', 'Umay', 'Börte', 'Alpagu', 'Asena', 'Kayra', 'İlbey', 'Tomris', 'Çağrı', 'Selcen', 'Bengü', 'Göktuğ', 'Ayşan', 'Demir', 'Tuğrul', 'Gökçen', 'Bars', 'Sungur', 'Almıla', 'Kutay', 'Yağmur', 'Oğuz'];
   const adDuz = s => s.toLocaleLowerCase('tr').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/[ıî]/g, 'i').replace(/ö/g, 'o').replace(/ş/g, 's').replace(/[üû]/g, 'u').replace(/â/g, 'a');
-  /* basit uygunsuz ad süzgeci: kısa kökler yalnız tam sözcük olarak (Işık gibi adlar takılmasın), uzunlar içinde geçerse */
-  const AD_YASAK_SOZ = ['sik', 'am', 'got', 'pic', 'aq', 'amk', 'mal', 'gm', 'mod'], AD_YASAK_IC = ['orospu', 'yarak', 'yarrak', 'sikik', 'sikim', 'siktir', 'amcik', 'amina', 'gotveren', 'pezevenk', 'gavat', 'ibne', 'kahpe', 'serefsiz', 'pust', 'fuck', 'shit', 'bitch', 'hitler', 'nazi', 'admin', 'moderator', 'yonetici', 'gamemaster', 'sistem', 'destek'];
+  /* basit uygunsuz ad süzgeci: kısa kökler yalnız tam sözcük olarak (Işık gibi adlar takılmasın), uzunlar içinde geçerse.
+     Asıl süzgeç sunucudadır (server/kufur_suzgec.js); burası yalnız oyuncuya anında geri bildirim verir. */
+  const AD_YASAK_SOZ = ['sik', 'am', 'got', 'pic', 'aq', 'amk', 'mal', 'gm', 'mod'], AD_YASAK_IC = ['orospu', 'yarak', 'yarrak', 'sikik', 'sikim', 'siktir', 'amcik', 'amina', 'gotveren', 'pezevenk', 'gavat', 'ibne', 'kahpe', 'serefsiz', 'pust', 'kaltak', 'kevase', 'fahise', 'yavsak', 'dalyarak', 'surtuk', 'tassak', 'fuck', 'whore', 'cunt', 'nigg', 'faggot', 'shit', 'bitch', 'hitler', 'nazi', 'admin', 'moderator', 'yonetici', 'gamemaster', 'sistem', 'destek'];
   G.adDenetle = function (ham) { const v = String(ham == null ? '' : ham).replace(/\s+/g, ' ').trim();
     if (v.length < 2) return { hata: 'Ad en az iki harf olmalı.' }; if (v.length > 16) return { hata: 'Ad en çok on altı harf olabilir.' };
     if (!/^[A-Za-zÇĞİÖŞÜçğıöşüÂÎÛâîû ]+$/.test(v)) return { hata: 'Yalnız harf ve boşluk kullan.' };
@@ -174,7 +184,7 @@
   G.endWeek = async function () { if (!G.live || G.busy) return;
     const idle = S.dragons.filter(d => typeof needsOrder === 'function' ? needsOrder(d) : (!d.inj && !d.task));
     if (idle.length) { const v = await G.pen({ k: 'Hafta sonu', t: 'Emir bekleyen ejder var', body: '<p><b>' + idle.map(d => esc(d.name)).join(', ') + '</b> bu hafta için görev almadı. Görevsiz geçen hafta boşa gider.</p>', btns: [{ t: 'Ejderhalara git', v: 'go' }, { t: 'Yine de bitir', cls: 'altin', v: 'ok' }] }); if (v !== 'ok') { if (v === 'go') G.open('ejderhalar'); return; } }
-    G.busy = true; G.close(); const before = { gold: S.gold, un: S.un }; window.__grew = []; const R = endWeek(); saveGame(); hud();
+    G.busy = true; G.close(); const before = { gold: S.gold, un: S.un }; window.__grew = []; const R = endWeek(); saveGame(); hud(); if (EO2.huni) EO2.huni.hafta(S.over ? S.week : S.week - 1, !!S.over);
     await gece(R, before);
     for (const id of (window.__grew || [])) { const g = byId(id); if (g && !g.dead) await G.pen({ k: 'Büyüme', t: esc(g.name) + ' artık ' + STAGE_AD[g.stage].toLowerCase(), body: '<div class="dogum" style="--el:' + G.ELC[g.el] + '"><img alt="" src="' + G.img(g) + '"></div>', btns: [{ t: 'Aferin', cls: 'altin' }] }); }
     for (const q of R.queue) { if (q.type === 'hatch') await hatchPen(q.egg); else if (q.type === 'event') await eventPen(q.ev); }
@@ -186,16 +196,19 @@
   /* ---------- giriş ekranı ---------- */
   let giris = null;
   function title() { if (giris) giris.remove(); const sv = loadGame(), ok = sv && (!sv.over || sv.ending !== 'iflas');
+    /* kostüm sayfaları açılışta inmez (game.js): giriş ekranı okunurken oyuncunun giyeceği set arkadan istenir (yeni ocak çıplak setle başlar) */
+    try { if (EO2.npcSet) EO2.npcSet.yukle(ok ? (sv.kusam && sv.kusam.giyili) || 'temel' : 'bare'); } catch (_) { }
     giris = el('div', 'giris', '<div class="giris-ic"><img src="assets/logo.webp" alt="Ejder Ocağı"><p>Dedenden kalan harabe bir ocak. Yaşlı bir ateş ejderhası. Soğumaya yüz tutmuş bir yumurta.<br>Yirmi hafta sonra Kızıl Taç başlıyor.</p><div class="dugmeler"></div><div class="not">Oyunun kendiliğinden kaydedilir. <button type="button" class="giris-bag" data-kurtar>Kurtarma kodum var</button></div><div class="kunye">Sürüm ' + EO2.surum + ' · <a href="gizlilik.html" target="_blank" rel="noopener">Gizlilik</a> · <a href="kosullar.html" target="_blank" rel="noopener">Kullanım koşulları</a></div></div>');
     const box = giris.querySelector('.dugmeler'), add = (t, sub, cls, fn) => { const b = el('button', 'gbtn buyuk ' + cls, t + (sub ? '<small>' + sub + '</small>' : '')); b.type = 'button'; b.addEventListener('click', fn); box.appendChild(b); return b; };
     if (ok) add('Ocağa dön', sv.over ? (sv.seasonNo || 1) + '. sezon bitti' : 'Hafta ' + sv.week + ' · ' + (sv.dragons || []).length + ' ejderha · ' + sv.gold + ' altın', 'altin', () => { S = sv; if (typeof careerRepair === 'function') careerRepair(); if (typeof registerAllHeirlooms === 'function') registerAllHeirlooms(); UI.sel = S.dragons[0] ? S.dragons[0].id : null; enter(false); });
     add('Yeni ocak kur', '', ok ? '' : 'altin', async () => { if (ok && !sv.over) { const v = await G.pen({ k: 'Yeni ocak', t: 'Kayıtlı ocağın silinsin mi?', body: '<p>Yeni bir ocak kurarsan bu yuvadaki kayıt (Hafta ' + sv.week + ') üzerine yazılır.</p>', btns: [{ t: 'Vazgeç', v: false }, { t: 'Yeni ocak kur', cls: 'kor', v: true }] }); if (!v) return; }
       if (ok && EO2.kayit) EO2.kayit.yedekle('yeni ocak');      // üzerine yazılan kayıt bir kez geri alınabilsin
-      newGame(); S.kusam = { giyili: 'bare', sahip: ['bare'] };   /* yeni terbiyeci çıplak setle başlar; zırhı çarşıdan alır */ UI.sel = S.dragons[0].id; saveGame(); if (EO2.rehber) EO2.rehber.sifirla(); enter(true); });
+      newGame(); S.kusam = { giyili: 'bare', sahip: ['bare'] };   /* yeni terbiyeci çıplak setle başlar; zırhı çarşıdan alır */ UI.sel = S.dragons[0].id; saveGame(); if (EO2.rehber) EO2.rehber.sifirla(); if (EO2.huni) EO2.huni('yeni_ocak'); enter(true); });
     { const kb = giris.querySelector('[data-kurtar]'); if (kb) kb.addEventListener('click', () => { if (EO2.hesap) EO2.hesap.geriYukle(); }); }
     app.appendChild(giris); const f = box.querySelector('.gbtn'); if (f) f.focus(); }
   async function enter(fresh) { G.live = true; giris.classList.add('gitti'); if (EO2.audio) EO2.audio.start && EO2.audio.start(); adUygula(); hud(); if (EO2.api) EO2.api.titleCard('Merkez Meydan', 'Ejder Ocağı');
     if (fresh) await G.pen({ k: 'Mektup', t: 'Torunuma,', face: G.npcImg('dede'), body: '<div class="mektup"><p>Bu mektubu okuyorsan ocak artık senin. Çatılar akıyor, kuluçka ocağı yıllardır soğuk, demirci bile yolu unuttu. Ama Kor hâlâ burada. Yaşlandı, inatlaştı, ama yüreği hâlâ kızgın bir kor.</p><p>Bir de yumurta bırakıyorum. Nereden geldiğini sorma. Onu ısıt; ne çıkacağını ben de bilmiyorum.</p><p>Kızıl Taç\'ı bir kez de bu ocak alsın isterdim. Yirmi haftan var.</p><p class="imza">Deden</p></div>' + adAlani(adOner(), 'Ocağın kapısına hangi adı yazalım?'), on: p => { adBagla(p); const f = p.querySelector('.pen-f'); f.classList.add('adli'); f.insertBefore(p.querySelector('.ad-sor'), f.firstChild); }, btns: [{ t: 'Ocağa gir', cls: 'altin buyuk', fn: p => adOnay(p) }] });
+    if (fresh && EO2.huni) EO2.huni('ad');   // oyuncu hunisi: mektupta adını seçti
     if (S.over) return G.son();
     const oto = navigator.webdriver && !window.__gercekAkis;   /* otomatik denetimler kısa yoldan girer (meydanda, seçimsiz); gerçek akışı check_baslangic.mjs ölçer */
     if (fresh && !oto && EO2.gorunum && EO2.gorunum.ilkSecim) await EO2.gorunum.ilkSecim();   /* oyunun başında saç ve göz seçimi */

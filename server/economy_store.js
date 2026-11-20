@@ -12,6 +12,8 @@ const path = require('node:path');
 const { validateCommand, reduceCommand, gameEconomy, fail } = require('./economy_commands');
 
 const recovery = require('./account_recovery');
+const huni = require('./huni_service');
+const defter = require('./ekonomi_defteri');
 const MAX_GOLD = 2_000_000_000;
 const SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
@@ -70,6 +72,21 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
   db.exec(`CREATE TABLE IF NOT EXISTS account_recovery (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), code_hash TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL) STRICT;
     CREATE TABLE IF NOT EXISTS account_saves (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), saved_at INTEGER NOT NULL, save TEXT NOT NULL) STRICT;
     CREATE TABLE IF NOT EXISTS account_social (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), json TEXT NOT NULL) STRICT;`);
+  // oyuncu hunisi (server/huni_service.js): hesap başına ilk geçilen adımlar ve kohort günü başına sayaçlar
+  db.exec(`CREATE TABLE IF NOT EXISTS funnel_accounts (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), json TEXT NOT NULL) STRICT;
+    CREATE TABLE IF NOT EXISTS funnel_days (day INTEGER NOT NULL, step TEXT NOT NULL, n INTEGER NOT NULL CHECK (n >= 0), PRIMARY KEY (day, step)) STRICT;`);
+  // ekonomi defteri (server/ekonomi_defteri.js): gün × kalem başına altın sayacı; komutla aynı transaction'da artar
+  db.exec(`CREATE TABLE IF NOT EXISTS economy_ledger (day INTEGER NOT NULL, item TEXT NOT NULL, gold_in INTEGER NOT NULL CHECK (gold_in >= 0), gold_out INTEGER NOT NULL CHECK (gold_out >= 0),
+    n INTEGER NOT NULL CHECK (n >= 0), volume INTEGER NOT NULL CHECK (volume >= 0), PRIMARY KEY (day, item)) STRICT;`);
+  function ledgerWrite(rows) {
+    if (!rows.length) return;
+    const day = huni.gunNo(now()), up = db.prepare(`INSERT INTO economy_ledger(day, item, gold_in, gold_out, n, volume) VALUES (?, ?, ?, ?, 1, ?)
+      ON CONFLICT(day, item) DO UPDATE SET gold_in = gold_in + excluded.gold_in, gold_out = gold_out + excluded.gold_out, n = n + 1, volume = volume + excluded.volume`);
+    for (const r of rows) up.run(day, r.kalem, r.giris, r.cikis, r.hacim);
+  }
+  function readLedger(ilkGun, sonGun) {
+    return db.prepare('SELECT day AS gun, item AS kalem, gold_in AS giris, gold_out AS cikis, n, volume AS hacim FROM economy_ledger WHERE day BETWEEN ? AND ?').all(ilkGun, sonGun).map(r => ({ ...r }));
+  }
   // ENG-07 Bedesten: ilan, hesap başı rezervasyon (hold) ve makbuz. Hepsi aynı transaction'da yazılır.
   db.exec(`CREATE TABLE IF NOT EXISTS market_listings (id TEXT PRIMARY KEY, seller_id TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL, json TEXT NOT NULL) STRICT;
     CREATE INDEX IF NOT EXISTS market_open ON market_listings(status, created_at);
@@ -97,6 +114,14 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
   function pruneServiceState(limit=50) {
     return atomic(()=>db.prepare("DELETE FROM service_state WHERE id IN (SELECT id FROM service_state WHERE json='null' OR coalesce(json_extract(json,'$.expiresAt'),json_extract(json,'$.until'))<=? LIMIT ?)").run(now(),limit).changes);
   }
+  // Kalıcı sunucu durumu (server/kalici_durum.js): parti, oda, künye, bahis kilidi gibi bellekteki durumun yeniden başlatmaya dayanıklı kopyası.
+  // service_state içinde 'kalici:<tür>:<anahtar>' satırı; expiresAt geçince pruneServiceState siler.
+  const durableId = (kind, key) => 'kalici:' + kind + ':' + encodeURIComponent(String(key));
+  function putDurable(kind, key, value, expiresAt) { return atomic(() => { const id = durableId(kind, key);
+    if (value == null) db.prepare('DELETE FROM service_state WHERE id = ?').run(id); else writeTradeRow('service_state', id, { kind, key: String(key), value, expiresAt }); }); }
+  function getDurable(kind, key) { const r = readTradeRow('service_state', durableId(kind, key)); return r && r.expiresAt > now() ? r.value : null; }
+  function listDurable(kind, limit = 500) { return db.prepare('SELECT json FROM service_state WHERE id >= ? AND id < ? LIMIT ?').all('kalici:' + kind + ':', 'kalici:' + kind + ';', limit)
+    .map(r => JSON.parse(r.json)).filter(r => r && r.expiresAt > now()).map(r => ({ key: r.key, value: r.value })); }
   function compactTradeReceipts(limit=50) {
     return atomic(()=>{
       const rows=db.prepare("SELECT id,json FROM trade_receipts WHERE json_extract(json,'$.createdAt')<=? AND json_extract(json,'$.result') IS NOT NULL LIMIT ?").all(now()-RETENTION_MS,limit);
@@ -259,6 +284,26 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
   function getSocial(accountId) { const row = db.prepare('SELECT json FROM account_social WHERE account_id = ?').get(accountId); return row ? JSON.parse(row.json) : null; }
   function putSocial(accountId, kayit) { const json = JSON.stringify(kayit); if (json.length > 64000) throw Object.assign(new Error('social_too_large'), { code: 'social_too_large', status: 409 });
     db.prepare('INSERT INTO account_social(account_id, json) VALUES (?, ?) ON CONFLICT(account_id) DO UPDATE SET json = excluded.json').run(accountId, json); }
+  // oyuncu hunisi: yalnız ilk kez geçilen adımlar yazılır; hesap kaydı ve kohort sayacı aynı işlemde değişir (yarım sayım olmaz)
+  function recordFunnel(accountId, adimlar, gun) {
+    return atomic(() => {
+      const row = db.prepare('SELECT json FROM funnel_accounts WHERE account_id = ?').get(accountId);
+      const { kayit, yeni, kohort } = huni.planla(row ? JSON.parse(row.json) : null, adimlar, gun);
+      if (!yeni.length) return [];
+      db.prepare('INSERT INTO funnel_accounts(account_id, json) VALUES (?, ?) ON CONFLICT(account_id) DO UPDATE SET json = excluded.json').run(accountId, JSON.stringify(kayit));
+      const art = db.prepare('INSERT INTO funnel_days(day, step, n) VALUES (?, ?, 1) ON CONFLICT(day, step) DO UPDATE SET n = n + 1');
+      for (const a of yeni) art.run(kohort, a);
+      return yeni;
+    });
+  }
+  function readFunnel(ilkGun, sonGun) {
+    const satir = new Map();
+    for (const r of db.prepare('SELECT day, step, n FROM funnel_days WHERE day BETWEEN ? AND ? ORDER BY day').all(ilkGun, sonGun)) {
+      if (!satir.has(r.day)) satir.set(r.day, { gun: r.day, sayac: {} });
+      satir.get(r.day).sayac[r.step] = r.n;
+    }
+    return [...satir.values()];
+  }
   function findAccountByHandle(handle) { const row = db.prepare('SELECT account_id AS id FROM accounts WHERE handle = ?').get(String(handle)); return row ? row.id : null; }
 
   function resolveSession(token) {
@@ -312,6 +357,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
       for (const l of refreshed) db.prepare('UPDATE market_listings SET json = ? WHERE id = ?').run(JSON.stringify(l), l.id);
       db.prepare('INSERT INTO game_states VALUES (?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET version=excluded.version, game_json=excluded.game_json').run(accountId, version + 1, JSON.stringify(next.game));
       db.prepare('INSERT INTO command_receipts VALUES (?, ?, ?, ?, ?)').run(accountId, command.requestId, hash, version + 1, JSON.stringify(next.result));
+      ledgerWrite(defter.komutKalemleri(command.type, command.args, state ? JSON.parse(state.game_json).gold : 0, next.game.gold));
       return { replayed: false, appliedVersion: version + 1, result: next.result, economy: gameEconomy(accountId, version + 1, next.game), listingsRefreshed: refreshed.length };
     });
   }
@@ -347,6 +393,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
       db.prepare('INSERT INTO market_listings VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status, json=excluded.json').run(l.id, l.sellerId, l.status, l.createdAt, JSON.stringify(l));
       const result = { ...out.result, replayed: false };
       writeTradeRow('market_receipts', receiptId, { hash, result, createdAt: now() });
+      if (command.op === 'buy') ledgerWrite(defter.pazarKalemleri(out.result.sale));
       return result;
     });
   }
@@ -416,7 +463,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
 
   return Object.freeze({
     checkDuelEntry, openMatch, finalizeMatch, settleGameplay, readMatch,
-    backend: 'sqlite', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, findAccountByHandle, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
+    backend: 'sqlite', putDurable, getDurable, listDurable, executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, recordFunnel, readFunnel, readLedger, findAccountByHandle, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
     revokeSession(token) { if (typeof token === 'string') db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token)); },
     close() { db.close(); },
   });

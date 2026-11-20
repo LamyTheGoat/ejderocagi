@@ -70,6 +70,8 @@
   const hataSoz = e => HATA[e && e.kod] || 'Bir şey ters gitti. Birazdan yeniden dene.';
 
   /* ---------- sunucuyla konuşma ---------- */
+  /* eline geçen: kesinti oranı sunucudan gelir (/api/market feeBps); burada yalnız gösterilir */
+  const elineGecen = t => t - Math.floor(t * (NET.feeBps || 0) / 10000), koyAlt = (f, n) => f > 0 ? sayi(f * n) + ' altın' + (NET.feeBps ? ' · eline ' + sayi(elineGecen(f * n)) + ' geçer' : '') : 'önce fiyat yaz';
   const NET = { durum: 'bos', hesap: null, ad: '', ilanlar: [], benim: [], eco: null, askida: null, mesgul: false, saatFark: 0, sonOku: 0 };
   let okuma = null, baglanma = null;
   const askiAnahtar = () => 'eo2-bedesten-askida:' + NET.hesap;
@@ -85,7 +87,7 @@
   }
   const kesin = e => e && e.status >= 400 && e.status < 500;           // sunucu açıkça reddetti: hiçbir şey yazılmadı
   function ecoAl(d) { if (d && d.economy && (!NET.eco || (d.economy.version || 0) >= (NET.eco.version || 0))) NET.eco = d.economy; }
-  function pazarAl(d) { NET.ilanlar = Array.isArray(d.listings) ? d.listings : []; NET.benim = Array.isArray(d.mine) ? d.mine : []; if (d.serverNow) NET.saatFark = d.serverNow - Date.now(); }
+  function pazarAl(d) { NET.ilanlar = Array.isArray(d.listings) ? d.listings : []; NET.benim = Array.isArray(d.mine) ? d.mine : []; NET.feeBps = Number.isSafeInteger(d.feeBps) ? d.feeBps : 0; if (d.serverNow) NET.saatFark = d.serverNow - Date.now(); }
   function baglan() {
     if (baglanma) return baglanma;
     if (NET.durum !== 'acik') { NET.durum = 'bekle'; ciz(); }
@@ -296,7 +298,7 @@
         (cok ? '<div class="bd-adetsec"><span>Adet</span><button type="button" class="gbtn" data-sadet="-1" aria-label="Azalt" ' + (n <= 1 ? 'disabled' : '') + '>−</button><b>' + n + '</b><button type="button" class="gbtn" data-sadet="1" aria-label="Artır" ' + (n >= x.satAdet ? 'disabled' : '') + '>+</button><small>' + sayi(x.satAdet) + ' tane satabilirsin</small></div>' : '') +
         (benzer.length ? '<div class="bd-benzer salt"><span>Çarşıdaki benzerleri</span>' + benzer.map(L => '<i>' + altinIk + sayi(L.unitPrice) + '</i>').join('') + '</div>' : '<p class="bd-not">Çarşıda bunun benzeri yok; fiyatı sen belirlersin.</p>') +
         '<p class="bd-not">Emin Ağa malı tezgâhında tutar; satılınca altının tamamı kesene düşer. İstediğin an geri çekebilirsin.</p>' +
-        '<div class="bd-dugmeler"><button type="button" class="gbtn" data-geri="1">Başka bir şey seç</button><button type="button" class="gbtn altin buyuk" id="bdKoy" ' + (f < 1 || NET.mesgul ? 'disabled' : '') + '>Tezgâha koy<small id="bdKoyAlt">' + (f > 0 ? sayi(f * n) + ' altın' : 'önce fiyat yaz') + '</small></button></div></div></div>';
+        '<div class="bd-dugmeler"><button type="button" class="gbtn" data-geri="1">Başka bir şey seç</button><button type="button" class="gbtn altin buyuk" id="bdKoy" ' + (f < 1 || NET.mesgul ? 'disabled' : '') + '>Tezgâha koy<small id="bdKoyAlt">' + koyAlt(f, n) + '</small></button></div></div></div>';
   }
 
   async function satinAl(L) {
@@ -383,7 +385,7 @@
     tikla(body, '#bdKoy', () => tezgahaKoy());
     const gir = body.querySelector('#bdFiyat');
     if (gir) {
-      const guncel = () => { satis.fiyat = gir.value; const f = Math.floor(Number(gir.value) || 0), x = sandikListe().find(v => v.anahtar === satis.anahtar), n = x && x.tur === 'food' ? Math.max(1, Math.min(satis.adet || 1, x.satAdet)) : 1, k = body.querySelector('#bdKoy'), a = body.querySelector('#bdKoyAlt'); if (k) k.disabled = f < 1 || NET.mesgul; if (a) a.textContent = f > 0 ? sayi(f * n) + ' altın' : 'önce fiyat yaz'; };
+      const guncel = () => { satis.fiyat = gir.value; const f = Math.floor(Number(gir.value) || 0), x = sandikListe().find(v => v.anahtar === satis.anahtar), n = x && x.tur === 'food' ? Math.max(1, Math.min(satis.adet || 1, x.satAdet)) : 1, k = body.querySelector('#bdKoy'), a = body.querySelector('#bdKoyAlt'); if (k) k.disabled = f < 1 || NET.mesgul; if (a) a.textContent = koyAlt(f, n); };
       gir.addEventListener('input', guncel); gir.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); tezgahaKoy(); } ev.stopPropagation(); });
       if (odakta) { gir.focus(); try { const v = gir.value; gir.value = ''; gir.value = v; } catch (x) { /* imleç sona */ } }
     }

@@ -10,19 +10,14 @@
 const KANAL_BOYU = 30, HIZ = 10;
 const YON = new Set(['up', 'down', 'left', 'right']);
 const JEST = new Set(['smile', 'wave', 'heart', 'spark', 'think', 'note']);
-// yaygın küfür ve hakaret kökleri (sadeleştirilmiş yazıyla aranır); liste bilerek kısadır, sohbet açılırken genişletilmelidir
-const YASAK = ['amk', 'aq', 'amina', 'amcik', 'orospu', 'pic', 'sik', 'yarak', 'yarrak', 'gotveren', 'ibne', 'pezevenk', 'kahpe', 'gavat', 'fuck', 'shit', 'bitch', 'nigg', 'faggot', 'cunt', 'hitler', 'nazi'];
-const sade = s => s.toLocaleLowerCase('tr').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ö/g, 'o').replace(/ü/g, 'u')
-  .replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e').replace(/4/g, 'a').replace(/5/g, 's').replace(/[^a-z]/g, '');
+// küfür ve hakaret süzgeci ayrı dosyadadır (server/kufur_suzgec.js); ad ve söz aynı kuralları kullanır
+const { metniSuz, adUygunsuz } = require('./kufur_suzgec');
 
 function temizAd(v) {
   if (typeof v !== 'string') return 'Gezgin';
   const ad = v.normalize('NFC').replace(/[^\p{L}\p{N} '\-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 16);
   if (ad.length < 2) return 'Gezgin';
-  const s = sade(ad);
-  // "sik" ve "pic" gibi kısa kökler masum sözcüklerin içinde geçebilir (Sıkı, Piçuk yok ama "klasik" var): onlar yalnız söz başında aranır
-  for (const k of YASAK) if (k.length <= 3 ? s.startsWith(k) || s === k : s.includes(k)) return 'Gezgin';
-  return ad;
+  return adUygunsuz(ad) ? 'Gezgin' : ad;
 }
 const sayi = (v, a, b) => (typeof v === 'number' && Number.isFinite(v)) ? Math.round(Math.max(a, Math.min(b, v)) * 100) / 100 : null;
 
@@ -33,8 +28,7 @@ function temizSoz(v) {
   if (typeof v !== 'string') return null;
   let s = v.normalize('NFC').replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, ' ').replace(BAGLANTI, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
   if (!s) return null;
-  s = s.split(' ').map(soz => { const k = sade(soz); if (!k) return soz; for (const y of YASAK) if (y.length <= 3 ? k.startsWith(y) : k.includes(y)) return '•'.repeat(Math.min(6, Math.max(3, soz.length))); return soz; }).join(' ');
-  return s;
+  return metniSuz(s);
 }
 
 function temizDurum(msg) {

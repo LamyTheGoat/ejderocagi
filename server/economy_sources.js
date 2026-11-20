@@ -40,6 +40,16 @@ function spend(game, amount) {
  for(const k of SOURCES){debit[k]=Math.min(left,game.funds[k]);game.funds[k]-=debit[k];left-=debit[k];}
  game.gold-=amount;return debit;
 }
+// Tek kese (2026-11-20): 2.0 hesabında yerel kese hesaba bağlı taşındığı için hesap tezgâhı alımı (shop.dragon, shop.egg)
+// önce KAZANILMIŞ altından ödenir; yoksa her alım bağlı altından düşer, mal hiç satılamaz olurdu (2026-11-16 kararı:
+// kazanılmış altınla alınan mal satılabilir). Kazanılmış yetmezse kalan bağlı ve bilinmeyenden düşer. spend() değişmedi.
+function spendEarnedFirst(game, amount) {
+ if(!counts(amount))fail('invalid_server_price');
+ if(game.gold<amount)fail('insufficient_gold');
+ const debit=bucket(0,'bound');let left=amount;
+ for(const k of ['earned','bound','unknown']){debit[k]=Math.min(left,game.funds[k]);game.funds[k]-=debit[k];left-=debit[k];}
+ game.gold-=amount;return debit;
+}
 function sourceOf(debit) {return debit.unknown>0?'unknown':debit.bound>0?'bound':'earned';}
 function combine(sources) {return sources.includes('unknown')?'unknown':sources.includes('bound')?'bound':'earned';}
 function addFood(game,key,amount,source) {
@@ -77,4 +87,4 @@ function goalInputSource(game,id) {
  // A future validated reward producer must record its source explicitly.
  return game.milestoneSources[id]||'unknown';
 }
-module.exports={ensure,credit,spend,sourceOf,combine,addFood,tradable,goalSource,goalInputSource,bucket};
+module.exports={ensure,credit,spend,spendEarnedFirst,sourceOf,combine,addFood,tradable,goalSource,goalInputSource,bucket};

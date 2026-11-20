@@ -152,3 +152,6 @@
 #pilotPanel .pp-sec { display: flex; gap: .25em; } #pilotPanel .pp-sec button { flex: 1; padding: .34em .2em; border-radius: .5em; border: 1px solid rgba(243, 234, 214, .28); background: rgba(255, 255, 255, .06); color: inherit; font: inherit; font-size: .9em; cursor: pointer; }
 #pilotPanel .pp-sec button[aria-pressed="true"] { background: #e9dcbc; color: #2a2238; border-color: #e8c874; font-weight: 700; }
 @media (max-width: 900px) { #pilotPanel { font-size: .68em; right: .5em; } }
+/* Ejderha kartı (js/kart.js, 2026-11-20): Bilgi panelindeki düğme ve önizleme penceresi */
+.ah-kartbtn { margin-top: .6em; align-self: flex-start; }
+.ek-kart { display: grid; justify-items: center; gap: .6em; } .ek-kart img { width: min(100%, 22em); max-height: 62vh; aspect-ratio: 4 / 5; object-fit: contain; border-radius: .8em; box-shadow: 0 .6em 1.6em rgba(0, 0, 0, .45); } .ek-kart p { margin: 0; text-align: center; max-width: 30em; }

@@ -288,3 +288,24 @@ test('süre aşımı: hareketsiz bekleme odası temizlenir; PvE sefer daveti oda
   assert.equal(rooms.onMessage(A, { type: 'chat' }), false);
   rooms.stop();
 });
+
+test('2.0 haritaları: kurucu Er Meydanı haritası seçer; "rastgele" maç başında iki uca aynı 2.0 haritası olarak gider, oda seçimi korunur', () => {
+  const { EO2_MAP_IDS } = require('../server/pvp_rooms.js');
+  const t = setup();
+  const A = t.connect('@ayse'), B = t.connect('@bora');
+  t.sendMsg(A, { type: 'pvp_room_create', mode: '1v1', mapId: 'zumrut-kopru' });
+  const room = t.last(A, 'pvp_room').room;
+  assert.equal(room.mapId, 'zumrut-kopru');
+  t.sendMsg(B, { type: 'pvp_room_join', code: room.code });
+  t.sendMsg(A, { type: 'pvp_room_map', mapId: 'rastgele' });
+  assert.equal(t.last(B, 'pvp_room').room.mapId, 'rastgele', 'misafir oda kartında "rastgele" görür');
+  t.sendMsg(B, { type: 'pvp_room_ready', ready: true });
+  t.sendMsg(A, { type: 'pvp_room_start' });
+  const sa = t.last(A, 'pvp_match_start'), sb = t.last(B, 'pvp_match_start');
+  assert.ok(EO2_MAP_IDS.includes(sa.mapId), 'rastgele gerçek bir haritaya çözülür: ' + sa.mapId);
+  assert.equal(sa.mapId, sb.mapId, 'iki uç aynı haritada');
+  assert.equal(sa.room.mapId, 'rastgele', 'oda seçimi rövanş için "rastgele" kalır');
+  t.sendMsg(A, { type: 'pvp_room_map', mapId: '../../etc' });
+  assert.notEqual(t.last(A, 'pvp_room').room.mapId, '../../etc', 'bilinmeyen harita adı kabul edilmez');
+  t.rooms.stop();
+});

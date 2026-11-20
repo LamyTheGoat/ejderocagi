@@ -34,6 +34,7 @@
 /* --- geçiş perdesi: ortadan kapanan lacivert iris --- */
 #iris { position: absolute; inset: 0; z-index: 30; pointer-events: none; background: radial-gradient(circle at 50% 50%, #21347a, #0b1226 70%); clip-path: circle(0% at 50% 50%); opacity: 0; transition: clip-path .42s cubic-bezier(.6, 0, .3, 1), opacity .15s; }
 #iris::after { content: ""; position: absolute; left: 50%; top: 50%; width: 5em; height: 5em; margin: -2.5em; background: var(--varak-hi); transform: rotate(45deg); box-shadow: 0 0 0 0.4em #142255, 0 0 0 0.6em var(--varak); animation: spin 1.2s linear infinite; }
+#iris:not(.on)::after { animation-play-state: paused; }   /* perde kapalıyken dönen elmas boşuna canlandırılmasın */
 #iris.on { clip-path: circle(75% at 50% 50%); opacity: 1; pointer-events: auto; } @keyframes spin { to { transform: rotate(405deg); } }
 
 /* --- konuşma kutusu --- */

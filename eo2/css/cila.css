@@ -62,7 +62,7 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 #actions.acik #actionsDaha .ic { box-shadow: 0 0 0 2px #ffe9a8, 0 0 1em rgba(255, 214, 120, .6), 0 .22em .5em rgba(4, 6, 16, .55); }
 
 /* ---------- Yer tutucular (çıkışta görünmez; ?gelistirici ile geri gelir) ---------- */
-.ui2:not(.gelistirici) #btnBell,                                   /* bildirim sistemi yok: boş zil gösterilmez */
+.ui2:not(.gelistirici) #btnBell:not(.posta-hazir),                 /* zil Ocak Postası'na bağlı (js/posta.js); posta okunana dek gizli */
 .ui2:not(.gelistirici) #btnCam,                                    /* K23: tek kamera */
 .ui2:not(.gelistirici) .menu-d[data-m="kamera"] { display: none !important; }
 #loading .yeniden { margin-top: 1.2em; font-size: 1.05em; }
@@ -96,7 +96,7 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .sorun-durum { min-height: 1.3em; margin: .6em 0 0 !important; font-size: .9em; color: var(--varak-hi, #f6d98a); }
 
 /* Kıraathane: alt şerit masa kartları ve oyuncu paneliyle dolu; bildirim başlığın altında, ortada durur */
-.ui2.ekranda:has(#scrB.kr2) .bildirimler { top: max(5.4em, env(safe-area-inset-top, 0px)) !important; bottom: auto; left: 50%; transform: translateX(-50%); justify-items: center; max-width: min(30em, 80vw); }
+.ui2.ekranda:has(#scrB.kr2) .bildirimler:not([class*="by-"]) { top: max(5.4em, env(safe-area-inset-top, 0px)) !important; bottom: auto; left: 50%; transform: translateX(-50%); justify-items: center; max-width: min(30em, 80vw); }
 .ui2.ekranda:has(#scrB.kr2) .bildirim { text-align: center; }
 
 /* hesap yedeği ve kurtarma (js/hesap.js) */
@@ -159,6 +159,10 @@ html, body, #app.ui2 { overflow: clip; }
 /* ================= dövüş kareleri (css/kare.css eski stilden ayıklanır; burada 2.0 sahnesine oturtulur) ================= */
 .ui2 .dov.fight > .rcut { position: absolute; inset: 0; z-index: 60; }
 .ui2 .dov.fight > .rcut .rccap { font-family: 'Noto Sans', 'Alegreya Sans', system-ui, sans-serif; }
+/* kare her ekranda bütünüyle görünür (2026-11-20): genişliği yalnız ekran enine değil boyuna da bağlıdır. -2° eğik kare ve
+   16/7,4 oranında kaplanan yükseklik ≈ 0,5 × genişlik; telefonda (16/9,5) ≈ 0,63 × genişlik. Yan kenarlarda da 10 px pay kalır. */
+.ui2 .rcut .rcp { max-width: min(calc(100vw - 20px), calc((100vh - 24px) * 2)); max-width: min(calc(100vw - 20px), calc((100dvh - 24px) * 2)); }
+@media (max-width: 520px) { .ui2 .rcut .rcp { max-width: min(calc(100vw - 20px), calc((100dvh - 24px) * 1.58)); } }
 /* karelerin içindeki poz çizimi: eski stildeki genel .pose kuralı 2.0'da yok; yalnız kare içinde tanımlanır */
 .rcut .rcd .pose { display: block; width: 100%; height: auto; overflow: visible; }
 .rcut .rcd.edge .pose { width: auto; height: 100%; }
@@ -293,6 +297,15 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .bildirimler.by-orta { top: 30% !important; } .ui2 .bildirimler.by-orta2 { top: 56% !important; }
 .ui2 .bildirimler.by-alt2 { top: auto !important; bottom: calc(max(1.1em, env(safe-area-inset-bottom, 0px)) + 6.6em) !important; } .ui2 .bildirimler.by-alt { top: auto !important; bottom: max(1.1em, env(safe-area-inset-bottom, 0px)) !important; }
 .ui2 .bildirimler.by-bas { top: max(.35em, env(safe-area-inset-top, 0px)) !important; width: min(22em, 46%) !important; font-size: .9em; }
+/* dar yedek: telefonda her yer düğmeyle doluysa bildirim küçülür; by-sol / by-sag kenara yaslanır (js/oyun.js trayYer) */
+.ui2 .bildirimler.by-dar { width: min(13.5em, 42vw) !important; font-size: .8em; gap: .3em; }
+.ui2 .bildirimler.by-dar .bildirim { padding: .35em .7em; }
+.ui2 .bildirimler.by-sol, .ui2 .bildirimler.by-sag { transform: none !important; top: 42% !important; justify-items: start !important; }
+.ui2 .bildirimler.by-sol { left: max(.4em, env(safe-area-inset-left, 0px)) !important; right: auto !important; }
+.ui2 .bildirimler.by-sag { left: auto !important; right: max(.4em, env(safe-area-inset-right, 0px)) !important; justify-items: end !important; }
+.ui2 .bildirimler.by-sol.by-alt, .ui2 .bildirimler.by-sag.by-alt { top: auto !important; bottom: max(1.1em, env(safe-area-inset-bottom, 0px)) !important; }
+/* tarama: hazır yerlerin hepsi doluysa tepsi --by-y yüksekliğinde denenir (js/oyun.js trayYer) */
+.ui2 .bildirimler.by-tara, .ui2 .bildirimler.by-tara.by-sol, .ui2 .bildirimler.by-tara.by-sag { top: var(--by-y, 50%) !important; bottom: auto !important; }
 
 /* ---------- 2026-11-17 düzeltmeleri: hafta sonu, Dostlar, Çarşı ---------- */
 /* Hafta sonu: kartlar alanı küçülebilir (düğme ekranın dışına itilmez); ejderha resmi kartın üstünden taşarken kesilmez */
@@ -459,3 +472,37 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .dg-yumurta .kabuk.res { border-radius: 0; background: center / contain no-repeat; box-shadow: none; filter: drop-shadow(0 0 1.4em rgba(255, 200, 130, .35)) drop-shadow(0 .5em .6em rgba(4, 6, 16, .45)); }
 .ui2 .dg-yumurta .kabuk.res::after { display: none; }
 .ui2 .dg-yumurta .kabuk.res ~ .catlak path { stroke: #fff4d6; stroke-width: 2.6; filter: drop-shadow(0 0 1px #1a0c04) drop-shadow(0 0 4px rgba(255, 220, 140, .9)); }
+
+/* İLK KURULUM · görünüş seçimi (UX denetimi, 2026-11-20): üst şeritte yalnız başlık; Hazırım panonun dibine sabit, telefonda kaydırmadan görünür */
+#app #scr.ilk-kur #scrBack, #app #scr.ilk-kur #scrWeek, #app #scr.ilk-kur .scr-h .res2, #app #scr.ilk-kur #scrNav { display: none; }
+#app #scr.ilk-kur .scr-h .ad { flex: 1 1 auto; min-width: 0; }
+#app #scr.ilk-kur .scr-h h1, #app #scr.ilk-kur .scr-h small { overflow: visible; text-overflow: clip; white-space: normal; }
+.ui2 .gr-hazir-alt { position: sticky; bottom: 0; z-index: 2; display: grid; margin: 0 -1.2em; padding: .7em 1.2em 1em; background: linear-gradient(180deg, rgba(14, 20, 48, 0), rgba(14, 20, 48, .97) 35%); }
+.ui2 .gr-hazir-alt [data-gr-hazir] { width: 100%; }
+@media (max-height: 520px) { .ui2 .gr-hazir-alt { margin: 0 -.8em; padding: .5em .8em .6em; } }
+.ui2 .gr-secenek:has(> .gr-hazir-alt) { padding-bottom: 0; }
+
+/* ---------- Ocak Postası (js/posta.js) ---------- */
+#btnBell.yeni-var { position: relative; }
+#btnBell.yeni-var::after { content: attr(data-say); position: absolute; right: -.15em; top: -.2em; min-width: 1.5em; height: 1.5em; padding: 0 .3em; border-radius: 1em; display: grid; place-items: center; font: 800 .72em var(--f-ui); color: #fff; background: #e0482c; box-shadow: 0 0 0 1.5px #1a1030; }
+.posta { min-width: min(30em, 80vw); }
+.posta .po-liste { list-style: none; margin: 0; padding: 0; max-height: 52vh; overflow-y: auto; }
+.posta .po-satir { display: grid; grid-template-columns: 2.2em 1fr auto auto; gap: .6em; align-items: center; padding: .55em .3em; border-bottom: 1px solid rgba(255, 255, 255, .08); }
+.posta .po-satir div { display: flex; flex-direction: column; min-width: 0; }
+.posta .po-satir span, .posta .po-satir small { opacity: .75; font-size: .88em; }
+.posta .po-satir.yeni b::before { content: ''; display: inline-block; width: .5em; height: .5em; margin-right: .4em; border-radius: 50%; background: #e0482c; vertical-align: middle; }
+.posta .po-ik { width: 2.2em; height: 2.2em; border-radius: 50%; background: rgba(255, 214, 120, .18); }
+.posta .po-ik.altin { background: center / 70% no-repeat url(../assets/ik/para.webp), rgba(255, 214, 120, .18); }
+.posta .po-ik.dost { background: center / 70% no-repeat url(../assets/ik/mdl-dostlar.webp), rgba(160, 200, 255, .16); }
+.posta .po-satir .gbtn { min-height: 44px; }
+.posta .po-hata { color: #ffb4a0; }
+.posta .dip { opacity: .6; font-size: .82em; margin-top: .8em; }
+
+/* ---------- Mühürler (Defter, js/muhur.js) ---------- */
+.muhurler { display: grid; grid-template-columns: repeat(auto-fill, minmax(11em, 1fr)); gap: .5em; }
+.muhurler .muhur { display: flex; gap: .55em; align-items: center; padding: .45em .5em; border-radius: .6em; opacity: .55; }
+.muhurler .muhur i { flex: 0 0 2.1em; height: 2.1em; border-radius: 50%; border: 2px dashed rgba(120, 70, 30, .45); }
+.muhurler .muhur.tamam { opacity: 1; }
+.muhurler .muhur.tamam i { border: 0; background: radial-gradient(circle at 35% 30%, #e8775a, #9e2b1c 70%); box-shadow: inset 0 0 0 3px rgba(255, 220, 190, .35), 0 .1em .25em rgba(60, 20, 10, .4); }
+.muhurler .muhur div { display: flex; flex-direction: column; min-width: 0; }
+.muhurler .muhur span, .muhurler .muhur small { font-size: .82em; opacity: .8; }

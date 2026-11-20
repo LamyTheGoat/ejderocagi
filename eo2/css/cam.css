@@ -101,6 +101,7 @@
 /* --- giriş ekranı --- */
 .ui2 .giris { position: absolute; inset: 0; z-index: 55; display: grid; place-items: center; padding: 1em; background: radial-gradient(ellipse 70% 60% at 50% 42%, rgba(40, 70, 190, .28), rgba(4, 6, 24, .78)); -webkit-backdrop-filter: blur(.5em) saturate(1.2); backdrop-filter: blur(.5em) saturate(1.2); transition: opacity .6s, visibility 0s .6s; touch-action: auto; }
 .ui2 .giris.gitti { opacity: 0; visibility: hidden; pointer-events: none; }
+.ui2 .giris.gitti, .ui2 .giris.gitti *, .ui2 .scr:not(.acik)::before { animation-play-state: paused; }   /* görünmeyen giriş ekranı ve kapalı ekranın zemini canlandırılmaz */
 .ui2 .giris-ic { width: min(34em, 100%); text-align: center; display: grid; gap: 1em; justify-items: center; animation: pen-zip .7s cubic-bezier(.3, 1.3, .5, 1); }
 .ui2 .giris img { width: min(24em, 82%); filter: drop-shadow(0 .6em 1.6em rgba(4, 8, 40, .7)); animation: suzul 5s ease-in-out infinite; }
 .ui2 .giris p { margin: 0; font: 500 1.12em/1.55 'Alegreya', var(--f-ui), serif; color: #fbf0d4; text-shadow: 0 .08em .4em rgba(4, 8, 28, .9); }
@@ -974,6 +975,8 @@
 .ui2 .yu-kalp2 b { position: relative; font: 800 2.6em/1 var(--f-ui); margin-top: -.15em; text-shadow: 0 2px 0 rgba(90, 10, 40, .8); } .ui2 .yu-kalp2 small { position: relative; font: 700 .7em var(--f-ui); letter-spacing: .14em; text-transform: uppercase; }
 .ui2 .yu-sart { display: flex; flex-wrap: wrap; justify-content: center; gap: .35em; } .ui2 .yu-sart span { display: inline-flex; align-items: center; gap: .4em; padding: .15em .9em .15em .3em; border-radius: 1.2em; font: 500 .88em var(--f-ui); color: #ffc4b0; background: rgba(16, 20, 34, .86); box-shadow: inset 0 0 0 1px #d98a78; text-shadow: none; }
 .ui2 .yu-sart i { display: grid; place-items: center; width: 1.5em; height: 1.5em; border-radius: 50%; font: 800 .86em var(--f-ui); font-style: normal; color: #fff; background: #c0482c; } .ui2 .yu-sart .tamam { color: #d0ffb8; box-shadow: inset 0 0 0 1px #7fc96a; } .ui2 .yu-sart .tamam i { background: #4a9a3a; }
+/* Yuva: 60 yakınlığa kalan hafta tahmini (js/yuva.js tahmin, UX denetimi 2026-11-20) */
+.ui2 .yu-tahmin { margin: .2em 0 .4em; padding: .2em .9em; border-radius: 1em; font: 600 max(12px, .86em)/1.3 var(--f-ui); text-align: center; color: #ffe1ec; background: rgba(14, 20, 48, .72); box-shadow: inset 0 0 0 1px rgba(255, 158, 192, .45); } .ui2 .yu-tahmin b { color: #ffb3cf; }
 .ui2 .yu-olas { display: grid; justify-items: center; gap: .35em; padding: .6em 1em; border-radius: .9em; background: rgba(16, 20, 34, .82); box-shadow: inset 0 0 0 1.5px var(--bronz), 0 0 0 1.5px rgba(8, 10, 20, .8); } .ui2 .yu-olas div { display: flex; flex-wrap: wrap; gap: .3em; justify-content: center; }
 .ui2 .yu-eylem { position: absolute; left: 50%; bottom: .2em; transform: translateX(-50%); display: flex; gap: 1em; z-index: 3; } .ui2 .yu-eylem .kartx { width: 13em; min-height: 11em; }
 .ui2 .yu-yumurta { position: absolute; left: .4em; bottom: .2em; display: grid; gap: .4em; z-index: 3; max-width: 22em; }

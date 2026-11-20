@@ -23,7 +23,7 @@ const path = require('path');
 const { createDragonDuelServer } = require('./js/duel_server.js');
 const { createPvpRooms } = require('./server/pvp_rooms.js');
 const { createEconomyStore } = require('./server/store_factory');
-const { createMarketService, publicListing } = require('./server/market_service');
+const { createMarketService, publicListing, MARKET_FEE_BPS } = require('./server/market_service');
 const { createMarketReadCache } = require('./server/market_read_cache');
 const { consume } = require('./server/service_security');
 const { COMMAND_TYPES } = require('./server/economy_commands');
@@ -46,19 +46,28 @@ const PUBLIC_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
 const DB_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const DB_FILE = path.join(DB_DIR, 'world.json');
 const ECONOMY = createEconomyStore();
+// Kalıcı sunucu durumu (server/kalici_durum.js): parti, oda lobisi, künye, bahis kilidi ve X giriş durumu yeniden başlatmada kaybolmasın.
+const KALICI = require('./server/kalici_durum').createKalici({ store: ECONOMY });
 const GUEST_SESSIONS = createGuestSessions(ECONOMY, PUBLIC_URL, process.env.NODE_ENV === 'production');
 const zlib = require('node:zlib');
 const publicFile = createPublicFiles(__dirname, [DB_DIR]);
 const EO2_VAR = fs.existsSync(path.join(__dirname, 'eo2', 'index.html'));   // 2.0 sayfası pakette var mı (ana adres ona göre yönlenir)
 const REPORTS = require('./server/report_log').createReportLog(DB_DIR);
+const SORUN_PANELI_MOD = require('./server/sorun_paneli');
+const SORUN_PANELI = SORUN_PANELI_MOD.createSorunPaneli({ reports: REPORTS, anahtar: process.env.YONETIM_ANAHTAR || '' });
+const HUNI_MOD = require('./server/huni_service');
+const HUNI = HUNI_MOD.createHuni({ store: ECONOMY, anahtar: process.env.HUNI_ANAHTAR || '' });
+const DEFTER_MOD = require('./server/ekonomi_defteri');
+const DEFTER = DEFTER_MOD.createDefter({ store: ECONOMY, huni: HUNI });
 const EO2_PAGE = require('./server/eo2_page').createEo2Page(__dirname, PUBLIC_URL);
+const POSTA = require('./server/posta_service').createPosta({ store: ECONOMY });
 const SOSYAL = require('./server/social_service').createSocial({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS });
 // Ortak PvE altyapısı: örnek odaları ve görev bulucu (server/ortak_odalar.js). Oynanış türleri ORTAK.kaydet ile eklenir; bugün kayıtlı tür yok.
 const ORTAK = require('./server/ortak_odalar').createOrtakOdalar({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo });
 setInterval(() => { try { ORTAK.supur(); } catch (e) { console.error('[ortak] süpürme', e.message); } }, 3000).unref();   // ortak savaşta adım süreleri (server/zindan_ortak.js) bu turda denetlenir
 // Kıraathane · oyuncuya karşı masa (server/kiraathane_pvp.js): bahis takas emanetindedir; oyun sürerken o takas oyunculara kilitlidir.
 const KIR_KILIT = new Set();
-const KIR_PVP = require('./server/kiraathane_pvp').createKiraathanePvp({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo, kilitli: KIR_KILIT });
+const KIR_PVP = require('./server/kiraathane_pvp').createKiraathanePvp({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo, kilitli: KIR_KILIT, kalici: KALICI });
 ORTAK.kaydet('kiraathane', KIR_PVP.tanim);
 // Ortak zindan seferi (server/zindan_ortak.js): Zümrüt Saray; ortak düşman canı sunucuda, ödül istemcide mevcut kurallarla
 ORTAK.kaydet('zindan', require('./server/zindan_ortak').createZindanOrtak().tanim);
@@ -69,9 +78,26 @@ setInterval(() => { const t = Date.now(); for (const s of WS_CLIENTS) if (t - (s
 ORTAK.kaydet('takim', require('./server/takim_ortak').createTakimOrtak().tanim);
 // Oyuncu profili (künye) ve parti: ikisi de bellekte, ekonomiye dokunmaz (server/profil_service.js, server/parti_service.js)
 const wsYolla = (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); };
-const PROFIL = require('./server/profil_service').createProfil({ send: wsYolla, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo });
+const PROFIL = require('./server/profil_service').createProfil({ send: wsYolla, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo, kalici: KALICI });
 const PARTI = require('./server/parti_service').createParti({ send: wsYolla, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo, yer: socket => socket.meydan && socket.meydan.d ? { alan: socket.meydan.d.a, set: socket.meydan.d.s } : null });
 setInterval(() => { try { PARTI.supur(); } catch (e) { console.error('[parti] süpürme', e.message); } }, 30000).unref();
+// Yeniden başlatma: parti ve oda lobileri anlık görüntü olarak yazılır (yalnız değişince, 15 sn'de bir ve kapanışta); künyeler dakikada bir.
+// Kıraathane kilitleri açılışta geri konur, sahipsiz kalanlar kapatılır (ödeme tamamlanır ya da takas iptal edilir).
+const KALICI_PARTI = KALICI.anlik('parti', () => PARTI.anlik()), KALICI_ORTAK = KALICI.anlik('ortak_oda', () => ORTAK.anlik());
+let kaliciDurdu = false;
+const kaliciTimer = setInterval(() => { if (!kaliciDurdu) KALICI.tikla(); }, 15000); kaliciTimer.unref();
+const kunyeTimer = setInterval(() => { if (!kaliciDurdu) PROFIL.kaydet().catch(e => console.error('[kalici] künye', e.message)); }, 60000); kunyeTimer.unref();
+const kirKurtarTimer = setInterval(() => { if (!kaliciDurdu) KIR_PVP.kurtar().catch(e => console.error('[kalici] kıraathane', e.message)); }, 60000); kirKurtarTimer.unref();
+async function kaliciGeriYukle() {
+  const sonuc = {};
+  try { sonuc.kilit = await KIR_PVP.yukle(); } catch (e) { console.error('[kalici] kilitler okunamadı', e.code || e.message); }
+  try { sonuc.parti = PARTI.geriYukle(await KALICI_PARTI.oku()); } catch (e) { console.error('[kalici] partiler okunamadı', e.code || e.message); }
+  try { sonuc.oda = ORTAK.geriYukle(await KALICI_ORTAK.oku()); } catch (e) { console.error('[kalici] odalar okunamadı', e.code || e.message); }
+  KIR_PVP.kurtar().then(n => { if (n) console.log('[kalici] kıraathane kilidi kapatıldı:', n); }, e => console.error('[kalici] kıraathane kurtarma', e.code || e.message));
+  if (sonuc.kilit || sonuc.parti || sonuc.oda) console.log('[kalici] geri yüklendi', JSON.stringify(sonuc));
+  return sonuc;
+}
+async function kaliciKaydet() { await Promise.allSettled([KALICI.hepsiniYaz(), PROFIL.kaydet()]); }
 // Ocak ziyareti ve birlikte çiftleştirme (server/ocak_ziyaret.js): misafir ev sahibinin ocağını görür; yumurta Damızlık kuralıyla ev sahibine gider.
 const ZIYARET = require('./server/ocak_ziyaret').createOcakZiyaret({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo });
 const MEYDAN = require('./server/meydan_presence').createMeydanPresence({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, kimlik: socket => socket.playerInfo && socket.playerInfo.handle,
@@ -373,7 +399,7 @@ function consumeReadRate(key, limit) {
   const next = consume(readWindows.get(key), limit, READ_RATE.windowMs, now); // aşımda 429 rate_limited fırlatır
   readWindows.delete(key); readWindows.set(key, next);
 }
-const READ_RATE_PATHS = new Set(['/api/market', '/api/economy', '/api/trade/state', '/api/trade/peers']);
+const READ_RATE_PATHS = new Set(['/api/posta', '/api/market', '/api/economy', '/api/trade/state', '/api/trade/peers']);
 const MARKET_READS = createMarketReadCache({ store: ECONOMY, publicListing, ttlMs: envInt(process.env.MARKET_CACHE_TTL_MS, 2500, 0) });
 // Yayın yalnız "yenile" sinyalidir: ilan listesi, satış veya altın taşımaz (eski istemci yerel altın yazmasın).
 const marketChanged = listingId => { MARKET_READS.invalidate(); wsBroadcast({ type: 'market_update', listingId }); };
@@ -1011,7 +1037,45 @@ async function handleHttp(req, res) {
       return sendJson(res, known ? error.status : 500, { ok: false, error: known ? (error.code || error.message) : 'report_failed' });
     }
   }
+  // Şikâyet ve sorun bildirimi okuma (server/sorun_paneli.js): salt okunur, yalnız YONETIM_ANAHTAR ile; anahtar yoksa ya da yanlışsa 404.
+  if (pathname === '/api/sorunlar' && req.method === 'GET') {
+    try {
+      await ECONOMY.consumeRate('sorun-oku:' + req.socket.remoteAddress, 60, 600000);   // anahtar tahminine karşı: IP başına on dakikada altmış okuma
+      if (!SORUN_PANELI.okumaIzni(req)) return sendJson(res, 404, { ok: false, error: 'not_found' });
+      return sendJson(res, 200, SORUN_PANELI.oku(parsedUrl.searchParams.get('adet')));
+    } catch (error) { const known = Number.isInteger(error.status); if (!known) console.error('[sorunlar]', error.message); return sendJson(res, known ? error.status : 503, { ok: false, error: known ? (error.code || error.message) : 'reports_unavailable' }); }
+  }
+  // Oyuncu hunisi (server/huni_service.js). POST: oyuncunun ilk kez geçtiği adımlar (idempotent). GET: özet, yalnız HUNI_ANAHTAR ile.
+  if (pathname === '/api/huni' && req.method === 'POST') {
+    try {
+      if (!req.identity) { req.resume(); return sendJson(res, 401, { ok: false, error: 'guest_session_required' }); }
+      await ECONOMY.consumeRate('huni:' + req.identity.accountId, 30, 600000);
+      const body = await readJsonBody(req, false, 1024);
+      return sendJson(res, 200, await HUNI.kaydet(req.identity, body));
+    } catch (error) { const known = Number.isInteger(error.status); if (!known) console.error('[huni]', error.message); return sendJson(res, known ? error.status : 503, { ok: false, error: known ? (error.code || error.message) : 'funnel_unavailable' }); }
+  }
+  if (pathname === '/api/huni' && req.method === 'GET') {
+    try {
+      await ECONOMY.consumeRate('huni-oku:' + req.socket.remoteAddress, 20, 600000);   // anahtar tahminine karşı: IP başına on dakikada yirmi okuma
+      if (!HUNI.okumaIzni(req)) return sendJson(res, 404, { ok: false, error: 'not_found' });   // anahtar yoksa ya da yanlışsa uç yokmuş gibi davranır
+      return sendJson(res, 200, await HUNI.oku(parsedUrl.searchParams.get('gun')));
+    } catch (error) { const known = Number.isInteger(error.status); if (!known) console.error('[huni]', error.message); return sendJson(res, known ? error.status : 503, { ok: false, error: known ? (error.code || error.message) : 'funnel_unavailable' }); }
+  }
+  // Ekonomi defteri (server/ekonomi_defteri.js): gün × kalem altın sayaçları. Yalnız okuma, hunininkiyle aynı anahtar.
+  if (pathname === '/api/ekonomi' && req.method === 'GET') {
+    try {
+      await ECONOMY.consumeRate('huni-oku:' + req.socket.remoteAddress, 20, 600000);
+      if (!DEFTER.okumaIzni(req)) return sendJson(res, 404, { ok: false, error: 'not_found' });
+      return sendJson(res, 200, await DEFTER.oku(parsedUrl.searchParams.get('gun')));
+    } catch (error) { const known = Number.isInteger(error.status); if (!known) console.error('[ekonomi]', error.message); return sendJson(res, known ? error.status : 503, { ok: false, error: known ? (error.code || error.message) : 'ledger_unavailable' }); }
+  }
   if (pathname.startsWith('/api/trade') && req.headers['x-trade-account'] && req.headers['x-trade-account'] !== req.identity?.accountId) return sendJson(res,409,{ok:false,error:'trade_account_changed'});
+  // Ocak Postası (server/posta_service.js): yalnız okur; satış altını zaten aktarılmıştır.
+  if (pathname === '/api/posta' && req.method === 'GET') {
+    if (!req.identity) return sendJson(res, 401, { ok: false, error: 'guest_session_required' });
+    try { return sendJson(res, 200, { ok: true, ...(await POSTA.durum(req.identity)) }); }
+    catch (error) { console.error('[posta]', error.message); return sendJson(res, 503, { ok: false, error: 'posta_unavailable' }); }
+  }
   if (pathname === '/api/trade/state' && req.method === 'GET') {
     if(!req.identity)return sendJson(res,401,{ok:false,error:'guest_session_required'});
     const trade=await ECONOMY.currentTrade(req.identity.accountId);
@@ -1071,6 +1135,10 @@ async function handleHttp(req, res) {
     const verifier = crypto.randomBytes(32).toString('base64url');
     const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
     OAUTH_STATES.set(state, { verifier, createdAt: Date.now() });
+    // yeniden başlatmada X girişi yarıda kalmasın: durum depoya da yazılır (tek kullanımlık, OAUTH_TTL_MS ömürlü)
+    // IP başına dakikada 20 kalıcı yazım (bellek kovası): oturumsuz uç depo yazımını şişiremez; aşımda giriş yine çalışır, yalnız kalıcı değildir
+    let yaz = true; try { consumeReadRate('oauth-ip:' + req.socket.remoteAddress, 20); } catch (_) { yaz = false; }
+    if (yaz) try { await KALICI.put('oauth', state, { verifier, createdAt: Date.now() }, OAUTH_TTL_MS); } catch (e) { console.error('[kalici] oauth yazılamadı', e.code || e.message); }
 
     if (!X_CLIENT_ID) {
       // Simülasyon girişi yalnızca yerel geliştirmede (localhost) açıktır
@@ -1092,8 +1160,12 @@ async function handleHttp(req, res) {
   if (pathname === '/api/auth/x/callback' && req.method === 'GET') {
     const state = parsedUrl.searchParams.get('state') || '';
     const isMock = parsedUrl.searchParams.get('mock') === '1';
-    const stored = OAUTH_STATES.get(state);
+    let stored = OAUTH_STATES.get(state);
     OAUTH_STATES.delete(state);
+    if (/^[a-f0-9]{32}$/.test(state)) {
+      if (!stored) { try { stored = await KALICI.get('oauth', state); } catch (e) { console.error('[kalici] oauth okunamadı', e.code || e.message); } }
+      KALICI.del('oauth', state).catch(() => { });
+    }
     const fail = (code) => { res.writeHead(302, { Location: `/?x_error=${code}` }); return res.end(); };
 
     if (!stored || Date.now() - stored.createdAt > OAUTH_TTL_MS) return fail('bad_state');
@@ -1360,7 +1432,7 @@ async function handleHttp(req, res) {
   if (pathname === '/api/market' && req.method === 'GET') {
     try {
       const view = await MARKET_READS.view(req.identity?.accountId || null);
-      return sendJson(res, 200, { ok: true, settlementReady: true, ...view, serverNow: Date.now() });
+      return sendJson(res, 200, { ok: true, settlementReady: true, ...view, feeBps: MARKET_FEE_BPS, serverNow: Date.now() });
     } catch (_) { return sendJson(res, 503, { ok: false, error: 'market_unavailable' }); }
   }
   if (pathname === '/api/market' && req.method === 'POST') {
@@ -1437,6 +1509,14 @@ async function handleHttp(req, res) {
   }
 
   // 10c. Ejder Ocağı 2.0 sayfası (eo2/index.html); betik, stil ve çizimleri aşağıdaki izin listesi sunar
+  // 10d. Şikâyet okuma sayfası: gizli bilgi taşımaz, veriyi anahtarla /api/sorunlar'dan okur. Betik ve stil yalnız bu isteğin nonce'uyla çalışır.
+  if (pathname === '/sorunlar') { const nonce = require('node:crypto').randomBytes(16).toString('base64');
+    res.writeHead(200, { 'Content-Type': MIME_TYPES['.html'], 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY',
+      'Content-Security-Policy': `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'` });
+    return res.end(SORUN_PANELI_MOD.sayfa(nonce)); }
+  // 10e. Oyuncu hunisi okuma sayfası: gizli bilgi taşımaz, veriyi anahtarla /api/huni'den okur
+  if (pathname === '/ekonomi') { res.writeHead(200, { 'Content-Type': MIME_TYPES['.html'], 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }); return res.end(DEFTER_MOD.DEFTER_SAYFA); }
+  if (pathname === '/huni') { res.writeHead(200, { 'Content-Type': MIME_TYPES['.html'], 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }); return res.end(HUNI_MOD.HUNI_SAYFA); }
   if (pathname === '/eo2') { res.writeHead(302, { Location: '/eo2/' }); return res.end(); }
   if (pathname === '/eo2/' || pathname === '/eo2/index.html') {
     try {
@@ -1550,6 +1630,9 @@ async function handleGracefulShutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   clearInterval(tradeCleanupTimer);
+  // bağlantılar kapanmadan önce: kopmalar parti/oda durumunu değiştirmeden son anlık görüntü yazılır (en çok 3 sn)
+  await Promise.race([kaliciKaydet(), new Promise(r => setTimeout(r, 3000).unref())]);
+  kaliciDurdu = true;
   for (const socket of WS_CLIENTS) socket.destroy();
   console.log(`[${signal}] Alındı — world.json diske kaydediliyor ve sunucu kapatılıyor...`);
   flushWorldSync(WORLD);
@@ -1568,14 +1651,15 @@ process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
 
 if (require.main === module) {
-  server.listen(PORT, () => {
+  // önce kalıcı durum geri yüklenir (en çok 5 sn): ilk bağlanan oyuncu partisini ve odasını bulsun
+  Promise.race([kaliciGeriYukle(), new Promise(r => setTimeout(r, 5000))]).catch(() => { }).then(() => server.listen(PORT, () => {
     console.log(`====================================================`);
     console.log(`🔥 EJDER OCAĞI ONLINE v2.5 SUNUCUSU ÇALIŞIYOR!`);
     console.log(`🌐 Oyun Adresi : http://localhost:${PORT}`);
     console.log(`⚡ WebSocket   : ws://localhost:${PORT}/ws`);
     console.log(`🐦 X OAuth 2.0 : http://localhost:${PORT}/api/auth/x/login`);
     console.log(`====================================================`);
-  });
+  }));
 }
 
 module.exports = { server, WORLD, buildDynamicCardSvg };

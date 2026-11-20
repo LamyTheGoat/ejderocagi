@@ -130,13 +130,14 @@ test('ENG13 goal.reach: tutar sunucu GOALS tablosundan, hesap başına bir kez (
   assert.throws(() => run(g0, 'goal.reach', { id: 'para' }), /unknown_goal/);
 });
 
-test('ENG13 gold.local: gider düşer (yetmezse ret), gelir tavansız earned girer; borç önce kapanır', () => {
+test('ENG13 gold.local: gider düşer (yetmezse ret), gelir tavansız bağlı (bound) girer; borç önce kapanır', () => {
   const g0 = start();
   let r = run(g0, 'gold.local', { reason: 'arena', amount: -100 });
   assert.equal(r.game.gold, g0.gold - 100); assert.equal(r.result.spent, 100);
   assert.throws(() => run(g0, 'gold.local', { reason: 'other', amount: -(g0.gold + 1) }), /insufficient_gold/);
   r = run(g0, 'gold.local', { reason: 'race', amount: 5000 });
-  assert.equal(r.result.credited, 5000); assert.equal(r.game.funds.earned, g0.funds.earned + 5000); assert.equal(r.game.funds.unknown, g0.funds.unknown);
+  // Tek kese (2026-11-20): tarayıcı beyanı takas edilemez; earned değişmez, tutar bound'a girer.
+  assert.equal(r.result.credited, 5000); assert.equal(r.result.source, 'bound'); assert.equal(r.game.funds.bound, g0.funds.bound + 5000); assert.equal(r.game.funds.earned, g0.funds.earned); assert.equal(r.game.funds.unknown, g0.funds.unknown);
   // Geçerlilik denetimi kalır: tek istek ≤ 1.000.000, tam sayı, sıfır değil.
   assert.throws(() => cmd('gold.local', { reason: 'race', amount: 1_000_001 }), /invalid_arguments/);
   assert.throws(() => cmd('gold.local', { reason: 'race', amount: NaN }), /invalid_arguments/);
@@ -234,7 +235,8 @@ test('ENG13 kullanıcı kararı: tavan yok; sunucu gelirleri earned, aktarım ve
   const g0 = start();
   let g = g0;
   for (const [type, args] of [['topcu.clear', { mode: 'raid_extreme:komutan' }], ['gold.local', { reason: 'dungeon', amount: 250000 }], ['topcu.clear', { mode: 'stage' }]]) g = run(g, type, args).game;
-  assert.equal(g.funds.earned, g0.funds.earned + 950 + 250000 + 150); assert.equal(g.funds.unknown, g0.funds.unknown);
+  // Tek kese (2026-11-20): gold.local (tarayıcı beyanı) artık bound; sunucunun hesapladığı Topçu geliri earned kalır.
+  assert.equal(g.funds.earned, g0.funds.earned + 950 + 150); assert.equal(g.funds.bound, g0.funds.bound + 250000); assert.equal(g.funds.unknown, g0.funds.unknown);
   assert.equal(g.funds.bound + g.funds.unknown + g.funds.earned, g.gold); // invariant
   assert.equal(g.srvDaily, undefined); // günlük sayaç yok
   // Aktarım ve hedef bound kalır (D15).
@@ -271,10 +273,10 @@ test('ENG13 depo: earned altınla alınan ejderha Bedesten\'e konur; başlangı�
   const zero = a => { const raw = new DatabaseSync(f.file); const g = JSON.parse(raw.prepare('SELECT game_json FROM game_states WHERE account_id=?').get(a).game_json); g.gold = 0; g.funds = { schema: 1, bound: 0, unknown: 0, earned: 0 }; g.goals = (g.goals || []).concat(['acq']); raw.prepare('UPDATE game_states SET game_json=? WHERE account_id=?').run(JSON.stringify(g), a); raw.close(); };
   const buy = a => { const before = f.eco(a).dragons.map(r => r.assetId); f.exec(a, 'shop.dragon', { id: f.eco(a).game.market.dragons[0].id }); return f.eco(a).dragons.find(r => !before.includes(r.assetId)); };
   const list = (a, id) => f.store.executeMarket(a, { op: 'list', requestId: crypto.randomUUID(), kind: 'dragon', assetId: id, quantity: 1, unitPrice: 100 });
-  // A: Topçu ve yerel defter geliri earned → alınan ejderha ilana konur.
+  // A: Topçu geliri earned → alınan ejderha ilana konur. Yerel defter (gold.local) 2026-11-20'den beri bound: earned'e girmez.
   const a = f.fresh(); zero(a);
-  f.exec(a, 'topcu.clear', { mode: 'raid_extreme:komutan' }); f.exec(a, 'gold.local', { reason: 'dungeon', amount: 2500 });
-  assert.equal(f.eco(a).funds.earned, 3450);
+  for (let i = 0; i < 4; i++) f.exec(a, 'topcu.clear', { mode: 'raid_extreme:komutan' });
+  assert.equal(f.eco(a).funds.earned, 3800);
   const da = buy(a); assert.equal(da.data.funding, 'earned');
   assert.equal(list(a, da.assetId).listing.status, 'open');
   // B: yalnız aktarım (bound) → alınan ejderha bound, ilana konamaz; Rüstem/sipariş/teklif geliri bound kalır (Y-1).

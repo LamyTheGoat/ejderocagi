@@ -6,6 +6,8 @@ const market = require('./market_service');
 const duel = require('./duel_service');
 const { validateCommand, reduceCommand, gameEconomy, fail } = require('./economy_commands');
 const recovery = require('./account_recovery');
+const huni = require('./huni_service');
+const defter = require('./ekonomi_defteri');
 const SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
 
@@ -58,6 +60,35 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
   const socials = db.collection('eo_social');
   async function getSocial(accountId) { const doc = await socials.doc(accountId).get(); return doc.exists ? JSON.parse(doc.data().json) : null; }
   async function putSocial(accountId, kayit) { const json = JSON.stringify(kayit); if (json.length > 64000) throw Object.assign(new Error('social_too_large'), { code: 'social_too_large', status: 409 }); await socials.doc(accountId).set({ accountId, json }); }
+  // oyuncu hunisi (server/huni_service.js): eo_huni/<hesap> ilk geçilen adımlar; eo_huni_gun/<gün> kohort sayaçları (artırma, okumasız)
+  const huniHesap = db.collection('eo_huni'), huniGun = db.collection('eo_huni_gun');
+  async function recordFunnel(accountId, adimlar, gun) {
+    const { FieldValue } = require('@google-cloud/firestore');
+    return db.runTransaction(async tx => {
+      const ref = huniHesap.doc(accountId), doc = await tx.get(ref);
+      const { kayit, yeni, kohort } = huni.planla(doc.exists ? JSON.parse(doc.data().json) : null, adimlar, gun);
+      if (!yeni.length) return [];
+      tx.set(ref, { json: JSON.stringify(kayit) });
+      const artis = { gun: kohort }; for (const a of yeni) artis[a] = FieldValue.increment(1);
+      tx.set(huniGun.doc(String(kohort)), artis, { merge: true });
+      return yeni;
+    }, { maxAttempts: 5 });
+  }
+  // ekonomi defteri (server/ekonomi_defteri.js): eo_eko_gun/<gün>_<kalem> sayaçları; komut transaction'ında artırılır (okumasız)
+  const ekoGun = db.collection('eo_eko_gun');
+  function ledgerWrite(tx, rows) {
+    if (!rows.length) return;
+    const { FieldValue } = require('@google-cloud/firestore'), gun = huni.gunNo(now());
+    for (const r of rows) tx.set(ekoGun.doc(gun + '_' + r.kalem), { gun, kalem: r.kalem, giris: FieldValue.increment(r.giris), cikis: FieldValue.increment(r.cikis), n: FieldValue.increment(1), hacim: FieldValue.increment(r.hacim) }, { merge: true });
+  }
+  async function readLedger(ilkGun, sonGun) {
+    const q = await ekoGun.where('gun', '>=', ilkGun).where('gun', '<=', sonGun).get();
+    return q.docs.map(d => { const v = d.data(); return { gun: v.gun, kalem: v.kalem, giris: v.giris, cikis: v.cikis, n: v.n, hacim: v.hacim }; });
+  }
+  async function readFunnel(ilkGun, sonGun) {
+    const q = await huniGun.where('gun', '>=', ilkGun).where('gun', '<=', sonGun).get();
+    return q.docs.map(d => { const v = d.data(), sayac = {}; for (const a of huni.ADIMLAR) if (Number.isFinite(v[a])) sayac[a] = v[a]; return { gun: v.gun, sayac }; });
+  }
   async function findAccountByHandle(handle) { const q = await accounts.where('handle', '==', String(handle)).limit(1).get(); return q.empty ? null : q.docs[0].id; }
   async function resolveSession(token) {
     if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
@@ -101,6 +132,13 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
     for(const doc of page.docs) count+=await db.runTransaction(async tx=>{const latest=await tx.get(doc.ref);if(latest.exists&&latest.data().expiresAt<=now()){tx.delete(doc.ref);return 1;}return 0;});
     return count;
   }
+  // Kalıcı sunucu durumu (server/kalici_durum.js). eo_service_state içinde; expiresAt geçince pruneServiceState siler.
+  const durableRef = (kind, key) => security.doc('kalici:' + kind + ':' + encodeURIComponent(String(key)).replace(/\./g, '%2E'));
+  async function putDurable(kind, key, value, expiresAt) { const ref = durableRef(kind, key);
+    if (value == null) return ref.delete(); await ref.set({ kind: 'kalici:' + kind, key: String(key), json: JSON.stringify(value), expiresAt }); }
+  async function getDurable(kind, key) { const doc = await durableRef(kind, key).get(); if (!doc.exists) return null; const d = doc.data(); return d.expiresAt > now() ? JSON.parse(d.json) : null; }
+  async function listDurable(kind, limit = 500) { const q = await security.where('kind', '==', 'kalici:' + kind).limit(limit).get();
+    return q.docs.map(d => d.data()).filter(d => d.expiresAt > now()).map(d => ({ key: d.key, value: JSON.parse(d.json) })); }
   async function compactTradeReceipts(limit=50) {
     const page=await receipts.where('compactAfter','<=',now()).limit(limit).get();let count=0;
     for(const doc of page.docs) {
@@ -201,6 +239,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
       tx.set(listingRef, { json: JSON.stringify(l), status: l.status, sellerId: l.sellerId, createdAt: l.createdAt });
       const result = { ...out.result, replayed: false };
       tx.create(receiptRef, { hash, resultJson: JSON.stringify(result), createdAt: now() });
+      if (command.op === 'buy') ledgerWrite(tx, defter.pazarKalemleri(out.result.sale));
       return result;
     }, { maxAttempts: 5 });
   }
@@ -244,6 +283,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
       tx.update(accountRef, { version, gameJson: JSON.stringify(next.game) });
       for (const l of refreshed) tx.update(listings.doc(l.id), { json: JSON.stringify(l) });
       tx.create(receiptRef, { hash, version, type: command.type, createdAt: now(), resultJson: JSON.stringify(next.result) });
+      ledgerWrite(tx, defter.komutKalemleri(command.type, command.args, record.gameJson ? JSON.parse(record.gameJson).gold : 0, next.game.gold));
       return { replayed: false, appliedVersion: version, result: next.result, economy: gameEconomy(accountId, version, next.game), listingsRefreshed: refreshed.length };
     }, { maxAttempts: 5 });
   }
@@ -309,7 +349,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
   async function readMatch(matchId) { return duel.MATCH_ID.test(matchId || '') ? matchOf(await matches.doc(matchId).get()) : null; }
   return {
     checkDuelEntry, openMatch, finalizeMatch, settleGameplay, readMatch,
-    backend: 'firestore', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, findAccountByHandle, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
+    backend: 'firestore', putDurable, getDurable, listDurable, executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, recordFunnel, readFunnel, readLedger, findAccountByHandle, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
     async revokeSession(token) { if (typeof token === 'string') await sessions.doc(hashToken(token)).delete(); },
     async close() { await db.terminate(); },
   };
