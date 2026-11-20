@@ -72,8 +72,10 @@
 
   /* ---------- ilk hafta adımları: durumdan okunur, sıradaki ilk uygun adım gösterilir ---------- */
   const bos = () => S.dragons.some(d => !d.dead && !d.inj && !d.task);
-  /* ÖĞRETİCİ ZİNCİRİ (kullanıcı, 2026-11-17): oyunun mekaniklerini sırayla anlatan yedi kısa adım. Her adım tek satırdır, oyunu durdurmaz,
-     kapatılabilir; koşulu sağlanınca kendiliğinden sıradakine geçer. Sıra: kuluçka → emir → hafta → harita → kuşam → arena → bakım. */
+  /* ÖĞRETİCİ ZİNCİRİ (kullanıcı, 2026-11-17): oyunun mekaniklerini sırayla anlatan kısa adımlar. Her adım tek satırdır, oyunu durdurmaz,
+     kapatılabilir; koşulu sağlanınca kendiliğinden sıradakine geçer. Sıra: kuluçka → emir → hafta → harita → kuşam → arena → bakım → ikinci ejderha → Yuva Bahçesi → gezinti → çiftleşme. */
+  /* dişi ve erkek, ikisi de canlı bir çift (hazir: çiftleşme şartlarının hepsi tamam) */
+  const cift = hazir => { const L = (S.dragons || []).filter(d => !d.dead); for (const A of L) for (const B of L) if (A.id < B.id && A.sex !== B.sex && (!hazir || (typeof breedChecks === 'function' && breedChecks(A, B).every(c => c[1])))) return [A, B]; return null; };
   const kusamTek = () => { try { return EO2.gorunum && EO2.gorunum.kusam && EO2.gorunum.kusam().sahip.length <= 1; } catch (_) { return false; } };
   const ADIM0 = [
     { id: 'a-kulucka', k: () => S.week <= 3 && !S.goals.includes('kulucka') && (S.eggs || []).some(e => !e.inK) && typeof BUILD !== 'undefined' && BUILD.kulucka && S.gold >= BUILD.kulucka.fiyat, m: () => dokun() ? 'Işıklı boş kareye yürü, <b>Yapı kur</b> düğmesine dokun, <b>Kuluçka Ocağı</b> kur.' : 'Işıklı boş kareye yürü, <b>E</b> ile <b>Kuluçka Ocağı</b> kur.', dugme: 'Yolu göster', git: 'ocak-yol' },
@@ -83,6 +85,12 @@
     { id: 'a-kusam', k: () => S.week >= 2 && S.week <= 6 && kusamTek() && S.gold >= 120, m: () => 'Hâlâ çıplaksın. <b>Portrene</b> dokun, ilk zırhını al.', dugme: 'Kuşam', git: 'gorunus' },
     { id: 'a-arena', k: () => S.week >= 2 && S.week <= 5 && !S.st.fights, m: () => '<b>Ejder Arenası</b>\'nda ilk dövüşüne çık.', dugme: 'Arena', git: 'arena' },
     { id: 'a-bakim', k: () => S.week >= 2 && S.week <= 5 && (!S.st.talk || !S.st.feed), m: () => 'Ejderhanı besle ve onunla konuş; bağınız güçlenir.', dugme: 'Ejderhalar', git: 'ejderhalar' },
+    /* ÜREME (UX denetimi, 2026-11-20): oyunun özü olan çiftleştirmeye yol gösteren dört adım. Kural yok, var olan hedeflerin (core.js GOALS:
+       acq, yuva, aff, bred) sırası anlatılır: karşı cinsten ikinci ejderha → Yuva Bahçesi → birlikte gezinti → yuva kurma. */
+    { id: 'a-ikinci', k: () => S.week >= 3 && !S.st.bred && !cift(), m: () => 'Yavru için bir dişi, bir erkek ejderha gerek. <b>Pazar</b>\'daki tüccara bak ya da sefere çık.', dugme: 'Pazar', git: 'pazar' },
+    { id: 'a-yuvabahce', k: () => !!cift() && !hasB('yuva') && typeof BUILD !== 'undefined' && BUILD.yuva && S.gold >= BUILD.yuva.fiyat, m: () => 'Bir çiftin var. Ocağında boş bir kareye <b>Yuva Bahçesi</b> kur; çiftleşme orada olur.', dugme: 'Ocak', git: 'ocak' },
+    { id: 'a-gezinti', k: () => !!cift() && hasB('yuva') && !Object.values(S.aff || {}).some(v => v >= 60) && !S.dragons.some(d => d.task && d.task.t === 'walk'), m: () => '<b>Yuva</b>\'da iki ejderhanı <b>birlikte gezdir</b>. Her gezinti yakınlığı artırır; 60 olunca çiftleşebilirler.', dugme: 'Yuva', git: 'yuva' },
+    { id: 'a-ciftles', k: () => !S.st.bred && !!cift(true) && !S.dragons.some(d => d.task && d.task.t === 'breed'), m: () => 'Yakınlık yeterli. <b>Yuva</b>\'da <b>Yuva kur</b> de; hafta sonunda yumurta gelebilir.', dugme: 'Yuva', git: 'yuva' },
   ];
   const ADIM = ADIM0.map((a, n) => Object.assign({}, a, { m: () => '<small class="rh-sira" title="Öğretici">' + (n + 1) + ' / ' + ADIM0.length + '</small> ' + a.m() }));
   /* ---------- İLK HAFTA KİLİDİ (kullanıcı kararı, 2026-11-18) ----------

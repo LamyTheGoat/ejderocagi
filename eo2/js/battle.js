@@ -157,22 +157,42 @@
     $('app').appendChild(el);
     $('tpBeceri').innerHTML = BECERI_SIRA.map((k, i) => '<button type="button" data-b="' + k + '" aria-pressed="false" title="' + BECERI[k].ad + ' · ' + BECERI[k].a + (i < 9 ? ' (' + (i + 1) + ')' : ' (0)') + '">' + svg(BECERI[k].ik) + '<em></em></button>').join('');
     $('tpBeceri').querySelectorAll('button').forEach(b => { b.addEventListener('click', () => beceri(M && M.ben, b.dataset.b)); const goster = () => bilgi(b.dataset.b); b.addEventListener('pointerenter', goster); b.addEventListener('focus', goster); b.addEventListener('pointerleave', () => bilgi(null)); b.addEventListener('blur', () => bilgi(null)); });
+    $('tpBeceri').addEventListener('scroll', beceriTasma, { passive: true }); addEventListener('resize', beceriTasma);
     $('tpCik').addEventListener('click', () => { if (M && M.on && M.cikis) M.cikis(); });
-    const hold = (id, k) => { const b = $(id), dn = e => { e.preventDefault(); if (M) M.keys[k] = true; }, up = () => { if (M) M.keys[k] = false; }; b.addEventListener('pointerdown', dn); b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up); b.addEventListener('pointercancel', up); b.addEventListener('contextmenu', e => e.preventDefault()); };
-    hold('tpSol', 'left'); hold('tpSag', 'right'); hold('tpYuk', 'up'); hold('tpAsg', 'down'); hold('tpAtes', 'fire');
+    const hold = (id, k) => { const b = $(id), dn = e => { e.preventDefault(); if (!M) return; M.keys[k] = true; if (k === 'up' || k === 'down') aciAdim(k === 'up' ? 1 : -1); }, up = () => { if (M) M.keys[k] = false; }; b.addEventListener('pointerdown', dn); b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up); b.addEventListener('pointercancel', up); b.addEventListener('contextmenu', e => e.preventDefault()); };
+    hold('tpSol', 'left'); hold('tpSag', 'right'); hold('tpYuk', 'up'); hold('tpAsg', 'down');
+    /* ATEŞ: basılı tut, bırak. Parmak düğmeden uzağa kayarsa atış iptal olur; çok kısa (yanlışlıkla) dokunuş da atış yapmaz, uyarı çıkar */
+    { const b = $('tpAtes'); let pid = null;
+      const bitir = (iptal, neden) => { pid = null; b.classList.remove('iptal'); if (!M) return; if (iptal && M.charging) { M.charging = false; M.charge = 0; titres([12, 40, 12]); ipucu('Atış iptal', neden); M.ipucuT = 2.2; } M.keys.fire = false; };
+      b.addEventListener('pointerdown', e => { e.preventDefault(); if (!M || pid !== null) return; pid = e.pointerId; try { b.setPointerCapture(pid); } catch (_) { } M.keys.fire = true; M.atesT = performance.now(); if (M.faz === 'nisan' && M.aktif === M.ben) titres(10); });
+      b.addEventListener('pointermove', e => { if (e.pointerId !== pid || !M || !M.keys.fire) return; const r = b.getBoundingClientRect(), pay = Math.max(36, r.width * 0.6), dis = e.clientX < r.left - pay || e.clientX > r.right + pay || e.clientY < r.top - pay || e.clientY > r.bottom + pay; b.classList.toggle('iptal', dis); });
+      b.addEventListener('pointerup', e => { if (e.pointerId !== pid) return; const kisa = M && performance.now() - (M.atesT || 0) < 140; if (b.classList.contains('iptal')) bitir(true, 'Parmağını düğmeden uzaklaştırdın. Yeniden basılı tut, güç dolunca bırak.'); else if (kisa) bitir(true, 'Çok kısa dokundun. ATEŞ\'e basılı tut, güç dolunca bırak.'); else bitir(false); });
+      b.addEventListener('pointercancel', e => { if (e.pointerId === pid) bitir(true, 'Dokunuş kesildi.'); }); b.addEventListener('contextmenu', e => e.preventDefault()); }
     $('tpLaf').querySelectorAll('[data-laf]').forEach(b => b.addEventListener('click', () => lafCevap(b.dataset.laf)));
     // dokunarak ya da fareyle nişan: tuvalde sürükle; namlu parmağı izler, karakter o yöne döner
     const cv = $('tpCv'); let nisan = false;
     const nis = e => { if (!M || !M.on || M.faz !== 'nisan' || M.aktif !== M.ben || M.ben.kontrol !== 'yerel' || M.charging) return; const r = cv.getBoundingClientRect(), V = M.view; if (!V) return; const wx = (e.clientX - r.left) / r.width * V.W, wy = (e.clientY - r.top) / r.height * V.H, a = M.ben;
       const dx = (wx - V.X(a.x)) / V.sc, dy = -(wy - V.Y(a.y + 1.0)) / V.sc; if (Math.hypot(dx, dy) < 0.5) return; if (Math.abs(dx) > 0.35) a.face = dx > 0 ? 1 : -1; a.angle = clamp(Math.atan2(dy, Math.abs(dx)) * 180 / Math.PI, -10, 70); };
-    cv.addEventListener('pointerdown', e => { nisan = true; try { cv.setPointerCapture(e.pointerId); } catch (_) { } nis(e); }); cv.addEventListener('pointermove', e => { if (nisan) nis(e); }); const birak = () => { nisan = false; }; cv.addEventListener('pointerup', birak); cv.addEventListener('pointercancel', birak);
+    /* Dokunuş karakterin yakınında başlarsa nişan alınır; başka yerde başlarsa ekran kaydırılıp meydana bakılır (açı değişmez).
+       Kaydırmadan kısa bir dokunuş kamerayı topçuna geri getirir. Kendi sıran değilken tuval hiçbir şey yapmaz. */
+    let kay = null, pid = null; const benimSiram = () => M && M.on && M.faz === 'nisan' && M.aktif === M.ben && M.ben.kontrol === 'yerel';
+    cv.addEventListener('pointerdown', e => { if (pid !== null || !benimSiram() || !M.view) return; pid = e.pointerId; try { cv.setPointerCapture(pid); } catch (_) { } const r = cv.getBoundingClientRect(), V = M.view, k = r.width / V.W, a = M.ben;
+      const d = Math.hypot(e.clientX - r.left - V.X(a.x) * k, e.clientY - r.top - V.Y(a.y + 1.0) * k), yakin = Math.max(84, 3.2 * V.sc * k);
+      if (d <= yakin && !M.charging) { nisan = true; nis(e); } else kay = { x0: e.clientX, b0: M.bak != null ? M.bak : M.cam.x, k: V.W / r.width / V.sc, oynadi: false }; });
+    cv.addEventListener('pointermove', e => { if (e.pointerId !== pid) return; if (nisan) nis(e); else if (kay && benimSiram()) { const dx = e.clientX - kay.x0; if (Math.abs(dx) > 8) kay.oynadi = true; if (kay.oynadi) M.bak = clamp(kay.b0 - dx * kay.k, 0, M.cfg.arenaEn || FW); } });
+    const birak = e => { if (e.pointerId !== pid) return; if (kay && !kay.oynadi && M) M.bak = null; nisan = false; kay = null; pid = null; }; cv.addEventListener('pointerup', birak); cv.addEventListener('pointercancel', birak);
+    const hk = $('tpHarita'); let hpid = null; const hBak = e => { if (!benimSiram()) return; const r = hk.getBoundingClientRect(); M.bak = clamp((e.clientX - r.left) / r.width, 0, 1) * FW; };
+    hk.addEventListener('pointerdown', e => { if (!benimSiram()) return; hpid = e.pointerId; try { hk.setPointerCapture(hpid); } catch (_) { } hBak(e); }); hk.addEventListener('pointermove', e => { if (e.pointerId === hpid) hBak(e); }); const hb = e => { if (e.pointerId === hpid) hpid = null; }; hk.addEventListener('pointerup', hb); hk.addEventListener('pointercancel', hb);
   }
   function bilgi(k) { const el = $('tpBilgi'); el.classList.remove('uzun'); if (M) M.ipucuT = 0; if (!k || !M) { el.hidden = true; return; } const B = BECERI[k], a = M.ben, cd = a.cd[k] || 0; el.hidden = false;
     el.innerHTML = '<b>' + B.ad + '</b><span>' + B.a + '</span><em>' + (B.ofke ? 'Öfke ' + Math.round(a.rage) + ' / 100' : B.m + ' nefes' + (B.cd ? ' · ' + B.cd + ' tur bekler' : '')) + (cd > 0 ? ' · ' + cd + ' tur sonra' : '') + '</em>'; }
   /* ilk atışlar: oyuncu daha üç gülle atmadıysa sırası gelince ne yapacağı söylenir (sayı bu tarayıcıda tutulur) */
   const ATIS_AN = 'eo2_topcu_atis', atisSay = () => { try { return +localStorage.getItem(ATIS_AN) || 0; } catch (_) { return 0; } }, atisYaz = () => { try { localStorage.setItem(ATIS_AN, String(atisSay() + 1)); } catch (_) { } };
-  const ILK_ATIS = [['İlk atışın', 'W ve S ile namluyu kaldır ya da indir. Boşluk tuşuna basılı tut, güç dolunca bırak.', 'Sağdaki oklarla namluyu kaldır ya da indir. ATEŞ düğmesine basılı tut, güç dolunca bırak.'],
-    ['Yerini seç', 'A ve D ile yürü. Rüzgâr gülleyi sürükler; üstteki ok ne yana estiğini gösterir.', 'Soldaki oklarla yürü. Rüzgâr gülleyi sürükler; üstteki ok ne yana estiğini gösterir.'],
+  const titres = d => { try { if (navigator.vibrate && matchMedia('(pointer: coarse)').matches) navigator.vibrate(d); } catch (_) { } };   /* dokunsal geri bildirim (destekleyen telefonlarda) */
+  function aciAdim(y) { if (!M || !M.on || M.faz !== 'nisan' || M.aktif !== M.ben || M.ben.kontrol !== 'yerel' || M.charging || M.buyulu) return; M.ben.angle = clamp(Math.round(M.ben.angle) + y, -10, 70); M.aciT = 0; }   /* oka kısa dokunuş tam 1° oynatır */
+  function beceriTasma() { const el = $('tpBeceri'); if (!el) return; const t = el.scrollWidth - el.clientWidth; el.classList.toggle('sag', t > 2 && el.scrollLeft < t - 2); el.classList.toggle('sol', t > 2 && el.scrollLeft > 2); }
+  const ILK_ATIS = [['İlk atışın', 'W ve S ile namluyu kaldır ya da indir. Boşluk tuşuna basılı tut, güç dolunca bırak.', 'Sağdaki oklarla ya da karakterinin yanında parmağını sürükleyerek namluyu ayarla. ATEŞ\'e basılı tut, güç dolunca bırak; vazgeçersen parmağını düğmeden uzağa kaydır.'],
+    ['Yerini seç', 'A ve D ile yürü. Rüzgâr gülleyi sürükler; üstteki ok ne yana estiğini gösterir.', 'Soldaki oklarla yürü. Rakibi görmek için ekranı kaydır ya da küçük haritaya dokun; kısa bir dokunuş seni geri getirir. Rüzgâr gülleyi sürükler.'],
     ['Hünerlerin', 'Alttaki simgeler atışını güçlendirir. Üstüne gelince ne yaptığını okursun; 1 ile 9 arası tuşlar da seçer.', 'Alttaki simgeler atışını güçlendirir. Birine dokun, sonra ateş et.']];
   function ilkAtisIpucu() { const n = atisSay(); if (n >= ILK_ATIS.length || !M || M.aktif !== M.ben) return; const q = ILK_ATIS[n]; ipucu(q[0], matchMedia('(pointer: coarse)').matches ? q[2] : q[1]); M.ipucuT = 45; M.ilkIpucu = true; }
   function ipucu(bas, metin) { if (!M) return; const el = $('tpBilgi'); el.hidden = false; el.classList.add('uzun'); el.innerHTML = '<b></b><span></span>'; el.firstChild.textContent = bas; el.lastChild.textContent = metin; M.ipucuT = 7; }
@@ -216,7 +236,7 @@
     $('tpBeceri').querySelectorAll('button').forEach(b => { const B = BECERI[b.dataset.b]; b.hidden = !!(B.yalniz && B.yalniz !== cfg.arazi.aile); });
     $('tpAsama').hidden = !cfg.asama; if (cfg.asama) $('tpAsama').innerHTML = '<small>' + cfg.asama.ad + '</small>' + Array.from({ length: cfg.asama.n }, (_, i) => '<i class="' + (i < cfg.asama.i ? 'tamam' : i === cfg.asama.i ? 'simdi' : '') + '"></i>').join('');
     $('tpBalon').hidden = true; $('tpLaf').hidden = true; $('tpBilgi').hidden = true; $('tpIpucu').textContent = matchMedia('(pointer: coarse)').matches ? 'ATEŞ\'e basılı tut, bırak' : 'Boşluk tuşuna basılı tut, bırak';
-    yeniRuzgar(); hudCache = {}; hud(true);
+    yeniRuzgar(); hudCache = {}; hud(true); requestAnimationFrame(beceriTasma);
     $('tpBitis').hidden = true; $('tpBitis').className = '';
     $('tpSavas').hidden = false; $('tpSavas').className = 'tema-' + (cfg.arazi.aile || cfg.arazi.tema); $('app').classList.add('fight'); ses('battle', true); addEventListener('keydown', kd, true); addEventListener('keyup', ku, true);
     pankart(cfg.baslik || 'Düello', cfg.alt || '', 'big'); ses('turn'); yay('mac_basla', { kimlik: cfg.kimlik, ruzgar: M.wind });
@@ -251,7 +271,7 @@
   /* ---------- atış ---------- */
   function muzzleOf(a) { const m = window.EO2_BATTLE.sets[a.set], q = clamp(Math.round(a.angle / 5) * 5, -10, 70), mz = m.muzzle[q] || [150, 150]; return [a.x + a.face * mz[0] * K, a.y + mz[1] * K]; }
   /* eski firePlayerVolley: dalga sayısı, saçılma, hasar çarpanları ve patlama yarıçapı aynı */
-  function ates(a, power, uzak) { if (M && a === M.ben && !uzak) { atisYaz(); if (M.ilkIpucu) { M.ilkIpucu = false; M.ipucuT = 0; $('tpBilgi').hidden = true; } }
+  function ates(a, power, uzak) { if (M && a === M.ben && !uzak) { atisYaz(); titres(25); if (M.ilkIpucu) { M.ilkIpucu = false; M.ipucuT = 0; $('tpBilgi').hidden = true; } }
     const md = a.mods, pow = !!md.powUlt, dalga = pow ? 3 : 1 + (md.plus1 ? 1 : 0) + (md.plus2 ? 2 : 0), sac = md.trident ? [-6, 0, 6] : [0], sp = 8.5 + power * 19.5;
     const capaK = 1 + (a.capaBonus || 0), dmg = Math.round(a.dmg * (md.heavy ? 1.5 : 1) * (pow ? 1.65 : 1) * capaK), patlama = Math.round((md.crater ? 88 : 54) * (pow ? 1.35 : 1));
     const fir = a.el === 'firtina' || a.el2 === 'firtina', top = a.el === 'toprak' || a.el2 === 'toprak', isin = { teleport: !!md.teleport, pow, delici: !!md.crater || !!a.parilti, aci: Math.round(a.angle) };
@@ -372,7 +392,7 @@
     for (let k = 0; k <= M.sira.length; k++) { M.si = (M.si + 1) % M.sira.length; const a = M.sira[M.si]; if (M.si === 0) { if (M.aktif) M.tur++; } if (a === M.ben || !a.dead) { if (onceki === M.ben && a !== M.ben && M.cfg.ozel && M.cfg.ozel.dusmanBasi) M.cfg.ozel.dusmanBasi(API); return baslat(a); } }
   }
   function baslat(a) {
-    M.aktif = a; M.faz = 'nisan'; M.buyulu = false; M.pt = 0; M.siraNo = (M.siraNo || 0) + (a.tur === 'topcu' ? 1 : 0); M.charge = 0; M.charging = false; M.plan = null; M.hitX = undefined;
+    M.aktif = a; M.bak = null; M.faz = 'nisan'; M.buyulu = false; M.pt = 0; M.siraNo = (M.siraNo || 0) + (a.tur === 'topcu' ? 1 : 0); M.charge = 0; M.charging = false; M.plan = null; M.hitX = undefined;
     if (a === M.ben) {
       if (a.hp <= 0 || a.dead) { if (a.revive > 0) { a.revive--; a.dead = false; a.hp = Math.round(a.max * 0.65); a.shield = 1; if (a.y < 0.5 || a.dustu) { a.x = X_(M.cfg.x0 || 460); a.dustu = false; } a.y = Math.max(a.y, yerY(a.x)); a.fall = true; a.vy = 0; yazi(a.x, a.y + 3, 'Anka Külü: dirildin', { col: '#ffe08a', crit: 1 }); toz(a.x, a.y + 1, 30, [255, 215, 106]); halka(a.x, a.y + 1, 1.1, [255, 215, 106]); ses('chime'); yay('can', { kim: 0, hp: a.hp, max: a.max }); } else if (M.cfg.ortak) { a.dead = true; a.dustuKesin = true; a.hp = 0; pankart('Düştün', 'Yoldaşlarını izliyorsun', 'kayip'); yay('dustum', {}); return siradaki(); }   // ortak savaş: düşen arenada kalır, savaş sürer; sırası atlanır
         else return bitir(false); }
@@ -475,9 +495,9 @@
       if (me.kontrol === 'yerel') {
         const mv = (K_.right ? 1 : 0) - (K_.left ? 1 : 0); me.moving = false;
         if (M.buyulu) { M.charging = false; M.charge = 0; }   /* büyülü tur: yürüme, nişan ve ateş kapalı (aşağıdaki koşullar) */
-        if (mv && !M.buyulu && !M.charging && me.sta > 0.5 && !me.fall) { me.face = mv; const nx = clamp(me.x + mv * 2.3 * dt, 1.7, FW - 1.7); if (!solid(M.T, nx, me.y + 0.75)) { const gy = groundBelow(M.T, nx, me.y + 0.7); if (gy !== null && gy - me.y < 0.7) { me.sta = Math.max(0, me.sta - 22 * dt); me.x = nx; if (me.y - gy > 0.9) me.fall = true; else me.y = gy; me.moving = true; me.ph += dt * 1.9; } else if (gy === null) { me.x = nx; me.fall = true; } } }
-        const av = (K_.up ? 1 : 0) - (K_.down ? 1 : 0); if (av) me.angle = clamp(me.angle + av * 38 * dt, -10, 70);
-        if (K_.fire && !me.fall && !M.buyulu) { if (!M.charging) { M.charging = true; M.charge = 0; } M.charge = Math.min(1, M.charge + dt / 1.5); if (Math.floor(M.time * 14) !== M.lastTick) { M.lastTick = Math.floor(M.time * 14); ses('charge', M.charge); } }
+        if (mv && !M.buyulu && !M.charging && me.sta > 0.5 && !me.fall) { me.face = mv; const nx = clamp(me.x + mv * 2.3 * dt, 1.7, FW - 1.7); if (!solid(M.T, nx, me.y + 0.75)) { const gy = groundBelow(M.T, nx, me.y + 0.7); if (gy !== null && gy - me.y < 0.7) { me.sta = Math.max(0, me.sta - 22 * dt); me.x = nx; if (me.y - gy > 0.9) me.fall = true; else me.y = gy; me.moving = true; M.bak = null; me.ph += dt * 1.9; } else if (gy === null) { me.x = nx; me.fall = true; } } }
+        const av = (K_.up ? 1 : 0) - (K_.down ? 1 : 0); M.aciT = av ? (M.aciT || 0) + dt : 0; if (av && !M.charging && M.aciT > 0.25) me.angle = clamp(me.angle + av * (M.aciT < 0.9 ? 12 : 38) * dt, -10, 70);   /* basılı tutunca önce yavaş, sonra hızlı döner */
+        if (K_.fire && !me.fall && !M.buyulu) { if (!M.charging) { M.charging = true; M.charge = 0; M.bak = null; } M.charge = Math.min(1, M.charge + dt / 1.5); if (Math.floor(M.time * 14) !== M.lastTick) { M.lastTick = Math.floor(M.time * 14); ses('charge', M.charge); } }
         else if (M.charging) { M.charging = false; const p = Math.max(0.12, M.charge); M.charge = 0; ates(me, p); }
         if ((M.konumT = (M.konumT || 0) - dt) <= 0) { const iz = Math.round(me.x * 20) + ':' + Math.round(me.angle) + ':' + me.face; if (iz !== M.konumIz) { M.konumIz = iz; M.konumT = 0.15; yay('konum', { x: me.x, y: me.y, aci: Math.round(me.angle), yon: me.face }); } }
       } else if (me.kontrol === 'uzak') { const c = M.uzakKuyruk.shift(); if (c) uzakUygula(c);
@@ -510,13 +530,15 @@
     else if (M.faz === 'giris') { const b = M.boss; tx = b ? lerp(b.x, 32, ss(0.9, 1.7, M.pt)) : 32; ty = b ? b.y + b.h * 0.5 : 11; tz = b ? 0.62 : 0.5; }
     else if (me && me.tur === 'boss') { tx = lerp(me.x, ben.x, 0.3); ty = me.y + me.h * 0.5; tz = 0.6; }
     else if (me && me.tur === 'mob') { tx = me.x; ty = me.y + 2; tz = 0.85; }
+    else if (me && me === ben && M.bak != null && M.faz === 'nisan' && !M.charging && !me.moving) { tx = M.bak; ty = Math.max(me.y + 2.0, 7); tz = 0.9; }   /* oyuncu ekranı kaydırıp meydana bakıyor */
     else if (me) { const gor = M.view ? M.view.W / M.view.sc / Math.max(0.5, c.z) : 22; tx = me.x + me.face * Math.min(M.charging ? 7.5 : 5, gor * (M.charging ? 0.3 : 0.22)); ty = me.y + 2.0; tz = M.charging ? 0.84 : 1; } else { tx = 32; ty = 11; tz = 0.5; }
-    const k = Math.min(1, dt * (M.shots.length || (M.hayalet && M.hayalet.length) ? 5 : 2.4)); c.x = lerp(c.x, tx, k); c.y = lerp(c.y, ty, k); c.z = lerp(c.z, tz, Math.min(1, dt * 2));
+    const k = Math.min(1, dt * (M.shots.length || (M.hayalet && M.hayalet.length) ? 5 : M.bak != null ? 10 : 2.4)); c.x = lerp(c.x, tx, k); c.y = lerp(c.y, ty, k); c.z = lerp(c.z, tz, Math.min(1, dt * 2));
     hud(false); if (((M.tick = M.tick + 1) % 6) === 1) harita();
   }
   function harita() { const cv = $('tpHarita'), x = cv.getContext('2d'), W = cv.width, H = cv.height, X = v => v / FW * W, Y = v => H - 6 - v / 20 * (H - 14); x.clearRect(0, 0, W, H);
     x.beginPath(); let open = false; for (let i = 0; i <= 128; i++) { const wx = 1 + i / 128 * 62, gy = groundBelow(M.T, wx, FH - 1); if (gy === null) { open = false; continue; } open ? x.lineTo(X(wx), Y(gy)) : x.moveTo(X(wx), Y(gy)); open = true; }
     x.strokeStyle = 'rgba(200,220,255,.8)'; x.lineWidth = 3; x.lineJoin = 'round'; x.stroke();
+    if (M.view && M.view.cx != null) { const V = M.view, yw = V.W / V.sc / 2; x.fillStyle = 'rgba(255,224,138,.13)'; x.strokeStyle = 'rgba(255,224,138,.7)'; x.lineWidth = 2; x.beginPath(); x.roundRect(X(V.cx - yw), 3, X(V.cx + yw) - X(V.cx - yw), H - 6, 6); x.fill(); x.stroke(); }   /* ekranda görünen bölüm */
     for (const a of M.act) { if (a.dead) continue; x.fillStyle = a.takim === 0 ? '#58d06a' : a.tur === 'boss' ? '#ffb040' : '#ef5b4d'; x.strokeStyle = '#fff6dc'; x.lineWidth = 2; x.beginPath(); x.arc(X(a.x), Y(Math.min(a.y, 19)) - 5, a.tur === 'boss' ? 8 : 5.5, 0, 6.3); x.fill(); x.stroke(); }
     for (const s of M.shots) { x.fillStyle = '#ffd24a'; x.beginPath(); x.arc(X(s.x), Y(Math.min(s.y, 19)), 3.5, 0, 6.3); x.fill(); } }
   let hudCache = {};
@@ -543,7 +565,7 @@
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
     const x = cv.getContext('2d'), n = M.cfg.bg || M.cfg.sahne ? 0 : (EO2.state ? EO2.state.night : 0), c = M.cam, dik = W / H < 1, kb = !dik && M.cfg.kameraBoy ? M.cfg.kameraBoy * 1.7 : 0, sc = (kb ? H / kb : (W / 22) * (dik ? 1.9 : 1)) * c.z, viewW = W / sc, viewH = H / sc, AE = M.cfg.arenaEn || FW, pay = 2;
     const cx = clamp(c.x, Math.min(AE / 2, viewW / 2 - pay), Math.max(AE / 2, AE - viewW / 2 + pay)) + (Math.random() - 0.5) * M.shake * 0.5, cy = clamp(c.y, viewH / 2 - pay, 40) + (Math.random() - 0.5) * M.shake * 0.5;
-    const X = wx => (wx - cx) * sc + W / 2, Y = wy => H / 2 - (wy - cy) * sc + H * 0.02; M.view = { X, Y, sc, W, H };
+    const X = wx => (wx - cx) * sc + W / 2, Y = wy => H / 2 - (wy - cy) * sc + H * 0.02; M.view = { X, Y, sc, W, H, cx };
     x.setTransform(1, 0, 0, 1, 0, 0); const T = M.T, Tm = T.Tm, bgI = M.cfg.bg ? imgs[M.cfg.bg] : null, sh = M.cfg.sahne, shI = sh && M.katman && M.katman.length ? M.katman[0].im : null;
     if (shI) { // dünyaya kilitli sahne resmi (cfg.sahne = { src, ppu: birim başına resim pikseli, ust, alt }): resim dünya boyunca uzanır, zemin çizgisi araziyle çakışır; arazi ayrıca çizilmez
       const kk = sc / sh.ppu, ih = shI.naturalHeight * kk, iy = Y(sh.taban || 0) - ih; x.fillStyle = sh.alt; x.fillRect(0, 0, W, H); x.fillStyle = sh.ust; x.fillRect(0, 0, W, Math.max(0, iy + 2)); for (const k of M.katman) if (k.z <= 0) x.drawImage(k.cv || k.im, X(0), iy, shI.naturalWidth * kk, ih);   // 0 ve altı: oyuncunun arkası (küçük numara daha arkada)   // resmin sol alt köşesi dünyada (0, taban); ölçek blok haritadaki mavi kutudan
@@ -647,7 +669,7 @@
 
   /* ---------- giriş/çıkış ---------- */
   const KEY = { a: 'left', arrowleft: 'left', d: 'right', arrowright: 'right', w: 'up', arrowup: 'up', s: 'down', arrowdown: 'down', ' ': 'fire' };
-  const onKey = dn => e => { if (!M || !M.on || document.querySelector('.pen-perde, .cizgi')) return; const k = e.key.toLowerCase(), m = KEY[k]; if (m) { M.keys[m] = dn; e.preventDefault(); e.stopPropagation(); } else if (dn && /^[0-9]$/.test(k)) { const i = k === '0' ? 9 : +k - 1; beceri(M.ben, BECERI_SIRA[i]); } else if (dn && k === 'escape') { e.stopPropagation(); if (M.cikis) M.cikis(); } };
+  const onKey = dn => e => { if (!M || !M.on || document.querySelector('.pen-perde, .cizgi')) return; const k = e.key.toLowerCase(), m = KEY[k]; if (m) { if (dn && !e.repeat && !M.keys[m] && (m === 'up' || m === 'down')) aciAdim(m === 'up' ? 1 : -1); M.keys[m] = dn; e.preventDefault(); e.stopPropagation(); } else if (dn && /^[0-9]$/.test(k)) { const i = k === '0' ? 9 : +k - 1; beceri(M.ben, BECERI_SIRA[i]); } else if (dn && k === 'escape') { e.stopPropagation(); if (M.cikis) M.cikis(); } };
   const kd = onKey(true), ku = onKey(false);
   function kapat(sessiz) { if (!M) return; const m = M; M.on = false; removeEventListener('keydown', kd, true); removeEventListener('keyup', ku, true); const el = $('tpSavas'); if (el) el.hidden = true; $('app').classList.remove('fight'); ses('battle', false); if (!m.over) { m.over = true; m.bitir({ zafer: false, terk: true, ist: m.ist }); } M = null; if (!sessiz) yay('kapandi', {}); }
   /* ağdan gelen rakip komutu (2. aşama): { t: 'ates', x, y, aci, guc, yon, mod } · { t: 'isabet', hasar, it } · { t: 'can', hp } · { t: 'pas' } · { t: 'ruzgar', deger } */
