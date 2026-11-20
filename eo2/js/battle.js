@@ -442,6 +442,7 @@
     if (k) ses('chime'); hud(true); const ad = M.adim; sonra(0.6, () => { if (M.adim === ad) siradaki(); }); }
   function bitir(zafer, terk) { if (M.over) return; M.over = true; M.faz = 'bitti'; M.lafT = null; $('tpLaf').hidden = true; hud(true); yay('mac_bitti', { zafer, terk: !!terk, ist: M.ist });
     if (terk) return M.bitir({ zafer: false, terk: true, ist: M.ist });
+    if (EO2.huni) EO2.huni('dovus');   // oyuncu hunisi: ilk biten dövüş (terk edilen sayılmaz)
     const m = M, sonuc = { zafer, terk: false, ist: m.ist, can: m.ben.hp, max: m.ben.max };
     if (window.__fastFx) { pankart(zafer ? 'Zafer' : 'Yenildin', '', zafer ? 'big' : 'big kayip'); ses('win', zafer); setTimeout(() => m.bitir(sonuc), 60); return; }
     macSonu(m, zafer, sonuc); }

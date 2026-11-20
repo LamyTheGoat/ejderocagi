@@ -170,6 +170,7 @@
     if (i >= 0 && sec[i]) { if (!T.boons.includes(sec[i].k)) T.boons.push(sec[i].k); saveGame(); return G.kuleBasla(d); } G.open('kule'); }
   async function finish() { const { F, d, opp } = FT; let lines = [], dead = false, tourOver = false;
     /* altın: sunucu dövüşü yeniden oynatır ve öder; yerel keseye arena altını yazılmaz */
+    if (EO2.huni) EO2.huni('dovus');   // oyuncu hunisi: ilk biten dövüş
     const srv = await sunucuBitir(), won = F.winner === 'p';
     const altin = g => srv && srv.ok ? '+' + srv.gold + ' altın' : '<span class="kotu">altın yazılmadı</span>';
     const altinNot = () => { if (!srv || srv.ok || !won) return; lines.push(srv.bekliyor ? '<span class="kotu">Bağlantı koptu. Bağlantı gelince yeniden gönderilecek; ödül o zaman yazılır.</span>' : '<span class="kotu">Bağlantı yoktu: altın ödülü yazılmadı' + (srv.why === 'çevrimdışı' ? '' : ' (' + srv.why + ')') + '.</span>'); };
@@ -300,7 +301,7 @@
       FT.busy = true; paint(); for (const ev of m.events || []) await play(olayCevir(ev, FT.rol));
       FT.F = cevir(m.fight, FT.rol); FT.view = { p: { hp: FT.F.p.hp, sta: FT.F.p.sta }, e: { hp: FT.F.e.hp, sta: FT.F.e.sta } }; FT.busy = false; FT.bekle = (m.submitted || []).includes(benim());
       if (FT.F.over) return mpBitir(m); paint(); }).catch(e => console.error('[er]', e)); }
-  async function mpBitir(m) { const F = FT.F, d = FT.d, kopan = m.fight.disconnected, lines = [];
+  async function mpBitir(m) { const F = FT.F, d = FT.d, kopan = m.fight.disconnected, lines = []; if (EO2.huni) EO2.huni('dovus');
     const won = F.winner === 'p', berabere = F.winner == null;
     lines.push(berabere ? '<b>Berabere.</b> İki taraf da meydandan çekildi.' : won ? '<b class="iyi">Zafer!</b> ' + (kopan ? esc(FT.rakip) + ' meydanı bıraktı.' : F.surrender ? esc(FT.rakip) + ' teslim oldu.' : esc(FT.opp.name) + ' yere serildi.') : '<span class="kotu">Yenilgi.</span> ' + (kopan ? 'Meydanı bıraktın.' : F.surrender ? 'Teslim oldun.' : esc(d.name) + ' bu kez geride kaldı.'));
     lines.push('Dostça düello: altın, ün ve ganimet yazılmaz. ' + esc(d.name) + ' yorulmadı, yaralanmadı.');

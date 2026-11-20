@@ -51,6 +51,8 @@ const zlib = require('node:zlib');
 const publicFile = createPublicFiles(__dirname, [DB_DIR]);
 const EO2_VAR = fs.existsSync(path.join(__dirname, 'eo2', 'index.html'));   // 2.0 sayfası pakette var mı (ana adres ona göre yönlenir)
 const REPORTS = require('./server/report_log').createReportLog(DB_DIR);
+const HUNI_MOD = require('./server/huni_service');
+const HUNI = HUNI_MOD.createHuni({ store: ECONOMY, anahtar: process.env.HUNI_ANAHTAR || '' });
 const EO2_PAGE = require('./server/eo2_page').createEo2Page(__dirname, PUBLIC_URL);
 const SOSYAL = require('./server/social_service').createSocial({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS });
 // Ortak PvE altyapısı: örnek odaları ve görev bulucu (server/ortak_odalar.js). Oynanış türleri ORTAK.kaydet ile eklenir; bugün kayıtlı tür yok.
@@ -1011,6 +1013,22 @@ async function handleHttp(req, res) {
       return sendJson(res, known ? error.status : 500, { ok: false, error: known ? (error.code || error.message) : 'report_failed' });
     }
   }
+  // Oyuncu hunisi (server/huni_service.js). POST: oyuncunun ilk kez geçtiği adımlar (idempotent). GET: özet, yalnız HUNI_ANAHTAR ile.
+  if (pathname === '/api/huni' && req.method === 'POST') {
+    try {
+      if (!req.identity) { req.resume(); return sendJson(res, 401, { ok: false, error: 'guest_session_required' }); }
+      await ECONOMY.consumeRate('huni:' + req.identity.accountId, 30, 600000);
+      const body = await readJsonBody(req, false, 1024);
+      return sendJson(res, 200, await HUNI.kaydet(req.identity, body));
+    } catch (error) { const known = Number.isInteger(error.status); if (!known) console.error('[huni]', error.message); return sendJson(res, known ? error.status : 503, { ok: false, error: known ? (error.code || error.message) : 'funnel_unavailable' }); }
+  }
+  if (pathname === '/api/huni' && req.method === 'GET') {
+    try {
+      await ECONOMY.consumeRate('huni-oku:' + req.socket.remoteAddress, 20, 600000);   // anahtar tahminine karşı: IP başına on dakikada yirmi okuma
+      if (!HUNI.okumaIzni(req)) return sendJson(res, 404, { ok: false, error: 'not_found' });   // anahtar yoksa ya da yanlışsa uç yokmuş gibi davranır
+      return sendJson(res, 200, await HUNI.oku(parsedUrl.searchParams.get('gun')));
+    } catch (error) { const known = Number.isInteger(error.status); if (!known) console.error('[huni]', error.message); return sendJson(res, known ? error.status : 503, { ok: false, error: known ? (error.code || error.message) : 'funnel_unavailable' }); }
+  }
   if (pathname.startsWith('/api/trade') && req.headers['x-trade-account'] && req.headers['x-trade-account'] !== req.identity?.accountId) return sendJson(res,409,{ok:false,error:'trade_account_changed'});
   if (pathname === '/api/trade/state' && req.method === 'GET') {
     if(!req.identity)return sendJson(res,401,{ok:false,error:'guest_session_required'});
@@ -1437,6 +1455,8 @@ async function handleHttp(req, res) {
   }
 
   // 10c. Ejder Ocağı 2.0 sayfası (eo2/index.html); betik, stil ve çizimleri aşağıdaki izin listesi sunar
+  // 10d. Oyuncu hunisi okuma sayfası: gizli bilgi taşımaz, veriyi anahtarla /api/huni'den okur
+  if (pathname === '/huni') { res.writeHead(200, { 'Content-Type': MIME_TYPES['.html'], 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' }); return res.end(HUNI_MOD.HUNI_SAYFA); }
   if (pathname === '/eo2') { res.writeHead(302, { Location: '/eo2/' }); return res.end(); }
   if (pathname === '/eo2/' || pathname === '/eo2/index.html') {
     try {
