@@ -96,7 +96,7 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .sorun-durum { min-height: 1.3em; margin: .6em 0 0 !important; font-size: .9em; color: var(--varak-hi, #f6d98a); }
 
 /* Kıraathane: alt şerit masa kartları ve oyuncu paneliyle dolu; bildirim başlığın altında, ortada durur */
-.ui2.ekranda:has(#scrB.kr2) .bildirimler { top: max(5.4em, env(safe-area-inset-top, 0px)) !important; bottom: auto; left: 50%; transform: translateX(-50%); justify-items: center; max-width: min(30em, 80vw); }
+.ui2.ekranda:has(#scrB.kr2) .bildirimler:not([class*="by-"]) { top: max(5.4em, env(safe-area-inset-top, 0px)) !important; bottom: auto; left: 50%; transform: translateX(-50%); justify-items: center; max-width: min(30em, 80vw); }
 .ui2.ekranda:has(#scrB.kr2) .bildirim { text-align: center; }
 
 /* hesap yedeği ve kurtarma (js/hesap.js) */
