@@ -371,7 +371,7 @@
     function setCam(m) { S.camMode = m; toast(m === 'yakin' ? 'Kamera: yakın (onaylı his)' : 'Kamera: yüksek (ana referans açısı)'); syncMenu(); }
     function setHud(v) { S.hud = v; app.classList.toggle('nohud', !v); if (!v) toast('Arayüz gizli. Geri getirmek için H.'); }
     $('btnLight').addEventListener('click', () => setNight(S.nightT ? 0 : 1)); $('btnCam').addEventListener('click', () => setCam(S.camMode === 'yakin' ? 'yuksek' : 'yakin'));
-    $('btnBell').addEventListener('click', () => toast('Bildirim yok.'));
+    $('btnBell').addEventListener('click', () => { if (EO2.posta) EO2.posta.ac(); else toast('Posta şu an açılamıyor.'); });   /* Ocak Postası: js/posta.js */
     $('btnSound').innerHTML = ICON.sound; $('btnSound').addEventListener('click', () => { const on = EO2.audio.toggle(); $('btnSound').innerHTML = ICON[on ? 'sound' : 'mute']; $('btnSound').setAttribute('aria-pressed', String(on)); });
     $('liveChip').addEventListener('click', () => togglePanel('sosyal'));
     EO2.frameHooks.push(() => { if (EO2.audio) EO2.audio.update(player.x, player.y, L.fount || FAR, npcs.find(n => n.notes) || FAR); });
