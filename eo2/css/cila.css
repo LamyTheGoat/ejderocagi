@@ -96,7 +96,7 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .sorun-durum { min-height: 1.3em; margin: .6em 0 0 !important; font-size: .9em; color: var(--varak-hi, #f6d98a); }
 
 /* Kıraathane: alt şerit masa kartları ve oyuncu paneliyle dolu; bildirim başlığın altında, ortada durur */
-.ui2.ekranda:has(#scrB.kr2) .bildirimler { top: max(5.4em, env(safe-area-inset-top, 0px)) !important; bottom: auto; left: 50%; transform: translateX(-50%); justify-items: center; max-width: min(30em, 80vw); }
+.ui2.ekranda:has(#scrB.kr2) .bildirimler:not([class*="by-"]) { top: max(5.4em, env(safe-area-inset-top, 0px)) !important; bottom: auto; left: 50%; transform: translateX(-50%); justify-items: center; max-width: min(30em, 80vw); }
 .ui2.ekranda:has(#scrB.kr2) .bildirim { text-align: center; }
 
 /* hesap yedeği ve kurtarma (js/hesap.js) */
@@ -297,6 +297,15 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .bildirimler.by-orta { top: 30% !important; } .ui2 .bildirimler.by-orta2 { top: 56% !important; }
 .ui2 .bildirimler.by-alt2 { top: auto !important; bottom: calc(max(1.1em, env(safe-area-inset-bottom, 0px)) + 6.6em) !important; } .ui2 .bildirimler.by-alt { top: auto !important; bottom: max(1.1em, env(safe-area-inset-bottom, 0px)) !important; }
 .ui2 .bildirimler.by-bas { top: max(.35em, env(safe-area-inset-top, 0px)) !important; width: min(22em, 46%) !important; font-size: .9em; }
+/* dar yedek: telefonda her yer düğmeyle doluysa bildirim küçülür; by-sol / by-sag kenara yaslanır (js/oyun.js trayYer) */
+.ui2 .bildirimler.by-dar { width: min(13.5em, 42vw) !important; font-size: .8em; gap: .3em; }
+.ui2 .bildirimler.by-dar .bildirim { padding: .35em .7em; }
+.ui2 .bildirimler.by-sol, .ui2 .bildirimler.by-sag { transform: none !important; top: 42% !important; justify-items: start !important; }
+.ui2 .bildirimler.by-sol { left: max(.4em, env(safe-area-inset-left, 0px)) !important; right: auto !important; }
+.ui2 .bildirimler.by-sag { left: auto !important; right: max(.4em, env(safe-area-inset-right, 0px)) !important; justify-items: end !important; }
+.ui2 .bildirimler.by-sol.by-alt, .ui2 .bildirimler.by-sag.by-alt { top: auto !important; bottom: max(1.1em, env(safe-area-inset-bottom, 0px)) !important; }
+/* tarama: hazır yerlerin hepsi doluysa tepsi --by-y yüksekliğinde denenir (js/oyun.js trayYer) */
+.ui2 .bildirimler.by-tara, .ui2 .bildirimler.by-tara.by-sol, .ui2 .bildirimler.by-tara.by-sag { top: var(--by-y, 50%) !important; bottom: auto !important; }
 
 /* ---------- 2026-11-17 düzeltmeleri: hafta sonu, Dostlar, Çarşı ---------- */
 /* Hafta sonu: kartlar alanı küçülebilir (düğme ekranın dışına itilmez); ejderha resmi kartın üstünden taşarken kesilmez */

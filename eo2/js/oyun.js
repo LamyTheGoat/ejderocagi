@@ -32,14 +32,20 @@
       const r = b.getBoundingClientRect(); if (r.width < 6 || r.height < 6) continue; const cs = getComputedStyle(b); if (cs.visibility === 'hidden' || cs.display === 'none' || cs.pointerEvents === 'none' || +cs.opacity < 0.05) continue;
       for (const q of L) if (Math.min(q.right, r.right) - Math.max(q.left, r.left) > 3 && Math.min(q.bottom, r.bottom) - Math.max(q.top, r.top) > 3) { const t = document.elementFromPoint((Math.max(q.left, r.left) + Math.min(q.right, r.right)) / 2, (Math.max(q.top, r.top) + Math.min(q.bottom, r.bottom)) / 2); if (t && (t === b || b.contains(t) || t.contains(b))) alan += (Math.min(q.right, r.right) - Math.max(q.left, r.left)) * (Math.min(q.bottom, r.bottom) - Math.max(q.top, r.top)); } }
     return alan; };
-  const BY = ['', 'by-ust', 'by-ust2', 'by-orta', 'by-orta2', 'by-alt2', 'by-alt', 'by-bas'], BY_AD = BY.filter(Boolean);
+  const BY = ['', 'by-ust', 'by-ust2', 'by-orta', 'by-orta2', 'by-alt2', 'by-alt', 'by-bas',
+    /* dar yedekler (telefonda düğmeyle dolu ekranlar): bildirim küçülür, köşelerdeki ve düğme aralarındaki boşluğa sığar */
+    'by-dar by-ust', 'by-dar by-orta', 'by-dar by-orta2', 'by-dar by-alt2', 'by-dar by-alt', 'by-dar by-sol', 'by-dar by-sag', 'by-dar by-sol by-alt', 'by-dar by-sag by-alt', 'by-dar by-bas'],
+    BY_AD = [...new Set(BY.join(' ').split(' ').filter(Boolean)), 'by-tara'];
   /* hiçbir yer boş değilse (telefonda baştan sona düğme olan ekranlar) en az binen yer seçilir; bildirim dokunmayı engellemez ve birkaç saniyede gider */
   /* bildirimler boş yere oturur; hiçbir yerde düğmeye binmeden sığmıyorsa (üst üste birkaç bildirim) en eskisi bırakılır ve yeniden denenir:
      tek bildirim de sığmıyorsa en az binen yer seçilir */
-  function trayYer() { const biner = () => G.dugmeyeBiner([...tray.children].map(c => c.getBoundingClientRect()), tray);
+  function trayYer() { /* ekrandan taşan bildirim de dolu yer sayılır (2026-11-20: yatay telefonda iki bildirimli tepsi alttan taşıyordu) */
+    const biner = () => { const K = [...tray.children].map(c => c.getBoundingClientRect()); let tas = 0; for (const q of K) tas += Math.max(0, -q.top) + Math.max(0, q.bottom - innerHeight) + Math.max(0, -q.left) + Math.max(0, q.right - innerWidth); return G.dugmeyeBiner(K, tray) + (tas > 2 ? tas * 400 : 0); };
     for (let tur = 0; tur < 4; tur++) { tray.classList.remove(...BY_AD); if (!biner()) return; let enIyi = '', enAz = Infinity, sigdi = false;
-      for (const y of BY) { tray.classList.remove(...BY_AD); if (y) tray.classList.add(y); const a = biner(); if (!a) { sigdi = true; break; } if (a < enAz) { enAz = a; enIyi = y; } }
-      if (sigdi) return; tray.classList.remove(...BY_AD); if (tray.children.length > 1) { tray.firstChild.remove(); continue; } if (enIyi) tray.classList.add(enIyi); return; } }
+      for (const y of BY) { tray.classList.remove(...BY_AD); if (y) tray.classList.add(...y.split(' ')); const a = biner(); if (!a) { sigdi = true; break; } if (a < enAz) { enAz = a; enIyi = y; } }
+      /* hazır yerlerin hepsi doluysa dar tepsi ekranı yukarıdan aşağı tarar (solda, ortada, sağda): düğme araları da denenir */
+      if (!sigdi) for (const yan of ['', 'by-sol', 'by-sag']) { for (let yy = 6; yy <= 90 && !sigdi; yy += 4) { tray.classList.remove(...BY_AD); tray.classList.add('by-dar', 'by-tara', ...(yan ? [yan] : [])); tray.style.setProperty('--by-y', yy + '%'); if (!biner()) sigdi = true; } if (sigdi) break; }
+      if (sigdi) return; tray.classList.remove(...BY_AD); tray.style.removeProperty('--by-y'); if (tray.children.length > 1) { tray.firstChild.remove(); continue; } if (enIyi) tray.classList.add(...enIyi.split(' ')); return; } }
   G.toast = function (html, kind) { const t = el('div', 'bildirim cam' + (kind ? ' ' + kind : ''), html); if (!tray.children.length) tray.classList.remove(...BY_AD); tray.appendChild(t); while (tray.children.length > 4) tray.firstChild.remove(); try { trayYer(); } catch (_) { }
     setTimeout(() => { t.classList.add('git'); setTimeout(() => t.remove(), 400); }, kind === 'goal' ? 4600 : 3000); if (EO2.audio) (kind === 'goal' ? EO2.audio.chime : EO2.audio.pop)(); };
   EO2_BUS.toast = G.toast;
