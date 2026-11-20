@@ -30,7 +30,14 @@
   function olcekUygula() { if (!app) return; app.style.removeProperty('font-size'); const k = OLCEK[a.olcek] || 1; app.dataset.olcek = a.olcek; if (k === 1) return;
     const px = parseFloat(getComputedStyle(app).fontSize); if (px > 0) app.style.setProperty('font-size', (px * k).toFixed(2) + 'px', 'important'); }
   /* Çizim kalitesi: dengeli kipte dünya daha düşük çözünürlükte çizilir, cam paneller bulanıklaştırma yapmaz. */
-  const kaliteDpr = () => { const d = window.devicePixelRatio || 1; return a.kalite === 'dengeli' ? Math.max(0.85, Math.min(1.25, d * 0.75)) : Math.min(d, 2); };
+  /* Telefonda (dokunmatik, küçük ekran) yüksek kalite de dünyayı en çok 1,5 katla çizer: o boyda 2 kat ile fark gözle seçilmez ama
+     boyanan nokta sayısı neredeyse yarıya iner. Yazılar ve arayüz bundan etkilenmez, yalnız dünya tuvali.
+     oto: akıcılık bekçisinin çarpanı (aşağıda); kare süresi uzun kalırsa çözünürlük kademe kademe iner, oturum boyunca geçerlidir. */
+  const telefon = (() => { try { return !!(sistemMM && sistemMM('(pointer: coarse)').matches) && Math.min(screen.width || 9999, screen.height || 9999) <= 820; } catch (_) { return false; } })();
+  let oto = 1;
+  const kaliteDpr = () => { const d = window.devicePixelRatio || 1, taban = Math.min(1, d) * (a.kalite === 'dengeli' ? 0.85 : 1);
+    const ust = a.kalite === 'dengeli' ? Math.max(0.85, Math.min(1.25, d * 0.75)) : Math.min(d, telefon ? 1.5 : 2);
+    return Math.max(taban, ust * oto); };
   function kaliteUygula() { if (!app) return; app.classList.toggle('dengeli', a.kalite === 'dengeli'); const A = EO2.api; if (!A || !A.R || !A.R.resize) return; const r = app.getBoundingClientRect(); if (r.width && r.height) A.R.resize(r.width, r.height, kaliteDpr()); }
   function hareketUygula() { if (app) app.classList.toggle('sakin', sakin()); }
   function sesUygula() { const s = EO2.audio; if (s && s.duzey) for (const k of ['muzik', 'efekt', 'ortam']) s.duzey(k, a[k]); }
@@ -41,9 +48,24 @@
     koy(k, v) { if (!(k in VARSAYILAN)) return; a[k] = v; yaz();
       if (k === 'olcek') { olcekUygula(); kaliteUygula(); } else if (k === 'kalite') kaliteUygula(); else if (k === 'hareket') hareketUygula(); else if (EO2.audio && EO2.audio.duzey) EO2.audio.duzey(k, v); },
     sifirla() { a = Object.assign({}, VARSAYILAN); yaz(); hepsi(); },
+    dpr: kaliteDpr, telefon: () => telefon, oto: () => oto,
+    kareOlc,
   };
   hareketUygula(); olcekUygula(); if (app) app.classList.toggle('dengeli', a.kalite === 'dengeli');
   if (sistemMM) { const m = sistemMM('(prefers-reduced-motion: reduce)'); if (m.addEventListener) m.addEventListener('change', hareketUygula); }
+
+  /* ---------- akıcılık bekçisi ----------
+     Oyun döngüsü dünya çizilen her karede kareOlc(now) çağırır. 2 sn'lik pencerelerde kare aralığının ortancası 24 ms'yi aşarsa
+     (saniyede ~42 karenin altı) dünya çözünürlüğü %20 düşürülür; en çok iki kez, cihazın 1 katının altına inmeden.
+     Ortanca kullanılır: sahne yüklemesi gibi tek seferlik uzun kareler kararı bozmaz. Açılıştaki ilk 4 sn sayılmaz. */
+  let olcT0 = 0, olcSon = 0; const aralik = [];
+  function kareOlc(now) {
+    if (!olcT0) { olcT0 = now; olcSon = now; return; }
+    const d = now - olcSon; olcSon = now; if (now - olcT0 < 4000 || d > 250) { if (d > 250) aralik.length = 0; return; }   // arka plandan dönüş ya da uzun yükleme: pencere baştan
+    aralik.push(d); let top = 0; for (const x of aralik) top += x; if (top < 2000) return;
+    const s2 = aralik.slice().sort((x, y) => x - y), orta = s2[s2.length >> 1]; aralik.length = 0;
+    if (orta > 24 && oto > 0.65) { const once = kaliteDpr(); oto = Math.max(0.64, oto * 0.8); if (kaliteDpr() < once - 0.01) kaliteUygula(); else oto = 0.64; }
+  }
 
   /* pencere boyu değişince: yazı boyu yeniden ölçülür; dünya tuvali oyunun kendi ayarından sonra bir kez daha boyutlanır */
   let bekleyen = 0;
