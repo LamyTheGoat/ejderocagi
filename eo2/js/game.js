@@ -22,19 +22,21 @@
     const canvas = $('world'), R = EO2.createRenderer(canvas);
     if (!R) { $('loadtxt').textContent = 'Bu tarayıcı WebGL2 desteklemiyor.'; return; }
     setLoad(0.08, 'Karakter kareleri yükleniyor');
-    const names = Object.keys(A.sets), imgs = {}, NL = names.length + 1;
-    let done = 0; await Promise.all([...names.map(n => load('assets/chibi_' + n + '.webp').then(i => { imgs[n] = i; setLoad(0.08 + 0.5 * (++done / NL)); })), load('assets/dragon.webp').then(i => { imgs.dragon = i; setLoad(0.08 + 0.5 * (++done / NL)); })]);
+    /* açılışta yalnız temel set iner (oyuncu ve yedek set); öteki kostüm sayfaları (her biri ~1,3 MB) ilk çizileceği anda istenir, gelene dek temel görünür */
+    const names = Object.keys(A.sets), ILK = names.filter(n => n === 'temel'), imgs = {}, NL = ILK.length + 1;
+    let done = 0; await Promise.all([...ILK.map(n => load('assets/chibi_' + n + '.webp').then(i => { imgs[n] = i; setLoad(0.08 + 0.5 * (++done / NL)); })), load('assets/dragon.webp').then(i => { imgs.dragon = i; setLoad(0.08 + 0.5 * (++done / NL)); })]);
     setLoad(0.62, 'Meydan çiziliyor'); await new Promise(r => setTimeout(r, 30));
     const EXT = { kor: 'dr-ates-yetiskin', buz: 'dr-buz-genc', toprak: 'dr-toprak-yavru', wagon: 'pvp_prop_wagon', fly: 'ates-P4' }; EO2.ext = {};
     await Promise.all(Object.entries(EXT).map(([k, f]) => load('assets/ext/' + f + '.webp').then(i => { EO2.ext[k] = i; }).catch(() => {})));
     const W = EO2.buildWorld(R, A, imgs.dragon);
     setLoad(0.9, 'Işıklar yakılıyor'); await new Promise(r => setTimeout(r, 30));
-    const sets = {}; for (const n of names) sets[n] = { tex: R.texture(imgs[n]), m: A.sets[n], img: imgs[n] };
+    const sets = {}; for (const n of names) sets[n] = imgs[n] ? { tex: R.texture(imgs[n]), m: A.sets[n], img: imgs[n] } : { tex: null, m: A.sets[n], img: null, src: 'assets/chibi_' + n + '.webp' };
     /* NPC çizimleri (assets/npc_atlas.js, tools/bake_npc.mjs): her NPC'nin kendi kostümü, saçı, başlığı ve sakalı. Açılışta yüklenmez:
        NPC ilk çizileceği anda resmi istenir, gelene dek eski yedek seti (avcı, muhafız…) giyer. */
     const NA = window.EO2_NPC_ATLAS || { sets: {}, kim: {} };
     for (const n in NA.sets) sets['npc_' + n] = { tex: null, m: NA.sets[n], img: null, src: 'assets/npc/' + n + '.webp' };
-    const setYukle = ad => { const st = sets[ad]; if (!st || st.tex || st.isteniyor || !st.src) return; st.isteniyor = true; load(st.src).then(i => { st.img = i; st.tex = R.texture(i); }).catch(() => { st.src = null; }); };
+    const setYukle = (ad, sonra) => { const st = sets[ad]; if (!st || st.tex || !st.src) return; if (sonra) (st.sonra || (st.sonra = [])).push(sonra); if (st.isteniyor) return; st.isteniyor = true;
+      load(st.src).then(i => { st.img = i; st.tex = R.texture(i); const f = st.sonra || []; st.sonra = null; f.forEach(g => { try { g(); } catch (e) { /* çizim yenilenemedi */ } }); }).catch(() => { st.src = null; st.sonra = null; }); };   /* sonra: resim gelince (ör. yedek setle çizilen portreyi yenilemek için) */
     /* yeni bölümlerde kimlikler önekli ("ms-kerim", "cr-tuccar"): önek atılır; kimlikten bulunamazsa ada bakılır (ör. meydandaki "Hancı") */
     const NPC_AD = { 'Hancı': 'hanci', 'Bekçi': 'bekci', 'Usta Kerim': 'kerim', 'Ozan': 'ozan', 'Tüccar': 'tuccar', 'Yumurtacı': 'yumurtaci', 'Muhtar': 'muhtar', 'Çırak': 'cirak', 'Hamal': 'hamal', 'Bahçıvan': 'bahcivan', 'Kervancı': 'kervanci', 'Tavlacı': 'tavlaci', 'Talimci': 'talimci', 'Rüstem Ağa': 'bedesten', 'Baharatçı': 'baharatci' };
     const npcSeti = n => { const id = String(n.id || ''), k = NA.kim[id] || NA.kim[id.replace(/^[a-z]{2}-/, '')] || NPC_AD[n.name], ad = k ? 'npc_' + k : null; return ad && sets[ad] ? ad : null; };
@@ -214,7 +216,7 @@
     /* L.golgeKat (bölüm motoru): zemine düşen gölge kütlesinin içindeki kişi ve nesne koyulaşır, hafifçe morarır. ham: kütleyi yok say. */
     const litCol = (F, x, y, a = 1, ham) => { const k = F.night * lightAt(x, y) * 0.8, g = !ham && L.golgeKat ? L.golgeKat(x, y) : 1; return [Math.min(1.08, F.amb[0] + k) * g, Math.min(1.08, F.amb[1] + k * 0.72) * g * (0.985 + 0.015 * g), Math.min(1.08, F.amb[2] + k * 0.38) * (g + (1 - g) * 0.3), a]; };
     function drawChibi(R, F, c) {
-      let st = (c.gor && sets[c.gor]) || sets[c.set]; if (!st.tex) { setYukle(c.set); st = sets[c.yedekSet] || sets.temel; }   /* NPC çizimi henüz gelmediyse yedek set */
+      let st = (c.gor && sets[c.gor]) || sets[c.set]; if (!st.tex) { setYukle(c.set); const y = sets[c.yedekSet]; st = y && y.tex ? y : sets.temel; }   /* çizim henüz gelmediyse yedek set, o da yoksa temel */
       const m = st.m, k = CHAR_H / m.tall, vdir = c.dir === 'left' ? 'right' : c.dir;
       const key = c.moving ? vdir + '_walk_' + (Math.floor(c.ph * 16) % 16 + 16) % 16 : (c.happy > 0 && vdir !== 'up' ? vdir + '_happy' : vdir + '_idle');
       const i = m.frames[key], col = i % m.cols, row = Math.floor(i / m.cols);
@@ -307,8 +309,8 @@
       list.sort((a, b) => b.key - a.key);
       let groundDone = false;
       /* çizilmiş zemin dokuları (js/doku.js yükler): sahne L.zemin = [döşeme, yer, karo1, karo2] verebilir; yoksa zemin türünden seçilir */
-      const zeminDoku = L => { const K = EO2.doku; if (!K || EO2.meydanUslup !== 'cizim' || !K.zemin) return {}; const z = L.zemin || ({ wood: ['ahsap', null, 4.2], sand: ['tas', 'kum', 4.4, 8], kar: [null, null], kul: [null, null], kaya: [null, null] })[L.floor] || ['tas', 'cim', 4.4, 7];
-        const zmT = K.zmT || (K.zmT = {}), al = ad => { if (!ad || !K.zemin[ad]) return null; return zmT[ad] || (zmT[ad] = R.texture(K.zemin[ad])); }; return { t1: al(z[0]), t2: al(z[1]), s1: z[2] || 4.4, s2: z[3] || 7 }; };
+      const zeminDoku = L => { const K = EO2.doku; if (!K || EO2.meydanUslup !== 'cizim' || !K.zemin) return {}; const z = K.zeminSec(L);
+        const zmT = K.zmT || (K.zmT = {}), al = ad => { if (!ad) return null; if (!K.zemin[ad]) { K.zeminIste(ad); return null; } return zmT[ad] || (zmT[ad] = R.texture(K.zemin[ad])); }; return { t1: al(z[0]), t2: al(z[1]), s1: z[2] || 4.4, s2: z[3] || 7 }; };
       const ground = () => { groundDone = true; R.ground(mapTex, [-(L.gx || 90), cam.y - D + 0.3, L.gx || 90, L.gy || 170], { map: L.mapRect, amb: F.amb, night: F.night, time: S.time, fount: L.fount ? [L.fount.x, L.fount.y, L.fount.ringIn, L.fount.ringOut] : [0, 0, 0, 0], emb: L.emb ? [L.emb.x, L.emb.y, L.emb.r, L.sadeHalka ? 1 : 0] : [0, 0, -1, L.sadeHalka ? 1 : 0], lights: L.lights || [], mode: ({ wood: 1, sand: 2, kar: 3, kul: 4, kaya: 5 })[L.floor] || 0, road: L.road, ...zeminDoku(L) });
         // madalyonun ortasındaki altın ejder mührü ve tıklama hedefi
         const e = L.emb || { x: 0, y: -999 }, s = 0.62, hh = s * W.E.emblem.height / W.E.emblem.width; if (L.emb) R.quad(tEmb, [e.x - s, e.y - hh, 0.01], [e.x + s, e.y - hh, 0.01], [e.x + s, e.y + hh, 0.01], [e.x - s, e.y + hh, 0.01], 0, 0, 1, 1, [F.amb[0], F.amb[1], F.amb[2], 0.95]);
@@ -361,9 +363,9 @@
     function drawPortrait(cv, set, k, kim) { if (!cv) return; cv._p = [set, k, kim]; const GR = EO2.gorunum;
       if (kim === true) { if (set === player.set && player.gor && sets[player.gor]) set = player.gor; }
       else if (kim && GR && GR.kurKod) { const kd = String(kim).indexOf('.') > 0 ? String(kim) : GR.kodOf(kim), ad = kd && GR.adOf(set, kd); if (ad && sets[ad]) set = ad; else if (kd) GR.kurKod(set, kd).then(a => { if (a && cv.isConnected && cv._p && cv._p[2] === kim) drawPortrait(cv, cv._p[0], cv._p[1], kim); }).catch(() => { }); }
-      if (sets[set] && !sets[set].img) setYukle(set); const st = sets[set] && sets[set].img ? sets[set] : sets.temel, m = st.m, i = m.frames.down_idle, x = cv.getContext('2d'), sx = (i % m.cols) * m.cw, sy = Math.floor(i / m.cols) * m.ch, top = m.ay - m.tall, s = m.tall * (k || 0.50);
+      if (sets[set] && !sets[set].img) setYukle(set, () => { if (cv.isConnected && cv._p) drawPortrait(cv, cv._p[0], cv._p[1], cv._p[2]); }); const st = sets[set] && sets[set].img ? sets[set] : sets.temel, m = st.m, i = m.frames.down_idle, x = cv.getContext('2d'), sx = (i % m.cols) * m.cw, sy = Math.floor(i / m.cols) * m.ch, top = m.ay - m.tall, s = m.tall * (k || 0.50);
       x.clearRect(0, 0, cv.width, cv.height); x.drawImage(st.img, sx + m.ax - s / 2, sy + top - s * 0.02, s, s, 0, 0, cv.width, cv.height); }
-    function drawFull(cv, set) { if (set === player.set && player.gor && sets[player.gor]) set = player.gor; if (sets[set] && !sets[set].img) setYukle(set); const st = sets[set] && sets[set].img ? sets[set] : sets.temel, m = st.m, i = m.frames.down_idle, x = cv.getContext('2d'), sx = (i % m.cols) * m.cw, sy = Math.floor(i / m.cols) * m.ch, k = cv.height / m.ch; x.clearRect(0, 0, cv.width, cv.height); x.drawImage(st.img, sx, sy, m.cw, m.ch, (cv.width - m.cw * k) / 2, 0, m.cw * k, cv.height); }
+    function drawFull(cv, set) { const set0 = set; if (set === player.set && player.gor && sets[player.gor]) set = player.gor; if (sets[set] && !sets[set].img) setYukle(set, () => { if (cv.isConnected) drawFull(cv, set0); }); const st = sets[set] && sets[set].img ? sets[set] : sets.temel, m = st.m, i = m.frames.down_idle, x = cv.getContext('2d'), sx = (i % m.cols) * m.cw, sy = Math.floor(i / m.cols) * m.ch, k = cv.height / m.ch; x.clearRect(0, 0, cv.width, cv.height); x.drawImage(st.img, sx, sy, m.cw, m.ch, (cv.width - m.cw * k) / 2, 0, m.cw * k, cv.height); }
     drawPortrait($('portrait'), player.set, 0, true);
     /* oyuncunun görünüşü değişince ekrandaki kendi portreleri yenilenir */
     function portreTazele() { document.querySelectorAll('canvas').forEach(cv => { if (cv._p && cv._p[2] === true) drawPortrait(cv, cv === $('portrait') ? player.set : cv._p[0], cv._p[1], true); }); }
