@@ -58,6 +58,7 @@ const SORUN_PANELI = SORUN_PANELI_MOD.createSorunPaneli({ reports: REPORTS, anah
 const HUNI_MOD = require('./server/huni_service');
 const HUNI = HUNI_MOD.createHuni({ store: ECONOMY, anahtar: process.env.HUNI_ANAHTAR || '' });
 const EO2_PAGE = require('./server/eo2_page').createEo2Page(__dirname, PUBLIC_URL);
+const POSTA = require('./server/posta_service').createPosta({ store: ECONOMY });
 const SOSYAL = require('./server/social_service').createSocial({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS });
 // Ortak PvE altyapısı: örnek odaları ve görev bulucu (server/ortak_odalar.js). Oynanış türleri ORTAK.kaydet ile eklenir; bugün kayıtlı tür yok.
 const ORTAK = require('./server/ortak_odalar').createOrtakOdalar({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo });
@@ -396,7 +397,7 @@ function consumeReadRate(key, limit) {
   const next = consume(readWindows.get(key), limit, READ_RATE.windowMs, now); // aşımda 429 rate_limited fırlatır
   readWindows.delete(key); readWindows.set(key, next);
 }
-const READ_RATE_PATHS = new Set(['/api/market', '/api/economy', '/api/trade/state', '/api/trade/peers']);
+const READ_RATE_PATHS = new Set(['/api/posta', '/api/market', '/api/economy', '/api/trade/state', '/api/trade/peers']);
 const MARKET_READS = createMarketReadCache({ store: ECONOMY, publicListing, ttlMs: envInt(process.env.MARKET_CACHE_TTL_MS, 2500, 0) });
 // Yayın yalnız "yenile" sinyalidir: ilan listesi, satış veya altın taşımaz (eski istemci yerel altın yazmasın).
 const marketChanged = listingId => { MARKET_READS.invalidate(); wsBroadcast({ type: 'market_update', listingId }); };
@@ -1059,6 +1060,12 @@ async function handleHttp(req, res) {
     } catch (error) { const known = Number.isInteger(error.status); if (!known) console.error('[huni]', error.message); return sendJson(res, known ? error.status : 503, { ok: false, error: known ? (error.code || error.message) : 'funnel_unavailable' }); }
   }
   if (pathname.startsWith('/api/trade') && req.headers['x-trade-account'] && req.headers['x-trade-account'] !== req.identity?.accountId) return sendJson(res,409,{ok:false,error:'trade_account_changed'});
+  // Ocak Postası (server/posta_service.js): yalnız okur; satış altını zaten aktarılmıştır.
+  if (pathname === '/api/posta' && req.method === 'GET') {
+    if (!req.identity) return sendJson(res, 401, { ok: false, error: 'guest_session_required' });
+    try { return sendJson(res, 200, { ok: true, ...(await POSTA.durum(req.identity)) }); }
+    catch (error) { console.error('[posta]', error.message); return sendJson(res, 503, { ok: false, error: 'posta_unavailable' }); }
+  }
   if (pathname === '/api/trade/state' && req.method === 'GET') {
     if(!req.identity)return sendJson(res,401,{ok:false,error:'guest_session_required'});
     const trade=await ECONOMY.currentTrade(req.identity.accountId);

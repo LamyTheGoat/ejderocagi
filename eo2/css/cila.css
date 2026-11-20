@@ -62,7 +62,7 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 #actions.acik #actionsDaha .ic { box-shadow: 0 0 0 2px #ffe9a8, 0 0 1em rgba(255, 214, 120, .6), 0 .22em .5em rgba(4, 6, 16, .55); }
 
 /* ---------- Yer tutucular (çıkışta görünmez; ?gelistirici ile geri gelir) ---------- */
-.ui2:not(.gelistirici) #btnBell,                                   /* bildirim sistemi yok: boş zil gösterilmez */
+.ui2:not(.gelistirici) #btnBell:not(.posta-hazir),                 /* zil Ocak Postası'na bağlı (js/posta.js); posta okunana dek gizli */
 .ui2:not(.gelistirici) #btnCam,                                    /* K23: tek kamera */
 .ui2:not(.gelistirici) .menu-d[data-m="kamera"] { display: none !important; }
 #loading .yeniden { margin-top: 1.2em; font-size: 1.05em; }
@@ -472,3 +472,28 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .gr-hazir-alt [data-gr-hazir] { width: 100%; }
 @media (max-height: 520px) { .ui2 .gr-hazir-alt { margin: 0 -.8em; padding: .5em .8em .6em; } }
 .ui2 .gr-secenek:has(> .gr-hazir-alt) { padding-bottom: 0; }
+
+/* ---------- Ocak Postası (js/posta.js) ---------- */
+#btnBell.yeni-var { position: relative; }
+#btnBell.yeni-var::after { content: attr(data-say); position: absolute; right: -.15em; top: -.2em; min-width: 1.5em; height: 1.5em; padding: 0 .3em; border-radius: 1em; display: grid; place-items: center; font: 800 .72em var(--f-ui); color: #fff; background: #e0482c; box-shadow: 0 0 0 1.5px #1a1030; }
+.posta { min-width: min(30em, 80vw); }
+.posta .po-liste { list-style: none; margin: 0; padding: 0; max-height: 52vh; overflow-y: auto; }
+.posta .po-satir { display: grid; grid-template-columns: 2.2em 1fr auto auto; gap: .6em; align-items: center; padding: .55em .3em; border-bottom: 1px solid rgba(255, 255, 255, .08); }
+.posta .po-satir div { display: flex; flex-direction: column; min-width: 0; }
+.posta .po-satir span, .posta .po-satir small { opacity: .75; font-size: .88em; }
+.posta .po-satir.yeni b::before { content: ''; display: inline-block; width: .5em; height: .5em; margin-right: .4em; border-radius: 50%; background: #e0482c; vertical-align: middle; }
+.posta .po-ik { width: 2.2em; height: 2.2em; border-radius: 50%; background: rgba(255, 214, 120, .18); }
+.posta .po-ik.altin { background: center / 70% no-repeat url(../assets/ik/para.webp), rgba(255, 214, 120, .18); }
+.posta .po-ik.dost { background: center / 70% no-repeat url(../assets/ik/mdl-dostlar.webp), rgba(160, 200, 255, .16); }
+.posta .po-satir .gbtn { min-height: 44px; }
+.posta .po-hata { color: #ffb4a0; }
+.posta .dip { opacity: .6; font-size: .82em; margin-top: .8em; }
+
+/* ---------- Mühürler (Defter, js/muhur.js) ---------- */
+.muhurler { display: grid; grid-template-columns: repeat(auto-fill, minmax(11em, 1fr)); gap: .5em; }
+.muhurler .muhur { display: flex; gap: .55em; align-items: center; padding: .45em .5em; border-radius: .6em; opacity: .55; }
+.muhurler .muhur i { flex: 0 0 2.1em; height: 2.1em; border-radius: 50%; border: 2px dashed rgba(120, 70, 30, .45); }
+.muhurler .muhur.tamam { opacity: 1; }
+.muhurler .muhur.tamam i { border: 0; background: radial-gradient(circle at 35% 30%, #e8775a, #9e2b1c 70%); box-shadow: inset 0 0 0 3px rgba(255, 220, 190, .35), 0 .1em .25em rgba(60, 20, 10, .4); }
+.muhurler .muhur div { display: flex; flex-direction: column; min-width: 0; }
+.muhurler .muhur span, .muhurler .muhur small { font-size: .82em; opacity: .8; }
