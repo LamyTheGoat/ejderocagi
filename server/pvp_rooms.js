@@ -6,7 +6,12 @@
 // - Davet yalnız `to` hedefinin soketlerine gider.
 // - Başlangıçta sunucu üyelere TEK mesaj gönderir: harita, mod, slotlar, ilk tur sahibi, rüzgâr tohumu.
 // - Kopma: rakibe `pvp_peer_left`; süre dolunca kalan oyuncu hükmen kazanır. Maç sonu iki tarafa tek `pvp_match_end`.
-const PVP_MAP_IDS = ['steppe_canyon', 'sky_archipelago', 'sandstorm', 'seljuk_ruins', 'dragon_caldera', 'glacier'];
+const LEGACY_MAP_IDS = ['steppe_canyon', 'sky_archipelago', 'sandstorm', 'seljuk_ruins', 'dragon_caldera', 'glacier'];   // eski oyunun (js/minigame) haritaları
+// 2.0 Er Meydanı haritaları (eo2/js/topcu.js PVP_HARITA ile aynı adlar). 'rastgele' maç başında sunucuda bunlardan birine çözülür:
+// iki uç aynı haritayı görür, rövanşta yeniden çekilir.
+const EO2_MAP_IDS = ['er-meydani', 'zumrut-kopru', 'zumrut-defile'];
+const RANDOM_MAP = 'rastgele';
+const PVP_MAP_IDS = [...LEGACY_MAP_IDS, ...EO2_MAP_IDS, RANDOM_MAP];
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const BOT_POOL = [
   { handle: '@bozkir_avcisi', name: 'Bozkır Avcısı', el: 'toprak' },
@@ -196,13 +201,13 @@ function createPvpRooms(deps = {}) {
     // ENG-14 Y-1: sunucu tur numarası, sıra sahibi, iki tarafın canı ve konumunu tutar (yalnız bildirileni kaydeder,
     // hesaplamaz); geri dönen oyuncuya kaçırdığı mesajlar sırayla yeniden oynatılır, sonra bu özet gönderilir.
     room.match = { id: 'pm_' + hex(8), seed: 1 + Math.floor(random() * 2147483646), firstTurn: first.handle, startedAt: now(), ended: false, disconnectTimer: null,
-      seq: 0, log: [], turnNo: 0, turnOwner: first.handle, hp: {}, pos: {} };
+      seq: 0, log: [], turnNo: 0, turnOwner: first.handle, hp: {}, pos: {}, mapId: room.mapId === RANDOM_MAP ? pick(EO2_MAP_IDS) : room.mapId };
     room.state = 'playing'; room.rematch.clear();
     for (const m of humans) if (m.key !== room.hostKey) m.ready = false;
     touch(room);
     const pub = publicRoom(room);
     for (const m of humans) {
-      send(socketOf(m), { type: 'pvp_match_start', roomId: room.id, matchId: room.match.id, mapId: room.mapId, mode: room.mode,
+      send(socketOf(m), { type: 'pvp_match_start', roomId: room.id, matchId: room.match.id, mapId: room.match.mapId, mode: room.mode,
         seed: room.match.seed, firstTurn: room.match.firstTurn, slots: pub.slots, room: pub, you: m.handle,
         rival: (order.find(x => x.key !== m.key) || {}).handle || null, quick: room.quick });
     }
@@ -255,7 +260,7 @@ function createPvpRooms(deps = {}) {
       const b = queue[bIdx];
       dequeue(a.key); dequeue(b.key);
       if (!live(a.socket) || !live(b.socket)) { if (live(a.socket)) requeue(a, true); if (live(b.socket)) requeue(b, true); continue; }
-      const p = { id: 'pq_' + hex(6), entries: [a, b], ready: new Set(), mapId: pick(PVP_MAP_IDS), mode: a.mode };
+      const p = { id: 'pq_' + hex(6), entries: [a, b], ready: new Set(), mapId: pick(LEGACY_MAP_IDS), mode: a.mode };   // 2.0 istemcisi eski adı kendi haritasına eşler
       p.timer = setTimeout(() => expirePending(p), READY_MS);
       if (p.timer.unref) p.timer.unref();
       pending.set(p.id, p);
@@ -392,7 +397,7 @@ function createPvpRooms(deps = {}) {
       if (room.slots.some(m => m.bot)) {
         // Prova: bot yalnız kurucunun ekranında oynar; oda bekleme durumunda kalır, sonuç ve ödül yok.
         const pub = publicRoom(room);
-        send(socket, { type: 'pvp_match_start', roomId: room.id, matchId: null, practice: true, bot: true, mapId: room.mapId, mode: room.mode,
+        send(socket, { type: 'pvp_match_start', roomId: room.id, matchId: null, practice: true, bot: true, mapId: room.mapId === RANDOM_MAP ? pick(EO2_MAP_IDS) : room.mapId, mode: room.mode,
           seed: 1 + Math.floor(random() * 2147483646), firstTurn: handleOf(socket), slots: pub.slots, room: pub, you: handleOf(socket), rival: room.slots[1].handle });
         return;
       }
@@ -558,7 +563,7 @@ function createPvpRooms(deps = {}) {
     if (room.match && room.match.disconnectTimer) { clearTimeout(room.match.disconnectTimer); room.match.disconnectTimer = null; }
     // Oynanıyorsa üye "yeniden eşitleniyor" sayılır: canlı mesajlar kaydedilir ama ack gelene dek yollanmaz (sıra bozulmasın).
     if (playing) m.resyncing = true;
-    send(socket, { type: 'pvp_match_resume', roomId: room.id, matchId: room.match && room.match.id, room: publicRoom(room), you: m.handle, state: room.state,
+    send(socket, { type: 'pvp_match_resume', roomId: room.id, matchId: room.match && room.match.id, mapId: room.match ? room.match.mapId : room.mapId, room: publicRoom(room), you: m.handle, state: room.state,
       snapshot: playing ? matchSnapshot(room.match) : null });
     for (const o of humanMembers(room)) if (o.key !== key) send(socketOf(o), { type: 'pvp_peer_back', roomId: room.id, handle: m.handle });
   }
@@ -597,4 +602,4 @@ function createPvpRooms(deps = {}) {
   return { onMessage, onConnect, onDisconnect, sweep, stop, _debug: { rooms, queue, pending, codes, memberRoom } };
 }
 
-module.exports = { createPvpRooms, PVP_MAP_IDS };
+module.exports = { createPvpRooms, PVP_MAP_IDS, EO2_MAP_IDS, RANDOM_MAP };

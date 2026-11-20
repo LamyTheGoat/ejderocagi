@@ -168,12 +168,24 @@
      ag.js o mesajla EO2.topcu.pvpBaslat({ rakip: { ad, set, el, hp }, ilk: 'ben'|'rakip', ruzgar: tur => sayı }) çağırır; dönen Promise maç sonucudur.
      Giden: EO2.battle.dinle((olay, veri) => …) → 'ates' (pvp_sync fire), 'isabet' (hit), 'can' (hp_sync), 'pas', 'mac_bitti' (pvp_match_result).
      Gelen: EO2.battle.uzak({ t: 'ates' | 'isabet' | 'can' | 'pas' | 'ruzgar', … }). */
-  async function pvpBaslat(o) { const cfg = talimCfg(); cfg.kimlik = 'pvp-' + (o.macKimlik || Date.now()); cfg.kip = 'pvp'; cfg.baslik = 'Er Meydanı'; cfg.alt = 'Topçu düellosu'; cfg.ruzgar = o.ruzgar || null;
+  /* ER MEYDANI HARİTALARI (EKSIK_OZELLIKLER §4 ilk adım, 2026-11-20): zindan arenaları dostça düelloya açılır. Adlar sunucudaki EO2_MAP_IDS ile aynı (server/pvp_rooms.js).
+     'er-meydani' bugünkü talim adasıdır (kırılır zemin). Zümrüt arenalarının zemini kırılmaz; iki terbiyeci aynı yükseklikte, ortaya eşit uzaklıkta durur (x: dünya birimi).
+     Eski oyunun harita adı gelirse (hızlı eşleşme) sabit tabloyla 2.0 haritasına eşlenir: iki uç aynı haritayı görür. Kaldera ve Donanma arenaları çizimsiz; bekletiliyor. */
+  const PVP_HARITA = [
+    { id: 'er-meydani', ad: 'Talim Adası', kisa: 'Talim Adası', alt: 'Kırılır zemin: atış çukur açar', resim: 'assets/arena/harita-er-meydani.webp' },
+    { id: 'zumrut-kopru', ad: 'Zümrüt Saray Köprüsü', kisa: 'Zümrüt Köprü', alt: 'Uzun düz köprü, kırılmaz zemin', resim: 'assets/arena/harita-zumrut-kopru.webp', x: [19, 45] },
+    { id: 'zumrut-defile', ad: "Şahmeran'ın Defilesi", kisa: 'Şahmeran Defilesi', alt: 'Loş salon, kırılmaz zemin', resim: 'assets/arena/harita-zumrut-defile.webp', x: [10, 36] }];
+  const ESKI_HARITA = { steppe_canyon: 'er-meydani', seljuk_ruins: 'er-meydani', sky_archipelago: 'zumrut-kopru', dragon_caldera: 'zumrut-kopru', sandstorm: 'zumrut-defile', glacier: 'zumrut-defile' };
+  const haritaBul = id => PVP_HARITA.find(h => h.id === (ESKI_HARITA[id] || id)) || PVP_HARITA[0];
+  function haritaUygula(cfg, id) { const H = haritaBul(id), A = H.x && B.arenaCfg && B.arenaCfg(H.id); if (!A) return cfg; const PX = B.api.PX;
+    Object.assign(cfg, { arazi: { tema: A.tema, aile: A.tema, maske: A.maske }, bg: null, sahne: A.sahne, arenaEn: A.en, kameraBoy: A.kameraBoy, ortam: A.ortam, sis: 'rgba(4,14,20,.45)', x0: H.x[0] * PX, harita: H.id });
+    cfg.rakip.x = H.x[1] * PX; return cfg; }
+  async function pvpBaslat(o) { const cfg = haritaUygula(talimCfg(), o.harita); cfg.kimlik = 'pvp-' + (o.macKimlik || Date.now()); cfg.kip = 'pvp'; cfg.baslik = 'Er Meydanı'; cfg.alt = haritaBul(o.harita).ad; cfg.ruzgar = o.ruzgar || null;
     cfg.rakip = Object.assign(cfg.rakip, { ad: 'Rakip', unvan: 'Topçu' }, o.rakip || {}, { kontrol: 'uzak' }); cfg.ilkRakip = o.ilk === 'rakip';
     if (o.sag) { cfg.yon = -1; const sol = cfg.x0; cfg.x0 = cfg.rakip.x; cfg.rakip.x = sol; }      // odadaki ikinci yuva sağda durur: iki uçta meydan aynı
     const r = await mac(cfg); if (o.sonra) await o.sonra(r); bitis(); return r; }
 
   /* ortak sefer (js/zindan_ortak.js) aynı ödül ve çark fonksiyonlarını kullanır; ornekKur etkin sefer kaydını açar ya da kapatır */
   const ornekKur = o => { ornek = o ? { kimlik: 'ortak-' + Date.now(), zindan: o.zindan, zorluk: o.zorluk, asama: 0, altin: (ornek && ornek.ortak ? ornek.altin : 0), ganimet: (ornek && ornek.ortak ? ornek.ganimet : []), hasar: 0, ortak: true } : null; };
-  EO2.topcu = { baslat, pvpBaslat, odulYaz, oyuncuDeger, ornek: () => ornek, kilitli, ornekKur, cark, kucukCark, buyukCark, ganimetHtml, YER, sec: k => { secili = k; G.redraw(); }, secili: () => secili };
+  EO2.topcu = { baslat, pvpBaslat, PVP_HARITA, haritaBul, odulYaz, oyuncuDeger, ornek: () => ornek, kilitli, ornekKur, cark, kucukCark, buyukCark, ganimetHtml, YER, sec: k => { secili = k; G.redraw(); }, secili: () => secili };
 })();

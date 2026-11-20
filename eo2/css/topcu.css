@@ -331,3 +331,13 @@
 .tp-beceri.sol { -webkit-mask-image: linear-gradient(90deg, transparent, #000 2.6em); mask-image: linear-gradient(90deg, transparent, #000 2.6em); }
 .tp-beceri.sol.sag { -webkit-mask-image: linear-gradient(90deg, transparent, #000 2.6em, #000 calc(100% - 2.6em), transparent); mask-image: linear-gradient(90deg, transparent, #000 2.6em, #000 calc(100% - 2.6em), transparent); }
 #tpHarita { cursor: pointer; touch-action: none; }
+/* Er Meydanı harita seçimi (2026-11-20): bekleme odasında dört kart; telefonda da görünür (eski .em-harita gizliydi) */
+.ui2 .em-haritalar { width: 100%; display: grid; gap: .35em; justify-items: center; } .ui2 .em-haritalar > small { padding: .2em .8em; border-radius: 1em; background: rgba(8, 12, 40, .72); font: 600 max(11px, .9em)/1.3 var(--f-ui); color: #e3e9ff; text-align: center; }
+.ui2 .em-hsec { width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .4em; }
+.ui2 .em-hkart { position: relative; min-height: 44px; height: 5.4em; width: 100%; padding: 0; border: 2px solid rgba(255, 255, 255, .18); border-radius: 1em; overflow: hidden; background: #1b2350 center 40% / cover no-repeat; box-shadow: var(--frame); cursor: pointer; color: #fff; }
+.ui2 .em-hkart.rastgele { background-image: radial-gradient(circle at 50% 35%, #4a3a8a, #151a3c 75%); } .ui2 .em-hkart.rastgele::before { content: '?'; position: absolute; left: 0; right: 0; top: .05em; text-align: center; font: 800 1.9em var(--f-ui); color: var(--altin, #f6d98a); }
+.ui2 .em-hkart span { position: absolute; left: 0; right: 0; bottom: 0; padding: .25em .3em; font: 700 max(11px, .82em)/1.15 var(--f-ui); background: rgba(8, 12, 40, .78); text-align: center; }
+.ui2 .em-hkart[aria-checked="true"] { border-color: var(--altin, #f6d98a); box-shadow: 0 0 0 2px rgba(246, 217, 138, .45), var(--frame); } .ui2 .em-hkart[aria-checked="false"] { filter: saturate(.7) brightness(.85); }
+.ui2 .em-hkart:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.ui2 .em-haritalar.tek .em-hkart { cursor: default; height: 5.2em; } .ui2 .em-haritalar.tek .em-hkart span { font-size: max(11px, .9em); }
+@media (max-width: 900px), (max-aspect-ratio: 1/1) { .ui2 .em-kok.oda .em-orta .em-haritalar { width: min(100%, 26em); } .ui2 .em-hsec { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
