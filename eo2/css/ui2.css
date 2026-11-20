@@ -137,6 +137,8 @@ html, body { height: 100%; margin: 0; background: #0b1226; overflow: hidden; }
 #joyKnob { position: absolute; left: 50%; top: 50%; width: 3.6em; height: 3.6em; margin: -1.8em 0 0 -1.8em; border-radius: 50%; background: radial-gradient(circle at 50% 32%, #3654ad, #142255 72%); border: 0.14em solid var(--varak); pointer-events: none; }
 .ui2.touch #btnE.on { display: grid; right: calc(max(0.9em, env(safe-area-inset-right, 0px)) + 0.6em); bottom: 7.2em; width: 5.2em; height: 5.2em; border-radius: 50%; place-items: center; align-content: center; background: radial-gradient(circle at 50% 32%, #f3cf73, #b67f24 75%); color: #142255; border: 0.16em solid var(--krem); box-shadow: var(--frame); font-weight: 800; }
 #btnE b { font: 800 1.6em/1 var(--f-disp); } #btnE span { font-size: 0.7em; max-width: 6em; line-height: 1; }
+/* dokunmatikte E tuşu yok: düğmede ve dünyadaki etikette harf gizlenir, düğmede yalnız eylemin adı durur ("Yapı kur" gibi) */
+.ui2.touch #btnE b, .ui2.touch .prompt kbd { display: none; } .ui2.touch #btnE span { font-size: 0.95em; max-width: 4.6em; line-height: 1.1; text-align: center; } .ui2.touch .prompt { padding-left: 1em; }
 .ui2.touch #chat { left: var(--pad); right: auto; top: 4.9em; bottom: auto; }
 
 /* --- dar ve kısa ekran: sohbet ve görevler katlanır --- */
