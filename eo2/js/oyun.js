@@ -112,8 +112,9 @@
      Sunucuya yazılmaz: sunucudaki kimlik (oturum handle'ı) ayrı bir iştir. */
   const AD_ONERI = ['Aybars', 'Elçin', 'Toygar', 'Umay', 'Börte', 'Alpagu', 'Asena', 'Kayra', 'İlbey', 'Tomris', 'Çağrı', 'Selcen', 'Bengü', 'Göktuğ', 'Ayşan', 'Demir', 'Tuğrul', 'Gökçen', 'Bars', 'Sungur', 'Almıla', 'Kutay', 'Yağmur', 'Oğuz'];
   const adDuz = s => s.toLocaleLowerCase('tr').replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/[ıî]/g, 'i').replace(/ö/g, 'o').replace(/ş/g, 's').replace(/[üû]/g, 'u').replace(/â/g, 'a');
-  /* basit uygunsuz ad süzgeci: kısa kökler yalnız tam sözcük olarak (Işık gibi adlar takılmasın), uzunlar içinde geçerse */
-  const AD_YASAK_SOZ = ['sik', 'am', 'got', 'pic', 'aq', 'amk', 'mal', 'gm', 'mod'], AD_YASAK_IC = ['orospu', 'yarak', 'yarrak', 'sikik', 'sikim', 'siktir', 'amcik', 'amina', 'gotveren', 'pezevenk', 'gavat', 'ibne', 'kahpe', 'serefsiz', 'pust', 'fuck', 'shit', 'bitch', 'hitler', 'nazi', 'admin', 'moderator', 'yonetici', 'gamemaster', 'sistem', 'destek'];
+  /* basit uygunsuz ad süzgeci: kısa kökler yalnız tam sözcük olarak (Işık gibi adlar takılmasın), uzunlar içinde geçerse.
+     Asıl süzgeç sunucudadır (server/kufur_suzgec.js); burası yalnız oyuncuya anında geri bildirim verir. */
+  const AD_YASAK_SOZ = ['sik', 'am', 'got', 'pic', 'aq', 'amk', 'mal', 'gm', 'mod'], AD_YASAK_IC = ['orospu', 'yarak', 'yarrak', 'sikik', 'sikim', 'siktir', 'amcik', 'amina', 'gotveren', 'pezevenk', 'gavat', 'ibne', 'kahpe', 'serefsiz', 'pust', 'kaltak', 'kevase', 'fahise', 'yavsak', 'dalyarak', 'surtuk', 'tassak', 'fuck', 'whore', 'cunt', 'nigg', 'faggot', 'shit', 'bitch', 'hitler', 'nazi', 'admin', 'moderator', 'yonetici', 'gamemaster', 'sistem', 'destek'];
   G.adDenetle = function (ham) { const v = String(ham == null ? '' : ham).replace(/\s+/g, ' ').trim();
     if (v.length < 2) return { hata: 'Ad en az iki harf olmalı.' }; if (v.length > 16) return { hata: 'Ad en çok on altı harf olabilir.' };
     if (!/^[A-Za-zÇĞİÖŞÜçğıöşüÂÎÛâîû ]+$/.test(v)) return { hata: 'Yalnız harf ve boşluk kullan.' };
