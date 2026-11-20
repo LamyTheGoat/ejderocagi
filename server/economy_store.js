@@ -101,6 +101,14 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
   function pruneServiceState(limit=50) {
     return atomic(()=>db.prepare("DELETE FROM service_state WHERE id IN (SELECT id FROM service_state WHERE json='null' OR coalesce(json_extract(json,'$.expiresAt'),json_extract(json,'$.until'))<=? LIMIT ?)").run(now(),limit).changes);
   }
+  // Kalıcı sunucu durumu (server/kalici_durum.js): parti, oda, künye, bahis kilidi gibi bellekteki durumun yeniden başlatmaya dayanıklı kopyası.
+  // service_state içinde 'kalici:<tür>:<anahtar>' satırı; expiresAt geçince pruneServiceState siler.
+  const durableId = (kind, key) => 'kalici:' + kind + ':' + encodeURIComponent(String(key));
+  function putDurable(kind, key, value, expiresAt) { return atomic(() => { const id = durableId(kind, key);
+    if (value == null) db.prepare('DELETE FROM service_state WHERE id = ?').run(id); else writeTradeRow('service_state', id, { kind, key: String(key), value, expiresAt }); }); }
+  function getDurable(kind, key) { const r = readTradeRow('service_state', durableId(kind, key)); return r && r.expiresAt > now() ? r.value : null; }
+  function listDurable(kind, limit = 500) { return db.prepare('SELECT json FROM service_state WHERE id >= ? AND id < ? LIMIT ?').all('kalici:' + kind + ':', 'kalici:' + kind + ';', limit)
+    .map(r => JSON.parse(r.json)).filter(r => r && r.expiresAt > now()).map(r => ({ key: r.key, value: r.value })); }
   function compactTradeReceipts(limit=50) {
     return atomic(()=>{
       const rows=db.prepare("SELECT id,json FROM trade_receipts WHERE json_extract(json,'$.createdAt')<=? AND json_extract(json,'$.result') IS NOT NULL LIMIT ?").all(now()-RETENTION_MS,limit);
@@ -440,7 +448,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
 
   return Object.freeze({
     checkDuelEntry, openMatch, finalizeMatch, settleGameplay, readMatch,
-    backend: 'sqlite', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, recordFunnel, readFunnel, findAccountByHandle, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
+    backend: 'sqlite', putDurable, getDurable, listDurable, executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, recordFunnel, readFunnel, findAccountByHandle, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
     revokeSession(token) { if (typeof token === 'string') db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token)); },
     close() { db.close(); },
   });

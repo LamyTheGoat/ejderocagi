@@ -30,6 +30,12 @@
 // zarı sunucu atar; oynanacak hamle yoksa sıra kendiliğinden geçer. Altı pulunu ilk toplayan kazanır. Mars iki kat saymaz (bahis emanetteki kadardır).
 // ORTAK DURUM  { oyun: 'tavla', ..., yan: { <hesap>: 'me' | 'opp' }, T: { pts[12]{o,n}, bar, off, turn, dice, moves, phase: 'roll' | 'move' } }
 // EYLEMLER     { t: 'zar' }  sırası gelen zar atar   ·   { t: 'oyna', from: <hane | 'bar'>, to: <hane | 'off'>, d: <zar> }  bir pul oynar
+//
+// YENİDEN BAŞLATMA (2026-11-20): bahis kilidi depoya da yazılır (server/kalici_durum.js, tür 'kir_kilit'): { uyeler, bitis, sonuc }.
+// Kilit, oyun başlamadan ÖNCE yazılır; yazılamazsa oyun başlamaz. Sonuç belli olunca ödemeden önce sonuc { kazanan } yazılır.
+// Sunucu yeniden başlayınca yukle() kilitleri geri koyar (takas komutlara kapalı kalır), kurtar() sahipsiz kilitleri kapatır:
+// sonuç yazılmışsa ödeme yeniden yapılır (adımlar tekrar edilebilir), yazılmamışsa oyun yarıda kalmıştır: takas iptal, herkes malını
+// geri alır. Kilit ancak takas gerçekten kapandığında silinir; ödeme yarıda hata verirse kurtar() bir sonraki turda yeniden dener.
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -55,32 +61,53 @@ function elKurallari() {
 }
 const DESTE = []; for (const s of ['♠', '♥', '♦', '♣']) for (const r of ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']) DESTE.push({ r, s });
 
-function createKiraathanePvp({ store, send, sockets, kimlik, kilitli = new Set(), now = () => Date.now(), zar = () => nodeCrypto.randomInt(1, 7), kartSec = n => nodeCrypto.randomInt(0, n), crypto = nodeCrypto }) {
+function createKiraathanePvp({ store, send, sockets, kimlik, kilitli = new Set(), kalici = null, now = () => Date.now(), zar = () => nodeCrypto.randomInt(1, 7), kartSec = n => nodeCrypto.randomInt(0, n), crypto = nodeCrypto }) {
   const { pkEval, pkCompare, bjVal, tv } = elKurallari();
   const soketler = id => [...sockets()].filter(s => !s.destroyed && kimlik(s) && kimlik(s).accountId === id);
   const durt = (id, m) => { for (const s of soketler(id)) send(s, m); };
   const komut = (kim, type, ek) => store.executeTrade(kim, Object.assign({ type, requestId: crypto.randomUUID() }, ek));
+  const oyunda = new Set(), isleniyor = new Set();   // canlı oyunu olan takaslar · ödemesi süren takaslar
+  const kilitOmur = bitis => Math.max(0, bitis - now()) + 24 * 3600000;
+  const kilitYaz = (id, uyeler, bitis, sonuc) => kalici ? kalici.put('kir_kilit', id, { uyeler, bitis, sonuc }, kilitOmur(bitis)) : Promise.resolve();
 
   /* bahsin sonuçlandırılması: kazanan (ya da berabere için null) belli olunca emanetteki takas kapatılır */
-  async function ode(takas, uyeler, kazanan) {
+  async function ode(takas, uyeler, kazanan, neden) {
     if (!takas) return { bahis: false };
-    const [a, b] = uyeler;
+    const [a, b] = uyeler; let kapandi = false; isleniyor.add(takas.id);
     try {
       let t = (await komut(a, 'get', { tradeId: takas.id })).trade;
-      if (!t || t.status !== 'active') return { bahis: true, odendi: false, neden: 'takas_kapali' };
+      if (!t || t.status !== 'active') { kapandi = true; return { bahis: true, odendi: false, neden: 'takas_kapali' }; }
       const bos = o => !o || (!(o.gold > 0) && !['items', 'dragons', 'eggs'].some(k => (o[k] || []).length) && !Object.values(o.food || {}).some(n => n > 0));
-      if (bos((t.offers || {})[a]) && bos((t.offers || {})[b])) { await komut(a, 'cancel', { tradeId: takas.id }); return { bahis: false }; }   // tepsiler boş: çayına oynandı
-      if (!kazanan) { await komut(a, 'cancel', { tradeId: takas.id }); return { bahis: true, odendi: false, neden: 'berabere' }; }
+      if (bos((t.offers || {})[a]) && bos((t.offers || {})[b])) { await komut(a, 'cancel', { tradeId: takas.id }); kapandi = true; return { bahis: false }; }   // tepsiler boş: çayına oynandı
+      if (!kazanan) { await komut(a, 'cancel', { tradeId: takas.id }); kapandi = true; return { bahis: true, odendi: false, neden: neden || 'berabere' }; }
       const kaybeden = kazanan === a ? b : a;
       t = (await komut(kazanan, 'offer', { tradeId: t.id, revision: t.revision, offer: bosTeklif() })).trade;   // kazananın malı kendisinde kalır
       t = (await komut(kazanan, 'confirm', { tradeId: t.id, revision: t.revision })).trade;
       t = (await komut(kaybeden, 'confirm', { tradeId: t.id, revision: t.revision })).trade;
-      return { bahis: true, odendi: t.status === 'completed' };
+      kapandi = t.status !== 'active'; return { bahis: true, odendi: t.status === 'completed' };
     } catch (e) {
       console.error('[kiraathane] ödeme', e.code || e.message);
-      try { await komut(a, 'cancel', { tradeId: takas.id }); } catch (_) { /* takas zaten kapalı olabilir */ }
+      try { await komut(a, 'cancel', { tradeId: takas.id }); kapandi = true; } catch (_) { /* takas zaten kapalı olabilir; kapanmadıysa kurtar() yeniden dener */ }
       return { bahis: true, odendi: false, neden: 'odeme_hatasi' };
-    } finally { kilitli.delete(takas.id); for (const u of uyeler) durt(u, { type: 'trade_state', masa: true }); }
+    } finally {
+      isleniyor.delete(takas.id);
+      if (kapandi) { kilitli.delete(takas.id); if (kalici) kalici.del('kir_kilit', takas.id).catch(e => console.error('[kiraathane] kilit silinemedi', e.code || e.message)); }
+      for (const u of uyeler) durt(u, { type: 'trade_state', masa: true });
+    }
+  }
+  /* yeniden başlatma: depodaki kilitler geri konur; sahibi olan canlı bir oyun yoksa kapatılır */
+  async function yukle() { if (!kalici) return 0; const L = await kalici.list('kir_kilit'); for (const r of L) kilitli.add(r.key); return L.length; }
+  async function kurtar() {
+    if (!kalici) return 0; let n = 0;
+    for (const r of await kalici.list('kir_kilit')) {
+      const id = r.key, v = r.value || {}; if (oyunda.has(id) || isleniyor.has(id)) continue;
+      if (!/^[a-f0-9-]{36}$/i.test(id) || !Array.isArray(v.uyeler) || v.uyeler.length !== 2) { await kalici.del('kir_kilit', id); kilitli.delete(id); continue; }
+      kilitli.add(id); n++;
+      const kazanan = v.sonuc && v.uyeler.includes(v.sonuc.kazanan) ? v.sonuc.kazanan : null;
+      const sonuc = await ode({ id }, v.uyeler, kazanan, v.sonuc ? null : 'sunucu_yeniden_basladi');
+      for (const u of v.uyeler) durt(u, Object.assign({ type: 'masa_odeme', kazanan, kurtarma: true }, sonuc));
+    }
+    return n;
   }
   /* Kor 21: destede kalan kartlardan biri (masadaki eller desteden düşülür) */
   function kartCek(d, id) { const elde = new Set(); for (const o of Object.values(d.oyuncu)) for (const k of o.el) elde.add(k.r + k.s); const kalan = DESTE.filter(k => !elde.has(k.r + k.s)), k = kalan[Math.max(0, Math.min(kalan.length - 1, kartSec(kalan.length) | 0))];
@@ -125,7 +152,8 @@ function createKiraathanePvp({ store, send, sockets, kimlik, kilitli = new Set()
           const t = (await komut(ben, 'get', { tradeId: id })).trade;
           if (!t || t.status !== 'active' || t.participants.length !== 2 || !ids.every(x => t.participants.includes(x))) { d.kilit = {}; throw hata('takas_uygun_degil'); }
           if (t.expiresAt - now() < EN_AZ_KALAN_MS) { d.kilit = {}; throw hata('takas_suresi_az'); }
-          kilitli.add(id); d.takas = { id, bitis: t.expiresAt };
+          try { await kilitYaz(id, ids, t.expiresAt, null); } catch (e) { d.kilit = {}; console.error('[kiraathane] kilit yazılamadı', e.code || e.message); throw hata('kayit_hatasi'); }
+          kilitli.add(id); oyunda.add(id); d.takas = { id, bitis: t.expiresAt };
         }
         d.faz = 'oyun'; for (const x of ids) d.oyuncu[x].son = now();
         if (d.oyun === 'kor21') { for (let i = 0; i < 2; i++) for (const x of ids) kartCek(d, x);   // ikişer kart; iki el de 21 ile açıldıysa oyun hemen biter
@@ -160,10 +188,13 @@ function createKiraathanePvp({ store, send, sockets, kimlik, kilitli = new Set()
       const kazanan = sonuc.neden === 'oyuncu_kalmadi' ? (d.faz === 'oyun' ? ids.find(x => x !== sonuc.ayrilan) || null : undefined) : sonuc.kazananId;
       if (kazanan === undefined) return;
       const takas = d.takas; d.takas = null;
-      ode(takas, ids, kazanan).then(r => { for (const u of ids) durt(u, Object.assign({ type: 'masa_odeme', kazanan }, r)); });
+      // sonuç ödemeden önce yazılır: ödeme yarıda kalırsa kurtar() aynı kazananla tamamlar (yazılamazsa takas iptal edilir)
+      (takas ? kilitYaz(takas.id, ids, takas.bitis, { kazanan }).catch(e => console.error('[kiraathane] sonuç yazılamadı', e.code || e.message)) : Promise.resolve())
+        .then(() => ode(takas, ids, kazanan)).then(r => { for (const u of ids) durt(u, Object.assign({ type: 'masa_odeme', kazanan }, r)); })
+        .finally(() => { if (takas) oyunda.delete(takas.id); });
     },
   };
-  return { tanim, ode, kilitli };
+  return { tanim, ode, kilitli, yukle, kurtar };
 }
 
 module.exports = { createKiraathanePvp, HAMLE_MS };

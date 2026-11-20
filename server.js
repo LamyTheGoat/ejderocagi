@@ -46,6 +46,8 @@ const PUBLIC_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
 const DB_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const DB_FILE = path.join(DB_DIR, 'world.json');
 const ECONOMY = createEconomyStore();
+// Kalıcı sunucu durumu (server/kalici_durum.js): parti, oda lobisi, künye, bahis kilidi ve X giriş durumu yeniden başlatmada kaybolmasın.
+const KALICI = require('./server/kalici_durum').createKalici({ store: ECONOMY });
 const GUEST_SESSIONS = createGuestSessions(ECONOMY, PUBLIC_URL, process.env.NODE_ENV === 'production');
 const zlib = require('node:zlib');
 const publicFile = createPublicFiles(__dirname, [DB_DIR]);
@@ -60,7 +62,7 @@ const ORTAK = require('./server/ortak_odalar').createOrtakOdalar({ send: (socket
 setInterval(() => { try { ORTAK.supur(); } catch (e) { console.error('[ortak] süpürme', e.message); } }, 3000).unref();   // ortak savaşta adım süreleri (server/zindan_ortak.js) bu turda denetlenir
 // Kıraathane · oyuncuya karşı masa (server/kiraathane_pvp.js): bahis takas emanetindedir; oyun sürerken o takas oyunculara kilitlidir.
 const KIR_KILIT = new Set();
-const KIR_PVP = require('./server/kiraathane_pvp').createKiraathanePvp({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo, kilitli: KIR_KILIT });
+const KIR_PVP = require('./server/kiraathane_pvp').createKiraathanePvp({ store: ECONOMY, send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo, kilitli: KIR_KILIT, kalici: KALICI });
 ORTAK.kaydet('kiraathane', KIR_PVP.tanim);
 // Ortak zindan seferi (server/zindan_ortak.js): Zümrüt Saray; ortak düşman canı sunucuda, ödül istemcide mevcut kurallarla
 ORTAK.kaydet('zindan', require('./server/zindan_ortak').createZindanOrtak().tanim);
@@ -71,9 +73,26 @@ setInterval(() => { const t = Date.now(); for (const s of WS_CLIENTS) if (t - (s
 ORTAK.kaydet('takim', require('./server/takim_ortak').createTakimOrtak().tanim);
 // Oyuncu profili (künye) ve parti: ikisi de bellekte, ekonomiye dokunmaz (server/profil_service.js, server/parti_service.js)
 const wsYolla = (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); };
-const PROFIL = require('./server/profil_service').createProfil({ send: wsYolla, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo });
+const PROFIL = require('./server/profil_service').createProfil({ send: wsYolla, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo, kalici: KALICI });
 const PARTI = require('./server/parti_service').createParti({ send: wsYolla, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo, yer: socket => socket.meydan && socket.meydan.d ? { alan: socket.meydan.d.a, set: socket.meydan.d.s } : null });
 setInterval(() => { try { PARTI.supur(); } catch (e) { console.error('[parti] süpürme', e.message); } }, 30000).unref();
+// Yeniden başlatma: parti ve oda lobileri anlık görüntü olarak yazılır (yalnız değişince, 15 sn'de bir ve kapanışta); künyeler dakikada bir.
+// Kıraathane kilitleri açılışta geri konur, sahipsiz kalanlar kapatılır (ödeme tamamlanır ya da takas iptal edilir).
+const KALICI_PARTI = KALICI.anlik('parti', () => PARTI.anlik()), KALICI_ORTAK = KALICI.anlik('ortak_oda', () => ORTAK.anlik());
+let kaliciDurdu = false;
+const kaliciTimer = setInterval(() => { if (!kaliciDurdu) KALICI.tikla(); }, 15000); kaliciTimer.unref();
+const kunyeTimer = setInterval(() => { if (!kaliciDurdu) PROFIL.kaydet().catch(e => console.error('[kalici] künye', e.message)); }, 60000); kunyeTimer.unref();
+const kirKurtarTimer = setInterval(() => { if (!kaliciDurdu) KIR_PVP.kurtar().catch(e => console.error('[kalici] kıraathane', e.message)); }, 60000); kirKurtarTimer.unref();
+async function kaliciGeriYukle() {
+  const sonuc = {};
+  try { sonuc.kilit = await KIR_PVP.yukle(); } catch (e) { console.error('[kalici] kilitler okunamadı', e.code || e.message); }
+  try { sonuc.parti = PARTI.geriYukle(await KALICI_PARTI.oku()); } catch (e) { console.error('[kalici] partiler okunamadı', e.code || e.message); }
+  try { sonuc.oda = ORTAK.geriYukle(await KALICI_ORTAK.oku()); } catch (e) { console.error('[kalici] odalar okunamadı', e.code || e.message); }
+  KIR_PVP.kurtar().then(n => { if (n) console.log('[kalici] kıraathane kilidi kapatıldı:', n); }, e => console.error('[kalici] kıraathane kurtarma', e.code || e.message));
+  if (sonuc.kilit || sonuc.parti || sonuc.oda) console.log('[kalici] geri yüklendi', JSON.stringify(sonuc));
+  return sonuc;
+}
+async function kaliciKaydet() { await Promise.allSettled([KALICI.hepsiniYaz(), PROFIL.kaydet()]); }
 // Ocak ziyareti ve birlikte çiftleştirme (server/ocak_ziyaret.js): misafir ev sahibinin ocağını görür; yumurta Damızlık kuralıyla ev sahibine gider.
 const ZIYARET = require('./server/ocak_ziyaret').createOcakZiyaret({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, sockets: () => WS_CLIENTS, kimlik: socket => socket.playerInfo });
 const MEYDAN = require('./server/meydan_presence').createMeydanPresence({ send: (socket, m) => { if (socket && !socket.destroyed) socket.write(encodeWsFrame(m)); }, kimlik: socket => socket.playerInfo && socket.playerInfo.handle,
@@ -1089,6 +1108,10 @@ async function handleHttp(req, res) {
     const verifier = crypto.randomBytes(32).toString('base64url');
     const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
     OAUTH_STATES.set(state, { verifier, createdAt: Date.now() });
+    // yeniden başlatmada X girişi yarıda kalmasın: durum depoya da yazılır (tek kullanımlık, OAUTH_TTL_MS ömürlü)
+    // IP başına dakikada 20 kalıcı yazım (bellek kovası): oturumsuz uç depo yazımını şişiremez; aşımda giriş yine çalışır, yalnız kalıcı değildir
+    let yaz = true; try { consumeReadRate('oauth-ip:' + req.socket.remoteAddress, 20); } catch (_) { yaz = false; }
+    if (yaz) try { await KALICI.put('oauth', state, { verifier, createdAt: Date.now() }, OAUTH_TTL_MS); } catch (e) { console.error('[kalici] oauth yazılamadı', e.code || e.message); }
 
     if (!X_CLIENT_ID) {
       // Simülasyon girişi yalnızca yerel geliştirmede (localhost) açıktır
@@ -1110,8 +1133,12 @@ async function handleHttp(req, res) {
   if (pathname === '/api/auth/x/callback' && req.method === 'GET') {
     const state = parsedUrl.searchParams.get('state') || '';
     const isMock = parsedUrl.searchParams.get('mock') === '1';
-    const stored = OAUTH_STATES.get(state);
+    let stored = OAUTH_STATES.get(state);
     OAUTH_STATES.delete(state);
+    if (/^[a-f0-9]{32}$/.test(state)) {
+      if (!stored) { try { stored = await KALICI.get('oauth', state); } catch (e) { console.error('[kalici] oauth okunamadı', e.code || e.message); } }
+      KALICI.del('oauth', state).catch(() => { });
+    }
     const fail = (code) => { res.writeHead(302, { Location: `/?x_error=${code}` }); return res.end(); };
 
     if (!stored || Date.now() - stored.createdAt > OAUTH_TTL_MS) return fail('bad_state');
@@ -1570,6 +1597,9 @@ async function handleGracefulShutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   clearInterval(tradeCleanupTimer);
+  // bağlantılar kapanmadan önce: kopmalar parti/oda durumunu değiştirmeden son anlık görüntü yazılır (en çok 3 sn)
+  await Promise.race([kaliciKaydet(), new Promise(r => setTimeout(r, 3000).unref())]);
+  kaliciDurdu = true;
   for (const socket of WS_CLIENTS) socket.destroy();
   console.log(`[${signal}] Alındı — world.json diske kaydediliyor ve sunucu kapatılıyor...`);
   flushWorldSync(WORLD);
@@ -1588,14 +1618,15 @@ process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
 
 if (require.main === module) {
-  server.listen(PORT, () => {
+  // önce kalıcı durum geri yüklenir (en çok 5 sn): ilk bağlanan oyuncu partisini ve odasını bulsun
+  Promise.race([kaliciGeriYukle(), new Promise(r => setTimeout(r, 5000))]).catch(() => { }).then(() => server.listen(PORT, () => {
     console.log(`====================================================`);
     console.log(`🔥 EJDER OCAĞI ONLINE v2.5 SUNUCUSU ÇALIŞIYOR!`);
     console.log(`🌐 Oyun Adresi : http://localhost:${PORT}`);
     console.log(`⚡ WebSocket   : ws://localhost:${PORT}/ws`);
     console.log(`🐦 X OAuth 2.0 : http://localhost:${PORT}/api/auth/x/login`);
     console.log(`====================================================`);
-  });
+  }));
 }
 
 module.exports = { server, WORLD, buildDynamicCardSvg };
