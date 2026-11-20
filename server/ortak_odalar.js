@@ -24,7 +24,10 @@
 // MESAJLAR (sunucu → istemci)
 //   ortak_oda { oda, sen }   ortak_ayrildi {}   ortak_hata { kod }   ortak_davet { kod, tur, anahtar, from }
 //   ortak_basladi { oda, durum }   ortak_olay { olaylar, durum }   ortak_bitti { sonuc }   ortak_kuyruk { durum: 'ariyor'|'yok' }
-// Oda yalnız üyelerine yayın yapar. Kimlik soketten gelir. Bellekte durur (tek sunucu örneği); kalıcı değildir.
+// Oda yalnız üyelerine yayın yapar. Kimlik soketten gelir. Bellekte durur (tek sunucu örneği).
+// YENİDEN BAŞLATMA (2026-11-20): anlik() odaların lobi bilgisini (kod, tür, üyeler) verir; sunucu bunu depoya yazar
+// (server/kalici_durum.js) ve açılışta geriYukle() ile geri koyar. Üyeler "bağlı değil" döner ve dönmek için ek süre alır.
+// Oyun durumu (ortak) yazılmaz: yarıda kalan örnek lobiye döner ve üyeler bağlanınca ortak_bitti { neden: 'sunucu_yeniden_basladi' } alır.
 const ALFABE = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const hata = kod => Object.assign(new Error(kod), { kod });
 
@@ -116,7 +119,7 @@ function createOrtakOdalar({ send, sockets, kimlik, crypto = require('node:crypt
           const L = [...odalar.values()].filter(y => y.tur === tur && !y.ozel && y.durum === 'bekliyor' && y.uyeler.length < y.tanim.enCok).sort((p, q) => q.kuruldu - p.kuruldu).slice(0, 30)
             .map(y => ({ kod: y.kod, anahtar: y.anahtar, kurucu: (y.uyeler.find(u => u.id === y.kurucu) || y.uyeler[0] || {}).ad || '', n: y.uyeler.length, enCok: y.tanim.enCok }));
           send(socket, { type: 'ortak_liste', tur, odalar: L }); break; }
-        case 'ortak_durum': if (o) { send(socket, { type: 'ortak_oda', oda: gorunum(o), sen: k.accountId }); if (o.durum === 'oyunda') send(socket, { type: 'ortak_basladi', oda: gorunum(o), durum: o.ortak, tohum: o.tohum, surur: true }); } else send(socket, { type: 'ortak_ayrildi' }); break;
+        case 'ortak_durum': if (o) { kesinti(o, k.accountId, socket); send(socket, { type: 'ortak_oda', oda: gorunum(o), sen: k.accountId }); if (o.durum === 'oyunda') send(socket, { type: 'ortak_basladi', oda: gorunum(o), durum: o.ortak, tohum: o.tohum, surur: true }); } else send(socket, { type: 'ortak_ayrildi' }); break;
         default: throw hata('komut_bilinmiyor');
       }
     } catch (e) { send(socket, { type: 'ortak_hata', kod: e.kod || 'hata' }); if (!e.kod) console.error('[ortak]', e.message); }
@@ -128,7 +131,25 @@ function createOrtakOdalar({ send, sockets, kimlik, crypto = require('node:crypt
     const o = odaOf(k.accountId); if (!o) return; if (soketler(k.accountId).some(s => s !== socket)) return;
     const u = o.uyeler.find(x => x.id === k.accountId); if (!u) return; u.bagli = false; u.kopma = now(); odaYay(o); tikCalistir(o);
   }
-  function onConnect(socket) { const k = hesapOf(socket); if (!k) return; const o = odaOf(k.accountId); if (!o) return; const u = o.uyeler.find(x => x.id === k.accountId); if (u && !u.bagli) { u.bagli = true; u.kopma = 0; odaYay(o); } }
+  function onConnect(socket) { const k = hesapOf(socket); if (!k) return; const o = odaOf(k.accountId); if (!o) return; kesinti(o, k.accountId, socket); const u = o.uyeler.find(x => x.id === k.accountId); if (u && !u.bagli) { u.bagli = true; u.kopma = 0; odaYay(o); } }
+  /* yeniden başlatmada yarıda kalan örnek: üyeye bir kez söylenir */
+  function kesinti(o, id, socket) { if (!o.kesildi || !o.kesildi.has(id)) return; o.kesildi.delete(id); send(socket, { type: 'ortak_bitti', sonuc: { kazanan: false, neden: 'sunucu_yeniden_basladi' }, oda: gorunum(o) }); }
+  function anlik() { return { odalar: [...odalar.values()].map(o => ({ id: o.id, kod: o.kod, tur: o.tur, anahtar: o.anahtar, ozel: o.ozel, durum: o.durum, kurucu: o.kurucu, kuruldu: o.kuruldu,
+    kesildi: o.kesildi && o.kesildi.size ? [...o.kesildi] : undefined, uyeler: o.uyeler.map(u => ({ id: u.id, h: u.h, ad: u.ad, hazir: u.hazir })) })) }; }
+  function geriYukle(v) {
+    if (!v || !Array.isArray(v.odalar)) return 0; let n = 0; const ek = config.geriYukleEkMs ?? 75000, t = now();
+    for (const r of v.odalar) {
+      const tanim = r && turler.get(r.tur); if (!tanim || typeof r.id !== 'string' || typeof r.kod !== 'string' || odalar.has(r.id) || kodlar.has(r.kod)) continue;
+      const uyeler = (Array.isArray(r.uyeler) ? r.uyeler : []).filter(u => u && typeof u.id === 'string' && !uyelik.has(u.id)).slice(0, tanim.enCok);
+      if (!uyeler.length) continue;
+      const yarida = r.durum === 'oyunda', kesildi = new Set([...(yarida ? uyeler.map(u => u.id) : []), ...(Array.isArray(r.kesildi) ? r.kesildi : [])]);
+      const o = { id: r.id, kod: r.kod, tur: r.tur, anahtar: String(r.anahtar), ozel: !!r.ozel, tanim, durum: 'bekliyor', kurucu: uyeler.some(u => u.id === r.kurucu) ? r.kurucu : uyeler[0].id,
+        uyeler: uyeler.map(u => ({ id: u.id, h: String(u.h || ''), ad: typeof u.ad === 'string' ? u.ad.slice(0, 16) : 'Gezgin', hazir: !yarida && !!u.hazir, bagli: false, kopma: t + ek })),
+        ortak: null, kuruldu: +r.kuruldu || t, sonHareket: t, kesildi: kesildi.size ? kesildi : null };
+      odalar.set(o.id, o); kodlar.set(o.kod, o.id); for (const u of o.uyeler) uyelik.set(u.id, o.id); n++;
+    }
+    return n;
+  }
   function supur() { const t = now();
     for (const o of [...odalar.values()]) { for (const u of [...o.uyeler]) if (!u.bagli && t - u.kopma >= KOPMA_MS) odadanCik(o, u.id, 'koptu');
       if (odalar.has(o.id) && o.durum !== 'oyunda' && t - o.sonHareket >= BOS_ODA_MS) { for (const u of [...o.uyeler]) odadanCik(o, u.id, 'oda_kapandi'); }
@@ -138,7 +159,7 @@ function createOrtakOdalar({ send, sockets, kimlik, crypto = require('node:crypt
   function tikCalistir(o) { if (!odalar.has(o.id) || o.durum !== 'oyunda' || typeof o.tanim.tik !== 'function') return;
     o.sira = (o.sira || Promise.resolve()).then(async () => { if (o.durum !== 'oyunda') return;
       const r = await o.tanim.tik(o.ortak, gorunum(o)); if (!r) return; yay(o, { type: 'ortak_olay', olaylar: r.olaylar || [], durum: o.ortak, kim: null }); if (r.bitti) bitir(o, r.bitti); }).catch(e => console.error('[ortak] tik', e.message)); }
-  return { kaydet, onMessage, onDisconnect, onConnect, supur, odaKimligi: hesap => { const o = odaOf(hesap); return o ? o.id : null; }, sayim: () => ({ oda: odalar.size, kuyruk: kuyruk.length, turler: [...turler.keys()] }) };
+  return { kaydet, onMessage, onDisconnect, onConnect, supur, anlik, geriYukle, odaKimligi: hesap => { const o = odaOf(hesap); return o ? o.id : null; }, sayim: () => ({ oda: odalar.size, kuyruk: kuyruk.length, turler: [...turler.keys()] }) };
 }
 
 module.exports = { createOrtakOdalar };

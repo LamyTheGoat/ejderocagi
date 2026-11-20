@@ -101,6 +101,13 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
     for(const doc of page.docs) count+=await db.runTransaction(async tx=>{const latest=await tx.get(doc.ref);if(latest.exists&&latest.data().expiresAt<=now()){tx.delete(doc.ref);return 1;}return 0;});
     return count;
   }
+  // Kalıcı sunucu durumu (server/kalici_durum.js). eo_service_state içinde; expiresAt geçince pruneServiceState siler.
+  const durableRef = (kind, key) => security.doc('kalici:' + kind + ':' + encodeURIComponent(String(key)).replace(/\./g, '%2E'));
+  async function putDurable(kind, key, value, expiresAt) { const ref = durableRef(kind, key);
+    if (value == null) return ref.delete(); await ref.set({ kind: 'kalici:' + kind, key: String(key), json: JSON.stringify(value), expiresAt }); }
+  async function getDurable(kind, key) { const doc = await durableRef(kind, key).get(); if (!doc.exists) return null; const d = doc.data(); return d.expiresAt > now() ? JSON.parse(d.json) : null; }
+  async function listDurable(kind, limit = 500) { const q = await security.where('kind', '==', 'kalici:' + kind).limit(limit).get();
+    return q.docs.map(d => d.data()).filter(d => d.expiresAt > now()).map(d => ({ key: d.key, value: JSON.parse(d.json) })); }
   async function compactTradeReceipts(limit=50) {
     const page=await receipts.where('compactAfter','<=',now()).limit(limit).get();let count=0;
     for(const doc of page.docs) {
@@ -309,7 +316,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
   async function readMatch(matchId) { return duel.MATCH_ID.test(matchId || '') ? matchOf(await matches.doc(matchId).get()) : null; }
   return {
     checkDuelEntry, openMatch, finalizeMatch, settleGameplay, readMatch,
-    backend: 'firestore', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, findAccountByHandle, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
+    backend: 'firestore', putDurable, getDurable, listDurable, executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, findAccountByHandle, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
     async revokeSession(token) { if (typeof token === 'string') await sessions.doc(hashToken(token)).delete(); },
     async close() { await db.terminate(); },
   };
