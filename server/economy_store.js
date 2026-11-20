@@ -12,6 +12,7 @@ const path = require('node:path');
 const { validateCommand, reduceCommand, gameEconomy, fail } = require('./economy_commands');
 
 const recovery = require('./account_recovery');
+const huni = require('./huni_service');
 const MAX_GOLD = 2_000_000_000;
 const SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
@@ -70,6 +71,9 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
   db.exec(`CREATE TABLE IF NOT EXISTS account_recovery (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), code_hash TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL) STRICT;
     CREATE TABLE IF NOT EXISTS account_saves (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), saved_at INTEGER NOT NULL, save TEXT NOT NULL) STRICT;
     CREATE TABLE IF NOT EXISTS account_social (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), json TEXT NOT NULL) STRICT;`);
+  // oyuncu hunisi (server/huni_service.js): hesap başına ilk geçilen adımlar ve kohort günü başına sayaçlar
+  db.exec(`CREATE TABLE IF NOT EXISTS funnel_accounts (account_id TEXT PRIMARY KEY REFERENCES accounts(account_id), json TEXT NOT NULL) STRICT;
+    CREATE TABLE IF NOT EXISTS funnel_days (day INTEGER NOT NULL, step TEXT NOT NULL, n INTEGER NOT NULL CHECK (n >= 0), PRIMARY KEY (day, step)) STRICT;`);
   // ENG-07 Bedesten: ilan, hesap başı rezervasyon (hold) ve makbuz. Hepsi aynı transaction'da yazılır.
   db.exec(`CREATE TABLE IF NOT EXISTS market_listings (id TEXT PRIMARY KEY, seller_id TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL, json TEXT NOT NULL) STRICT;
     CREATE INDEX IF NOT EXISTS market_open ON market_listings(status, created_at);
@@ -259,6 +263,26 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
   function getSocial(accountId) { const row = db.prepare('SELECT json FROM account_social WHERE account_id = ?').get(accountId); return row ? JSON.parse(row.json) : null; }
   function putSocial(accountId, kayit) { const json = JSON.stringify(kayit); if (json.length > 64000) throw Object.assign(new Error('social_too_large'), { code: 'social_too_large', status: 409 });
     db.prepare('INSERT INTO account_social(account_id, json) VALUES (?, ?) ON CONFLICT(account_id) DO UPDATE SET json = excluded.json').run(accountId, json); }
+  // oyuncu hunisi: yalnız ilk kez geçilen adımlar yazılır; hesap kaydı ve kohort sayacı aynı işlemde değişir (yarım sayım olmaz)
+  function recordFunnel(accountId, adimlar, gun) {
+    return atomic(() => {
+      const row = db.prepare('SELECT json FROM funnel_accounts WHERE account_id = ?').get(accountId);
+      const { kayit, yeni, kohort } = huni.planla(row ? JSON.parse(row.json) : null, adimlar, gun);
+      if (!yeni.length) return [];
+      db.prepare('INSERT INTO funnel_accounts(account_id, json) VALUES (?, ?) ON CONFLICT(account_id) DO UPDATE SET json = excluded.json').run(accountId, JSON.stringify(kayit));
+      const art = db.prepare('INSERT INTO funnel_days(day, step, n) VALUES (?, ?, 1) ON CONFLICT(day, step) DO UPDATE SET n = n + 1');
+      for (const a of yeni) art.run(kohort, a);
+      return yeni;
+    });
+  }
+  function readFunnel(ilkGun, sonGun) {
+    const satir = new Map();
+    for (const r of db.prepare('SELECT day, step, n FROM funnel_days WHERE day BETWEEN ? AND ? ORDER BY day').all(ilkGun, sonGun)) {
+      if (!satir.has(r.day)) satir.set(r.day, { gun: r.day, sayac: {} });
+      satir.get(r.day).sayac[r.step] = r.n;
+    }
+    return [...satir.values()];
+  }
   function findAccountByHandle(handle) { const row = db.prepare('SELECT account_id AS id FROM accounts WHERE handle = ?').get(String(handle)); return row ? row.id : null; }
 
   function resolveSession(token) {
@@ -416,7 +440,7 @@ function openEconomyStore(filename, { now = Date.now } = {}) {
 
   return Object.freeze({
     checkDuelEntry, openMatch, finalizeMatch, settleGameplay, readMatch,
-    backend: 'sqlite', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, findAccountByHandle, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
+    backend: 'sqlite', executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, recordFunnel, readFunnel, findAccountByHandle, readEconomy, transaction, executeCommand, executeTrade, currentTrade, expireTrades,
     revokeSession(token) { if (typeof token === 'string') db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(hashToken(token)); },
     close() { db.close(); },
   });
