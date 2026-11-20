@@ -1,6 +1,6 @@
 # Ejder Ocağı · Oyun tasarım ilkeleri
 
-Sürüm 0.3 · 2026-11-20 · Sürdüren: oyun tasarım threadi.
+Sürüm 0.4 · 2026-11-20 · Sürdüren: oyun tasarım threadi.
 Bu belge her yeni içeriğin (zindan, düşman, boss, ödül, ekran) uyması gereken ilkeleri tek yerde toplar.
 Zindan tasarım threadi şartnamelerini buna göre yazar; zindan üretim threadi şartnameyi bu ilkelere göre denetler.
 
@@ -41,7 +41,7 @@ Kalite çıtası (KARAR, K16): en az 30 dolarlık ücretli bir oyun hissi; aray�
 ### 3.2 Okunabilirlik (SEÇİM)
 - Oyuncu her tehlikeyi **bir tur önceden** görebilmeli: boss'un hamlesi, tehlike bölgesi ya da sözüyle ilan edilir. Görünmez anlık ölüm yok.
 - Her boss'ta en az bir **zayıf nokta** (kritik) ve en az bir **kaçınılabilir** hamle (`bolge`: yerinden çekilen ıskalatır) olur.
-- Bir arenada aynı anda sahnede **en çok 4 düşman** (boss dahil 5). Kalabalık dalgayla sağlanır, ekranı doldurarak değil.
+- **Sabit düşman sınırı yok (KARAR, Mehmet 2026-11-20).** Sayıyı her zindanın şartnamesi kendi temasına göre koyar (örnek: bir zindanda toplam en çok 10 drake). İlke: güçlü düşman az olur, zayıf düşman çok olabilir; her düşman ekranda okunur kalmalı.
 - Durum etkisi (büyülenme gibi) en çok **bir tur** sürer ve bir karşılığı olur (kalkan kırar).
 
 ### 3.3 Dalga yönetimi (SEÇİM; mekanik `dalga` ve `uyan` alanlarıyla var)
@@ -55,6 +55,11 @@ Kalite çıtası (KARAR, K16): en az 30 dolarlık ücretli bir oyun hissi; aray�
 - 2 ya da 3 faz; faz eşiği can oranıyla (örnek: %62). Her faz yeni bir hamle ya da kural ekler, eskisini daha sert yapmaz yalnızca.
 - Hamle havuzu faza göre üçlü sıra. Hamle adı = animasyon klibi adı.
 - Boss'un kimliği tek cümleyle söylenebilmeli: "Şahmeran yayla uzaktan büyüler."
+
+### 3.4b Her zindan bir şey öğretir (KARAR, Mehmet 2026-11-20)
+FF14'teki gibi her zindanın öğrettiği tek bir ana beceri olur ve zindan bunun çevresinde kurulur. Örnek: Zümrüt Saray dalga kontrolünü, Kalgarot boss mekaniklerini (yayılma ve toplanma) öğretir. Şartname bu beceriyi ilk satırda yazar; merdivende (§4.2) sonraki zindan öğrenilmiş becerileri birleştirebilir.
+
+Güçlü düşmanın ritmi şartnamede yazılır (örnek: drake iki turda bir ateş eder); her tur saldıran güçlü düşman az olur.
 
 ### 3.5 Hedef süreler (SEÇİM; ölçülüp düzeltilecek)
 | Ne | Hedef |
@@ -125,6 +130,7 @@ Ekonomi kuralları her tasarım kararının önündedir. Bir içerik bu bölüml
 - Düşman ve boss sola bakar, saydam zemin, alt kenar = yer; kareler aynı boy ve aynı ayak noktası.
 - Boss klipleri: bekleme, saldırı (hazırlık, vuruş, toparlanma), vuruluş, varsa ölüm. Zayıf nokta ve mermi çıkış noktası işaretlenir.
 - Kalite ölçütü: kesimde yarı saydam piksel %6'nın altında (CIZIM_DUNYASI).
+- **Yeni karakter ve düşman çizimleri baştan, modüler ve riglenebilir üretilir (KARAR, Mehmet 2026-11-20):** parçalar (baş, gövde, kanat, kuyruk, uzuvlar) ayrı katman ya da ayrı çizim olarak gelir; tek parça kare sayfası yeni üretimde kullanılmaz.
 
 ## 7. Arayüz ve deneyim ilkeleri
 
@@ -167,6 +173,7 @@ Onaylanan şartname üretim threadine dosya yoluyla iletilir; üretim şartnamey
 | A2 | "Kumar yok" neyi kapsar? | Yalnız gerçek parayla şans; oyun içi şans ve grind serbest (§5.3) |
 | A3 | Yeni dalga çıktığı tur saldırsın mı? | Hayır, bir tur nefes payı (§3.3) |
 | A4 | Zindanlar zorluk merdiveni mi? | Evet (§4.2) |
+| A5 | Arenada en çok 4 düşman sınırı kalsın mı? | Hayır, kaldırıldı; sayı şartnamede (§3.2) |
 
 Şu an açık karar yok. Yeni sorular buraya eklenir.
 
