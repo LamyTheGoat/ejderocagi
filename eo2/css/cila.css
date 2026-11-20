@@ -300,6 +300,8 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .bildirimler.by-sol { left: max(.4em, env(safe-area-inset-left, 0px)) !important; right: auto !important; }
 .ui2 .bildirimler.by-sag { left: auto !important; right: max(.4em, env(safe-area-inset-right, 0px)) !important; justify-items: end !important; }
 .ui2 .bildirimler.by-sol.by-alt, .ui2 .bildirimler.by-sag.by-alt { top: auto !important; bottom: max(1.1em, env(safe-area-inset-bottom, 0px)) !important; }
+/* tarama: hazır yerlerin hepsi doluysa tepsi --by-y yüksekliğinde denenir (js/oyun.js trayYer) */
+.ui2 .bildirimler.by-tara, .ui2 .bildirimler.by-tara.by-sol, .ui2 .bildirimler.by-tara.by-sag { top: var(--by-y, 50%) !important; bottom: auto !important; }
 
 /* ---------- 2026-11-17 düzeltmeleri: hafta sonu, Dostlar, Çarşı ---------- */
 /* Hafta sonu: kartlar alanı küçülebilir (düğme ekranın dışına itilmez); ejderha resmi kartın üstünden taşarken kesilmez */
