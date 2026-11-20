@@ -180,7 +180,17 @@ const income = (S, amount, source) => (amount > 0 ? debt.receive(S, amount, sour
 // ejderha satılınca gelir bound girer.
 const dragonSource = d => (['bound', 'unknown', 'earned'].includes(d.funding) ? d.funding : 'unknown');
 
-const TYPES = new Set(['dragon.die', 'auction.sell', 'offer.sell', 'order.deliver', 'topcu.clear', 'topcu.spin', 'goal.reach', 'gold.local', 'gold.import']);
+const TYPES = new Set(['dragon.die', 'auction.sell', 'offer.sell', 'order.deliver', 'topcu.clear', 'topcu.spin', 'goal.reach', 'gold.local', 'gold.import', 'gold.merge']);
+// TEK KESE (2026-11-20, yol haritası 6 / ROADMAP 5g'nin ilk adımı): tarayıcının beyan ettiği altın (gold.local artı tutar,
+// gold.merge) hesaba BAĞLI (bound) girer: harcanır ama takasa, Bedesten'e, bahisli masaya giremez. Böylece takas edilen
+// her altın sunucunun kendi hesapladığı kazançtır (arena, Topçu, satışlar). 2.0'da yerel kese zaten takas edilemiyordu:
+// oyuncunun gördüğü davranış değişmez. Harcama sırası (bound → unknown → earned) aynı kalır; yerel gider önce bağlı altından düşer.
+const CLAIM_SOURCE = 'bound';
+// gold.merge: 2.0 kaydının yerel kesesi hesaba BİR KEZ taşınır, tavansız (tavan oyuncunun gördüğü altını silerdi).
+// Ön koşul: ocak bağlanmış ve çift başlangıç kesesi düşülmüş olmalı (S.ocak.kese); yoksa sonraki ilk bağlanma
+// taşınan bağlı altını da sıfırlardı. Eksi tutar (sunucuda göstergede hiç görünmemiş bağlı taban varsa) yalnız bağlı ve
+// bilinmeyen altından düşer, kazanılmış altına asla dokunmaz; yetmezse kalan bırakılır (oyuncu lehine).
+const MERGE_MAX = 1_000_000_000;
 // Komutları uygular. `ctx`: { api, now, owned, spend, caps }. Döner: result nesnesi.
 function reduce(type, S, a, ctx) {
   const { api, now, owned, spend } = ctx, caps = ctx.caps || CAPS;
@@ -275,7 +285,20 @@ function reduce(type, S, a, ctx) {
     case 'gold.local': {
       if (!Object.hasOwn(LOCAL_REASONS, a.reason)) fail('unknown_reason', 400);
       if (a.amount < 0) { spend(-a.amount); return { reason: a.reason, spent: -a.amount }; }
-      return { reason: a.reason, credited: a.amount, credit: income(S, a.amount, 'earned') };
+      return { reason: a.reason, credited: a.amount, source: CLAIM_SOURCE, credit: income(S, a.amount, CLAIM_SOURCE) };
+    }
+    case 'gold.merge': {
+      if (S.tekKese) return { already: true, applied: 0, tekKese: { ...S.tekKese } };
+      if (!S.ocak || typeof S.ocak !== 'object' || !S.ocak.kese) fail('ocak_not_linked', 409);
+      if (!Number.isSafeInteger(a.amount) || Math.abs(a.amount) > MERGE_MAX) fail('invalid_arguments', 400);
+      let applied = 0, credit = null;
+      if (a.amount > 0) { credit = income(S, a.amount, CLAIM_SOURCE); applied = a.amount; }
+      else if (a.amount < 0) {
+        const f = S.funds || {}, n = Math.min(-a.amount, (f.bound || 0) + (f.unknown || 0), Math.max(0, S.gold));
+        if (n > 0) { spend(n); applied = -n; }
+      }
+      S.tekKese = { at: Number.isSafeInteger(now) ? now : null, asked: a.amount, applied };
+      return { applied, credit, tekKese: { ...S.tekKese } };
     }
     case 'gold.import': {
       if (S.localImport) return { already: true, credited: 0 };
