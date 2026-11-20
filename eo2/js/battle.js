@@ -205,7 +205,9 @@
       /* DÜŞMAN UYKUSU (arena.json: "dalga": 2, 3… ve "uyan": mesafe):
          dalga > 1 → düşman sırası gelene dek sahnede yoktur (bekler): çizilmez, vurulmaz, sıra almaz; önceki dalgaların hepsi inince belirir.
          uyan > 0  → düşman sahnededir ama uyur: sıra almaz; bir terbiyeci bu mesafeye (eski piksel ölçüsü) girince ya da vurulunca uyanır. */
-      e.dalga = m.dalga > 1 ? Math.floor(m.dalga) : 1; if (e.dalga > 1) { e.bekler = true; e.dead = true; e.olu = 9; } if (m.uyan > 0) { e.uyur = true; e.uyanMesafe = u(m.uyan); } }
+      e.dalga = m.dalga > 1 ? Math.floor(m.dalga) : 1; if (e.dalga > 1) { e.bekler = true; e.dead = true; e.olu = 9; } if (m.uyan > 0) { e.uyur = true; e.uyanMesafe = u(m.uyan); }
+      /* hasar: düşmanın hasar oranı · cagri: boss çağırır; sahnede yoktur, sunucunun 'cagri' olayıyla doğduğu yerde belirir (cagri() aşağıda) */
+      e.hasarK = m.hasar > 0 ? m.hasar : 1; e.x0 = e.x; if (m.cagri) { e.cagri = true; e.bekler = true; e.dead = true; e.olu = 9; } }
     M.dalgaN = Math.max(1, ...M.act.filter(a => a.tur === 'mob').map(a => a.dalga || 1)); M.dalgaNo = 1;
     if (cfg.boss) { const D = BOSS[cfg.boss.tip] || {}; const b = mkYaratik(Object.assign({ tur: 'boss', D, h: D.h || 6.8, faz: 1, kalkan: 0, sersem: 0, kiyamet: 0 }, cfg.boss, { x: X_(cfg.boss.x) })); b.shown = b.hp = b.max = cfg.boss.hp; M.act.push(b); M.boss = b; }
     for (const a of M.act) { if (a.ucan && a.yW != null) a.y = a.yW; else if (a.ucan && a.yuk != null) a.y = Y_(a.yuk); else if (a.tur === 'boss' && a.D.suda) a.y = Y_(a.D.suda); else a.y = groundBelow(T, a.x, FH - 1) || 8; }
@@ -358,12 +360,12 @@
     return { ang: clamp(best.ang + (Math.random() - 0.5) * 2 * err, 5, 70), p: clamp(best.p + (Math.random() - 0.5) * 0.02 * err, 0.2, 1), t: 0 }; }
 
   /* ---------- sıra ---------- */
-  const dusmanKaldi = () => !!M.cfg.takimSavasi || M.act.some(a => a.takim === 1 && (!a.dead || a.bekler));
+  const dusmanKaldi = () => !!M.cfg.takimSavasi || M.act.some(a => a.takim === 1 && (!a.dead || (a.bekler && !a.cagri)));   // çağrılacak yılan kalan düşman sayılmaz: boss düşünce aşama biter
   /* dalga ve uyku denetimi (her karede): sahnede ayakta düşman kalmadıysa sıradaki dalga belirir; yaklaşılan ya da vurulan uykucu uyanır */
   function uykuDenetle() { if (!M || M.over || M.faz === 'giris') return;
-    const bek = M.act.filter(a => a.bekler); if (bek.length && !M.act.some(a => a.takim === 1 && a.tur === 'mob' && !a.dead)) { const d = Math.min(...bek.map(a => a.dalga)); M.dalgaNo = d;
+    const bek = M.act.filter(a => a.bekler && !a.cagri); if (bek.length && !M.act.some(a => a.takim === 1 && a.tur === 'mob' && !a.dead)) { const d = Math.min(...bek.map(a => a.dalga)); M.dalgaNo = d;
       for (const e of bek) if (e.dalga === d) { e.bekler = false; e.dead = false; e.olu = 0; e.hurtT = 0; e.y = e.ucan ? e.y : yerY(e.x); toz(e.x, e.y + 0.6, 26, EL[e.el] || EL.venom); halka(e.x, e.y + 0.8, 1.6, EL[e.el] || EL.venom); }
-      pankart('Dalga ' + d + ' / ' + M.dalgaN, 'Yeni düşmanlar geliyor', 'big'); ses('whoosh'); M.shake = Math.max(M.shake, 0.4); hud(true); }
+      pankart('Dalga ' + d + ' / ' + M.dalgaN, 'Yeni gelenler bu tur saldırmaz', 'big'); ses('whoosh'); M.shake = Math.max(M.shake, 0.4); hud(true); }
     for (const e of M.act) if (e.uyur && !e.dead) { const yakin = M.act.some(a => a.takim === 0 && a.tur === 'topcu' && !a.dead && Math.abs(a.x - e.x) <= e.uyanMesafe);
       if (yakin || e.hp < e.max) { e.uyur = false; yazi(e.x, e.y + e.h + 0.9, 'Uyandı!', { col: '#ffd24a', crit: 1 }); toz(e.x, e.y + e.h * 0.6, 12, [255, 210, 74]); ses('turn'); } } }   // takım savaşında sonucu sunucu söyler
   function siradaki() {
@@ -382,12 +384,12 @@
         for (let i = 1; i <= 14; i++) sonra(0.5 + i * 0.09, () => { if (!M || M.over || M.aktif !== a || M.adim !== ad0) return; const nx = clamp(a.x + yon * 0.2, 1.7, FW - 1.7); if (!solid(M.T, nx, a.y + 0.6)) { a.x = nx; const gy = groundBelow(M.T, a.x, a.y + 0.6); if (gy === null || a.y - gy > 0.25) a.fall = true; else a.y = gy; } a.moving = true; if (i % 3 === 0) { M.parts.push({ k: 'ember', x: a.x, y: a.y + 2.2, vx: 0, vy: 1.4, life: 0.6, max: 0.6, s: 0.09, col: [255, 122, 196] }); yay('konum', { x: a.x, y: a.y, aci: a.angle, yon: a.face }); } });
         sonra(2.1, () => { if (M) M.buyulu = false; if (M && !M.over && M.aktif === a && M.adim === ad0) { a.moving = false; yay('konum', { x: a.x, y: a.y, aci: a.angle, yon: a.face }); yay('pas', { kim: 0 }); siradaki(); } }); return; }
       if (M.lav.length) { for (const l of M.lav) { if (l.gorsel) { l.tur--; continue; } if (M.boss && !M.boss.dead && Math.abs(M.boss.x - l.x) <= l.r + u(120)) hasarBoss(M.boss, l.dmg, true, 'Lav havuzu yakıyor'); for (const e of M.act) if (e.tur === 'mob' && !e.dead && Math.abs(e.x - l.x) <= l.r + u(36)) hasarMob(e, l.dmg, { not: 'Lav yanığı', col: '#ffb060' }); l.tur--; } M.lav = M.lav.filter(l => l.tur > 0); if (!dusmanKaldi()) return bitir(true); }
-      M.bolge = M.cfg.ortak ? M.bolge.filter(z => z.kim !== a) : []; if (M.boss && !M.boss.dead) { const D = M.boss.D; M.bolge.push({ x: a.x, y: a.y, r: u(130), dmg: D.bolge || 210, el: D.el || 'venom', kim: a }); }
+      M.bolge = M.cfg.ortak ? M.bolge.filter(z => z.kim !== a) : []; if (M.boss && !M.boss.dead) { const D = M.boss.D; M.bolge.push({ x: a.x, y: a.y, r: u(130), dmg: Math.round((D.bolge || 210) * (M.cfg.kalabalik || 1)), el: D.el || 'venom', kim: a }); }
       if (M.boss && M.boss.D.oyuncuSirasi) M.boss.D.oyuncuSirasi(M.boss, API);
       M.timer = 25; yeniRuzgar(M.cfg.ortak ? M.ruzgarGelen : M.ruzgarSirasi ? M.ruzgarSirasi(M.siraNo) : null); a.sta = a.staMax; a.capa = 0;
       pankart('Senin sıran', M.bolge.length ? 'Halkadan çık, sonra ateş et' : 'Tur ' + M.tur, 'me'); ses('turn'); ilkAtisIpucu(); yay('sira', { kim: 0, tur: M.tur, ruzgar: M.wind });
     } else if (a.yoldas) {   // ortak savaş: sıra bir yoldaşta; o kendi ekranında oynar, burada yeri, nişanı ve atışı görünür
-      M.timer = 25; yeniRuzgar(M.ruzgarGelen); M.bolge = M.bolge.filter(z => z.kim !== a); if (M.boss && !M.boss.dead) { const D = M.boss.D; M.bolge.push({ x: a.x, y: a.y, r: u(130), dmg: D.bolge || 210, el: D.el || 'venom', kim: a }); }
+      M.timer = 25; yeniRuzgar(M.ruzgarGelen); M.bolge = M.bolge.filter(z => z.kim !== a); if (M.boss && !M.boss.dead) { const D = M.boss.D; M.bolge.push({ x: a.x, y: a.y, r: u(130), dmg: Math.round((D.bolge || 210) * (M.cfg.kalabalik || 1)), el: D.el || 'venom', kim: a }); }
       pankart(a.ad + ' nişan alıyor', 'Tur ' + M.tur, ''); ses('turn');
     } else if (a.tur === 'topcu') { M.timer = 25; if (M.ruzgarSirasi) yeniRuzgar(M.ruzgarSirasi(M.siraNo)); pankart(a.kontrol === 'uzak' ? 'Rakibin sırası' : a.ad + ' nişan alıyor', 'Tur ' + M.tur, ''); ses('turn'); yay('sira', { kim: 1, tur: M.tur, ruzgar: M.wind }); }
     else if (a.tur === 'mob') mobSira(a); else bossSira(a);
@@ -396,9 +398,10 @@
   /* eski performSingleEnemyTurnAction: yerdekiler oyuncuya 46 piksel yaklaşır (ayazda 24), 135 hasarlık nişanlı atış */
   function mobSira(e) { const p = hedefT(), ayaz = e.chill > 0, ad = M.adim; if (e.chill > 0) e.chill--; M.faz = 'oyun';
     if (e.uyur) return sonra(0.2, () => { if (M.adim === ad) siradaki(); });   /* uyuyan düşman sırasını geçer */
-    sonra(0.55, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki(); e.face = p.x < e.x ? -1 : 1; if (!e.ucan && !e.D.sabit) { const lim = M.cfg.ozel && M.cfg.ozel.mobSinir || [820, 3050]; e.x = clamp(e.x + e.face * u(ayaz ? 24 : 46), X_(lim[0]), X_(lim[1])); e.yuruT = M.time; }
+    const kalabalik = M.act.filter(a => a.tur === 'mob' && !a.dead).length >= 4, t1 = kalabalik ? 0.25 : 0.55, t2 = kalabalik ? 0.25 : 0.4;   /* sekiz yılanlık dalgada bekleyiş kısalır */
+    M.hizli = kalabalik; sonra(t1, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki(); e.face = p.x < e.x ? -1 : 1; if (!e.ucan && !e.D.sabit) { const lim = M.cfg.ozel && M.cfg.ozel.mobSinir || [820, 3050]; e.x = clamp(e.x + e.face * u(ayaz ? 24 : 46), X_(lim[0]), X_(lim[1])); e.yuruT = M.time; }
       e.anim = 'atk'; e.animT = 0.9; e.lunge = 0.35; if (e.D.soz && R() < 0.3) balon(e, e.D.soz, null, 1.6);
-      sonra(0.4, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki(); const dm = Math.round(135 * M.cfg.zorluk.dmg * (ayaz ? 0.85 : 1)); nisanliAt(e, e.x + e.face * u(35), e.y + u(58) + (e.ucan ? e.h * 0.2 : 0), p.x + u(R() * 44 - 22), p.y + u(26), dm, e.el, 42, e.D.atis); M.faz = 'ucus'; M.pt = 0; M.bekle = 0; }); });
+      sonra(t2, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki(); const dm = Math.max(1, Math.round(135 * M.cfg.zorluk.dmg * (e.hasarK || 1) * (ayaz ? 0.85 : 1))); nisanliAt(e, e.x + e.face * u(35), e.y + u(58) + (e.ucan ? e.h * 0.2 : 0), p.x + u(R() * 44 - 22), p.y + u(26), dm, e.el, 42, e.D.atis); M.faz = 'ucus'; M.pt = 0; M.bekle = 0; }); });
   }
   /* eski performSingleBossTurnAction: sersemse pas; laf atma turu; değilse hazırlık, tehlike bölgesi, saldırı */
   function bossSira(b) { const hd = hedefT(), ben = M.ben, D = b.D, ad = M.adim, tn = turNo(), sn = fn => () => { if (M.adim === ad) fn(); }; M.faz = 'oyun'; b.face = hd.x < b.x ? -1 : 1;
@@ -408,7 +411,7 @@
     let p = ben;   // laf atma herkese: karşılığı her oyuncu kendi ekranında verir
     if (laf) { b.lafZorla = false; b.sonLaf = tn; b.acik = 0.35; p.rage = Math.min(100, p.rage + 25); p.sta = Math.min(p.staMax, p.sta + 25); const soz = D.laflar[(b.lafN = (b.lafN || 0) + 1) % D.laflar.length];
       balon(b, soz, b.ad + ' laf atıyor', 4.4); const L = $('tpLaf'); L.hidden = false; L.querySelector('p').textContent = 'Nasıl karşılık verirsin?'; M.lafT = 4.4; M.lafAdim = ad; hud(true); return; }
-    p = hd; const dm = M.cfg.zorluk.dmg * (b.chill > 0 ? 0.85 : 1); if (b.chill > 0) b.chill--;
+    p = hd; const dm = M.cfg.zorluk.dmg * (M.cfg.bossCarpan || 1) * (b.chill > 0 ? 0.85 : 1);   /* bossCarpan: tek kişilik seferde boss hasarı (zindan_ortak.js) */ if (b.chill > 0) b.chill--;
     const hamle = D.hamle(b, API), H = D.hamleler[hamle] || {}; b.anim = 'atk'; b.animT = 2.4; balon(b, H.soz || '', H.ad || 'Saldırı', 2.2); ses('whoosh');
     sonra(1.35, () => { if (M.adim !== ad) return; if (b.dead || M.over) return siradaki();
       const zl = M.cfg.ortak ? M.bolge.splice(0) : M.bolge.splice(0, 1); for (const z of zl) { if (z.kim && z.kim !== ben && z.kim.dead) continue; const p = z.kim || ben, kacti = Math.abs(p.x - z.x) > z.r, col = EL[z.el] || EL.venom; M.isin.push({ x1: b.x + b.face * 1.5, y1: b.y + b.h * 0.7, x2: z.x, y2: z.y + 0.2, col, t: 0.55, max: 0.55 }); carve(M.T, z.x, z.y, u(68)); toz(z.x, z.y + 0.3, 30, col); halka(z.x, z.y + 0.3, z.r, col); M.shake = Math.max(M.shake, 0.8); ses('boom', 0.7);
@@ -486,7 +489,7 @@
         if (M.plan) { const p = M.plan; p.t += dt; const d = p.ang - me.angle; if (Math.abs(d) > 0.6 && p.t < 1.6) me.angle += Math.sign(d) * Math.min(Math.abs(d), 42 * dt); else { M.charging = true; M.charge = Math.min(p.p, M.charge + dt / 1.5); if (M.charge >= p.p - 0.001) { M.charging = false; M.charge = 0; ates(me, p.p); } } }
       }   // 'uzak': komutlar EO2.battle.uzak() ile gelir
     } else if (M.faz === 'ucus') { stepShots(dt); if (!M.shots.length && !(M.hayalet && M.hayalet.length) && M.pt > 0.3 + (M.bekle || 0)) { M.faz = 'durul'; M.pt = 0; } }
-    else if (M.faz === 'durul' && M.pt > 0.9 && !M.act.some(a => a.fall) && !M.dalga.length) siradaki();
+    else if (M.faz === 'durul' && M.pt > (M.hizli && M.aktif && M.aktif.tur === 'mob' ? 0.45 : 0.9) && !M.act.some(a => a.fall) && !M.dalga.length) siradaki();
     // dalgalar (Abra): güverte boyunca yürür, oyuncuya çarpınca hasar verir ve iter; çapa itmeyi dörtte bire indirir
     for (let i = M.dalga.length - 1; i >= 0; i--) { const d = M.dalga[i]; d.t += dt; d.x = d.x0 - d.yol * (d.t / d.sure); const p = M.ben; if (!d.vurdu && !p.dead && d.x <= p.x + 0.6) { d.vurdu = true; const it = p.capa ? 0.25 : 1; hasarTopcu(p, d.dmg, { it: 0.5 * it, yon: -1 }); p.kx = -(2.5 + 3 * it) * it; if (p.capa) yazi(p.x, p.y + 3.2, 'Çapa tuttu', { kucuk: 1, col: '#7fe8d8' }); ses('splash'); } if (d.t >= d.sure) M.dalga.splice(i, 1); }
     // gövde fiziği
@@ -511,7 +514,7 @@
     else if (me && me.tur === 'boss') { tx = lerp(me.x, ben.x, 0.3); ty = me.y + me.h * 0.5; tz = 0.6; }
     else if (me && me.tur === 'mob') { tx = me.x; ty = me.y + 2; tz = 0.85; }
     else if (me) { const gor = M.view ? M.view.W / M.view.sc / Math.max(0.5, c.z) : 22; tx = me.x + me.face * Math.min(M.charging ? 7.5 : 5, gor * (M.charging ? 0.3 : 0.22)); ty = me.y + 2.0; tz = M.charging ? 0.84 : 1; } else { tx = 32; ty = 11; tz = 0.5; }
-    const k = Math.min(1, dt * (M.shots.length || (M.hayalet && M.hayalet.length) ? 5 : 2.4)); c.x = lerp(c.x, tx, k); c.y = lerp(c.y, ty, k); c.z = lerp(c.z, tz, Math.min(1, dt * 2));
+    const k = Math.min(1, dt * (M.shots.length || (M.hayalet && M.hayalet.length) ? 5 : Math.abs(tx - c.x) > 10 ? 4.5 : 2.4)); c.x = lerp(c.x, tx, k);   /* uzaktaki hedefe (örn. sıra sana geçince) daha hızlı kayar */ c.y = lerp(c.y, ty, k); c.z = lerp(c.z, tz, Math.min(1, dt * 2));
     hud(false); if (((M.tick = M.tick + 1) % 6) === 1) harita();
   }
   function harita() { const cv = $('tpHarita'), x = cv.getContext('2d'), W = cv.width, H = cv.height, X = v => v / FW * W, Y = v => H - 6 - v / 20 * (H - 14); x.clearRect(0, 0, W, H);
@@ -541,10 +544,19 @@
   function render() {
     const cv = $('tpCv'), app = $('app').getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2), W = Math.round(app.width * dpr), H = Math.round(app.height * dpr);
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-    const x = cv.getContext('2d'), n = M.cfg.bg || M.cfg.sahne ? 0 : (EO2.state ? EO2.state.night : 0), c = M.cam, dik = W / H < 1, kb = !dik && M.cfg.kameraBoy ? M.cfg.kameraBoy * 1.7 : 0, sc = (kb ? H / kb : (W / 22) * (dik ? 1.9 : 1)) * c.z, viewW = W / sc, viewH = H / sc, AE = M.cfg.arenaEn || FW, pay = 2;
-    const cx = clamp(c.x, Math.min(AE / 2, viewW / 2 - pay), Math.max(AE / 2, AE - viewW / 2 + pay)) + (Math.random() - 0.5) * M.shake * 0.5, cy = clamp(c.y, viewH / 2 - pay, 40) + (Math.random() - 0.5) * M.shake * 0.5;
-    const X = wx => (wx - cx) * sc + W / 2, Y = wy => H / 2 - (wy - cy) * sc + H * 0.02; M.view = { X, Y, sc, W, H };
-    x.setTransform(1, 0, 0, 1, 0, 0); const T = M.T, Tm = T.Tm, bgI = M.cfg.bg ? imgs[M.cfg.bg] : null, sh = M.cfg.sahne, shI = sh && M.katman && M.katman.length ? M.katman[0].im : null;
+    const x = cv.getContext('2d'), n = M.cfg.bg || M.cfg.sahne ? 0 : (EO2.state ? EO2.state.night : 0), c = M.cam, dik = W / H < 1, kb = !dik && M.cfg.kameraBoy ? M.cfg.kameraBoy * 1.7 : 0, AE = M.cfg.arenaEn || FW;
+    const T = M.T, Tm = T.Tm, bgI = M.cfg.bg ? imgs[M.cfg.bg] : null, sh = M.cfg.sahne, shI = sh && M.katman && M.katman.length ? M.katman[0].im : null;
+    /* Çizimli arenada kamera resmin dışına taşmaz (2026-11-20): uzaklaşma resmin eniyle (yatay ekranda boyuyla da) sınırlanır, kenar payı yoktur;
+       yoksa mermi izlenirken resmin solunda boş şerit, altında düz renk bant görünüyordu. */
+    const resim = shI && shI.naturalWidth ? { en: shI.naturalWidth / sh.ppu, alt: sh.taban || 0, boy: shI.naturalHeight / sh.ppu } : null;
+    let sc = (kb ? H / kb : (W / 22) * (dik ? 1.9 : 1)) * c.z; if (resim) sc = Math.max(sc, W / resim.en, dik ? 0 : H / resim.boy);
+    const viewW = W / sc, viewH = H / sc, pay = resim ? 0 : 2, sagSin = resim ? resim.en : AE;
+    /* kısa yatay ekranda (telefon) alt konsol ekranın beşte birini kaplar: dünya biraz yukarı alınır ki ayaklar konsolun altında kalmasın */
+    const off = !dik && app.height < 500 && M.cfg.kip === 'zindan' ? -0.07 : 0.02;   /* yalnız zindanda; düello ve talim ayrı işte */
+    let cy = clamp(c.y, viewH / 2 - pay, 40); if (resim && !dik) cy = Math.max(Math.min(cy, resim.alt + resim.boy - (0.5 + off) * viewH), resim.alt + (0.5 - off) * viewH);
+    const cx = clamp(c.x, Math.min(sagSin / 2, viewW / 2 - pay), Math.max(sagSin / 2, sagSin - viewW / 2 + pay)) + (Math.random() - 0.5) * M.shake * 0.5; cy += (Math.random() - 0.5) * M.shake * 0.5;
+    const X = wx => (wx - cx) * sc + W / 2, Y = wy => H / 2 - (wy - cy) * sc + H * off; M.view = { X, Y, sc, W, H };
+    x.setTransform(1, 0, 0, 1, 0, 0);
     if (shI) { // dünyaya kilitli sahne resmi (cfg.sahne = { src, ppu: birim başına resim pikseli, ust, alt }): resim dünya boyunca uzanır, zemin çizgisi araziyle çakışır; arazi ayrıca çizilmez
       const kk = sc / sh.ppu, ih = shI.naturalHeight * kk, iy = Y(sh.taban || 0) - ih; x.fillStyle = sh.alt; x.fillRect(0, 0, W, H); x.fillStyle = sh.ust; x.fillRect(0, 0, W, Math.max(0, iy + 2)); for (const k of M.katman) if (k.z <= 0) x.drawImage(k.cv || k.im, X(0), iy, shI.naturalWidth * kk, ih);   // 0 ve altı: oyuncunun arkası (küçük numara daha arkada)   // resmin sol alt köşesi dünyada (0, taban); ölçek blok haritadaki mavi kutudan
     } else if (bgI) { // eski oyunun sahne çizimi: ekranı kaplar, kamerayla hafifçe kayar
@@ -712,6 +724,16 @@
     if (o.kim) { const a = o.kim === 'ben' ? M.ben : M.yoldas && M.yoldas[o.kim]; M.ruzgarGelen = +o.ruzgar || 0; if (!a || (a.yoldas && a.dead)) { siradaki(); return true; } baslat(a); return true; }
     const e = dus[o.i]; M.hedefT = o.hedef === 'ben' ? M.ben : (M.yoldas && M.yoldas[o.hedef]) || M.ben; M.tohum = (o.tohum | 0) || 1;
     if (!e || e.dead) { siradaki(); return true; } M.aktif = e; M.pt = 0; M.plan = null; M.hitX = undefined; if (e.tur === 'boss') bossSira(e); else mobSira(e); hud(true); return true; }
+  /* Boss'un çağrısı (sunucunun 'cagri' olayı): i numaralı çağrı düşmanları (act içinde takım 1 sırasıyla) doğduğu yerde, verilen canla belirir. */
+  function cagri(liste, sessiz) { if (!M || !M.on || M.over || !Array.isArray(liste)) return; const dus = M.act.filter(a => a.takim === 1); let n = 0;
+    for (const c of liste) { const e = dus[c.i]; if (!e || !e.cagri || !(e.bekler || e.dead)) continue; e.bekler = false;   /* ilk çağrıda sahnede yok, sonrakilerde ölmüş: ikisi de yeniden doğar */ e.dead = false; e.olu = 0; e.hurtT = 0; e.x = e.x0; e.y = yerY(e.x); e.max = c.max || e.max; e.hp = e.shown = c.hp || e.max; e.uyur = false; e.anim = 'idle'; n++;
+      if (!sessiz) { toz(e.x, e.y + 0.6, 22, EL[e.el] || EL.venom); halka(e.x, e.y + 0.8, 1.5, [120, 230, 150]); } }
+    const b = M.boss; if (!n || sessiz) { hud(true); return; }
+    if (b && !b.dead) { b.anim = 'atk'; b.animT = 1.2; balon(b, 'Yavrularım, gelin!', b.ad + ' çağırıyor', 2.2); halka(b.x, b.y + b.h * 0.6, 2.4, [120, 230, 150]); }
+    pankart('Şahmeran yılanlarını çağırdı', n + ' yılan geldi · bu tur saldırmazlar', 'big'); ses('whoosh'); M.shake = Math.max(M.shake, 0.4); hud(true); }
+  /* yeniden bağlanınca: çağrı düşmanı sunucuda ayaktaysa ekranda da belirsin, değilse kaybolsun */
+  function cagriEsitle(dusman) { if (!M || !M.on || !Array.isArray(dusman)) return; const dus = M.act.filter(a => a.takim === 1), ac = [];
+    dusman.forEach((q, i) => { const e = dus[i]; if (!e || !e.cagri) return; if (q.hp > 0 && (e.bekler || e.dead)) ac.push({ i, hp: q.hp, max: q.max }); else if (!(q.hp > 0) && !e.bekler) { e.bekler = true; e.dead = true; e.olu = 9; } }); if (ac.length) cagri(ac, true); }
   function ortakPas(id) { if (!M || !M.on || M.over || !M.cfg.ortak) return; const a = M.yoldas && M.yoldas[id]; if (a && M.aktif === a && M.faz === 'nisan') siradaki(); }
   /* sırayı atışsız geçmek (süre dolunca olanın aynısı) */
   function pas() { if (!M || !M.on || M.over || M.faz !== 'nisan' || M.aktif !== M.ben) return false; M.charging = false; M.charge = 0; M.ben.mods = {}; yay('pas', { kim: 0 }); siradaki(); return true; }
@@ -725,12 +747,12 @@
     const maske = new Uint8Array(MW * MH); let p = 0; for (let i = 0; i < A.maske.length; i += 2) { if (A.maske[i]) maske.fill(A.maske[i], p, p + A.maske[i + 1]); p += A.maske[i + 1]; }
     return (arenaHazir[ad] = { ad: A.ad, alt: A.alt, ipucu: A.ipucu, tema: A.tema, ortam: A.ortam, en: A.en, kameraBoy: A.kamera ? Math.round(A.kamera.h / 1.7 * 100) / 100 : A.kameraBoy, oyuncu: A.oyuncu, maske,
       sahne: { katman: A.katman, ppu: A.ppu, taban: A.taban, ust: A.sahne.ust, alt: A.sahne.alt }, mobSinir: [1.2 * PX, (A.en - 1.2) * PX],
-      moblar: A.dusman.map(m => Object.assign({ tip: m.tip, ad: m.ad, x: m.x * PX, h: m.h, hayalet: m.hayalet, dalga: m.dalga || 1, uyan: m.uyan || 0 }, m.fizik ? {} : { ucan: true, yW: m.y })),
+      moblar: A.dusman.map(m => Object.assign({ tip: m.tip, ad: m.ad, x: m.x * PX, h: m.h, hayalet: m.hayalet, dalga: m.dalga || 1, uyan: m.uyan || 0, hasar: m.hasar || 1, cagri: !!m.cagri }, m.fizik ? {} : { ucan: true, yW: m.y })),
       boss: A.boss ? { tip: A.boss.tip, ad: A.boss.ad, unvan: A.boss.unvan, x: A.boss.x * PX, h: A.boss.h } : null }); }
   /* takım savaşında oyuncunun kendi canı da sunucudan gelir */
   function benCan(hp, max, h, bas) { if (!M || !M.on || M.over) return; const a = M.ben; if (max > 0) a.max = max; const once = a.hp; a.hp = clamp(hp, 0, a.max); if (h > 0 && once > a.hp) { a.hurtT = 0.55; a.vy = 3; a.fall = true; yazi(a.x, a.y + 2.3, h, { crit: !!bas }); M.shake = Math.max(M.shake, 0.4); ses('hit'); } yay('can', { kim: 0, hp: a.hp, max: a.max }); hud(true); }
   function benDus() { if (!M || !M.on || M.over) return; const a = M.ben; if (a.dustuKesin) return; a.hp = 0; a.dead = true; a.dustuKesin = true; a.revive = 0; pankart('Düştün', 'Takımını izliyorsun', 'kayip'); if (M.aktif === a) siradaki(); hud(true); }
-  EO2.battle = { benCan, benDus, arenaCfg, ac, kapat, uzak, sonlandir, ipucu, ortakHasar, ortakCan, ortakSira, ortakPas, pas, yoldasKoy, yoldasAtes, yoldasOyuk, dinle: fn => { dinleyen.push(fn); return () => { const i = dinleyen.indexOf(fn); if (i >= 0) dinleyen.splice(i, 1); }; }, MOB, BOSS, PROP, BECERI, api: API, active: () => !!(M && M.on), state: () => M,
+  EO2.battle = { benCan, benDus, arenaCfg, ac, kapat, uzak, sonlandir, ipucu, ortakHasar, ortakCan, ortakSira, ortakPas, cagri, cagriEsitle, pas, yoldasKoy, yoldasAtes, yoldasOyuk, dinle: fn => { dinleyen.push(fn); return () => { const i = dinleyen.indexOf(fn); if (i >= 0) dinleyen.splice(i, 1); }; }, MOB, BOSS, PROP, BECERI, api: API, active: () => !!(M && M.on), state: () => M,
     start() { if (EO2.topcu) EO2.topcu.baslat('talim'); }, stop() { kapat(); } };
   const wait = setInterval(() => { if (!EO2.api) return; clearInterval(wait); EO2.frameHooks.push(dt => { if (M && M.on && M.T) { if (!M.dur) update(dt); if (M && M.on) render(); } }); }, 80);
 })();

@@ -40,14 +40,17 @@
   const ses = k => { const a = EO2.audio; if (a && a[k]) a[k](); };
 
   /* ---------- savaş ---------- */
-  function cfgKur(d) { const A = asamalar()[d.asama], zr = V.ZORLUK[d.zorluk], n = oda().uyeler.filter(u => u.bagli).length, o = T.oyuncuDeger(true); if (n > 1) o.dmg = Math.round(o.dmg / 1.40);   // 1,40 yoldaşsız sefer çarpanıdır (js/topcu.js); grupla girilince uygulanmaz
+  /* Kalabalık hasarı (2026-11-20, kullanıcı: "zümrüt saray kusursuz oynanmalı"): düşman canı kişi sayısıyla büyüdüğü gibi düşman hasarı da büyür;
+     tek kişi ×0,6, iki kişi ×0,8, üç ve dört kişi ×1. Ölçüm: hasar tam iken iyi nişan alan tek oyuncu Defile'de Şahmeran'a hiç vuramadan düşüyordu. */
+  const kalabalik = n => n <= 1 ? 0.6 : n === 2 ? 0.8 : 1;
+  function cfgKur(d) { const A = asamalar()[d.asama], n = oda().uyeler.filter(u => u.bagli).length, zr = Object.assign({}, V.ZORLUK[d.zorluk], { dmg: V.ZORLUK[d.zorluk].dmg * kalabalik(n) }), o = T.oyuncuDeger(true); if (n > 1) o.dmg = Math.round(o.dmg / 1.40);   // 1,40 yoldaşsız sefer çarpanıdır (js/topcu.js); grupla girilince uygulanmaz
     if (A.eski) { const As = A.As, aile = A.Zo.tema, can = j => d.dusman[j] ? d.dusman[j].max : 1, m0 = As.moblar(1), b0 = As.boss ? As.boss(1) : null;   /* yerler, kalkan ve uçuş yüksekliği eski aşamadan; canlar sunucudan */
       return { kimlik: 'ortak-' + oda().id + '-' + d.tur, kip: 'zindan', baslik: A.ad, alt: 'Aşama ' + (d.asama + 1) + ' / ' + d.n + ' · ' + zr.ad + (n > 1 ? ' · ' + n + ' terbiyeci' : ''), arazi: V.arazi(A.tema, aile, As.f, 11 + d.asama * 7), bg: As.bg, deniz: As.deniz, ozel: As.ozel, ortam: A.ortam,
         x0: dogus(A, oda().uyeler.findIndex(u => u.id === ben())) * B.api.PX, ortak: true, oyuncu: Object.assign(o, As.aci ? { angle: As.aci } : {}), zorluk: zr, moblar: m0.map((m, j) => Object.assign({}, m, { hp: can(j) })), boss: b0 ? Object.assign({}, b0, { hp: can(m0.length) }) : null,
         asama: { ad: zad(), n: d.n, i: d.asama }, ipucu: A.ipucu, cikis: savasAyril, sis: aile === 'kaldera' ? 'rgba(30,6,4,.5)' : aile === 'donanma' ? 'rgba(4,16,34,.5)' : 'rgba(4,14,20,.55)' }; }
     const can = j => d.dusman[j] ? d.dusman[j].max : 1, moblar = A.moblar.map((m, j) => Object.assign({}, m, { hp: can(j) })), boss = A.boss ? Object.assign({}, A.boss, { hp: can(A.moblar.length) }) : null;
     return { kimlik: 'ortak-' + oda().id + '-' + d.tur, kip: 'zindan', baslik: A.ad, alt: 'Aşama ' + (d.asama + 1) + ' / ' + d.n + ' · ' + zr.ad + (n > 1 ? ' · ' + n + ' terbiyeci' : ''), arazi: { tema: A.tema, aile: A.tema, maske: A.maske }, bg: null, sahne: A.sahne, arenaEn: A.en, kameraBoy: A.kameraBoy, ortam: A.ortam, x0: dogus(A, oda().uyeler.findIndex(u => u.id === ben())) * B.api.PX, ortak: true,
-      ozel: { mobSinir: A.mobSinir }, oyuncu: o, zorluk: zr, moblar, boss, asama: { ad: zad(), n: d.n, i: d.asama }, ipucu: A.ipucu, cikis: savasAyril, sis: 'rgba(4,14,20,.55)' }; }
+      ozel: { mobSinir: A.mobSinir }, oyuncu: o, zorluk: zr, kalabalik: kalabalik(n), bossCarpan: n <= 1 ? 0.8 : 1,   /* tek kişide boss ayrıca ×0,8 (2026-11-20: kusursuz nişancı bile Anka'yı yakıyordu) */   /* boss'un ok yağmuru halkası da kalabalığa göre */ moblar, boss, asama: { ad: zad(), n: d.n, i: d.asama }, ipucu: A.ipucu, cikis: savasAyril, sis: 'rgba(4,14,20,.55)' }; }
   async function savasAyril() { const M = B.state(); if (!M || M.over || M.dur) return; M.dur = true;
     const v = await G.pen({ k: 'Sefer', t: 'Seferden ayrılacak mısın?', body: '<p>Ayrılırsan grubun sensiz sürdürür; bu sefere geri dönemezsin. O ana kadar aldığın ganimet sende kalır.</p>', btns: [{ t: 'Savaşa dön', v: false }, { t: 'Ayrıl', cls: 'kor', v: true }] });
     if (M !== B.state()) return; M.dur = false; if (v) B.kapat(); }
@@ -66,7 +69,7 @@
     for (const u of oda().uyeler) { if (u.id === ben() || !u.bagli) continue; const c = EO2.meydanAg && [...EO2.meydanAg.kisiler.values()].find(x => x.handle === u.h); B.yoldasKoy(u.id, { ad: u.ad, set: (c && c.set) || 'temel', gor: EO2.gorunum ? EO2.gorunum.kodOf(u.h) : '', x: dogus(asamalar()[od().asama], oda().uyeler.indexOf(u)) }); } }
   /* savaşa dönüş: bu ekran savaşı baştan kurar; düşman canları ve oyuncunun kendi durumu sunucudaki hâle getirilir. Sıra, giriş bitince sunucudaki adımdan sürer ('adim_bitti'). */
   function canEsitle(deneme) { const M = B.state(), d = od(); if (!Z.savas || !d || d.faz !== 'savas') return; if (!M || !M.on || !M.ben) { if ((deneme || 0) < 40) setTimeout(() => canEsitle((deneme || 0) + 1), 150); return; }
-    d.dusman.forEach((q, j) => { if (q.hp < q.max) B.ortakCan(j + 1, q.hp); });
+    B.cagriEsitle(d.dusman);   /* Şahmeran'ın çağırdığı yılanlar sunucudaki hâle */ d.dusman.forEach((q, j) => { if (q.hp < q.max) B.ortakCan(j + 1, q.hp); });
     const me = d.uye[ben()]; if (me && me.hayatta === false) { M.ben.hp = 0; M.ben.dead = true; M.ben.dustuKesin = true; M.ben.revive = 0; } else if (me && me.max > 0 && me.hp > 0) M.ben.hp = Math.min(M.ben.max, me.hp);
     for (const u of oda().uyeler) { const q = d.uye[u.id]; if (u.id !== ben() && q) B.yoldasKoy(u.id, q.hayatta === false ? { dustu: true } : q.max ? { hp: q.hp, max: q.max } : {}); } }
   /* savaştaki yoldaş topçuları odanın hâline uyar: ayrılan ya da bağlantısı kopan yoldaş yere serilir (sırası zaten atlanır), geri gelen ayağa kalkar */
@@ -76,7 +79,7 @@
   async function asamaBaslat(donus) { const d = od(); if (!d || d.faz !== 'savas' || Z.savas) return;
     if (!G.live) return;   /* giriş ekranındayken (sayfa yenilendi, kayıt henüz açılmadı) savaş kurulmaz; ocağa girilince aşağıdaki nöbetçi savaşa döndürür */
     Z.savas = true; Z.savasBitti = false; Z.sonAsama = null; seyirKapat(); G.close(); document.querySelectorAll('.pen-perde').forEach(w => w.remove());
-    const cfg = cfgKur(d), bek = B.ac(cfg); yoldaslariKur(); if (donus) canEsitle();
+    const cfg = cfgKur(d), bek = B.ac(cfg); yoldaslariKur(); if (donus) canEsitle(); else setTimeout(() => { const M = B.state(), d2 = od(); if (M && M.on && Z.savas && d2 && d2.dusman) B.cagriEsitle(d2.dusman); }, 300);
     setTimeout(() => { const M = B.state(); if (M && Z.savas) OR.eylem({ t: 'konum', x: M.ben.x, y: M.ben.y, aci: Math.round(M.ben.angle), yon: M.ben.face }); }, 700);
     setTimeout(() => { if (B.active() && cfg.ipucu) B.ipucu(cfg.baslik, cfg.ipucu); const M = B.state(); if (M) OR.eylem({ t: 'can', hp: Math.round(M.ben.hp), max: Math.round(M.ben.max) }); yoldasCiz(); }, window.__fastFx ? 0 : 2400);
     const r = await bek; Z.savasBitti = true;
@@ -87,7 +90,8 @@
   /* aşama sonu: çark ve ödül (tek oyunculu seferle aynı fonksiyonlar), sonra kampa dönüş */
   async function sonrasi() { Z.carkta = true; try { await sonrasiIc(); } finally { Z.carkta = false; Z.carkT = Date.now(); } }
   async function sonrasiIc() { const o = Z.sonAsama, d = od(); if (!o || !d || Z.islenen === d.tur * 10 + (o.zafer ? 1 : 0)) return; Z.islenen = d.tur * 10 + (o.zafer ? 1 : 0); Z.sonAsama = null; Z.savas = false; seyirKapat(); if (B.active()) B.kapat(); yoldasCiz(); kampaGit();
-    if (!o.zafer) { ses('pop'); await G.pen({ k: zad() + ' · Aşama ' + (o.asama + 1), t: 'Grup düştü', body: '<p>Ayakta kimse kalmadı. Kampta toparlanın; aynı aşama yeniden denenir.</p>', btns: [{ t: 'Kampa dön', cls: 'altin' }] }); return; }
+    if (!o.zafer) { ses('pop'); const tek = Object.keys(d.uye || {}).length <= 1;   /* tek kişilik seferde "grup" denmez */
+      await G.pen({ k: zad() + ' · Aşama ' + (o.asama + 1), t: tek ? 'Düştün' : 'Grup düştü', body: tek ? '<p>Bu aşamada yere serildin. Kampta toparlan; aynı aşamayı yeniden deneyebilirsin.</p>' : '<p>Ayakta kimse kalmadı. Kampta toparlanın; aynı aşama yeniden denenir.</p>', btns: [{ t: 'Kampa dön', cls: 'altin' }] }); return; }
     T.ornekKur({ zindan: tarif().odul, zorluk: d.zorluk });
     if (!o.son) { T.odulYaz('asama'); await T.cark('Aşama ' + (o.asama + 1) + ' temizlendi', '150 altın kesene girdi. Çarkı bir kez çevir.', T.kucukCark(o.asama + 1), false); }
     else { T.odulYaz('zindan', { zindan: tarif().odul, zorluk: d.zorluk }); await T.cark(zs().boss + ' yenildi', 'İlk çeviriş bedava; sonrakiler 120 altın.', T.buyukCark(d.zorluk), true); }
@@ -141,6 +145,7 @@
       else if (o.t === 'ates' && o.kim !== ben() && Z.savas) B.yoldasAtes(o.kim, o);
       else if (o.t === 'oyuk' && o.kim !== ben() && Z.savas) B.yoldasOyuk(o);
       else if (o.t === 'can' && o.kim !== ben() && Z.savas) B.yoldasKoy(o.kim, { hp: o.hp, max: o.max });
+      else if (o.t === 'cagri' && Z.savas) B.cagri(o.liste);   // boss çağrısı: sahnede yılan kalmayan tur başında (server/zindan_ortak.js)
       else if (o.t === 'sira' && Z.savas) siraUygula(o);
       else if (o.t === 'tur_bitti' && o.kim !== ben() && Z.savas) { B.yoldasKoy(o.kim, { x: o.x, y: o.y }); if (od().sav && od().sav.kim === o.kim && od().sav.adim === o.adim) B.ortakPas(o.kim); }
       else if (o.t === 'dustu' && o.kim !== ben()) { if (Z.savas) B.yoldasKoy(o.kim, { dustu: true }); G.toast(esc_(uyeAd(o.kim)) + ' düştü.'); }

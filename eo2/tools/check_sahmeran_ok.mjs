@@ -38,7 +38,7 @@ try {
   log.siraGecti = await bekle('EO2.battle.state().aktif !== EO2.battle.state().ben', 15000);
   const son = await p.evaluate(() => { const M = EO2.battle.state(); return { x: M.ben.x, x0: window.__x0, bx: M.boss.x, atis: M.ist.tur - window.__atis0 }; }); log.yurudu = Math.abs(son.bx - son.x) < Math.abs(son.bx - son.x0) - 1; log.atesEtmedi = son.atis === 0; log.son = son;
   // kalkan büyüyü kırar
-  await bekle(SIRA, 60000); await p.evaluate(() => { const M = EO2.battle.state(); M.ben.shield = 2; EO2.battle.pas(); });
+  await bekle(SIRA, 60000); await p.evaluate(() => { const M = EO2.battle.state(); M.ben.shield = 9; EO2.battle.pas();   /* 9: Şahmeran'ın çağırdığı yılanlar da (2026-11-20) Şahmeran'dan önce vurur, kalkan büyüye kalsın */ });
   await bekle('EO2.battle.state().shots.some(s => s.cazibe)', 30000); await bekle('!EO2.battle.state().shots.length', 20000); await p.waitForTimeout(600);
   log.kalkanKirdi = await p.evaluate(() => !EO2.battle.state().ben.cazibe);
   // öteki hamleler de ok atar
