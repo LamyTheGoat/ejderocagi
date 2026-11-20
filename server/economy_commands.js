@@ -77,7 +77,7 @@ const SHAPES = Object.freeze({
   // ENG-13 · Tek kese: istemci yalnız kimlik/olay bildirir; sonucu sunucu hesaplar (server/local_income.js).
   'dragon.die': ['assetId'], 'auction.sell': ['assetId'], 'offer.sell': ['assetId'], 'order.deliver': ['assetId', 'spec'],
   'topcu.clear': ['mode'], 'topcu.spin': ['wheel'], 'goal.reach': ['id'],
-  'gold.local': ['amount', 'reason'], 'gold.import': ['amount'],
+  'gold.local': ['amount', 'reason'], 'gold.import': ['amount'], 'gold.merge': ['amount'],
   'arena.open': ['spec'], 'arena.settle': ['acts', 'fightId'], 'arena.story': ['id'],
   'ocak.sync': ['body'], 'tezgah.hafta': ['week'],
 });
@@ -97,6 +97,7 @@ function validateCommand(input) {
     if (key === 'enabled') { if (typeof value !== 'boolean') fail('invalid_arguments'); }
     else if (key === 'tile') { if (!Number.isSafeInteger(value) || value < 0) fail('invalid_arguments'); }
     else if (key === 'id') { if (!(typeof value === 'string' || Number.isSafeInteger(value))) fail('invalid_arguments'); }
+    else if (key === 'amount' && input.type === 'gold.merge') { if (!Number.isSafeInteger(value) || Math.abs(value) > 1_000_000_000) fail('invalid_arguments'); }
     else if (key === 'amount') { if (!Number.isSafeInteger(value) || Math.abs(value) > 1_000_000 || (value === 0 && input.type !== 'gold.import')) fail('invalid_arguments'); }
     else if (key === 'week') { if (!Number.isSafeInteger(value) || value < 1 || value > 100000) fail('invalid_arguments'); }
     else if (input.type === 'ocak.sync' && key === 'body') { if (typeof value !== 'string' || !value || value.length > 400_000) fail('invalid_arguments'); }
@@ -143,6 +144,8 @@ function reduceCommand(previous, command, { accountId, seed, now }) {
   if (DEBT_BLOCKED.has(command.type)) debt.assertNoDebt(S);
   let payment = sources.bucket(0, 'earned');
   const spend = amount => { debt.assertNoDebt(S); payment = sources.spend(S, amount); };
+  // Tek keseli 2.0 hesabı: hesap tezgâhı önce kazanılmış altından öder (economy_sources.js spendEarnedFirst).
+  const spendShop = amount => { if (!S.tekKese) return spend(amount); debt.assertNoDebt(S); payment = sources.spendEarnedFirst(S, amount); };
   const paidSource = () => sources.sourceOf(payment);
   const owned = (rows, assetId) => { const asset = rows.find(row => row.assetId === assetId); if (!asset) fail('asset_not_owned', 403); return asset; };
   const payRecipe = recipe => {
@@ -179,14 +182,14 @@ function reduceCommand(previous, command, { accountId, seed, now }) {
     case 'shop.dragon': {
       const dragon = S.market.dragons.find(d => d.id === a.id);
       if (!dragon || (!S.ocak && api.freeSlots() < 1)) fail('dragon_unavailable', 409); // 2.0'a bağlı ocakta in sayısı yerel ocaktadır; yer denetimi istemcide
-      spend(dragon.price); S.market.dragons = S.market.dragons.filter(d => d !== dragon);
+      spendShop(dragon.price); S.market.dragons = S.market.dragons.filter(d => d !== dragon);
       dragon.funding = paidSource(); S.milestoneSources.acq = sources.combine([S.milestoneSources.acq || 'earned', dragon.funding]);
       delete dragon.price; dragon.id = S.nid++; S.dragons.push(dragon); S.st.acq++; break;
     }
     case 'shop.egg': {
       const egg = S.market.egg;
       if (!egg || egg.id !== a.id) fail('egg_unavailable', 409);
-      spend(api.eggPrice(egg)); egg.funding = paidSource(); delete egg.price; egg.inK = api.kuluckaFree() > 0; S.eggs.push(egg); S.market.egg = null; break;
+      spendShop(api.eggPrice(egg)); egg.funding = paidSource(); delete egg.price; egg.inK = api.kuluckaFree() > 0; S.eggs.push(egg); S.market.egg = null; break;
     }
     case 'item.sell': {
       const item = owned(S.inv, a.assetId);
