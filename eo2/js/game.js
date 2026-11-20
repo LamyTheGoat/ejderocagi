@@ -330,7 +330,7 @@
     /* ---------- Dünyaya bağlı arayüz: tabela, isim, balon, istem ---------- */
     const anchors = $('anchors'), mk = (cls, html) => { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; d.hidden = true; anchors.appendChild(d); return d; };
     const rebuildSigns = () => { for (const o of signEls) o.el.remove(); signEls = (L.signs || []).map(s => { const el = mk('sign', '<span></span>'); el.firstChild.textContent = s.label; return { s, el }; }); };
-    const setPlate = c => { if (!c.plate) return; const b = c.plate.firstChild, i = c.plate.lastChild; b.textContent = c.name; i.textContent = c.isPlayer ? (EO2.game && EO2.game.plate ? EO2.game.plate() : '') : c.remote ? 'oyuncu' : (c.role && c.role !== 'NPC' ? c.role : ''); i.hidden = !i.textContent; };
+    const setPlate = c => { if (!c.plate) return; const b = c.plate.firstChild, i = c.plate.lastChild; b.textContent = c.name; i.textContent = c.isPlayer ? (EO2.game && EO2.game.plate ? EO2.game.plate() : '') : c.remote ? 'oyuncu' : (c.role && c.role !== 'NPC' ? c.role : ''); i.hidden = !i.textContent; c._pw = 0; };   // boyu değişti: updateAnchors yeniden ölçer
     const plateOf = c => { if (!c.plate) { c.plate = mk('plate' + (c.isPlayer ? ' me' : c.remote ? ' real' : ''), '<b></b><i></i>'); setPlate(c); } return c.plate; };
     const dropChar = c => { for (const k of ['plate', 'bub']) if (c[k]) { c[k].remove(); c[k] = null; } if (c.pet && c.pet.bub) c.pet.bub.remove(); };
     const bubbleOf = c => c.bub || (c.bub = mk('bubble', ''));
@@ -343,16 +343,17 @@
       for (const c of remotes) if ((c.area || 'meydan') !== SC.id) { if (c.plate) c.plate.hidden = true; if (c.bub) c.bub.hidden = true; }
       const chars = [player, ...npcs, ...remotes.filter(c => (c.area || 'meydan') === SC.id)];
       for (const c of chars) { const top = R.project(c.x, c.y, 2.02), far = top && top[2] > 26; if (c.isPlayer ? !top : (!top || far || W.nearFade(F, c.y) < 0.5)) { plateOf(c).hidden = true; c._top = null; if (c.bub) c.bub.hidden = true; continue; }
-        c._top = top; place(plateOf(c), top); if (c.bubble) { c.bubble.t -= dt; if (c.bubble.t <= 0) { c.bubble = null; c.bub.hidden = true; } else place(c.bub, top, 0, -plateOf(c).offsetHeight - 6); } else if (c.bub) c.bub.hidden = true; }
+        c._top = top; place(plateOf(c), top); if (c.bubble) { c.bubble.t -= dt; if (c.bubble.t <= 0) { c.bubble = null; c.bub.hidden = true; } else place(c.bub, top, 0, -(c._ph || plateOf(c).offsetHeight) - 6); } else if (c.bub) c.bub.hidden = true; }
       /* isim plakaları üst üste binmez: oyuncu ve yakındaki önce yerleşir, çakışan uzak plaka o kare gizlenir */
-      { const kab = []; for (const c of chars.slice().sort((a, b) => (b.isPlayer ? 1 : 0) - (a.isPlayer ? 1 : 0) || (a._top ? a._top[2] : 99) - (b._top ? b._top[2] : 99))) { if (!c._top) continue; const pl = plateOf(c), w = pl.offsetWidth || c._pw || 0, h = pl.offsetHeight || c._ph || 0; if (!w) continue; c._pw = w; c._ph = h;
+      { const kab = []; for (const c of chars.slice().sort((a, b) => (b.isPlayer ? 1 : 0) - (a.isPlayer ? 1 : 0) || (a._top ? a._top[2] : 99) - (b._top ? b._top[2] : 99))) { if (!c._top) continue; const pl = plateOf(c); let w = c._pw || 0, h = c._ph || 0; if (!w || c._pwG !== olcuG) { const ow = pl.offsetWidth; if (ow) { w = c._pw = ow; h = c._ph = pl.offsetHeight; c._pwG = olcuG; } } if (!w) continue;   /* plaka boyu önbellekte: her karede offsetWidth okumak (yazdıktan sonra) tarayıcıyı yerleşimi baştan hesaplamaya zorluyordu */
           const x0 = c._top[0] - w / 2 - 4, y0 = c._top[1] - h - 4, x1 = x0 + w + 8, y1 = y0 + h + 8; if (!c.isPlayer && kab.some(q => x0 < q[2] && x1 > q[0] && y0 < q[3] && y1 > q[1])) { pl.hidden = true; continue; } kab.push([x0, y0, x1, y1]); } }
       if (pet.bubble) { pet.bubble.t -= dt; const p = R.project(pet.x, pet.y, 1.0); if (pet.bubble.t <= 0 || !S.companion) { pet.bubble = null; pet.bub.hidden = true; } else place(pet.bub, p); }
       if (SC.w.pets) for (const o of Object.values(SC.w.pets)) if (o.bubble) { o.bubble.t -= dt; if (o.bubble.t <= 0) { o.bubble = null; o.bub.hidden = true; } else place(o.bub, R.project(o.x, o.y, o.z)); }
-      if (near && !S.panel) { const p = R.project(near.x, near.y, near.z); promptEl.innerHTML = '<kbd>E</kbd><span><b>' + near.label + '</b><i>' + near.sub + '</i></span>'; if (p) { const px = clamp(p[0], 90, R.w - 90), py = clamp(p[1] - (near.npc ? R.h * 0.045 : 0), R.h * 0.2, R.h * 0.8); place(promptEl, [px, py, 1]);
+      if (near && !S.panel) { const p = R.project(near.x, near.y, near.z), html = '<kbd>E</kbd><span><b>' + near.label + '</b><i>' + near.sub + '</i></span>'; if (promptEl._h !== html) { promptEl.innerHTML = html; promptEl._h = html; promptEl._w = 0; }   /* yazı değişmedikçe DOM'a dokunulmaz */ if (p) { const px = clamp(p[0], 90, R.w - 90), py = clamp(p[1] - (near.npc ? R.h * 0.045 : 0), R.h * 0.2, R.h * 0.8); place(promptEl, [px, py, 1]);
         /* etkileşim baloncuğu oyuncunun isim plakasına biniyorsa plakanın üstüne çıkar */
-        const pl = player.plate; if (pl && !pl.hidden && !promptEl.hidden) { const a = promptEl.getBoundingClientRect(), b = pl.getBoundingClientRect(); if (a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top) place(promptEl, [px, py - (a.bottom - b.top) - 6, 1]); } } $('btnE').classList.add('on'); $('btnE').querySelector('span').textContent = near.label; }
-      else { promptEl.hidden = true; $('btnE').classList.remove('on'); }
+        const pl = player.plate; if (pl && !pl.hidden && !promptEl.hidden && player._top && player._pw) { if (!promptEl._w || promptEl._g !== olcuG) { promptEl._w = promptEl.offsetWidth; promptEl._hh = promptEl.offsetHeight; promptEl._g = olcuG; }   /* kutular ölçülen boydan hesaplanır (her kare getBoundingClientRect yok) */
+          const aw = promptEl._w, ah = promptEl._hh, bx = player._top[0], by = player._top[1], a = { left: px - aw / 2, right: px + aw / 2, top: py - ah, bottom: py }, b = { left: bx - player._pw / 2, right: bx + player._pw / 2, top: by - player._ph, bottom: by }; if (a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top) place(promptEl, [px, py - (a.bottom - b.top) - 6, 1]); } } const be = $('btnE'); if (!be.classList.contains('on')) be.classList.add('on'); const bs = be.querySelector('span'); if (bs.textContent !== near.label) bs.textContent = near.label; }
+      else { promptEl.hidden = true; const be = $('btnE'); if (be.classList.contains('on')) be.classList.remove('on'); }
     }
 
     /* ---------- HUD ---------- */
@@ -465,15 +466,24 @@
       EO2.iris(() => yuk.then(() => { enter(id, from); }).then(() => { switching = false; }, e => { switching = false; console.error(e); })); }
 
     /* ---------- Döngü ---------- */
-    function fit() { const r = app.getBoundingClientRect(); if (r.width && r.height) R.resize(r.width, r.height, Math.min(devicePixelRatio || 1, 2)); }
+    let olcuG = 0;   // ekran boyu ya da yazı ölçeği değişince artar: önbellekteki plaka boyları yeniden ölçülür
+    const cizimDpr = () => EO2.ayar && EO2.ayar.dpr ? EO2.ayar.dpr() : Math.min(devicePixelRatio || 1, 2);
+    function fit() { olcuG++; const r = app.getBoundingClientRect(); if (r.width && r.height) R.resize(r.width, r.height, cizimDpr()); }
     new ResizeObserver(fit).observe(app); fit();
     let last = performance.now(), acc = 0, frames = 0, tick = 0;
     const stats = EO2.stats = { fps: 0, quads: 0, flushes: 0, ms: 0 };
+    /* Dünya örtülü mü: tam ekran bir ekran (ahır, arena, pazar...) ya da Topçu savaşı açıkken dünya görünmez.
+       O sürede dünya yine işler (update) ama çizilmez: telefonda her kare iki tam sahne çizmek takılmanın başlıca nedeniydi.
+       Ekran açılırken solma sürer (.28 sn); çizim ancak ekran tamamen örtünce durur, kapanınca aynı kare geri gelir. */
+    let ortuT = 0;
+    function dunyaOrtulu(now) { const sc = document.getElementById('scr'), tp = document.getElementById('tpSavas'), o = (sc && sc.classList.contains('acik')) || (tp && !tp.hidden);
+      if (!o) { ortuT = 0; return false; } if (!ortuT) ortuT = now; return now - ortuT > 400; }
     function frame(now) {
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
-      const t0 = performance.now(); update(dt); render(dt); updateAnchors(dt); stats.ms = performance.now() - t0;
+      const ortulu = dunyaOrtulu(now), t0 = performance.now(); update(dt); if (!ortulu) { render(dt); updateAnchors(dt); } stats.ms = performance.now() - t0; stats.ortulu = ortulu;
       for (const h of EO2.frameHooks) h(dt);
-      if (tick++ % 4 === 0) drawMini();
+      if (!ortulu && EO2.ayar && EO2.ayar.kareOlc) EO2.ayar.kareOlc(now);   // akıcılık bekçisi: yalnız dünya çizilirken ölçülür
+      if (!ortulu && tick++ % 4 === 0) drawMini();
       acc += dt; frames++; if (acc >= 0.5) { stats.fps = Math.round(frames / acc); stats.quads = R.quads; stats.flushes = R.flushes; if (S.fps) $('fps').textContent = stats.fps + ' fps · ' + R.quads + ' dörtgen · ' + R.flushes + ' çizim'; acc = 0; frames = 0; }
       requestAnimationFrame(frame);
     }
