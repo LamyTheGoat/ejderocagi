@@ -151,11 +151,11 @@
 @media (max-height: 560px) {
   .tp-plk { width: min(17em, 30vw); gap: .45em; padding: .3em .7em .35em .3em; } .tp-hedef { padding: .3em .3em .35em .7em; } .tp-yuz { width: 2.9em; height: 2.9em; } .tp-plk-ic > small, .tp-rozet { display: none; } .tp-plk-ic { gap: .16em; }
   .tp-sira { padding: .1em 1em .2em; min-width: 7em; } #tpSure { font-size: 1.45em; } .tp-sira span { font-size: .68em; }
-  .tp-ruzgar { top: calc(max(.8em, env(safe-area-inset-top, 0px)) + 4.1em); padding: .15em .7em; } #tpHarita { display: none; }
+  .tp-ruzgar { top: calc(max(.8em, env(safe-area-inset-top, 0px)) + 4.1em); padding: .15em .7em; } #tpHarita { top: calc(max(.8em, env(safe-area-inset-top, 0px)) + 6.6em); width: 11em; height: 2em; }      /* yatay telefonda da küçük harita: dokununca kamera oraya bakar */
   .tp-asama { top: calc(max(.8em, env(safe-area-inset-top, 0px)) + 4.3em); padding: .2em .6em; }
   .tp-konsol { gap: .6em; padding: .3em .6em; bottom: max(.4em, env(safe-area-inset-bottom, 0px)); } .tp-aci { width: 3.6em; } .tp-aci svg { width: 3.4em; } #tpAci { font-size: 1em; } .tp-cubuk { width: 8em; } .tp-guc label small { display: none; }
   .ui2.touch .tp-konsol { max-width: calc(100% - 23em); } .tp-pad { bottom: max(.5em, env(safe-area-inset-bottom, 0px)); } #tpAtes { width: 4.8em; height: 4.8em; }
-  .tp-bilgi { bottom: calc(max(.4em, env(safe-area-inset-bottom, 0px)) + 4.4em); } .tp-bilgi.uzun { top: calc(max(.4em, env(safe-area-inset-top, 0px)) + 6.4em); bottom: auto; }      /* ilk atış ipucu üste: yukarı oku ve ATEŞ'i örtmesin */ .tp-laf { bottom: calc(max(.4em, env(safe-area-inset-bottom, 0px)) + 4.6em); padding: .4em .7em .5em; }
+  .tp-bilgi { bottom: calc(max(.4em, env(safe-area-inset-bottom, 0px)) + 4.4em); } .tp-bilgi.uzun { top: calc(max(.4em, env(safe-area-inset-top, 0px)) + 9.2em); bottom: auto; }      /* ilk atış ipucu üste: yukarı oku ve ATEŞ'i örtmesin */ .tp-laf { bottom: calc(max(.4em, env(safe-area-inset-bottom, 0px)) + 4.6em); padding: .4em .7em .5em; }
   #tpPankart b { font-size: 2.2em; } #tpPankart.big b { font-size: 3em; }
   .ui2 .tp-kunye { top: .5em; bottom: .5em; right: .5em; width: min(24em, 62%); padding: .8em; gap: .45em; } .ui2 .tp-k-yuz { display: none; } .ui2 .tp-k-bas h2 { font-size: 1.5em; } .ui2 .tp-yol small { display: none; } .ui2 .tp-yol li { padding: .1em 0; }
   .ui2 .tp-rehber { top: .4em; font-size: .85em; }
@@ -171,8 +171,8 @@
   .tp-sira { top: calc(max(.8em, env(safe-area-inset-top, 0px)) + 5.6em); padding: .15em 1.1em .25em; } #tpSure { font-size: 1.6em; }
   .tp-ruzgar { top: calc(max(.8em, env(safe-area-inset-top, 0px)) + 10em); } #tpHarita { top: calc(max(.8em, env(safe-area-inset-top, 0px)) + 12.3em); width: 12em; height: 2.2em; }
   .tp-asama { top: calc(max(.8em, env(safe-area-inset-top, 0px)) + 6.2em); left: max(.6em, env(safe-area-inset-left, 0px)); } .tp-asama small { display: none; }
-  .tp-konsol { flex-wrap: wrap; justify-content: center; gap: .5em .8em; width: calc(100% - 1.2em); padding: .5em .6em; } .tp-beceri { flex-wrap: wrap; justify-content: center; overflow: visible; width: 100%; } .tp-cubuk { width: 11em; } .tp-guc label small { display: none; }
-  .tp-pad { bottom: calc(max(.8em, env(safe-area-inset-bottom, 0px)) + 14.4em); }      /* hüner simgeleri iki sıraya iner; oklar ve ATEŞ konsolun üstünde kalır */
+  .tp-konsol { flex-wrap: wrap; justify-content: center; gap: .5em .8em; width: calc(100% - 1.2em); padding: .5em .6em; } .tp-beceri { width: 100%; }      /* hünerler tek sıra, kaydırılır: alt panel ekranın üçte birini kaplamaz */ .tp-cubuk { width: 11em; } .tp-guc label small { display: none; }
+  .tp-pad { bottom: calc(max(.8em, env(safe-area-inset-bottom, 0px)) + 11em); }      /* hünerler tek sıra; oklar ve ATEŞ konsolun hemen üstünde kalır */
   .tp-bilgi, .tp-bilgi.uzun { top: calc(max(.8em, env(safe-area-inset-top, 0px)) + 15em); bottom: auto; white-space: normal; text-align: center; width: calc(100% - 1.2em); max-width: 30em; }      /* ipucu ve hüner bilgisi göğe çıkar: oklar ve ATEŞ açık kalır */
   .tp-laf { bottom: calc(max(.8em, env(safe-area-inset-bottom, 0px)) + 19em); } #tpPankart b { font-size: 2.1em; } #tpPankart.big b { font-size: 2.8em; } #tpPankart { top: 30%; }
   /* dikeyde sahne üstte kayar bir şerittir, künye altında durur: kapılar hep görünür */
@@ -324,3 +324,10 @@
 .ui2 .em-taraf.vuruldu .em-chibi { animation: em-vur .5s ease-out; } @keyframes em-vur { 0% { filter: brightness(2.2) drop-shadow(0 0 1em #fff); transform: translateX(0); } 30% { transform: translateX(-.5em); } 60% { transform: translateX(.4em); } 100% { transform: none; } }
 .ui2 .em-taraf.dustu .em-chibi { filter: grayscale(.9) brightness(.6); } .ui2 .em-kok.izle .em-kod2 { cursor: default; } .ui2 .em-kok.izle .em-orta { top: 9.5em; }
 @media (prefers-reduced-motion: reduce) { .ui2 .em-taraf.vuruldu .em-chibi { animation: none; } }
+
+/* mobil dokunma: ATEŞ iptal görünümü, hüner şeridinde kaydırma işareti, dokunulabilir küçük harita */
+#tpAtes.iptal { filter: grayscale(1) brightness(.7); transform: scale(.9); } #tpAtes.iptal b { font-size: 0; } #tpAtes.iptal b::after { content: 'İPTAL'; font-size: 13px; }
+.tp-beceri.sag { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 2.6em), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 2.6em), transparent); }
+.tp-beceri.sol { -webkit-mask-image: linear-gradient(90deg, transparent, #000 2.6em); mask-image: linear-gradient(90deg, transparent, #000 2.6em); }
+.tp-beceri.sol.sag { -webkit-mask-image: linear-gradient(90deg, transparent, #000 2.6em, #000 calc(100% - 2.6em), transparent); mask-image: linear-gradient(90deg, transparent, #000 2.6em, #000 calc(100% - 2.6em), transparent); }
+#tpHarita { cursor: pointer; touch-action: none; }
