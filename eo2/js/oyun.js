@@ -24,8 +24,11 @@
   const tray = el('div', 'bildirimler'); tray.setAttribute('aria-live', 'polite'); app.appendChild(tray);
   /* bildirim tepsisi düğmelerin üstüne çıkmaz: olağan yerinde bir düğmeye biniyorsa sırayla öteki yerler denenir, ilk boş olan seçilir.
      G.dugmeyeBiner(kutular): verilen kutulardan biri görünen bir düğmeye, girişe ya da sekmeye değiyor mu (js/rehber.js de kullanır). */
+  /* ÖRTÜLMEZ (UX denetimi, 2026-11-20): düğme olmasa da üstüne bildirim ya da ipucu binmemesi gereken bilgiler: Yuva'daki yakınlık kalbi ve şartlar,
+     ejderha adları, Ahır'daki durum halkaları. Telefonda ipucu şeridi bunların üstüne biniyordu. js/rehber.js de kullanır. */
+  G.ORTULMEZ = '#app .yu-kalp2, #app .yu-tahmin, #app .yu-sart, #app .ar-ad h2, #app .ah-kimlik h2, #app .ah-durum';
   G.dugmeyeBiner = function (kutular, haric) { const L = kutular.filter(q => q && q.width > 3 && q.height > 3); let alan = 0; if (!L.length) return 0;
-    for (const b of document.querySelectorAll('#app button, #app input, #app select, #app [role="button"], #app [role="tab"], #app > .rehber:not([hidden])')) {   /* öğretici şeridi de engeldir: bildirim onun yazısına binmez */ if ((haric && haric.contains(b)) || b.closest('#world, #anchors, #loading')) continue;
+    for (const b of document.querySelectorAll('#app button, #app input, #app select, #app [role="button"], #app [role="tab"], #app > .rehber:not([hidden]), ' + G.ORTULMEZ)) {   /* öğretici şeridi de engeldir: bildirim onun yazısına binmez */ if ((haric && haric.contains(b)) || b.closest('#world, #anchors, #loading')) continue;
       const r = b.getBoundingClientRect(); if (r.width < 6 || r.height < 6) continue; const cs = getComputedStyle(b); if (cs.visibility === 'hidden' || cs.display === 'none' || cs.pointerEvents === 'none' || +cs.opacity < 0.05) continue;
       for (const q of L) if (Math.min(q.right, r.right) - Math.max(q.left, r.left) > 3 && Math.min(q.bottom, r.bottom) - Math.max(q.top, r.top) > 3) { const t = document.elementFromPoint((Math.max(q.left, r.left) + Math.min(q.right, r.right)) / 2, (Math.max(q.top, r.top) + Math.min(q.bottom, r.bottom)) / 2); if (t && (t === b || b.contains(t) || t.contains(b))) alan += (Math.min(q.right, r.right) - Math.max(q.left, r.left)) * (Math.min(q.bottom, r.bottom) - Math.max(q.top, r.top)); } }
     return alan; };
@@ -72,7 +75,7 @@
 
   /* ---------- ekran çerçevesi ---------- */
   const scr = el('section', 'scr'); scr.id = 'scr'; scr.setAttribute('aria-hidden', 'true');
-  scr.innerHTML = '<header class="scr-h"><button type="button" class="gbtn" id="scrBack">◂ Meydan</button><div class="ad"><small id="scrK"></small><h1 id="scrT"></h1></div><div class="sekme" id="scrNav" role="tablist" hidden></div><span class="res2" title="Altın"><i></i><b id="scrGold"></b></span><span class="res2 un" title="Ün"><i></i><b id="scrUn"></b></span><button type="button" class="gbtn altin" id="scrWeek"></button></header><div class="scr-b" id="scrB"></div>';
+  scr.innerHTML = '<header class="scr-h"><button type="button" class="gbtn" id="scrBack" aria-label="Meydana dön"><span aria-hidden="true">◂</span><span class="geri-ad"> Meydan</span></button><div class="ad"><small id="scrK"></small><h1 id="scrT"></h1></div><div class="sekme" id="scrNav" role="tablist" hidden></div><span class="res2" title="Altın"><i></i><b id="scrGold"></b></span><span class="res2 un" title="Ün"><i></i><b id="scrUn"></b></span><button type="button" class="gbtn altin" id="scrWeek"></button></header><div class="scr-b" id="scrB"></div>';
   app.appendChild(scr);
   const SCREENS = {}; let cur = null;
   G.screen = (id, def) => { SCREENS[id] = def; };

@@ -54,14 +54,15 @@
     if (o.sn) sure = setTimeout(() => { if (simdi === o) gizle(); }, o.sn * 1000);
     serit.classList.remove(...YERLER.filter(Boolean)); if (o.tur === 'ekran') for (const ms of [380, 1200]) setTimeout(() => { if (simdi === o) yerles(); }, ms); }
   /* ekran ipucu ekranın düğmelerini örtmez: altta bir düğmeye biniyorsa üste (başlığın altına) çıkar */
-  function binen() { const q = serit.getBoundingClientRect(); if (q.width < 4) return false; for (const el of document.querySelectorAll('#app button, #app input, #app [role="button"], #app [role="tab"], #app .ag-rozet')) {   /* .ag-rozet: arenadaki durum etiketi (ipucu onun üstüne binmesin) */ if (serit.contains(el) || el.closest('#hud, .quests, #chat, #emotes, #actions, #world, #anchors')) continue;
-      const r = el.getBoundingClientRect(); if (r.width < 6 || r.height < 6) continue; const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || cs.display === 'none' || cs.pointerEvents === 'none') continue;
-      if (Math.min(q.right, r.right) - Math.max(q.left, r.left) > 4 && Math.min(q.bottom, r.bottom) - Math.max(q.top, r.top) > 4) return true; } return false; }
+  function binen() { const q = serit.getBoundingClientRect(); let n = 0; if (q.width < 4) return 0; for (const el of document.querySelectorAll('#app button, #app input, #app [role="button"], #app [role="tab"], #app .ag-rozet, #app > .bildirimler > .bildirim' + (G.ORTULMEZ ? ', ' + G.ORTULMEZ : ''))) {   /* bildirimler ve G.ORTULMEZ (kalp, adlar, durum halkaları) da örtülmez */   /* .ag-rozet: arenadaki durum etiketi (ipucu onun üstüne binmesin) */ if (serit.contains(el) || el.closest('#hud, .quests, #chat, #emotes, #actions, #world, #anchors')) continue;
+      const r = el.getBoundingClientRect(); if (r.width < 6 || r.height < 6) continue; const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || cs.display === 'none' || (cs.pointerEvents === 'none' && !el.matches('.bildirim, ' + (G.ORTULMEZ || '.yok')))) continue;
+      if (Math.min(q.right, r.right) - Math.max(q.left, r.left) > 4 && Math.min(q.bottom, r.bottom) - Math.max(q.top, r.top) > 4) n++; } return n; }   // kaç öğeye biniyor (0: boş yer)
   /* sırayla denenen yerler: altta, başlığın altında, sekmelerin altında, ekranın ortasının üstünde, ortasının altında. İlk boş olan seçilir. */
-  const YERLER = ['', 'yer-ust', 'yer-ust2', 'yer-orta', 'yer-orta2'], DIK = ['', 'yer-orta2', 'yer-orta', 'yer-ust2', 'yer-ust'];   // dik ekranda üst taraf doludur: önce ekranın ortası denenir
+  const YERLER = ['', 'yer-ust', 'yer-ust2', 'yer-orta', 'yer-orta2', 'yer-sagalt', 'yer-solalt'], DIK = ['', 'yer-orta2', 'yer-orta', 'yer-ust2', 'yer-ust'];   // yatayda son çare alt köşeler (dar şerit, kalbe ve adlara binmez)   // dik ekranda üst taraf doludur: önce ekranın ortası denenir
   function yerles() { if (serit.hidden || !binen()) return; const adlar = YERLER.filter(Boolean);
-    for (const y of (innerWidth < innerHeight ? DIK : YERLER)) { serit.classList.remove(...adlar); if (y) serit.classList.add(y); if (!binen()) return; }
-    serit.classList.remove(...adlar); serit.classList.add('yer-ust2'); }
+    let enIyi = 'yer-ust2', enAz = Infinity;   /* hiçbir yer boş değilse en az öğeye binen yer seçilir */
+    for (const y of (innerWidth < innerHeight ? DIK : YERLER)) { serit.classList.remove(...adlar); if (y) serit.classList.add(y); const n = binen(); if (!n) return; if (n < enAz) { enAz = n; enIyi = y; } }
+    serit.classList.remove(...adlar); if (enIyi) serit.classList.add(enIyi); }
   function gizle() { clearTimeout(sure); simdi = null; serit.hidden = true; }
   serit.querySelector('.rh-kapat').addEventListener('click', () => { if (EO2.audio) EO2.audio.ui(); if (simdi && simdi.kilit) return; if (simdi) isaretle(simdi.id); gizle(); tazele(); });
   serit.querySelector('.rh-gec').addEventListener('click', async () => { if (EO2.audio) EO2.audio.ui(); const v = await G.pen({ k: 'Öğretici', t: 'Öğreticiyi geçelim mi?', body: '<p>Her yer hemen açılır. İpuçları yine sırası gelince görünür.</p>', btns: [{ t: 'Öğreticiye dön', v: false }, { t: 'Geç', cls: 'altin', v: true }] }); if (v) kilitGec(); });
