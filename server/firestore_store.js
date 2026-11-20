@@ -6,6 +6,7 @@ const market = require('./market_service');
 const duel = require('./duel_service');
 const { validateCommand, reduceCommand, gameEconomy, fail } = require('./economy_commands');
 const recovery = require('./account_recovery');
+const huni = require('./huni_service');
 const SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
 
@@ -58,6 +59,24 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
   const socials = db.collection('eo_social');
   async function getSocial(accountId) { const doc = await socials.doc(accountId).get(); return doc.exists ? JSON.parse(doc.data().json) : null; }
   async function putSocial(accountId, kayit) { const json = JSON.stringify(kayit); if (json.length > 64000) throw Object.assign(new Error('social_too_large'), { code: 'social_too_large', status: 409 }); await socials.doc(accountId).set({ accountId, json }); }
+  // oyuncu hunisi (server/huni_service.js): eo_huni/<hesap> ilk geçilen adımlar; eo_huni_gun/<gün> kohort sayaçları (artırma, okumasız)
+  const huniHesap = db.collection('eo_huni'), huniGun = db.collection('eo_huni_gun');
+  async function recordFunnel(accountId, adimlar, gun) {
+    const { FieldValue } = require('@google-cloud/firestore');
+    return db.runTransaction(async tx => {
+      const ref = huniHesap.doc(accountId), doc = await tx.get(ref);
+      const { kayit, yeni, kohort } = huni.planla(doc.exists ? JSON.parse(doc.data().json) : null, adimlar, gun);
+      if (!yeni.length) return [];
+      tx.set(ref, { json: JSON.stringify(kayit) });
+      const artis = { gun: kohort }; for (const a of yeni) artis[a] = FieldValue.increment(1);
+      tx.set(huniGun.doc(String(kohort)), artis, { merge: true });
+      return yeni;
+    }, { maxAttempts: 5 });
+  }
+  async function readFunnel(ilkGun, sonGun) {
+    const q = await huniGun.where('gun', '>=', ilkGun).where('gun', '<=', sonGun).get();
+    return q.docs.map(d => { const v = d.data(), sayac = {}; for (const a of huni.ADIMLAR) if (Number.isFinite(v[a])) sayac[a] = v[a]; return { gun: v.gun, sayac }; });
+  }
   async function findAccountByHandle(handle) { const q = await accounts.where('handle', '==', String(handle)).limit(1).get(); return q.empty ? null : q.docs[0].id; }
   async function resolveSession(token) {
     if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
@@ -316,7 +335,7 @@ function openFirestoreStore({ projectId, databaseId = 'economy', client, now = D
   async function readMatch(matchId) { return duel.MATCH_ID.test(matchId || '') ? matchOf(await matches.doc(matchId).get()) : null; }
   return {
     checkDuelEntry, openMatch, finalizeMatch, settleGameplay, readMatch,
-    backend: 'firestore', putDurable, getDurable, listDurable, executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, findAccountByHandle, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
+    backend: 'firestore', putDurable, getDurable, listDurable, executeMarket, listMarket, listMarketRaw, pruneServiceState, consumeRate, publishPresence, listPeers, compactTradeReceipts, createGuest, resolveSession, createRecoveryCode, redeemRecoveryCode, putSave, getSave, getSocial, putSocial, recordFunnel, readFunnel, findAccountByHandle, readEconomy, executeCommand, executeTrade, currentTrade, expireTrades, migrateTradeExpiry,
     async revokeSession(token) { if (typeof token === 'string') await sessions.doc(hashToken(token)).delete(); },
     async close() { await db.terminate(); },
   };

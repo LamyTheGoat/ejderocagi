@@ -12,6 +12,19 @@
   /* ---- uzun basma menüsü ---- */
   app.addEventListener('contextmenu', e => { if (!dokunmatik) return; const t = e.target; if (t && t.closest && t.closest('input, textarea, #chatLog, #dlgText, a[href]')) return; e.preventDefault(); });
 
+  /* ---- iOS Safari (iPhone, iPad) ---- */
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (ios) {
+    document.documentElement.classList.add('ios');
+    /* yazı alanı 16 pikselden küçükse iOS odakta sayfayı büyütür ve geri küçültmez: büyütmeyi kapat */
+    const vp = document.querySelector('meta[name=viewport]');
+    if (vp && !/maximum-scale/.test(vp.content)) vp.content += ',maximum-scale=1';
+    /* iki parmakla sayfa yakınlaşmasın (iOS user-scalable'ı yok sayar; gesture olayını kesmek gerekir) */
+    for (const t of ['gesturestart', 'gesturechange']) document.addEventListener(t, e => e.preventDefault(), { passive: false });
+    /* klavye kapanınca iOS sayfayı kaydırılmış bırakabilir: yerine döndür */
+    document.addEventListener('focusout', e => { const t = e.target; if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) setTimeout(() => { if (!/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) window.scrollTo(0, 0); }, 60); });
+  }
+
   /* ---- yatay öneri ---- */
   if (!dokunmatik) return;
   const dik = () => innerHeight > innerWidth && innerWidth < 620;
@@ -30,8 +43,8 @@
     if (kutu || !dik() || sakla.al('eo2.yatayOneri') || oyunda()) return;
     kutu = document.createElement('div'); kutu.className = 'yatay-oneri'; kutu.setAttribute('role', 'status');
     kutu.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7.5" y="2.5" width="9" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 20.5h13a3 3 0 0 0 3-3V15m0 0-2 2m2-2 2 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
-      '<span>Telefonu yatay tutarsan meydan daha geniş görünür.</span><button type="button" class="yo-evet">Yatay oyna</button><button type="button" class="yo-hayir" aria-label="Öneriyi kapat">Kapat</button>';
-    kutu.querySelector('.yo-evet').addEventListener('click', yatay); kutu.querySelector('.yo-hayir').addEventListener('click', () => kapat(true));
+      '<span>Telefonu yatay tutarsan meydan daha geniş görünür.</span>' + (ios ? '' : '<button type="button" class="yo-evet">Yatay oyna</button>') + '<button type="button" class="yo-hayir" aria-label="Öneriyi kapat">Kapat</button>';
+    const evet = kutu.querySelector('.yo-evet'); if (evet) evet.addEventListener('click', yatay);   // iOS'ta tam ekran/yön kilidi yok: yalnız Kapat kutu.querySelector('.yo-hayir').addEventListener('click', () => kapat(true));
     app.appendChild(kutu);
   }
   const denetle = () => { if (dik()) goster(); else kapat(false); };

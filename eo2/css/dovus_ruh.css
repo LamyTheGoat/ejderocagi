@@ -1,0 +1,76 @@
+/* Ejder Ocağı 2.0 · ejder dövüşünün hareket dili (js/dovus_ruh.js). Yalnız görüntü. */
+
+/* boşta nefes: ayaklar yerde kalır (alt orta), göğüs kabarır; tempo ve genlik elemente göre (--ruh-sure, --ruh-genlik) */
+.ui2 .dov .govde img { transform-origin: 50% 100%; animation: ruh-nefes var(--ruh-sure, 3.6s) ease-in-out var(--ruh-gec, 0s) infinite; }
+.ui2 .dov .taraf.sag .govde img { animation-name: ruh-nefes-ters; }
+.ui2 .dov .govde img.vuruldu { animation: vuruldu .4s, ruh-nefes var(--ruh-sure, 3.6s) ease-in-out .4s infinite; }
+.ui2 .dov .taraf.sag .govde img.vuruldu { animation: vuruldu-ters .4s, ruh-nefes-ters var(--ruh-sure, 3.6s) ease-in-out .4s infinite; }
+.ui2 .dov .govde img.vuruldu.agir { animation: vuruldu-agir .5s, ruh-nefes var(--ruh-sure, 3.6s) ease-in-out .5s infinite; }
+.ui2 .dov .taraf.sag .govde img.vuruldu.agir { animation: vuruldu-agir-ters .5s, ruh-nefes-ters var(--ruh-sure, 3.6s) ease-in-out .5s infinite; }
+.ui2 .dov .govde img.yikildi { animation: dov-yikil .9s ease-in forwards; } .ui2 .dov .taraf.sag .govde img.yikildi { animation: dov-yikil-ters .9s ease-in forwards; }
+@keyframes ruh-nefes { 0%, 100% { transform: none; } 45% { transform: translateY(calc(-1.1% * var(--ruh-genlik, 1))) scale(calc(1 - .008 * var(--ruh-genlik, 1)), calc(1 + .024 * var(--ruh-genlik, 1))); } 60% { transform: translateY(calc(-.9% * var(--ruh-genlik, 1))) scale(1, calc(1 + .02 * var(--ruh-genlik, 1))); } }
+@keyframes ruh-nefes-ters { 0%, 100% { transform: scaleX(-1); } 45% { transform: scaleX(-1) translateY(calc(-1.1% * var(--ruh-genlik, 1))) scale(calc(1 - .008 * var(--ruh-genlik, 1)), calc(1 + .024 * var(--ruh-genlik, 1))); } 60% { transform: scaleX(-1) translateY(calc(-.9% * var(--ruh-genlik, 1))) scale(1, calc(1 + .02 * var(--ruh-genlik, 1))); } }
+/* canı azalan soluklanır: hızlı ve sığ nefes, hafif kızarıklık */
+.ui2 .dov .govde.yorgun { --ruh-sure: 1.5s !important; --ruh-genlik: .75 !important; }
+.ui2 .dov .govde.yorgun img:not(.yikildi) { filter: drop-shadow(0 .8em 1em rgba(4, 6, 24, .6)) drop-shadow(0 0 .7em rgba(240, 70, 50, .35)); }
+/* sırası gelen ejderha rakibe doğru bir adım eğilir */
+.ui2 .dov .govde { transition: translate .5s cubic-bezier(.3, .8, .3, 1); }
+.ui2 .dov .taraf.sol .govde.hazir { translate: 2.5% 0; } .ui2 .dov .taraf.sag .govde.hazir { translate: -2.5% 0; }
+/* atılan taraf öne geçer: pençe rakibin üstüne biner */
+.ui2 .dov .taraf.onde { position: relative; z-index: 3; }
+
+/* elementin kıvılcımları: gövdenin çevresinden yavaşça yükselen ışık noktaları */
+.ui2 .dov .govde::after { content: ""; position: absolute; left: 14%; right: 14%; top: 14%; bottom: 4%; z-index: 1; pointer-events: none; opacity: .6; mix-blend-mode: screen;
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--el, #ffd27a) 70%, #fff) 0 1.6px, transparent 2.6px), radial-gradient(circle, var(--el, #ffd27a) 0 2.2px, transparent 3.4px), radial-gradient(circle, #fff 0 1px, transparent 2px);
+  background-size: 97px 131px, 151px 187px, 71px 103px; background-position: 0 0, 40px 60px, 20px 30px;
+  -webkit-mask-image: linear-gradient(to top, transparent, #000 25%, #000 55%, transparent); mask-image: linear-gradient(to top, transparent, #000 25%, #000 55%, transparent);
+  animation: ruh-kivilcim 7s linear infinite; }
+.ui2 .dov .govde[data-el="buz"]::after { animation-duration: 11s; } .ui2 .dov .govde[data-el="firtina"]::after { animation-duration: 4.5s; } .ui2 .dov .govde[data-el="toprak"]::after { opacity: .4; animation-duration: 12s; }
+@keyframes ruh-kivilcim { to { background-position: 0 -131px, 40px -127px, 20px -73px; } }
+
+/* nefes küresi, kükreme halkası, kalkan, sersemlik */
+.ui2 .dov .ruh-sarj { position: absolute; z-index: 6; width: 5.5em; height: 5.5em; border-radius: 50%; pointer-events: none; mix-blend-mode: screen;
+  background: radial-gradient(circle, #fff 0 18%, color-mix(in srgb, var(--c) 85%, #fff) 30%, color-mix(in srgb, var(--c) 45%, transparent) 55%, transparent 72%); box-shadow: 0 0 2em var(--c); }
+.ui2 .dov .ruh-dalga { position: absolute; z-index: 6; width: 6em; height: 6em; border-radius: 50%; pointer-events: none; box-shadow: 0 0 0 .3em color-mix(in srgb, var(--c) 80%, #fff), 0 0 1.2em var(--c), inset 0 0 1em color-mix(in srgb, var(--c) 50%, transparent); }
+.ui2 .dov .ruh-kalkan { position: absolute; left: 10%; right: 10%; top: 12%; bottom: 0; z-index: 2; pointer-events: none; border-radius: 50% 50% 44% 44%;
+  background: radial-gradient(ellipse at 50% 60%, transparent 52%, color-mix(in srgb, var(--c) 40%, transparent) 70%, color-mix(in srgb, var(--c) 85%, #fff) 77%, transparent 79%);
+  box-shadow: 0 0 2.2em color-mix(in srgb, var(--c) 55%, transparent); mix-blend-mode: screen; }
+.ui2 .dov .ruh-sersem { position: absolute; left: 50%; top: 14%; z-index: 4; width: 7em; height: 2.4em; margin-left: -3.5em; pointer-events: none; animation: ruh-sersem 1.1s linear infinite; transform-style: preserve-3d; }
+.ui2 .dov .ruh-sersem b { position: absolute; top: 50%; left: 50%; margin: -.6em 0 0 -.5em; font: 900 1.5em/1 var(--f-ui); color: #ffe27a; text-shadow: 0 0 .4em #fff3c4, 0 .1em .15em rgba(0, 0, 0, .7); }
+.ui2 .dov .ruh-sersem b:nth-child(1) { transform: translateX(-2.4em); } .ui2 .dov .ruh-sersem b:nth-child(2) { transform: translateY(-.5em); font-size: 1.1em; } .ui2 .dov .ruh-sersem b:nth-child(3) { transform: translateX(2.4em); }
+@keyframes ruh-sersem { 50% { transform: rotate(8deg) scaleX(-1); } }
+/* ıska yazısı */
+.ui2 .govde em.iska { color: #e9f1ff; font-size: 1.9em; text-shadow: 0 0 .3em #6aa8ff, 0 .08em .2em rgba(0, 0, 0, .8); }
+
+/* hareketi azalt: boşta nefes ve kıvılcım durur */
+.ui2.sakin .dov .govde img { animation: none !important; } .ui2.sakin .dov .govde::after { animation: none; opacity: .35; } .ui2.sakin .dov .govde { transition: none; }
+
+/* seyirci panelleri (js/seyirci.js): can çubuklarının altında, kendi tarafının köşesinden eğik bir çizgi roman karesi fırlar.
+   Sahnenin içinde durur (dov'a göre konumlu), düğmelerin ve ejderhaların başının üstüne binmez. */
+.ui2 .dov .syc { position: absolute; z-index: 7; top: calc(max(.8em, env(safe-area-inset-top, 0px)) + 8.6em); width: min(300px, 26vw); aspect-ratio: 4 / 3; pointer-events: none; filter: drop-shadow(6px 6px 0 rgba(10, 4, 6, .8)); }
+.ui2 .dov .syc.sol { left: max(1em, env(safe-area-inset-left, 0px)); animation: syc-gel-sol .42s cubic-bezier(.2, 1.3, .4, 1) both; }
+.ui2 .dov .syc.sag { right: max(1em, env(safe-area-inset-right, 0px)); animation: syc-gel-sag .42s cubic-bezier(.2, 1.3, .4, 1) both; }
+.ui2 .dov .syc.sol.git { animation: syc-git-sol .38s ease-in forwards; } .ui2 .dov .syc.sag.git { animation: syc-git-sag .38s ease-in forwards; }
+@keyframes syc-gel-sol { from { transform: translateX(-120%) skewX(-12deg); } } @keyframes syc-gel-sag { from { transform: translateX(120%) skewX(12deg); } }
+@keyframes syc-git-sol { to { transform: translateX(-130%) skewX(-12deg); opacity: 0; } } @keyframes syc-git-sag { to { transform: translateX(130%) skewX(12deg); opacity: 0; } }
+.ui2 .dov .syc-ic { position: absolute; inset: 0; overflow: hidden; background: #fff; clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%); }
+.ui2 .dov .syc.sag .syc-ic { clip-path: polygon(0 0, 96% 0, 100% 100%, 4% 100%); }
+.ui2 .dov .syc-ic::after { content: ""; position: absolute; inset: 0; clip-path: inherit; box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 7px #160a0c; }
+.ui2 .dov .syc-bg { position: absolute; inset: -8%; background: center / cover no-repeat; animation: syc-bg 3.4s ease-out both; }
+.ui2 .dov .syc-kisi { position: absolute; left: 50%; bottom: -2%; height: 96%; width: auto; max-width: none; transform: translateX(-50%); animation: syc-kisi 3.4s ease-out both; filter: drop-shadow(0 0 1px #160a0c) drop-shadow(0 6px 10px rgba(0, 0, 0, .45)); }
+.ui2 .dov .syc.sag .syc-bg { animation-direction: reverse; } .ui2 .dov .syc.sag .syc-kisi { animation-name: syc-kisi-sag; }
+@keyframes syc-bg { from { transform: translateX(4%) scale(1.04); } to { transform: translateX(-3%) scale(1.1); } }
+@keyframes syc-kisi { from { transform: translateX(-56%) scale(1.06); } to { transform: translateX(-46%) scale(1.12); } }
+@keyframes syc-kisi-sag { from { transform: translateX(-44%) scale(1.06); } to { transform: translateX(-54%) scale(1.12); } }
+.ui2 .dov .syc-ton { position: absolute; inset: 0; z-index: 1; background: radial-gradient(rgba(22, 10, 12, .22) 1px, transparent 1.4px) 0 0 / 6px 6px; mix-blend-mode: multiply; -webkit-mask-image: linear-gradient(115deg, #000 0 30%, transparent 60%); mask-image: linear-gradient(115deg, #000 0 30%, transparent 60%); }
+.ui2 .dov .syc-cizgi { position: absolute; inset: 0; z-index: 1; background: repeating-conic-gradient(from 0deg at 50% 60%, transparent 0 7deg, rgba(255, 255, 255, .22) 7deg 8deg); -webkit-mask-image: radial-gradient(closest-side, transparent 55%, #000 100%); mask-image: radial-gradient(closest-side, transparent 55%, #000 100%); }
+.ui2 .dov .syc-ses { position: absolute; z-index: 2; right: 6%; top: 8%; font: 900 1.5em/1 var(--f-disp, system-ui); color: #ffd23a; -webkit-text-stroke: 2px #160a0c; text-shadow: 3px 3px 0 #160a0c; transform: rotate(-8deg); }
+.ui2 .dov .syc-balon { position: absolute; z-index: 3; top: 100%; margin-top: .5em; max-width: 100%; padding: .45em .9em; background: #fff; color: #160a0c; border: 3px solid #160a0c; border-radius: 1em; font: 800 max(13px, .95em)/1.25 var(--f-ui); text-shadow: none; box-shadow: 4px 4px 0 rgba(10, 4, 6, .8); animation: syc-soz .3s .22s cubic-bezier(.2, 1.6, .4, 1) both; }
+.ui2 .dov .syc.sol .syc-balon { left: 6%; } .ui2 .dov .syc.sag .syc-balon { right: 6%; }
+.ui2 .dov .syc-balon::before { content: ""; position: absolute; top: -13px; left: 1.4em; border: 7px solid transparent; border-bottom: 9px solid #160a0c; }
+.ui2 .dov .syc.sag .syc-balon::before { left: auto; right: 1.4em; }
+.ui2 .dov .syc-balon small { display: block; font-size: .72em; letter-spacing: .08em; color: #a8321e; }
+@keyframes syc-soz { from { transform: scale(.3) rotate(-8deg); opacity: 0; } }
+@media (max-width: 760px) { .ui2 .dov .syc { width: min(46vw, 210px); top: calc(max(.8em, env(safe-area-inset-top, 0px)) + 7.2em); } }
+@media (max-height: 560px) { .ui2 .dov .syc { width: min(22vw, 190px); top: calc(max(.8em, env(safe-area-inset-top, 0px)) + 6em); } }
+.ui2.sakin .dov .syc, .ui2.sakin .dov .syc * { animation-duration: .01s !important; }

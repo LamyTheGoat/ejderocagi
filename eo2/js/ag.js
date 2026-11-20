@@ -100,6 +100,9 @@
   }
   function gonder(obj) { if (!wsAcik || !ws || ws.readyState !== 1) return false; try { ws.send(JSON.stringify(obj)); return true; } catch (_) { return false; } }
   function baglantiKoptu() { durumYap('cevrimdisi'); clearTimeout(yenidenT); yenidenT = setTimeout(baglan, Math.min(30000, 2000 * Math.pow(1.7, deneme++))); }
+  /* Telefon arka plandan dönünce (iOS Safari soketi sessizce öldürür) ya da ağ geri gelince bekleme süresini bitirmeden hemen dene */
+  function hemenDene() { if (document.hidden) return; if (durum === 'cevrimdisi' && !hazirSoz) { clearTimeout(yenidenT); deneme = 0; baglan(); } else if (wsAcik && !gonder({ type: 'ping' })) { try { ws && ws.close(); } catch (_) { } } }
+  document.addEventListener('visibilitychange', hemenDene); addEventListener('pageshow', e => { if (e.persisted) hemenDene(); }); addEventListener('online', hemenDene);
 
   /* ---------- kurulum ---------- */
   async function kur() {

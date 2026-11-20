@@ -159,6 +159,10 @@ html, body, #app.ui2 { overflow: clip; }
 /* ================= dövüş kareleri (css/kare.css eski stilden ayıklanır; burada 2.0 sahnesine oturtulur) ================= */
 .ui2 .dov.fight > .rcut { position: absolute; inset: 0; z-index: 60; }
 .ui2 .dov.fight > .rcut .rccap { font-family: 'Noto Sans', 'Alegreya Sans', system-ui, sans-serif; }
+/* kare her ekranda bütünüyle görünür (2026-11-20): genişliği yalnız ekran enine değil boyuna da bağlıdır. -2° eğik kare ve
+   16/7,4 oranında kaplanan yükseklik ≈ 0,5 × genişlik; telefonda (16/9,5) ≈ 0,63 × genişlik. Yan kenarlarda da 10 px pay kalır. */
+.ui2 .rcut .rcp { max-width: min(calc(100vw - 20px), calc((100vh - 24px) * 2)); max-width: min(calc(100vw - 20px), calc((100dvh - 24px) * 2)); }
+@media (max-width: 520px) { .ui2 .rcut .rcp { max-width: min(calc(100vw - 20px), calc((100dvh - 24px) * 1.58)); } }
 /* karelerin içindeki poz çizimi: eski stildeki genel .pose kuralı 2.0'da yok; yalnız kare içinde tanımlanır */
 .rcut .rcd .pose { display: block; width: 100%; height: auto; overflow: visible; }
 .rcut .rcd.edge .pose { width: auto; height: 100%; }
