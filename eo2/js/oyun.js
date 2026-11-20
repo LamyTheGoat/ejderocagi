@@ -36,7 +36,8 @@
   /* hiçbir yer boş değilse (telefonda baştan sona düğme olan ekranlar) en az binen yer seçilir; bildirim dokunmayı engellemez ve birkaç saniyede gider */
   /* bildirimler boş yere oturur; hiçbir yerde düğmeye binmeden sığmıyorsa (üst üste birkaç bildirim) en eskisi bırakılır ve yeniden denenir:
      tek bildirim de sığmıyorsa en az binen yer seçilir */
-  function trayYer() { const biner = () => G.dugmeyeBiner([...tray.children].map(c => c.getBoundingClientRect()), tray);
+  function trayYer() { /* ekrandan taşan bildirim de dolu yer sayılır (2026-11-20: yatay telefonda iki bildirimli tepsi alttan taşıyordu) */
+    const biner = () => { const K = [...tray.children].map(c => c.getBoundingClientRect()); let tas = 0; for (const q of K) tas += Math.max(0, -q.top) + Math.max(0, q.bottom - innerHeight) + Math.max(0, -q.left) + Math.max(0, q.right - innerWidth); return G.dugmeyeBiner(K, tray) + (tas > 2 ? tas * 400 : 0); };
     for (let tur = 0; tur < 4; tur++) { tray.classList.remove(...BY_AD); if (!biner()) return; let enIyi = '', enAz = Infinity, sigdi = false;
       for (const y of BY) { tray.classList.remove(...BY_AD); if (y) tray.classList.add(...y.split(' ')); const a = biner(); if (!a) { sigdi = true; break; } if (a < enAz) { enAz = a; enIyi = y; } }
       /* hazır yerlerin hepsi doluysa dar tepsi ekranı yukarıdan aşağı tarar (solda, ortada, sağda): düğme araları da denenir */
