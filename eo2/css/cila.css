@@ -527,6 +527,23 @@ button.ah-kariyer { cursor: pointer; } button.ah-kariyer:hover { filter: brightn
 @media (max-aspect-ratio: 1/1) { .ui2 .ah-sag { top: 6.8em; max-width: 60%; align-items: flex-end; } .ui2 .ah-sag > .ah-emir { min-width: 0; }
   .ui2 .ah-kariyer { width: auto; padding: .32em .85em; border-radius: 1em; font-size: .95em; } .ui2 .ah-kariyer > .ust, .ui2 .ah-kariyer > b, .ui2 .ah-kariyer > small { display: none; }
   .ui2 .ah-kariyer .kisa { display: block; font: 700 1em/1.2 var(--f-ui); font-style: normal; color: #ffe7a8; white-space: nowrap; } .ui2 .ah-kariyer.acil .kisa { color: #ffb8a6; } .ui2 .ah-kariyer.emekli .kisa { color: #d7dcec; } }
+/* Ahır, dik telefon sadeleşmesi (2026-11-21, kullanıcı: "ekran kalabalık"; kariyer rozeti Temizlik halkasını örtüyordu):
+   sağ üstteki "Bu hafta" kutusu ve kariyer şeridi kalkar; ikisi halkaların altında tek sıra çip olur. Künye ekranın enini kullanır, üst satır kırılmaz. */
+.ui2 .ah-cipler { display: none; }
+@media (max-aspect-ratio: 1/1) { .ui2 .ah-sag { display: none; } .ui2 .ah-kimlik { width: auto; right: 1em; }
+  .ui2 .ah-cipler { display: flex; flex-wrap: wrap; align-items: center; gap: .4em; margin-top: .55em; text-shadow: none; }
+  .ui2 .ah-cip { display: inline-flex; align-items: baseline; gap: .45em; padding: .32em .85em; border: 0; border-radius: 1em; color: #fff; font: inherit; font-size: .95em; cursor: pointer; background: var(--ref-dolgu); box-shadow: inset 0 0 0 1.5px var(--bronz), 0 0 0 1.5px rgba(8, 10, 20, .8), 0 .3em .9em rgba(4, 6, 16, .45); }
+  .ui2 .ah-cip small { font: 700 .72em/1 var(--f-ui); letter-spacing: .12em; text-transform: uppercase; color: #ffe7a8; } .ui2 .ah-cip b { font: 700 1em/1.2 var(--f-ui); white-space: nowrap; }
+  .ui2 .ah-cip:focus-visible { outline: 2px solid #a6e0ff; outline-offset: 2px; } .ui2 .ah-cip:hover { filter: brightness(1.12); }
+  .ui2 .ah-cip.tamam { box-shadow: inset 0 0 0 1.5px #8fb878, 0 0 0 1.5px rgba(8, 10, 20, .8), 0 .3em .9em rgba(4, 6, 16, .45); } .ui2 .ah-cip.tamam b { color: #d4f2c4; }
+  .ui2 .ah-cip.bos { box-shadow: inset 0 0 0 1.5px #c98a78, 0 0 0 1.5px rgba(8, 10, 20, .8), 0 .3em .9em rgba(4, 6, 16, .45); } .ui2 .ah-cip.bos b { color: #ffc4b0; }
+  .ui2 .ah-cip.kotu { box-shadow: inset 0 0 0 1.5px #ff8a6a, 0 0 0 1.5px rgba(8, 10, 20, .8), 0 0 1em rgba(255, 110, 80, .4); } .ui2 .ah-cip.kotu b { color: #ffb8a6; }
+  .ui2 .ah-cipler .ah-kariyer { font-size: .95em; }
+  /* ikinci sadeleşme (2026-11-21, kullanıcı: "halen biraz kalabalık"): huy etiketi Bilgi'de kalır; çip yalnız bir iş gerektiğinde çıkar.
+     Emir verilmişse (madalyondaki ✓ zaten söyler) emir çipi, kariyerde 4 haftadan fazla varsa kariyer çipi görünmez. */
+  .ui2 .ah-kimlik .huy { display: none; } .ui2 .ah-kimlik h2 { margin-bottom: .25em; }
+  .ui2 .ah-cip.tamam, .ui2 .ah-cip.rol, .ui2 .ah-cipler .ah-kariyer:not(.uyari):not(.acil):not(.emekli) { display: none; }
+  .ui2 .ah-cipler:not(:has(> :not([hidden]):is(.ah-cip.bos, .ah-cip.kotu, .ah-kariyer.uyari, .ah-kariyer.acil, .ah-kariyer.emekli))) { display: none; } }
 /* hedef listesinde yıldızın kariyer hedefi (2026-11-21): kutucuk yerine yıldız, kalan hafta azaldıkça sarı ve kızıl */
 .ui2 .quests li.kariyer { color: #ffe7a8; cursor: pointer; } .ui2 .quests li.kariyer::before { content: "★"; display: grid; place-items: center; border: 0; background: none; color: #ffd76a; font-size: 1.05em; line-height: 1; }
 .ui2 .quests li.kariyer.uyari span { color: #ffcf7a; } .ui2 .quests li.kariyer.acil { color: #ffc4b0; } .ui2 .quests li.kariyer.acil::before { color: #ff9a7a; } .ui2 .quests li.kariyer.acil span { color: #ffb0a0; font-weight: 700; }
