@@ -159,9 +159,10 @@
     return Object.assign(D, { spr: { idle: Y.src }, sayfa: { src: Y.src, cw: Y.cw, ch: Y.ch, sutun: Y.sutun, px: Y.px, py: Y.py, ceset: true,
       kare(a, t) { if (a.dead) return kl('death', (a.olu || 0) / 0.9); if (a.anim === 'hit') return kl('hit', (0.45 - a.animT) / 0.45); if (a.anim === 'atk') return kl('attack', (0.9 - a.animT) / 0.9);
         if (a.yuruT != null && t - a.yuruT < 0.8) return kl('move', (t - a.yuruT) / 0.8); return Y.dizin.idle[0] + Math.floor(t * 7.5 + a.x) % Y.dizin.idle[1]; } } }); };
-  B.MOB.zs_vurucu = yilan('vurucu', 'assets/zumrut/yilan_vurucu.webp');
-  B.MOB.zs_agir = yilan('agir', 'assets/zumrut/yilan_agir.webp');
-  B.MOB.zs_kucuk = yilan('kucuk', 'assets/zumrut/yilan_kucuk.webp');   // köprünün uçlarındaki küçük yılan (uçan engereğin yerine: uçan engerek hiçbir zaman olmayacak)
+  /* Yakın dövüş (kullanıcı, 2026-11-21): yılanlar mermi atmaz; sürünüp yaklaşır, dibine gelince ısırır (battle.js yakinSira). adim: bir turda gidilen yol, menzil: ısırma uzaklığı (dünya birimi). */
+  B.MOB.zs_vurucu = Object.assign(yilan('vurucu', 'assets/zumrut/yilan_vurucu.webp'), { yakin: { adim: 3.4, menzil: 1.7 } });
+  B.MOB.zs_agir = Object.assign(yilan('agir', 'assets/zumrut/yilan_agir.webp'), { yakin: { adim: 2.0, menzil: 1.9 } });
+  B.MOB.zs_kucuk = Object.assign(yilan('kucuk', 'assets/zumrut/yilan_kucuk.webp'), { yakin: { adim: 2.8, menzil: 1.5 } });   // köprünün uçlarındaki küçük yılan (uçan engereğin yerine: uçan engerek hiçbir zaman olmayacak)
   for (const k in B.BOSS) { const D = B.BOSS[k]; if (D.ek) D.ek.forEach((e, i) => { D.spr['ek' + i] = e; }); }
 
   /* ---------- deniz ve dalga çizimi (Batık Donanma) ---------- */
@@ -185,7 +186,7 @@
   const tersane = x => x < 880 ? 978 + sin(x * 0.006) * 8 : x < 1760 ? 968 + cos((x - 880) * 0.006) * 8 : x < 2850 ? 958 + sin((x - 1760) * 0.005) * 6 : 1455;
   const kadirga = x => x >= 165 && x <= 595 ? 962 - Math.max(0, Math.min(1, (595 - x) / 430)) * 44 : x >= 810 && x <= 1205 ? 962 + sin((x - 810) * 0.015) * 3 : x >= 1410 && x <= 1835 ? 962 - Math.max(0, Math.min(1, (x - 1410) / 425)) * 36 : 1455;
   const ZINDAN = {
-    sahmeran: { ad: 'Sırça Saray', rakam: 'I', boss: 'Yılan Kraliçe Şahmeran', el: 'Toprak', ganimet: 'Şahmeran Sırça Kalıbı', kalip: 'sahmeran_kalip', prolog: 'sahmeran_prolog', zafer: 'sahmeran_zafer', destan: 'Sırça Saray Destanı', gir: 'Sırça Saray seferine gir', yuz: I('sahmeran/sahmeran_closeup.webp'), ortam: 'spor', tema: 'sirca',
+    sahmeran: { ad: 'Zümrüt Saray', rakam: 'I', boss: 'Yılan Kraliçe Şahmeran', el: 'Toprak', ganimet: 'Şahmeran Sırça Kalıbı', kalip: 'sahmeran_kalip', prolog: null, zafer: null, destan: 'Zümrüt Saray', gir: 'Zümrüt Saray seferine gir', yuz: 'assets/sahmeran_v3_yuz.webp',   /* Zümrüt Saray yenilemesi (2026-11-21): eski Sırça Saray çizgi romanı ve yakın çekimi kaldırıldı (kullanıcı: iptal edilmişti) */ ortam: 'spor', tema: 'sirca',
       asama: [
         { ad: 'Tarsus Kehribar Kuyusu', alt: 'Bronz engerek muhafızları kapıyı tutuyor', bg: I('sahmeran/sahmeran_gate_bg.webp'), f: kapi, ipucu: 'Önce yaklaşanı vur: yerdeki muhafız her tur sana doğru yürür.',
           moblar: d => [{ tip: 'cobra', ad: 'Bronz Engerek Muhafızı', hp: Math.round(700 * d), x: 1680 }, { tip: 'oracle', ad: 'Engerek Rahibesi', hp: Math.round(740 * d), x: 2320 }] },

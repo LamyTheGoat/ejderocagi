@@ -418,10 +418,26 @@
   /* eski performSingleEnemyTurnAction: yerdekiler oyuncuya 46 piksel yaklaşır (ayazda 24), 135 hasarlık nişanlı atış */
   function mobSira(e) { const p = hedefT(), ayaz = e.chill > 0, ad = M.adim; if (e.chill > 0) e.chill--; M.faz = 'oyun';
     if (e.uyur) return sonra(0.2, () => { if (M.adim === ad) siradaki(); });   /* uyuyan düşman sırasını geçer */
+    if (e.D.yakin) return yakinSira(e, p, ayaz, ad);
     const kalabalik = M.act.filter(a => a.tur === 'mob' && !a.dead).length >= 4, t1 = kalabalik ? 0.25 : 0.55, t2 = kalabalik ? 0.25 : 0.4;   /* sekiz yılanlık dalgada bekleyiş kısalır */
     M.hizli = kalabalik; sonra(t1, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki(); e.face = p.x < e.x ? -1 : 1; if (!e.ucan && !e.D.sabit) { const lim = M.cfg.ozel && M.cfg.ozel.mobSinir || [820, 3050]; e.x = clamp(e.x + e.face * u(ayaz ? 24 : 46), X_(lim[0]), X_(lim[1])); e.yuruT = M.time; }
       e.anim = 'atk'; e.animT = 0.9; e.lunge = 0.35; if (e.D.soz && R() < 0.3) balon(e, e.D.soz, null, 1.6);
       sonra(t2, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki(); const dm = Math.max(1, Math.round(135 * M.cfg.zorluk.dmg * (e.hasarK || 1) * (ayaz ? 0.85 : 1))); nisanliAt(e, e.x + e.face * u(35), e.y + u(58) + (e.ucan ? e.h * 0.2 : 0), p.x + u(R() * 44 - 22), p.y + u(26), dm, e.el, 42, e.D.atis); M.faz = 'ucus'; M.pt = 0; M.bekle = 0; }); });
+  }
+  /* YAKIN DÖVÜŞ (Zümrüt Saray yılanları, kullanıcı 2026-11-21: "oyuncuya yaklaşıp yakın dövüş saldırısı yapsın, mermi atmasın"):
+     D.yakin = { adim, menzil } dünya birimi. Yılan hedefe doğru süzülür (adim kadar, ayazda yarısı), hedefin dibinde durur;
+     menzildeyse ısırır (mermisiz, saçılmasız), değilse yalnız yürür. Hasar eski atışınkiyle aynı formül; ortak savaşta tohum aynı olduğundan her ekranda aynı yere varır. */
+  function yakinSira(e, p, ayaz, ad) { const Y = e.D.yakin, kalabalik = M.act.filter(a => a.tur === 'mob' && !a.dead).length >= 4; M.hizli = kalabalik;
+    sonra(kalabalik ? 0.15 : 0.35, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki();
+      e.face = p.x < e.x ? -1 : 1; const lim = M.cfg.ozel && M.cfg.ozel.mobSinir || [820, 3050], dur = Y.menzil * (0.55 + R() * 0.35);   /* aynı yere yığılmasınlar: durdukları uzaklık biraz değişir */
+      const hedefX = p.x - e.face * dur, yol = clamp(hedefX - e.x, -Y.adim * (ayaz ? 0.5 : 1), Y.adim * (ayaz ? 0.5 : 1)), x0 = e.x, x1 = clamp(x0 + (e.face * yol > 0 ? yol : 0), X_(lim[0]), X_(lim[1])), n = Math.max(1, Math.round(Math.abs(x1 - x0) / 0.25)), sure = Math.min(0.7, 0.12 + Math.abs(x1 - x0) * 0.16);
+      if (n > 1 || Math.abs(x1 - x0) > 0.01) { e.yuruT = M.time; for (let i = 1; i <= n; i++) sonra(sure * i / n, () => { if (M.adim === ad && !e.dead) { e.x = x0 + (x1 - x0) * i / n; if (i % 3 === 0) e.yuruT = M.time; } }); }
+      sonra(sure + 0.05, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki(); e.x = x1;
+        if (p.dead || p.dustuKesin || Math.abs(p.x - e.x) > Y.menzil || Math.abs(p.y - e.y) > 2.2) { M.faz = 'ucus'; M.pt = 0; M.bekle = 0; return; }   /* menzile varamadı: bu tur yalnız yürüdü */
+        e.anim = 'atk'; e.animT = 0.9; e.lunge = 0.35; if (e.D.soz && R() < 0.3) balon(e, e.D.soz, null, 1.6);
+        sonra(0.32, () => { if (M.adim !== ad) return; if (e.dead || M.over) return siradaki(); const dm = Math.max(1, Math.round(135 * M.cfg.zorluk.dmg * (e.hasarK || 1) * (ayaz ? 0.85 : 1)));
+          if (p === M.ben || !p.yoldas) hasarTopcu(p, dm, { it: 0.25, yon: e.face });
+          toz(p.x - e.face * 0.3, p.y + 1, 10, EL[e.el] || EL.venom); ses('hit'); M.shake = Math.max(M.shake, 0.3); M.faz = 'ucus'; M.pt = 0; M.bekle = 0.15; }); }); });
   }
   /* eski performSingleBossTurnAction: sersemse pas; laf atma turu; değilse hazırlık, tehlike bölgesi, saldırı */
   function bossSira(b) { const hd = hedefT(), ben = M.ben, D = b.D, ad = M.adim, tn = turNo(), sn = fn => () => { if (M.adim === ad) fn(); }; M.faz = 'oyun'; b.face = hd.x < b.x ? -1 : 1;
