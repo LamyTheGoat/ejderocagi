@@ -11,7 +11,7 @@
   const ICON = EO2.icons || {};
   /* [panel kimliği, ad, yer tutucu simge, açılacak ekran (yoksa panel yönlendirmesi)] */
   const KISA = ['ocak', 'ejderhalar', 'arena', 'gorevler'];
-  const TEPSI = [['topcu', 'Topçu', 'triple', 'topcu'], ['pazar', 'Çarşı', 'pin', 'pazar'], ['envanter', 'Envanter', 'bag'], ['kusam', 'Kuşam', 'people', 'gorunus'], ['harita', 'Harita', 'pin', 'harita'], ['sosyal', 'Han', 'people'], ['dostlar', 'Dostlar', 'people', 'dostlar'], ['menu', 'Menü', 'gear']];
+  const TEPSI = [['topcu', 'Topçu', 'triple', 'topcu'], ['pazar', 'Çarşı', 'pin', 'pazar'], ['envanter', 'Envanter', 'bag'], ['kusam', 'Kuşam', 'people', 'dolap'], ['harita', 'Harita', 'pin', 'harita'], ['sosyal', 'Han', 'people'], ['dostlar', 'Dostlar', 'people', 'dostlar'], ['menu', 'Menü', 'gear']];
   const YENI = { arena: ['Arena', 'swords', 'arena'] };
 
   function ac(id, ekran) {

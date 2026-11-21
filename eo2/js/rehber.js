@@ -83,7 +83,7 @@
     { id: 'a-emir', k: () => S.week === 1 && !S.st.train && bos(), m: () => '<b>' + kor() + '</b> için bu haftanın emrini ver.', dugme: 'Ejderhalar', git: 'ejderhalar' },
     { id: 'a-hafta', k: () => S.week === 1 && !bos(), m: () => 'Emirler hazır. <b>Haftayı Bitir</b> ile geceyi getir.', dugme: 'Göster', git: 'hafta' },
     { id: 'a-harita', k: () => S.week >= 2 && S.week <= 5 && !!EO2.harita, m: () => '<b>Mini haritaya</b> dokun: kasabada hızlı seyahat et.', dugme: 'Harita', git: 'harita' },
-    { id: 'a-kusam', k: () => S.week >= 2 && S.week <= 6 && kusamTek() && S.gold >= 120, m: () => 'Hâlâ çıplaksın. <b>Portrene</b> dokun, ilk zırhını al.', dugme: 'Kuşam', git: 'gorunus' },
+    { id: 'a-kusam', k: () => S.week >= 2 && S.week <= 6 && kusamTek() && S.gold >= 120, m: () => 'Hâlâ çıplaksın. <b>Portrene</b> dokun, ilk zırhını al.', dugme: 'Zırhçı', git: 'zirhci' },
     { id: 'a-arena', k: () => S.week >= 2 && S.week <= 5 && !S.st.fights, m: () => '<b>Ejder Arenası</b>\'nda ilk dövüşüne çık.', dugme: 'Arena', git: 'arena' },
     { id: 'a-bakim', k: () => S.week >= 2 && S.week <= 5 && (!S.st.talk || !S.st.feed), m: () => 'Ejderhanı besle ve onunla konuş; bağınız güçlenir.', dugme: 'Ejderhalar', git: 'ejderhalar' },
     /* ÜREME (UX denetimi, 2026-11-20): oyunun özü olan çiftleştirmeye yol gösteren dört adım. Kural yok, var olan hedeflerin (core.js GOALS:
@@ -99,7 +99,7 @@
      Bu sırada başka ekran açılmaz, ocaktan çıkılmaz, hafta erken bitirilmez; basılan yerde ne yapılacağı söylenir. İkinci haftada her şey açılır.
      "Öğreticiyi geç" her zaman şeritte durur. Sonraki dört adım (harita, kuşam, arena, bakım) eskisi gibi öneridir, kilitlemez.
      Otomatik denetimlerde (navigator.webdriver) kilit kapalıdır; gerçek akışı ölçen denetim window.__gercekAkis ile açar. */
-  const otoKip = () => !!navigator.webdriver && !window.__gercekAkis, KILIT_ADIM = ADIM0.slice(0, 3), ORTAK_EKRAN = ['menu', 'ayarlar', 'gorunus'];
+  const otoKip = () => !!navigator.webdriver && !window.__gercekAkis, KILIT_ADIM = ADIM0.slice(0, 3), ORTAK_EKRAN = ['menu', 'ayarlar', 'gorunus', 'dolap'];
   const KILIT_IZIN = { 'a-kulucka': ['ocak', 'gorevler', 'kur:kulucka'], 'a-emir': ['ocak', 'gorevler', 'ejderhalar'], 'a-hafta': ['ocak', 'gorevler', 'ejderhalar'] };
   function kilitAdim() { if (!G.live || typeof S === 'undefined' || !S || S.over || S.week !== 1 || gor['kilit-gec'] || otoKip()) return null;
     if (EO2.ziyaret && EO2.ziyaret.evSahibi && EO2.ziyaret.evSahibi()) return null; try { return KILIT_ADIM.find(a => a.k()) || null; } catch (_) { return null; } }

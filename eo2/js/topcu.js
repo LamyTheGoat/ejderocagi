@@ -26,8 +26,10 @@
     const gu = Math.max(10, +st.gu || 68), ce = Math.max(10, +st.ce || 66), da = Math.max(10, +st.da || 68), ze = Math.max(10, +st.ze || 66), bond = Math.max(0, Math.min(100, star.bond != null ? +star.bond : 75)), gen = Math.max(1, star.gen != null ? +star.gen : 2);
     const hpBonus = Math.round(da * 3.5 + bond * 2.4 + gen * 45), staBonus = Math.round(ce * 0.25 + bond * 0.14 + gen * 3), crit = Math.min(48, Math.round(ze * 0.18 + ce * 0.10 + bond * 0.08 + gen * 2)), dmgPct = Math.round(gu * 0.15 + bond * 0.08 + gen * 3);
     const dmg = Math.round(210 * (pve ? 1.40 : 1.0) * (sofra() ? 1.15 : 1.0) * (1 + dmgPct * 0.005));      // 1,40: yoldaşsız sefer çarpanı (eski soloMult)
-    const P = EO2.api.player, ors = EO2.ors ? EO2.ors.carpan() : 1;   // Kor Örsü: Ejder Topu'nun kademesi (kademe başına yüzde 2; çatlak topta artış yok)
-    return { ad: P.name || 'Terbiyeci', set: P.set, hp: Math.round((1350 + hpBonus) * ors), sta: 100 + staBonus + 25 + (sofra() ? 25 : 0), rage: 40, revive: 1, dmg: Math.round(dmg * ors), el: star.el || 'ates', el2: star.el2 || null, crit, ejder: star.name };
+    /* EKİPMAN (2026-11-21, js/ekipman.js): giyili parçaların Kor Örsü kademeleri. Silah hasarı, zırh canı, başlık tam isabet hasarını (kritK),
+       pelerin dayanıklılığı artırır; kademe başına %1,25, dördü +12'de toplam %60. Çatlak parça artış vermez. PvP'de de tam sayılır (KARAR). */
+    const P = EO2.api.player, ek = EO2.ekipman ? EO2.ekipman.carpanlar() : { hasar: EO2.ors ? EO2.ors.carpan() : 1, can: EO2.ors ? EO2.ors.carpan() : 1, kritik: 0, dayaniklilik: 1 };
+    return { ad: P.name || 'Terbiyeci', set: P.set, hp: Math.round((1350 + hpBonus) * ek.can), sta: Math.round((100 + staBonus + 25 + (sofra() ? 25 : 0)) * ek.dayaniklilik), rage: 40, revive: 1, dmg: Math.round(dmg * ek.hasar), kritK: ek.kritik, el: star.el || 'ates', el2: star.el2 || null, crit, ejder: star.name };
   }
 
   /* ================= ÖDÜL: yerel kayda (S) yazan tek fonksiyon =================

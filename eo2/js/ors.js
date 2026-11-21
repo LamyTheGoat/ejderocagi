@@ -3,7 +3,10 @@
    AKIŞ: bedel peşin ödenir (kor taşı + altın) → TAV: ibre kor çubuğunda gidip gelir, üç çekiç darbesi indirilir (düğme ya da boşluk tuşu) →
      örs kararını verir (davul sesi, kıvılcım) → sonuç damgası: tuttu / usta işi (+2) / kayıpsız / kademe düştü / TOP ÇATLADI / Anka korudu.
    Kumar: "Körüğe yüklen" ibreyi hızlandırır; altın kor daha çok kazandırır, soğuk darbe daha çok götürür.
-   Kayıt: S.ors = { kademe, catlak, deneme, zirve }. Kor taşları Topçu ganimetindedir (S.topcu.ganimet); altın S.gold'dan düşer
+   EKİPMAN (2026-11-21, şartname "Oyuncu ekipmanı: beş slot"): örste artık güç veren her parça dövülür (silah, zırh, başlık, pelerin).
+   Kademe parçanın üstünde durur (S.ekipman.parca[]: { kademe, catlak, deneme, zirve }); kural ve bedel her parçada aynıdır.
+   Ekranın üstünde dövülecek parça seçilir (varsayılan: Ejder Topu). Eski S.ors kaydı js/ekipman_kural.js ile silaha taşınır.
+   Eski kayıt: S.ors = { kademe, catlak, deneme, zirve }. Kor taşları Topçu ganimetindedir (S.topcu.ganimet); altın S.gold'dan düşer
    (tezgâh alışverişiyle aynı yol: js/ag.js keseyi sunucuyla eşitler). Topçunun hasarı ve canı kademeye göre artar (js/topcu.js oyuncuDeger).
    Girişler: Gece Çarşısı → Usta Kerim'in tezgâhı → "Kor Örsü" · Usta Kerim'le konuşunca "Örse bak". */
 (function () {
@@ -13,12 +16,20 @@
   const esc_ = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const TAS_AD = { kor_t1: 'Kıvılcım Kor Taşı', kor_t2: 'Harlı Kor Taşı', kor_t3: 'Kadim Magma Taşı', anka_koruma: 'Anka Mühür Taşı' };
   const BOLGE = { guvenli: ['Güvenli kademe', 'Tutmazsa kayıp yok.'], harli: ['Harlı kademe', 'Tutmazsa bir kademe düşer.'], cehennem: ['Cehennem kademesi', 'Tutmazsa top çatlar!'] };
-  const D = () => { S.ors = S.ors && typeof S.ors === 'object' ? S.ors : {}; const d = S.ors; d.kademe = Math.max(0, Math.min(K.EN_COK, d.kademe | 0)); d.catlak = !!d.catlak; d.deneme = d.deneme | 0; d.zirve = Math.max(d.zirve | 0, d.kademe); return d; };
+  const EK = window.EO2_EKIPMAN, Ekp = () => EO2.ekipman;
+  /* dövülen parça: seçili (U.uid) ya da giyili silah. Eski yol (ekipman yüklü değilse) S.ors'tur. */
+  const D = () => { const e = Ekp(); if (e) { const E = e.durum(); let p = EK.parca(E, U.uid); if (!p || !EK.gucVerir(EK.slotu(p))) { p = EK.giyiliParca(E, 'silah'); U.uid = p ? p.uid : null; } if (p) return p; }
+    S.ors = S.ors && typeof S.ors === 'object' ? S.ors : {}; const d = S.ors; d.kademe = Math.max(0, Math.min(K.EN_COK, d.kademe | 0)); d.catlak = !!d.catlak; d.deneme = d.deneme | 0; d.zirve = Math.max(d.zirve | 0, d.kademe); return d; };
   const heybe = () => { S.topcu = S.topcu || {}; S.topcu.ganimet = S.topcu.ganimet || {}; return S.topcu.ganimet; };
   const var_ = k => Math.max(0, heybe()[k] | 0), ses = (k, v) => { const a = EO2.audio; try { if (a && a[k]) a[k](v); } catch (_) { } };
   const kaydet = () => { if (typeof saveGame === 'function') saveGame(); if (G.hud) G.hud(); };
-  const yuzde = k => Math.round(k * K.ARTIS * 100);
-  const U = { faz: 'bos', vuruslar: [], koruk: false, anka: false, t0: 0, raf: 0, son: null, kademe0: 0 };   // ekranın geçici durumu
+  const yuzde = k => (EK ? String(EK.yuzde(k * EK.ARTIS)).replace('.', ',') : Math.round(k * K.ARTIS * 100));
+  const slotOf = d => (EK && d && d.id ? EK.slotu(d) : 'silah');
+  const parcaAd = d => (slotOf(d) === 'silah' ? K.AD(d.kademe) : (EK.kat(d.id) || {}).ad || 'Parça');
+  const etkiAd = d => (EK ? EK.ETKI_AD[EK.ETKI[slotOf(d)]] : 'Topçu hasarı ve canı');
+  const kisa = d => (slotOf(d) === 'silah' ? 'Top' : 'Parça');   // sonuç yazılarında öznenin adı
+  const ikon = d => { const k = EK && d && d.id ? EK.kat(d.id) : null; if (k && (k.slot === 'zirh' || (k.slot !== 'silah' && !k.ikon))) return 'assets/ik/mdl-kusam.webp'; return k && k.ikon ? (/^img\//.test(k.ikon) ? G.url(k.ikon) : k.ikon) : 'assets/ik/ejder-topu.webp'; };
+  const U = { uid: null, faz: 'bos', vuruslar: [], koruk: false, anka: false, t0: 0, raf: 0, son: null, kademe0: 0 };   // ekranın geçici durumu
 
   /* ---------- kurallar: bedel, deneme, onarım ---------- */
   const yeter = s => !!s && var_(s.tas) >= s.adet && S.gold >= s.altin;
@@ -33,7 +44,7 @@
   /* ---------- ekran ---------- */
   const ibre = () => { const tur = K.TAV[U.koruk ? 'koruk' : 'olagan'].tur, f = ((performance.now() - U.t0) / tur) % 2; return 1 - Math.abs(f - 1); };
   const resim = k => G.url('img/ui/items/stone_' + k + '.webp');
-  const SONUC = { tuttu: ['Tuttu!', 'iyi'], usta: ['Usta işi!', 'usta'], kayipsiz: ['Tutmadı', 'soluk'], dustu: ['Kademe düştü', 'kotu'], catladi: ['Top çatladı!', 'felaket'], anka: ['Anka korudu', 'anka'] };
+  const SONUC = { tuttu: ['Tuttu!', 'iyi'], usta: ['Usta işi!', 'usta'], kayipsiz: ['Tutmadı', 'soluk'], dustu: ['Kademe düştü', 'kotu'], catladi: ['Çatladı!', 'felaket'], anka: ['Anka korudu', 'anka'] };
   function ekran() { const d = D(), s = K.sira(d.kademe), h = heybe(), sans0 = s ? K.sans(d.kademe, U.faz === 'tav' ? U.vuruslar : [], U.koruk) : 0, b = s && BOLGE[s.bolge];
     const taslar = K.TAS.map(k => '<span class="or-tas' + (s && s.tas === k ? ' gerek' + (var_(k) >= s.adet ? '' : ' eksik') : '') + '" title="' + TAS_AD[k] + '"><img alt="" src="' + resim(k) + '"><b>' + var_(k) + '</b><small>' + TAS_AD[k] + '</small></span>').join('');
     const darbeler = [0, 1, 2].map(i => '<i class="or-darbe ' + (U.vuruslar[i] || '') + '"></i>').join('');
@@ -41,23 +52,28 @@
     if (U.faz === 'tav') eylem = '<button type="button" class="gbtn altin buyuk or-vur" data-or="vur">Çekici indir<small>' + (3 - U.vuruslar.length) + ' darbe kaldı · boşluk tuşu</small></button>';
     else if (U.faz === 'karar') eylem = '<p class="or-bekle">Örs kararını veriyor…</p>';
     else if (U.faz === 'sonuc') eylem = '<button type="button" class="gbtn altin buyuk" data-or="tamam">Devam</button>';
-    else if (d.catlak) { const O = K.ONARIM, ok = var_(O.tas) >= O.adet && S.gold >= O.altin; eylem = '<p class="or-uyari">Top çatlak: kademesi işlemiyor. Onarılınca <b>+' + K.onarilmis(d.kademe) + '</b> kademede döner.</p><button type="button" class="gbtn altin buyuk" data-or="onar" ' + (ok ? '' : 'disabled') + '>Topu onar<small>' + O.altin + ' altın · ' + O.adet + ' ' + TAS_AD[O.tas] + (ok ? '' : ' · yetmiyor') + '</small></button>'; }
-    else if (!s) eylem = '<p class="or-zirve">Zirve kademesi. Bu top artık dövülmez; yalnız parlar.</p>';
+    else if (d.catlak) { const O = K.ONARIM, ok = var_(O.tas) >= O.adet && S.gold >= O.altin; eylem = '<p class="or-uyari">' + kisa(d) + ' çatlak: kademesi işlemiyor. Onarılınca <b>+' + K.onarilmis(d.kademe) + '</b> kademede döner.</p><button type="button" class="gbtn altin buyuk" data-or="onar" ' + (ok ? '' : 'disabled') + '>Onar<small>' + O.altin + ' altın · ' + O.adet + ' ' + TAS_AD[O.tas] + (ok ? '' : ' · yetmiyor') + '</small></button>'; }
+    else if (!s) eylem = '<p class="or-zirve">Zirve kademesi. Bu parça artık dövülmez; yalnız parlar.</p>';
     else eylem = '<div class="or-ayar"><label class="or-sec' + (U.koruk ? ' acik' : '') + '"><input type="checkbox" data-or-sec="koruk" ' + (U.koruk ? 'checked' : '') + '><span><b>Körüğe yüklen</b><small>İbre hızlanır. Altın kor +' + K.TAV.koruk.altin + ', soğuk darbe ' + K.TAV.koruk.soguk + '.</small></span></label>' +
-        (ankaGerek(s) ? '<label class="or-sec' + (U.anka ? ' acik' : '') + (var_('anka_koruma') ? '' : ' yok') + '"><input type="checkbox" data-or-sec="anka" ' + (U.anka ? 'checked' : '') + ' ' + (var_('anka_koruma') ? '' : 'disabled') + '><span><b>Anka Mührü bas</b><small>' + (var_('anka_koruma') ? 'Bir mühür harcanır. Tutmazsa kademe düşmez, top çatlamaz.' : 'Mührün yok. Zindan çarklarından düşer.') + '</small></span></label>' : '') + '</div>' +
+        (ankaGerek(s) ? '<label class="or-sec' + (U.anka ? ' acik' : '') + (var_('anka_koruma') ? '' : ' yok') + '"><input type="checkbox" data-or-sec="anka" ' + (U.anka ? 'checked' : '') + ' ' + (var_('anka_koruma') ? '' : 'disabled') + '><span><b>Anka Mührü bas</b><small>' + (var_('anka_koruma') ? 'Bir mühür harcanır. Tutmazsa kademe düşmez, parça çatlamaz.' : 'Mührün yok. Zindan çarklarından düşer.') + '</small></span></label>' : '') + '</div>' +
       '<button type="button" class="gbtn altin buyuk" data-or="basla" ' + (yeter(s) ? '' : 'disabled') + '>Dövmeye başla<small>' + s.adet + ' ' + TAS_AD[s.tas] + ' · ' + s.altin + ' altın' + (yeter(s) ? '' : ' · yetmiyor') + '</small></button>';
     const sn = U.son && SONUC[U.son.olay];
-    return '<div class="or-kok faz-' + U.faz + (d.catlak ? ' catlak' : '') + (s ? ' b-' + s.bolge : ' zirve') + '">' +
-      '<div class="or-sol"><div class="or-top k' + (d.kademe >= 12 ? 3 : d.kademe >= 7 ? 2 : d.kademe >= 4 ? 1 : 0) + '" id="orTop"><img alt="" src="assets/ik/ejder-topu.webp"><b>+' + d.kademe + '</b>' + (d.catlak ? '<em>ÇATLAK</em>' : '') + '</div>' +
-        '<h2>' + esc_(K.AD(d.kademe)) + '</h2><p class="or-etki">' + (d.catlak ? 'Çatlak: artış işlemiyor' : d.kademe ? 'Topçu hasarı ve canı <b>+%' + yuzde(d.kademe) + '</b>' : 'Henüz dövülmedi') + '</p>' +
+    return secici(d) + '<div class="or-kok faz-' + U.faz + (d.catlak ? ' catlak' : '') + (s ? ' b-' + s.bolge : ' zirve') + '">' +
+      '<div class="or-sol"><div class="or-top k' + (d.kademe >= 12 ? 3 : d.kademe >= 7 ? 2 : d.kademe >= 4 ? 1 : 0) + '" id="orTop"><img alt="" src="' + ikon(d) + '"><b>+' + d.kademe + '</b>' + (d.catlak ? '<em>ÇATLAK</em>' : '') + '</div>' +
+        '<h2>' + esc_(parcaAd(d)) + '</h2><p class="or-etki">' + (d.catlak ? 'Çatlak: artış işlemiyor' : d.kademe ? esc_(etkiAd(d)) + ' <b>+%' + yuzde(d.kademe) + '</b>' : 'Henüz dövülmedi') + '</p>' +
         '<div class="or-taslar">' + taslar + '</div><p class="or-kaynak">Kor taşları ve Anka Mührü zindan ganimetinden çıkar.</p></div>' +
-      '<div class="or-sag">' + (s && !d.catlak ? '<div class="or-hedef"><small>Sıradaki kademe</small><b>+' + d.kademe + ' <i>➔</i> +' + (d.kademe + 1) + '</b><span>Hasar ve can +%' + yuzde(d.kademe + 1) + '</span></div>' +
+      '<div class="or-sag">' + (s && !d.catlak ? '<div class="or-hedef"><small>Sıradaki kademe</small><b>+' + d.kademe + ' <i>➔</i> +' + (d.kademe + 1) + '</b><span>' + esc_(etkiAd(d)) + ' +%' + yuzde(d.kademe + 1) + '</span></div>' +
           '<div class="or-risk"><b>' + b[0] + '</b><span>' + b[1] + '</span></div>' +
           '<div class="or-sans"><small>Tutma şansı</small><b id="orSans">%' + sans0 + '</b><div class="or-cubuk"><i style="width:' + sans0 + '%"></i></div></div>' : '') +
         '<div class="or-tav" id="orTav"><div class="or-kor"><i class="sicak"></i><i class="altin"></i><u id="orIbre"></u></div><div class="or-darbeler">' + darbeler + '</div></div>' +
         '<div class="or-eylem">' + eylem + '</div></div>' +
       (U.faz === 'sonuc' && sn ? '<div class="or-damga ' + sn[1] + '"><b>' + sn[0] + '</b><span>' + sonucYazi(U.son) + '</span></div>' : '') + '</div>'; }
-  const sonucYazi = r => r.olay === 'usta' ? 'Üç darbe de altın kora indi: top iki kademe birden yükseldi, +' + r.kademe + '.' : r.olay === 'tuttu' ? 'Top +' + r.kademe + ' kademeye yükseldi.' : r.olay === 'kayipsiz' ? 'Metal tutmadı. Güvenli kademede kayıp yok; taş ve altın gitti.' : r.olay === 'dustu' ? 'Metal çatırdadı: top +' + r.kademe + ' kademeye geriledi.' : r.olay === 'anka' ? 'Metal tutmadı ama Anka Mührü topu korudu: +' + r.kademe + ' kademede kaldı.' : 'Örs acımadı. Top çatladı: onarılana dek kademesi işlemez.';
+  /* dövülecek parça: giyili güç parçaları (silah, zırh, başlık, pelerin); Dolap'tan gelen giyilmemiş parça da listede görünür */
+  function secici(d) { const e = Ekp(); if (!e || !d.uid) return ''; const E = e.durum(), L = ['silah', 'zirh', 'baslik', 'pelerin'].map(s => EK.giyiliParca(E, s)).filter(Boolean); if (!L.some(p => p.uid === d.uid)) L.push(d);
+    const kilit = U.faz === 'tav' || U.faz === 'karar';
+    return '<div class="or-parcalar" role="radiogroup" aria-label="Dövülecek parça">' + L.map(p => { const k = EK.kat(p.id), s = EK.slotu(p); return '<button type="button" role="radio" class="or-parca' + (p.catlak ? ' catlak' : '') + '" data-or-parca="' + esc_(p.uid) + '" aria-checked="' + (p.uid === d.uid) + '"' + (kilit ? ' disabled' : '') + '><img alt="" src="' + ikon(p) + '"><span><small>' + EK.SLOT_AD[s] + '</small><b>' + esc_(k.ad) + '</b></span><em>+' + p.kademe + '</em></button>'; }).join('') +
+      '<button type="button" class="or-parca dolap" data-or-dolap="1"' + (kilit ? ' disabled' : '') + '><span><small>Öteki parçalar</small><b>Dolabı aç</b></span></button></div>'; }
+  const sonucYazi = r => { const n = kisa(D()), k = n.toLocaleLowerCase('tr'); return r.olay === 'usta' ? 'Üç darbe de altın kora indi: ' + k + ' iki kademe birden yükseldi, +' + r.kademe + '.' : r.olay === 'tuttu' ? n + ' +' + r.kademe + ' kademeye yükseldi.' : r.olay === 'kayipsiz' ? 'Metal tutmadı. Güvenli kademede kayıp yok; taş ve altın gitti.' : r.olay === 'dustu' ? 'Metal çatırdadı: ' + k + ' +' + r.kademe + ' kademeye geriledi.' : r.olay === 'anka' ? 'Metal tutmadı ama Anka Mührü ' + (n === 'Top' ? 'topu' : 'parçayı') + ' korudu: +' + r.kademe + ' kademede kaldı.' : 'Örs acımadı. ' + n + ' çatladı: onarılana dek kademesi işlemez.'; };
   function basla() { const d = D(), s = K.sira(d.kademe); if (U.faz !== 'bos' || d.catlak || !yeter(s)) return; U.anka = U.anka && ankaGerek(s) && var_('anka_koruma') > 0; U.kademe0 = d.kademe;
     ode(s, U.anka); U.faz = 'tav'; U.vuruslar = []; U.t0 = performance.now(); U.son = null; ses('charge', 0.6); G.redraw(); dongu(); }
   function dongu() { cancelAnimationFrame(U.raf); const adim = () => { const el = document.getElementById('orIbre'); if (!el || U.faz !== 'tav') return; el.style.left = (ibre() * 100) + '%'; U.raf = requestAnimationFrame(adim); }; U.raf = requestAnimationFrame(adim); }
@@ -68,7 +84,7 @@
   function karar() { if (U.faz !== 'karar') return; const zar = typeof window.__orsZar === 'number' ? window.__orsZar : Math.random() * 100;
     const r = K.sonuc(U.kademe0, { vuruslar: U.vuruslar, koruk: U.koruk, anka: U.anka, zar }); uygula(r); U.son = r; U.faz = 'sonuc'; G.redraw();
     const fx = G.fx, top = document.getElementById('orTop');
-    if (r.tuttu) { ses('win', true); if (fx && top) { fx.burst(top, '#ffe08a', r.usta ? 70 : 40); fx.flash(r.usta ? 'rgba(255,224,138,.5)' : 'rgba(255,240,200,.3)'); if (r.usta) fx.shake(document.querySelector('.or-kok'), true); } if (typeof chron === 'function' && (r.kademe === 7 || r.kademe === 10 || r.kademe === 12)) chron('Ejder Topu +' + r.kademe + ' kademeye dövüldü.'); }
+    if (r.tuttu) { ses('win', true); if (fx && top) { fx.burst(top, '#ffe08a', r.usta ? 70 : 40); fx.flash(r.usta ? 'rgba(255,224,138,.5)' : 'rgba(255,240,200,.3)'); if (r.usta) fx.shake(document.querySelector('.or-kok'), true); } if (typeof chron === 'function' && (r.kademe === 7 || r.kademe === 10 || r.kademe === 12)) chron(parcaAd(D()) + ' +' + r.kademe + ' kademeye dövüldü.'); }
     else if (r.olay === 'catladi') { ses('boom', 0.9); ses('win', false); if (fx && top) { fx.burst(top, '#ff5a3a', 60); fx.flash('rgba(255,70,40,.4)'); fx.shake(document.querySelector('.or-kok'), true); } }
     else if (r.olay === 'anka') { ses('chime'); if (fx && top) { fx.burst(top, '#ffb3cc', 36); fx.flash('rgba(255,200,220,.3)'); } }
     else ses('pop'); }
@@ -77,11 +93,15 @@
 
   G.screen('ors', { k: 'Usta Kerim', t: 'Kor Örsü', cls: 'or', bg: 'bg-pazar', enter() { if (U.faz !== 'tav' && U.faz !== 'karar') { U.faz = 'bos'; U.vuruslar = []; U.son = null; } }, draw(body) {
     body.innerHTML = ekran();
-    body.querySelectorAll('[data-or]').forEach(b => b.addEventListener('click', () => { const k = b.dataset.or; if (k === 'basla') basla(); else if (k === 'vur') vur(); else if (k === 'tamam') { ses('ui'); tamam(); } else if (k === 'onar') { if (onar()) { ses('chime'); G.toast('Top onarıldı: +' + D().kademe + ' kademe.'); } G.redraw(); } }));
+    body.querySelectorAll('[data-or]').forEach(b => b.addEventListener('click', () => { const k = b.dataset.or; if (k === 'basla') basla(); else if (k === 'vur') vur(); else if (k === 'tamam') { ses('ui'); tamam(); } else if (k === 'onar') { if (onar()) { ses('chime'); G.toast(esc_(parcaAd(D())) + ' onarıldı: +' + D().kademe + ' kademe.'); } G.redraw(); } }));
+    body.querySelectorAll('[data-or-parca]').forEach(b => b.addEventListener('click', () => { if (U.faz !== 'bos' && U.faz !== 'sonuc') return; ses('ui'); U.uid = b.dataset.orParca; tamam(); }));
+    body.querySelectorAll('[data-or-dolap]').forEach(b => b.addEventListener('click', () => { ses('ui'); G.open('dolap'); }));
     body.querySelectorAll('[data-or-sec]').forEach(c => c.addEventListener('change', () => { ses('ui'); U[c.dataset.orSec] = c.checked; G.redraw(); }));
     if (U.faz === 'tav') dongu();
   } });
   /* Usta Kerim'le konuşunca çıkan "Örse bak" ve dünyadaki üretim eylemi örsü açar */
   (function bagla() { if (!EO2.hooks || !EO2.hooks.act) return setTimeout(bagla, 150); const a0 = EO2.hooks.act; EO2.hooks.act = act => { if (act === 'panel:uretim' || act === 'ors') { G.open('ors'); return true; } return a0 ? a0(act) : false; }; })();
-  EO2.ors = { durum: D, dene, onar, carpan: () => K.carpan(typeof S !== 'undefined' && S ? D() : null), ekranDurumu: () => U };
+  /* sec(uid): Dolap'taki "Örs'e götür" bu parçayı seçer. carpan: eski arayüz; silahın hasar çarpanı (savaş değerleri artık js/ekipman.js'ten). */
+  EO2.ors = { durum: D, dene, onar, sec: uid => { if (U.faz === 'tav' || U.faz === 'karar') return false; U.uid = uid; U.faz = 'bos'; U.son = null; return true; },
+    carpan: () => (Ekp() ? Ekp().carpanlar().hasar : K.carpan(typeof S !== 'undefined' && S ? D() : null)), ekranDurumu: () => U };
 })();
