@@ -1349,7 +1349,8 @@ function hatchModal(egg) {
     <div class="mbtns center"><button class="btn primary big" data-a="hatch-go">Kabuğu arala</button></div></div>`, 'hatchwrap');
 }
 function hatchReveal() {
-  const { d, notes } = hatchEgg(CUR_HATCH.egg); CUR_HATCH.d = d;
+  const r = hatchEgg(CUR_HATCH.egg); if (!r) return;   // yumurta zaten açıldı (tekrarlı tıklama)
+  const { d, notes } = r; CUR_HATCH.d = d;
   if (typeof ECO_SYNC !== 'undefined') ECO_SYNC.localHatched(CUR_HATCH.egg, d); // ENG-12: sunucu yumurtasına bağ
   SFX.play('hatch');
   showModal(`<div class="hatchm"><div class="flash"></div><p class="kicker">Yeni bir ejderha</p><div class="egg-stage reveal">${hasAngle(d, 'front') ? angleSVG(d, 'front') : dragonSVG(d)}</div>
