@@ -110,8 +110,10 @@ if (acik) {
   { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_ors.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 240000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
     yaz('Kor Örsü: dövme, risk, onarım, topçu artışı', r.status === 0 && !!j && j.ok, j ? (j.hata.concat(j.eksik).slice(0, 3).join(' | ')) : String(r.stderr || '').slice(0, 200)); }
+  const eskiKapali = !require(path.join(repo, 'eo2', 'js', 'zindan_tarif.js')).kaldera;   /* Kaldera ve Donanma kapalı (kullanıcı, 2026-11-20): çizimleri gelene dek denetimleri atlanır */
+  if (eskiKapali) console.log('  ATLANDI Kaldera ve Donanma denetimleri · iki zindan kapalı (zindan_tarif.js BEKLEYEN)');
   // 4k5c) Volkanik Kaldera ve Batık Donanma ortak sistemde baştan sona (dörder aşama, tek kişilik sefer)
-  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_zindan_eski.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 560000 });
+  if (!eskiKapali) { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_zindan_eski.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 560000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
     yaz('Kaldera ve Donanma ortak sistemde (sekiz aşama)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
   // 4k5d) Topçu düellosu 1v1: eşleşme, sıra, gerçek atış, sonuç (iki tarayıcı)
@@ -123,7 +125,7 @@ if (acik) {
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
     yaz('savaş ekranında saç ve göz (iki tarayıcı)', r.status === 0 && !!j && j.ok, j ? (j.hata.length ? j.hata.slice(0, 2).join(' | ') : j.ok ? '' : JSON.stringify(j.log).slice(0, 300)) : String(r.stderr || '').slice(0, 200)); }
   // 4k5f) Kaldera ve Donanma grupla: zemin, düşman ve can iki ekranda aynı (iki tarayıcı)
-  { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_zindan_eski_grup.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 580000 });
+  if (!eskiKapali) { const r = spawnSync(process.execPath, [path.join(repo, 'eo2', 'tools', 'check_zindan_eski_grup.mjs')], { cwd: repo, encoding: 'utf8', env: Object.assign({}, process.env, { URL: URL0 }), timeout: 580000 });
     let j = null; try { j = JSON.parse(r.stdout || ''); } catch (_) { }
     /* tutmayan koşulu adıyla yazar (günlüğün başı her zaman geçen alanlarla doluydu); tam çıktı duman_eski_grup.json dosyasına yazılır */
     const tutmayan = j && !j.ok ? Object.entries(j.log || {}).flatMap(([z, L]) => [...['gordu', 'davet', 'kamp'].filter(k => !L[k]).map(k => z + '.' + k), ...((L.asama || []).length === 2 ? [] : [z + ' aşama ' + (L.asama || []).length]), ...(L.asama || []).flatMap(S => ['savas', 'sira', 'ayniAcilis', 'denizVar', 'siraB', 'zeminOyuldu', 'zeminAyni', 'turDondu', 'yerAyni', 'canAyni', 'zeminAyni2', 'dusmanCanAyni', 'cark'].filter(k => !S[k]).map(k => z + '/' + S.ad + '.' + k))]) : [];

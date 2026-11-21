@@ -32,7 +32,7 @@ const ALFABE = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const hata = kod => Object.assign(new Error(kod), { kod });
 
 function createOrtakOdalar({ send, sockets, kimlik, crypto = require('node:crypto'), now = () => Date.now(), random = Math.random, config = {} }) {
-  const KOPMA_MS = config.kopmaMs ?? 45000, BOS_ODA_MS = config.bosOdaMs ?? 10 * 60000, HIZ = config.hiz ?? 12;
+  const KOPMA_MS = config.kopmaMs ?? 45000, BOS_ODA_MS = config.bosOdaMs ?? 10 * 60000, HIZ = config.hiz ?? 30;   // saniyede en çok eylem (2026-11-20: 12'den 30'a; sekiz yılanlık dalgada bir patlama birden çok hasar bildirir, fazlası düşünce canlar ayrışıyordu)
   const turler = new Map(), odalar = new Map(), kodlar = new Map(), uyelik = new Map(), kuyruk = [];   // uyelik: hesap → oda kimliği
   const hesapOf = s => { const k = kimlik(s); return k && k.accountId ? k : null; };
   const soketler = id => [...sockets()].filter(s => !s.destroyed && hesapOf(s) && hesapOf(s).accountId === id);
