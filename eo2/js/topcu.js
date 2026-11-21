@@ -102,7 +102,7 @@
   const mac = cfg => { G.close(); const bek = B.ac(cfg); ipucuGoster(cfg); return bek; };      // savaş kendi tam ekran katmanıdır; ekran çerçevesi kapanır, bitince sahneye dönülür
   const dondur = () => { const M = B.state(); if (M) M.dur = true; };                             // çark ve çizgi roman sırasında meydan arkada donuk durur
   const bitis = () => { B.kapat(); G.open('topcu'); };
-  async function talim() { for (;;) { const cfg = talimCfg(), r = await mac(cfg); if (r.terk) break;
+  async function talim() { for (;;) { const cfg = talimCfg(), r = await mac(cfg); if (r.terk) break; if (EO2.rehber && EO2.rehber.olay) EO2.rehber.olay('talim');   /* öğretici: talim düellosu bitti */
       const v = await G.pen({ k: 'Talim', t: r.zafer ? 'Zafer' : 'Yenildin', body: '<p>' + (r.zafer ? 'Talimci başını eğdi.' : 'Talimci bu kez isabetliydi.') + ' Talim ödülsüzdür: altın, ün ya da sıralama yazılmaz.</p>' + ozet(r), btns: [{ t: 'Sahneye dön', v: false }, { t: 'Yeniden', cls: 'altin', v: true }] }); if (!v) break; }
     bitis(); }
   async function kervan() { if (kilitli()) return kilitPen(); const cv = bosKervan(); if (!cv) return G.toast('Bu hafta yoldaki kervanların hepsine baskın verildi.');
@@ -112,7 +112,7 @@
       const v = await G.pen({ k: 'Kervan Baskını', t: 'Yenildin', body: '<p>Pusu seni geri püskürttü. Ganimet yok.</p>' + ozet(r), btns: [{ t: 'Çekil', v: false }, { t: 'Yeniden dene', cls: 'altin', v: true }] }); if (!v) break; }
     bitis(); }
   const destan = (z, hangi) => { const Z = V.ZINDAN[z], id = hangi === 'zafer' ? Z.zafer : Z.prolog; if (!G.comic || typeof COMIC === 'undefined' || !COMIC[id]) return Promise.resolve(false); return G.comic({ id, title: Z.destan, opts: [{ t: hangi === 'zafer' ? 'Ocağa dön' : Z.gir, fx: () => null }] }); };
-  async function zindan(z, zorluk, ilkAsama) { if (kilitli()) return kilitPen(); const Z = V.ZINDAN[z], T = kayit();
+  async function zindan(z, zorluk, ilkAsama) { if (kilitli()) return kilitPen(); const Z = V.ZINDAN[z], T = kayit(); if (EO2.rehber && EO2.rehber.olay) EO2.rehber.olay('zindan');   /* öğretici: ilk zindan seferi */
     /* Tek kişi = içinde tek kişi olan aynı zindan (kullanıcı, 2026-11-17). Yeni yöntemle kurulmuş zindan (js/zindan_tarif.js) varsa tek kişilik sefer açılır. */
     if (!ilkAsama && EO2.zindan && EO2.zindan.tekVar && EO2.zindan.tekVar(z)) { if (!T.okundu[z]) { await destan(z, 'prolog'); T.okundu[z] = 1; if (typeof saveGame === 'function') saveGame(); } if (EO2.zindan.tekBasla(z, zorluk)) return; }
     ornek = { kimlik: z + '-' + zorluk + '-' + Date.now(), zindan: z, zorluk, yol: yolu(z), asama: ilkAsama || 0, altin: 0, ganimet: [], hasar: 0 };      // ilkAsama yalnız denetim betikleri içindir; oyunda sefer hep ilk aşamadan başlar
