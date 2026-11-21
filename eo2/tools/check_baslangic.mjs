@@ -33,17 +33,20 @@ try {
   // öğretici zinciri: sahne ipucundan sonra ilk adım numarasıyla gelir; ikinci haftada harita adımı "Harita" düğmesiyle haritayı açar
   await p.evaluate(() => { const s = EO2.rehber.simdi(); if (s && s.tur !== 'adim') document.querySelector('.rehber .rh-kapat').click(); }); log.adim1 = await bekle('EO2.rehber.simdi() && EO2.rehber.simdi().tur === "adim" && EO2.rehber.simdi().metin.includes(">1 / ")', 15000); await cek('baslangic_2b_ogretici');
   log.adimHarita = await p.evaluate(async () => { const w = S.week, g = S.goals.slice(); S.week = 2; S.goals.push('kulucka'); EO2.rehber.tazele(); const s = EO2.rehber.simdi(), ok = !!s && s.metin.includes('>4 / '); if (ok) document.querySelector('.rehber .rh-git').click(); await new Promise(r => setTimeout(r, 500)); const acildi = EO2.game.ekran() === 'harita'; EO2.game.close(); S.week = w; S.goals = g; EO2.rehber.tazele(); return ok && acildi; });
-  // 3) portre → Kuşam ve görünüş; set dene, satın al
+  // 3) portre → Kuşam ve dolap (2026-11-21 ekipman); Zırhçı vitrininde set seç, satın al; Dolap'ta kuşan
   const altin0 = await p.evaluate(() => S.gold);
-  await p.locator('#profile').click(); log.kusamAcildi = await bekle('EO2.game.ekran() === "gorunus" && document.querySelector(".gr-setler")');
-  await p.locator('[data-set="temel"]').click(); log.deneme = await bekle('document.querySelector("[data-gr-al=temel]")') && await p.evaluate(() => EO2.api.player.set === 'bare'); await p.waitForTimeout(900); await cek('baslangic_3_deneme');
-  await p.locator('[data-gr-al="temel"]').click(); await p.waitForTimeout(600);
+  await p.locator('#profile').click(); log.kusamAcildi = await bekle('EO2.game.ekran() === "dolap" && document.querySelector(".dl-kusam") && document.querySelectorAll("[data-dl-slot]").length === 5');
+  await p.locator('[data-dl-git="zirhci"]').click(); await bekle('EO2.game.ekran() === "zirhci"');
+  await p.locator('[data-zc-kart="temel"]').click(); log.deneme = await bekle('document.querySelector("[data-zc-al=temel]")') && await p.evaluate(() => EO2.api.player.set === 'bare'); await p.waitForTimeout(900); await cek('baslangic_3_deneme');
+  await p.locator('[data-zc-al="temel"]').click(); await p.waitForTimeout(600);
   log.alindi = await p.evaluate(a => S.gold === a - 120 && S.kusam.giyili === 'temel' && S.kusam.sahip.includes('temel') && EO2.api.player.set === 'temel', altin0);
-  log.pahali = await p.evaluate(() => { const b = document.querySelector('[data-set="muhafiz"]'); b.click(); const al = document.querySelector('[data-gr-al="muhafiz"]'); return !!al && al.disabled && !EO2.gorunum.satinAl('muhafiz'); });
+  log.pahali = await p.evaluate(() => { const b = document.querySelector('[data-zc-kart="muhafiz"]'); b.click(); const al = document.querySelector('[data-zc-al="muhafiz"]'); return !!al && al.disabled && !EO2.gorunum.satinAl('muhafiz'); });
   // üretim emeğe bağlı: altın yetse de malzeme olmadan Avcı seti dövülmez; Kıvılcım Kor Taşı gelince dövülür ve taşlar harcanır
   log.grind = await p.evaluate(() => { const g0 = S.gold, K = EO2.gorunum.kusam().setler.find(q => q.set === 'avci'); S.gold = 5000; S.topcu = S.topcu || {}; S.topcu.ganimet = S.topcu.ganimet || {}; S.topcu.ganimet.kor_t1 = 0; const malzemesiz = EO2.gorunum.satinAl('avci');
     S.topcu.ganimet.kor_t1 = 5; const oldu = EO2.gorunum.satinAl('avci'), kalan = S.topcu.ganimet.kor_t1, odenen = 5000 - S.gold; S.gold = g0; EO2.gorunum.giy('temel'); return K.malzeme.kor_t1 === 4 && !malzemesiz && oldu && kalan === 1 && odenen === K.fiyat && EO2.gorunum.kusam().sahip.includes('avci'); });
-  await p.locator('[data-set="bare"]').click(); await p.waitForTimeout(400); log.giyBare = await p.evaluate(() => EO2.api.player.set === 'bare'); await p.locator('[data-set="temel"]').click(); await p.waitForTimeout(700);
+  const kusan = async id => { await p.evaluate(() => EO2.game.open('dolap')); await p.waitForTimeout(300); await p.locator('[data-dl-sekme="zirh"]').click(); await p.waitForTimeout(200);
+    const uid = await p.evaluate(i => EO2.ekipman.durum().parca.find(q => q.id === i).uid, id); await p.locator('[data-dl-kart="' + uid + '"]').click(); await p.waitForTimeout(200); const g = p.locator('[data-dl="giy"]'); if (await g.count()) await g.click(); await p.waitForTimeout(500); };
+  await kusan('bare'); log.giyBare = await p.evaluate(() => EO2.api.player.set === 'bare'); await kusan('temel'); await p.waitForTimeout(400);
   log.giyTemel = await p.evaluate(() => EO2.api.player.set === 'temel' && !!EO2.api.player.gor); await cek('baslangic_4_kusam'); await p.evaluate(() => EO2.game.close());
   // 4) hızlı seyahat
   log.haritaVar = await p.evaluate(() => !!(EO2.harita && EO2.harita.yerler().length >= 4));

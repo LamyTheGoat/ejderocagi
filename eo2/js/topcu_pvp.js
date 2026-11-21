@@ -42,7 +42,7 @@
     body.querySelectorAll('[data-soz]').forEach(b => b.addEventListener('click', () => { if (EO2.audio) EO2.audio.ui(); yolla({ type: 'pvp_room_say', i: +b.dataset.soz }); }));
     body.querySelectorAll('[data-pvp-oda]').forEach(b => b.addEventListener('click', () => { st.hata = ''; if (EO2.audio) EO2.audio.ui(); yolla(Object.assign({ type: 'pvp_room_join', code: b.dataset.pvpOda }, kimlik())); }));
     body.querySelectorAll('[data-pvp]').forEach(b => b.addEventListener('click', () => { const k = b.dataset.pvp, K = kimlik(); st.hata = ''; if (EO2.audio) EO2.audio.ui();
-      if (k === 'gir') { G.open(EKRAN); return; } if (k === 'takim') { G.open('takim'); return; } if (k === 'ejder') { G.open('arena'); return; } if (k === 'kusam') { G.open('gorunus'); return; }
+      if (k === 'gir') { G.open(EKRAN); return; } if (k === 'takim') { G.open('takim'); return; } if (k === 'ejder') { G.open('arena'); return; } if (k === 'kusam') { G.open(EO2.ekipman ? 'dolap' : 'gorunus'); return; }
       if (k === 'cagir') { meydandanCagir(); return; } if (k === 'izle') { st.hata = ''; yolla({ type: 'pvp_watch', code: b.dataset.kod }); return; } if (k === 'izle-cik') { yolla({ type: 'pvp_unwatch' }); st.izle = null; ciz(); return; }
       if (k === 'kopya') { const kod = st.oda && st.oda.code; try { navigator.clipboard.writeText(kod).then(() => G.toast('Oda kodu kopyalandı: <b>' + esc_(kod) + '</b>'), () => { }); } catch (_) { } return; }
       if (k === 'baglan') { ag.baglan().then(ciz); ciz(); }
