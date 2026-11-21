@@ -43,6 +43,7 @@ try {
   if (log.b4b === 'u-in') { await p.evaluate(() => { const i = S.grid.findIndex(q => q.open && !q.b); S.gold -= BUILD.in.fiyat; S.grid[i].b = 'in'; }); await dur(1600); }
   log.b4c = await aktif(); log.armagan = await p.evaluate(() => { const d = (S.market.dragons || [])[0]; return d ? { ogretici: !!d.ogretici, price: d.price, sex: d.sex, stage: d.stage } : null; });
   await p.evaluate(() => EO2.game.open('pazar')); await dur(1200); await cek('4_pazar_armagan'); await p.evaluate(() => document.querySelector('#pzAl').click()); await dur(1500);
+  log.b4engel = await aktif(); await p.evaluate(() => { const i = S.grid.findIndex(q => q.open && !q.b); S.grid[i].b = 'in'; }); await dur(1300);
   log.b4d = await aktif(); log.yakinlik = await p.evaluate(() => { const y = S.dragons.find(d => d.ogretici), k = S.dragons.find(d => d !== y && d.stage === 'yetiskin' && d.sex !== y.sex); return y && k ? S.aff[affKey(y.id, k.id)] : -1; });
   log.ciftHazir = await p.evaluate(() => { const y = S.dragons.find(d => d.ogretici), k = S.dragons.find(d => d !== y && d.stage === 'yetiskin' && d.sex !== y.sex); return breedChecks(y, k).every(c => c[1]); });
   await p.evaluate(() => EO2.game.close()); await dur(400);
@@ -51,6 +52,16 @@ try {
   log.defter = await p.evaluate(() => document.querySelectorAll('.defter .sayfa.sag .kariyer li').length); await cek('5_defter_ogretici'); await p.evaluate(() => EO2.game.close());
   // 7. bölüm: Ayaz meydanda
   await p.evaluate(() => { S.st.bred = 1; S.food.genclik = 0; }); await dur(1200); log.b5 = await aktif(); await kartKapat();
+  // engeller: yavru gereken adımda inler dolu ve yumurta çatlamak üzere → İn kur; boş kare yoksa → çalılık temizle
+  log.engel = await p.evaluate(async () => { const o = {}, bek = ms => new Promise(r => setTimeout(r, ms)); S.food.genclik = 1; S.dragons = S.dragons.filter(d => d.stage !== 'yavru');
+    S.eggs = [{ id: 'e' + S.uid++, genes: randomGenes({ q: 0.1 }), sex: 'F', traits: [], w: 1, inK: true, gen: 1, parents: null, origin: 'deneme' }];
+    while (freeSlots() > 0) { const d = mkDragon({ name: 'Dolgu', sex: 'M', genes: randomGenes({ q: 0.1 }), stage: 'yetiskin', age: 5, traits: [], bond: 20, mood: 3 }); S.dragons.push(d); }
+    await bek(1300); o.adim = EO2.rehber.aktif() && EO2.rehber.aktif().id; S.gold = 0; await bek(1300); o.inAltin = S.gold >= BUILD.in.fiyat;
+    o.serit = (document.querySelector('.rehber p') || {}).textContent || '';
+    const bos = S.grid.filter(t => t.open && !t.b); for (const t of bos) t.b = 'fener'; await bek(1300); o.adim2 = EO2.rehber.aktif() && EO2.rehber.aktif().id; o.temizAltin = S.gold >= clearCost();
+    for (const t of bos) t.b = null; const i = S.grid.findIndex(t => t.open && !t.b); S.grid[i].b = 'in'; await bek(1300); o.adim3 = EO2.rehber.aktif() && EO2.rehber.aktif().id;
+    S.eggs = []; S.dragons = S.dragons.filter(d => d.name !== 'Dolgu'); return o; });
+  await cek('8_engel');
   await p.evaluate(() => { const y = mkDragon({ name: 'Minik', sex: 'M', genes: randomGenes({ q: 0.1 }), stage: 'yavru', age: 0, traits: [], bond: 40, mood: 3 }); y.eternalYouth = true; S.dragons.push(y); EO2.rehber.olay('zindan'); EO2.rehber.ekran('bedesten'); S.ors = { kademe: 1, deneme: 1 }; }); await dur(1600);
   log.b7 = await aktif(); await kartKapat(); log.hanAcik = await acilir('han');
   await p.evaluate(() => EO2.api.go('master')); await bekle('EO2.api.scene() === "master"', 15000); await dur(2500);
@@ -60,5 +71,5 @@ try {
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
 const ok = !hata.length && log.v2 && log.b1 === 'a-kulucka' && log.b2 === 't-talim' && log.kart2 && log.topcuAcik && log.arenaKapali && log.pazarKapali && log.seritKilit && log.topcuYonerge && log.b3 === 'k-harita' && log.arenaAcik3 && log.pazarKapali3 &&
-  log.b3b === 'k-kusam' && log.kusamAltin >= 120 && log.b4 === 'u-yuva' && log.yuvaAltin && log.b4c === 'u-damizlik' && log.armagan && log.armagan.ogretici && log.armagan.price === 0 && log.b4d === 'u-ciftles' && log.yakinlik >= 60 && log.ciftHazir && log.defter === 7 && log.ayaz && log.dost && log.b7b === 'b-masa';
+  log.b3b === 'k-kusam' && log.kusamAltin >= 120 && log.b4 === 'u-yuva' && log.yuvaAltin && log.b4c === 'u-damizlik' && log.armagan && log.armagan.ogretici && log.armagan.price === 0 && (log.b4engel === 'e-in' || log.b4engel === 'u-ciftles') && log.b4d === 'u-ciftles' && log.yakinlik >= 60 && log.ciftHazir && log.defter === 7 && log.engel && log.engel.adim === 'e-in' && log.engel.inAltin && log.engel.adim2 === 'e-arazi' && log.engel.temizAltin && log.engel.adim3 === 'z-yavru' && log.ayaz && log.dost && log.b7b === 'b-masa';
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 8) }, null, 1)); process.exit(ok ? 0 : 1);

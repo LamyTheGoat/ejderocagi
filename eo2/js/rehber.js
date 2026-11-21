@@ -108,7 +108,7 @@
     { id: 't-talim', b: 2, bitti: () => !!gor['o-talim'], m: () => '<b>Topçu</b>\'ya git, <b>Talim</b> alanında bir düello bitir.', dugme: 'Topçu', git: 'topcu',
       ekranda: { topcu: '<b>Talim alanı</b>nı seç, <b>Talime başla</b>. Basılı tut, bırak: güç ve açı. Rüzgâr okuna bak.' } },
     { id: 'k-harita', b: 3, bitti: () => !!(gor['a-harita'] || gor['ac-harita']), m: () => '<b>Mini haritaya</b> dokun: kasabada hızlı seyahat et.', dugme: 'Harita', git: 'harita' },
-    { id: 'k-bakim', b: 3, bitti: () => S.st.talk > 0 && S.st.feed > 0, m: () => '<b>' + kor() + '</b>\'u besle ve onunla konuş; bağınız güçlenir.', dugme: 'Ejderhalar', git: 'ejderhalar',
+    { id: 'k-bakim', b: 3, bitti: () => S.st.talk > 0 && S.st.feed > 0, ver: () => (S.st.feed > 0 ? null : { yem: { balik: 1 } }), m: () => '<b>' + kor() + '</b>\'u besle ve onunla konuş; bağınız güçlenir.', dugme: 'Ejderhalar', git: 'ejderhalar',
       ekranda: { ejderhalar: '<b>Besle</b> ile yem ver, <b>Bakım</b>\'da sohbet et.' } },
     { id: 'k-kusam', b: 3, bitti: () => !kusamTek(), ver: () => ({ altin: 120 }), m: () => 'Hâlâ çıplaksın. <b>Portrene</b> dokun, ilk zırhını al.', dugme: 'Kuşam', git: 'gorunus' },
     { id: 'k-arena', b: 3, bitti: () => S.st.fights > 0 || S.st.wins > 0, m: () => '<b>Köy Arenası</b>\'nda ilk dövüşüne çık.', dugme: 'Arena', git: 'arena',
@@ -134,13 +134,33 @@
     { id: 'b-han', b: 7, bitti: () => !!gor['ac-han'], m: () => '<b>Han</b>\'a uğra: haftada bir akşamı biriyle geçirirsin.', dugme: 'Han', git: 'han' },
     { id: 'b-masa', b: 7, bitti: () => !!(gor['ac-kiraathane'] || gor['ac-masa']), m: () => '<b>Kıraathane</b>\'de masalara bak: Ejder Pokeri burada oynanır.', dugme: 'Kıraathane', git: 'kiraathane' },
   ];
-  const ADIM = ADIM0.map((a, n) => Object.assign({}, a, { m: () => '<small class="rh-sira" title="Öğretici · ' + BOLUM[a.b].ad + '">' + a.b + '. bölüm</small> ' + a.m() }));
+  const metin = a => '<small class="rh-sira" title="Öğretici · ' + BOLUM[a.b].ad + '">' + a.b + '. bölüm</small> ' + a.m();
   const yeni = () => !!gor.v2, otoKip = () => !!navigator.webdriver && !window.__gercekAkis;
   let hataGosterildi = 0;
   const sinanir = a => { try { return (!a.uygun || a.uygun()) && !a.bitti(); } catch (e) { if (!hataGosterildi++) console.warn('rehber adımı okunamadı', a.id, e); return false; } };
   /* şimdiki adım: sıradaki bitmemiş adım. Yeni ocakta adımlar kapatılamaz; eski oyuncuda kapatılan adım geçilir. */
   function aktifAdim() { if (typeof S === 'undefined' || !S || S.over || gor['kilit-gec']) return null; if (EO2.ziyaret && EO2.ziyaret.evSahibi && EO2.ziyaret.evSahibi()) return null;
-    return ADIM0.find(a => (yeni() || !gor[a.id]) && sinanir(a)) || null; }
+    const a = ADIM0.find(a => (yeni() || !gor[a.id]) && sinanir(a)) || null; return a && a.b > 1 ? engelOf(a) || a : a; }
+  /* ---------- ENGELLER (Mehmet, 2026-11-21: "tutorial daha sıkı olsun; alan dolu, yumurta çatlamıyor, in inşa etmem lazım ama fark etmiyor") ----------
+     Adımın önünde bir engel varsa (inlerde yer yok, boş kare yok, dövüşecek boşta ejderha yok, çift yaralı, yumurta sepette...) öğretici
+     adımı değil engeli gösterir ve gereken kaynağı verir. Engel kalkınca adım kendiliğinden geri gelir. Birinci bölümde engel yoktur. */
+  const bosKare = () => (S.grid || []).some(t => t.open && !t.b);
+  const hazirYumurta = () => (S.eggs || []).filter(e => e.inK && (e.w | 0) + 1 >= 2).length;      // hafta sonunda çatlayacak yumurtalar
+  const yerYok = () => typeof freeSlots === 'function' && hazirYumurta() > Math.max(0, freeSlots());
+  const yapiIster = a => a.id === 'u-yuva' || a.id === 'u-in';
+  const bosta = () => (S.dragons || []).filter(d => !d.dead && d.stage !== 'yavru' && !d.old);
+  const canAct_ = d => typeof canAct === 'function' ? canAct(d) : !d.inj && !d.task;
+  const ENGEL = [
+    { id: 'e-arazi', k: a => (yapiIster(a) || yerYok()) && !bosKare(), ver: () => ({ altin: typeof clearCost === 'function' ? clearCost() : 60 }), m: () => 'Ocağında boş kare kalmadı. Kenardaki <b>çalılığı temizle</b>; ocak bir kare büyür.', dugme: 'Ocak', git: 'ocak' },
+    { id: 'e-in', k: a => a.id !== 'u-in' && yerYok(), ver: () => ({ altin: fiyat('in') }), m: () => 'Yumurtan çatlamak üzere ama inlerde yer yok. Ocağına bir <b>İn</b> kur; her in iki ejderha barındırır.', dugme: 'Ocak', git: 'ocak' },
+    { id: 'e-sepet', k: a => (a.id === 'z-yavru' || a.id === 'u-hafta') && sepette() && kFree() > 0, m: () => 'Yumurtan sepette bekliyor; sepette çatlamaz. Ocağındaki <b>Kuluçka Ocağı</b>\'na koy.', dugme: 'Ocak', git: 'ocak' },
+    { id: 'e-kulucka', k: a => a.id === 'z-yavru' && !(S.eggs || []).some(e => e.inK) && sepette() && !hasB('kulucka'), ver: () => ({ altin: fiyat('kulucka') }), m: () => 'Yumurtan sepette ama <b>Kuluçka Ocağı</b>\'n yok. Ocağına bir tane kur.', dugme: 'Ocak', git: 'ocak' },
+    { id: 'e-arena-emir', k: a => a.id === 'k-arena' && !bosta().some(canAct_) && bosta().some(d => !d.inj && d.task), m: () => { const d = bosta().find(d => !d.inj && d.task); return '<b>' + esc(d.name) + '</b> bu hafta emirde; arenaya yalnız boştaki ejderha çıkar. <b>Ejderhalar</b>\'da emrini kaldır, sonra dövüş.'; }, dugme: 'Ejderhalar', git: 'ejderhalar' },
+    { id: 'e-arena-yara', k: a => a.id === 'k-arena' && bosta().length > 0 && bosta().every(d => d.inj), m: () => 'Ejderhaların yaralı. <b>Haftayı Bitir</b>; iyileşince arenaya çıkarsın.', dugme: 'Göster', git: 'hafta' },
+    { id: 'e-cift-yara', k: a => a.id === 'u-ciftles' && (yetiskinCift() || []).some(d => d.inj), m: () => 'Çiftinden biri yaralı; yaralı ejderha yuva kuramaz. <b>Haftayı Bitir</b>, iyileşsin.', dugme: 'Göster', git: 'hafta' },
+    { id: 'e-iksir-yavru', k: a => a.id === 'z-icir' && !(S.dragons || []).some(d => !d.dead && d.stage === 'yavru'), m: () => 'İksiri içecek <b>yavru</b> yok; yavrular iki haftada büyür. Kuluçkadaki yumurtan çatlayana dek <b>Haftayı Bitir</b>.', dugme: 'Göster', git: 'hafta' },
+  ];
+  function engelOf(a) { for (const E of ENGEL) { let ok = false; try { ok = E.k(a); } catch (_) { ok = false; } if (ok) return Object.assign({}, E, { b: a.b, ana: a.id }); } return null; }
   const aktifBolum = () => { const a = aktifAdim(); return a ? a.b : 99; };
   /* ---------- İLK HAFTA KİLİDİ (kullanıcı kararı, 2026-11-18) ----------
      İlk haftada oyuncu yalnız birinci bölümü yapabilir: Kuluçka Ocağı'nı kur, ejderhana emir ver, haftayı bitir.
@@ -168,6 +188,7 @@
   function kaynakVer(a) { if (!a.ver || !yeni() || otoKip() || (gor['v-' + a.id] | 0) >= 3) return; let v; try { v = a.ver(); } catch (_) { return; } if (!v) return;
     const ver = []; if (v.altin && S.gold < v.altin) { const n = v.altin - S.gold; S.gold += n; ver.push('<b>' + n + ' altın</b>'); }
     if (v.tas) { S.topcu = S.topcu || {}; const H = S.topcu.ganimet = S.topcu.ganimet || {}; for (const k in v.tas) { const n = v.tas[k] - (H[k] | 0); if (n > 0) { H[k] = (H[k] | 0) + n; ver.push('<b>' + n + ' ' + (TAS_AD[k] || k) + '</b>'); } } }
+    if (v.yem && !Object.keys(S.food || {}).some(k => k !== 'genclik' && S.food[k] > 0)) for (const k in v.yem) { S.food[k] = (S.food[k] | 0) + v.yem[k]; ver.push('<b>' + v.yem[k] + ' ' + (typeof FOODS !== 'undefined' && FOODS[k] ? FOODS[k].ad : k) + '</b>'); }
     if (!ver.length) return; gor['v-' + a.id] = (gor['v-' + a.id] | 0) + 1; yaz(); if (typeof saveGame === 'function') saveGame(); if (G.hud) G.hud();
     de('Usta sana ' + ver.join(' ve ') + ' verdi. Bu adım için yeter.', 'goal'); if (G.fx && G.fx.coins && v.altin) try { G.fx.coins('#scrGold', 6); } catch (_) { } }
   /* çiftleşme adımı: Pazar'da bir kez ücretsiz damızlık; alınınca çiftin yakınlığı ve morali yüksek tutulur */
@@ -176,9 +197,11 @@
       const es = (S.dragons || []).find(d => !d.dead && d.stage === 'yetiskin') || {}, sex = es.sex === 'F' ? 'M' : 'F';
       const d = mkDragon({ name: sex === 'F' ? 'Sürmeli' : 'Alpagut', sex, genes: typeof randomGenes === 'function' ? randomGenes({ q: 0.3 }) : undefined, stage: 'yetiskin', age: 5, traits: [], bond: 40, mood: 4, origin: 'Usta\'nın armağanı' });
       S.nid--; d.id = 'm' + S.uid++; d.price = 0; d.ogretici = 1; d.mood = 4; L.unshift(d); }
-    const yeniD = (S.dragons || []).find(d => d.ogretici && !d.dead); if (!yeniD) return; if (!gor['u-armagan']) isaretle('u-armagan');
-    if (S.st.bred > 0) return; const es = (S.dragons || []).find(d => !d.dead && d !== yeniD && d.stage === 'yetiskin' && d.sex !== yeniD.sex); if (!es || typeof affKey !== 'function') return;
-    const k = affKey(yeniD.id, es.id); if ((S.aff[k] || 0) < 100) S.aff[k] = 100; for (const d of [yeniD, es]) if (d.mood < 3) d.mood = 3; }
+    const yeniD = (S.dragons || []).find(d => d.ogretici && !d.dead); if (yeniD && !gor['u-armagan']) isaretle('u-armagan');
+    /* çiftleşme adımında yakınlık ve moral yüksek tutulur: öğretici damızlığı olsun olmasın, ocaktaki ilk yetişkin çift için */
+    if (S.st.bred > 0 || !yeni() || a.b !== 4 || typeof affKey !== 'function') return;
+    const es = yeniD ? (S.dragons || []).find(d => !d.dead && d !== yeniD && d.stage === 'yetiskin' && d.sex !== yeniD.sex) : null, P = yeniD && es ? [yeniD, es] : yetiskinCift(); if (!P) return;
+    const k = affKey(P[0].id, P[1].id); if ((S.aff[k] || 0) < 100) S.aff[k] = 100; for (const d of P) if (d.mood < 3) d.mood = 3; }
   /* yedek: iksir adımında hiç yavru ve yumurta yoksa öğretici bir yumurtayı kuluçkaya koyar */
   function yedekYumurta() { const a = aktifAdim(); if (!a || a.id !== 'z-yavru' || (S.eggs || []).length || gor['z-yumurta'] || typeof marketEgg !== 'function' || kFree() < 1) return;
     const e = marketEgg(); delete e.price; e.origin = 'Usta\'nın armağanı'; e.inK = true; S.eggs.push(e); isaretle('z-yumurta'); if (typeof saveGame === 'function') saveGame(); de('Usta kuluçkana bir yumurta koydu. Çatlayınca yavruna iksiri içir.', 'goal'); }
@@ -227,8 +250,8 @@
   function tazele() { if (!G.live || typeof S === 'undefined' || !S || S.over) return gizle();
     if (simdi && simdi.tur !== 'adim') return;      // ekran ya da sahne ipucu görünürken adım araya girmez
     const e = G.ekran && G.ekran(); if (e) { if (simdi) gizle(); return; }
-    const k = aktifAdim(), a = k ? ADIM[ADIM0.indexOf(k)] : null, kil = !!k && (!!kilitAdim() || !!bolumKilit());
-    if (!a) return gizle(); goster({ id: a.id, tur: 'adim', metin: a.m(), dugme: a.dugme, git: a.git, kilit: kil }); }
+    const a = aktifAdim(), kil = !!a && (!!kilitAdim() || !!bolumKilit());
+    if (!a) return gizle(); goster({ id: a.id, tur: 'adim', metin: metin(a), dugme: a.dugme, git: a.git, kilit: kil }); }
   function ekran(id) { if (!G.live) return; if (id) isaretle('ac-' + id);
     const k = id && aktifAdim(), ek = k && k.ekranda && k.ekranda[id];
     if (ek && !(simdi && simdi.id === 'x-' + k.id)) { goster({ id: 'x-' + k.id, tur: 'ekran', metin: ek, sn: 16 }); return; }      // şimdiki adımın bu ekrandaki yönergesi
