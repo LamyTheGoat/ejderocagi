@@ -40,6 +40,6 @@
     on(body, '[data-id]', b => { UI.sel = +b.dataset.id; selB = null; render(); }); on(body, '[data-b]', b => { selB = +b.dataset.b; render(); });
     const kalp = () => { if (G.fx) { G.fx.hearts('.yu-kalp2', 10); } };
     on(body, '[data-walk]', () => { pairTask(A, B, 'walk'); if (A.task) kalp(); }); on(body, '[data-breed]', () => { pairTask(A, B, 'breed'); if (A.task) kalp(); });
-    on(body, '[data-egg]', b => { const e = S.eggs.find(x => String(x.id) === b.dataset.egg); if (!e) return; if (e.inK) e.inK = false; else if (kuluckaFree() > 0) { e.inK = true; if (G.fx) G.fx.stars(b, 10, '#ffd0a0'); } afterAction(); });
+    on(body, '[data-egg]', b => { const e = S.eggs.find(x => String(x.id) === b.dataset.egg); if (!e) return; if (!e.inK && EO2.ocakDefteri && EO2.ocakDefteri.kilitli && EO2.ocakDefteri.kilitli(e)) { toast((e.ilanda === 'takas' ? 'Bu yumurta süren bir takasta' : 'Bu yumurta Bedesten\'de ilanda') + '; kuluçkaya konamaz.', 'kotu'); return; } if (e.inK) e.inK = false; else if (kuluckaFree() > 0) { e.inK = true; if (G.fx) G.fx.stars(b, 10, '#ffd0a0'); } afterAction(); });
   } });
 })();

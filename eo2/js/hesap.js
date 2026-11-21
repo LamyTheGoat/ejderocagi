@@ -58,6 +58,7 @@
     const c = K.coz(j.save); if (c.hata) return { bozuk: true };
     if (G.live && typeof saveGame === 'function') { try { saveGame(); } catch (_) { } }
     K.yedekle('hesaptan yükleme');
+    if (K.farkSifirla) K.farkSifirla(c.kayit);   // hesaptaki yedekte bekleyen altın farkı ikinci kez gönderilmez
     if (!depo.yaz(K.anahtar(), JSON.stringify(c.kayit))) return { yazilamadi: true };
     return { ok: true, savedAt: j.savedAt };   // bilinen yedek zamanını çağıran yazar (kurtarmada hesap değişmiştir)
   }
