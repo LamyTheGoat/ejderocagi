@@ -91,7 +91,13 @@
   G.ekran = () => cur ? cur.id : null;      // açık ekranın kimliği (müzik ve rehber buna bakar)
   /* BASINCA KAYMA YOK (kullanıcı, 2026-11-17): bir ekran ilk açılışta giriş canlandırmasıyla gelir; aynı ekran her dokunuşta yeniden çizilirken
      canlandırmalar baştan oynamaz (gövdeye "yeniden" sınıfı konur; css/deneyim.css giriş canlandırmalarını son hâline alır). */
-  function draw() { if (!cur) return; const govde = $id('scrB'); cur.cizim = (cur.cizim || 0) + 1; govde.classList.toggle('yeniden', cur.cizim > 1); $id('scrGold').textContent = S.gold; $id('scrUn').textContent = S.un; $id('scrWeek').innerHTML = S.week >= SEASON ? 'Sezonu Bitir' : 'Haftayı Bitir'; SCREENS[cur.id].draw($id('scrB'), cur.arg); }
+  /* yeniden çizimde kaydırma konumu korunur (2026-11-21 oyuncu geri bildirimi: ejderha listesinde seçim yapınca liste en üste atıyordu).
+     Ekran yeniden çizilmeden önce kaydırılmış her kutunun yeri sınıf adı ve sırasıyla not alınır, çizimden sonra aynı kutuya geri verilir. */
+  function kaydirmaAl(k) { const L = [], say = {}; k.querySelectorAll('*').forEach(e => { const a = e.tagName + '.' + e.className; say[a] = (say[a] || 0) + 1; if (e.scrollTop || e.scrollLeft) L.push([a, say[a], e.scrollTop, e.scrollLeft]); }); return L; }
+  function kaydirmaVer(k, L) { if (!L.length) return; const say = {}, bul = {}; k.querySelectorAll('*').forEach(e => { const a = e.tagName + '.' + e.className; say[a] = (say[a] || 0) + 1; bul[a + '#' + say[a]] = e; });
+    for (const [a, n, t, l] of L) { const e = bul[a + '#' + n]; if (e && !e.scrollTop && !e.scrollLeft) { e.scrollTop = t; e.scrollLeft = l; } } }   // çizim kutuyu kendisi kaydırdıysa (örneğin kayıt dibe) ona dokunulmaz
+  function draw() { if (!cur) return; const govde = $id('scrB'); cur.cizim = (cur.cizim || 0) + 1; govde.classList.toggle('yeniden', cur.cizim > 1); $id('scrGold').textContent = S.gold; $id('scrUn').textContent = S.un; $id('scrWeek').innerHTML = S.week >= SEASON ? 'Sezonu Bitir' : 'Haftayı Bitir';
+    const kay = cur.cizim > 1 ? kaydirmaAl(govde) : []; SCREENS[cur.id].draw(govde, cur.arg); kaydirmaVer(govde, kay); }
   G.redraw = function () { if (!G.live) return; draw(); hud(); };
   EO2_BUS.render = G.redraw;
   $id('scrBack').addEventListener('click', () => G.close());      // çağrı anındaki G.close: başka dosya sarmışsa (kiraathane2.js) o da çalışır
@@ -102,12 +108,18 @@
 
   /* ---------- HUD: gerçek veriler ---------- */
   const fmt = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  let kariyerUyari = '';
   function hud() { if (!G.live) return; const chips = document.querySelectorAll('#hud .tc .chip'), se = seasonOf();
     chips[0].innerHTML = '<span class="coin"></span>' + fmt(S.gold); chips[1].lastChild.textContent = fmt(S.un);
     chips[2].innerHTML = '<b>Hafta ' + S.week + '</b>/ ' + SEASON + '<small>' + se.ad + '</small>';
     const pr = document.querySelector('#profile > span'); pr.innerHTML = '<b>' + esc(G.ad()) + '</b><span>' + S.dragons.length + ' / ' + capacity() + ' ejder</span>';
     const ul = document.querySelector('.quests ul'), gs = activeGoals(3);      // hedefe dokununca rehber ilgili yere götürür (js/rehber.js)
-    ul.innerHTML = gs.length ? gs.map(g => '<li data-hedef="' + g.id + '" role="button" tabindex="0" title="Oraya git">' + g.t + '<span class="au">+' + g.r + '</span></li>').join('') : '<li class="bos">Bütün hedefler tamam.</li>';
+    /* yıldızın kariyer hedefi hedeflerin başında durur: tutturamazsa yıldız emekli olur, bu oyuncuya hep görünmeli (2026-11-21 geri bildirim) */
+    let kar = ''; { const C = typeof career === 'function' && !S.over ? career() : null, g = C && C.goals[C.i], kd = C && byId(C.id);
+      if (g && kd) { const wl = weeksLeft(g); kar = '<li class="kariyer' + (wl <= 1 ? ' acil' : wl <= 3 ? ' uyari' : '') + '" data-kariyer="' + kd.id + '" role="button" tabindex="0" title="Yıldızın kariyer hedefi: tutturamazsa emekli olur">' + esc(kd.name) + ': ' + esc(g.t) + '<span>' + (wl <= 0 ? 'son hafta' : wl + ' hafta') + '</span></li>';
+        /* son haftada bir kez uyarı: telefonda hedef listesi görünmediği için bildirim olarak da çıkar */
+        const an = C.id + ':' + C.i + ':' + S.week; if (wl <= 0 && kariyerUyari !== an && typeof toast === 'function') { kariyerUyari = an; setTimeout(() => toast('<b>' + esc(kd.name) + ': kariyer hedefinin son haftası</b>' + esc(g.t) + '. Bu hafta tutturamazsa emekli olur ve bir daha dövüşmez.', 'goal'), 900); } } }
+    ul.innerHTML = kar + (gs.length ? gs.map(g => '<li data-hedef="' + g.id + '" role="button" tabindex="0" title="Oraya git">' + g.t + '<span class="au">+' + g.r + '</span></li>').join('') : '<li class="bos">Bütün hedefler tamam.</li>');
     if (EO2.rehber) EO2.rehber.tazele();
     const b = $id('btnWeek'); if (b) { b.textContent = S.week >= SEASON ? 'Sezonu Bitir' : 'Haftayı Bitir'; b.dataset.hafta = 'Hafta ' + S.week + ' / ' + SEASON; } document.getElementById('profile').style.setProperty('--sezon', Math.round(S.week / SEASON * 100) + '%'); if (EO2.api && EO2.api.player) EO2.api.setPlate(EO2.api.player); }
   G.hud = hud;
@@ -225,6 +237,8 @@
     const q = document.querySelector('.quests'), b = el('button', 'gbtn altin', 'Haftayı Bitir'); b.id = 'btnWeek'; b.type = 'button'; b.addEventListener('click', () => G.endWeek()); q.appendChild(b);
     const hedefAc = e => { const li = e.target.closest('li[data-hedef]'); if (!li || (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ')) return; if (e.type === 'keydown') { e.preventDefault(); e.stopPropagation(); } if (EO2.audio) EO2.audio.ui(); if (EO2.rehber) EO2.rehber.git(li.dataset.hedef); };
     q.addEventListener('click', hedefAc); q.addEventListener('keydown', hedefAc);
+    const kariyerAc = e => { const li = e.target.closest('li[data-kariyer]'); if (!li || (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ')) return; if (e.type === 'keydown') { e.preventDefault(); e.stopPropagation(); } if (EO2.audio) EO2.audio.ui(); UI.sel = +li.dataset.kariyer; G.open('ejderhalar'); if (cur && cur.id === 'ejderhalar' && EO2.ahir && (!EO2.rehber || !EO2.rehber.kilitEngel || !EO2.rehber.kilitEngel('ahir:rol'))) { EO2.ahir.setMod('rol'); draw(); } };
+    q.addEventListener('click', kariyerAc); q.addEventListener('keydown', kariyerAc);
     EO2.hooks.panel = id => { if (!G.live) return true; if (id === 'ejderhalar' || id === 'bahce') { G.open('ejderhalar'); return true; } if (id === 'ocak') { if (EO2.ocak) EO2.ocak.git(); return true; } if (id === 'arena') { G.open('arena'); return true; } if (id === 'pazar' || id === 'uretim') { G.open('pazar'); return true; } if (id === 'kuzey') { G.open('sefer'); return true; } if (id === 'sosyal' || id === 'han') { G.open('han'); return true; } if (id === 'gorevler') { G.open('defter'); return true; } if (id === 'envanter') { G.open('canta'); return true; } if (id === 'menu') { G.open('menu'); return true; } return false; };
     EO2.hooks.act = act => { if (!G.live) return true; if (act.startsWith('pet:')) { G.open('ejderhalar'); return true; } return false; };
     const P = A.PANELS, rows = a => '<ul class="rows">' + a.map(r => '<li><div><b>' + r[0] + '</b>' + (r[1] ? '<span>' + r[1] + '</span>' : '') + '</div></li>').join('') + '</ul>';
