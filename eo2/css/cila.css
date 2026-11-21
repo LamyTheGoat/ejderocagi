@@ -537,7 +537,7 @@ button.ah-kariyer { cursor: pointer; } button.ah-kariyer:hover { filter: brightn
   background: linear-gradient(180deg, rgba(14, 18, 34, .78), rgba(10, 13, 26, .7)); box-shadow: inset 0 0 0 1px rgba(201, 162, 74, .55), 0 .3em 1em rgba(4, 6, 16, .45); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .ui2 .kadro-sayfali > .kadro-gizli { display: none !important; }
 .ui2 .kadro-sayfali > .madalyon:hover, .ui2 .kadro-sayfali > .madalyon[aria-pressed="true"] { transform: scale(1.05); }   /* şeridin dışına taşmasın */
-.ui2 .kadro-ok { flex: none; display: flex; align-items: center; justify-content: center; gap: .2em; width: 100%; min-width: 3.4em; height: 1.9em; margin: 0; padding: 0 .4em; border: 0; border-radius: 1em; color: #ffe7a8; cursor: pointer;
+.ui2 .kadro-ok { flex: none; box-sizing: border-box; max-width: 100%; display: flex; align-items: center; justify-content: center; gap: .2em; width: 100%; min-width: 3.4em; height: 1.9em; margin: 0; padding: 0 .4em; border: 0; border-radius: 1em; color: #ffe7a8; cursor: pointer;
   font: 800 .9em/1 var(--f-ui); font-variant-numeric: tabular-nums; background: linear-gradient(180deg, rgba(64, 54, 30, .95), rgba(34, 28, 14, .95)); box-shadow: inset 0 0 0 1.5px #c9a24a, inset 0 1px 0 rgba(255, 233, 168, .25); transition: filter .12s, transform .12s, opacity .15s; }
 .ui2 .kadro-ok svg { flex: none; width: 1.25em; height: 1.25em; } .ui2 .kadro-ok small { font: inherit; } .ui2 .kadro-ok small:empty { display: none; }
 .ui2 .kadro-ok:hover:not(:disabled) { filter: brightness(1.2); } .ui2 .kadro-ok:active:not(:disabled) { transform: scale(.96); }
@@ -549,3 +549,7 @@ button.ah-kariyer { cursor: pointer; } button.ah-kariyer:hover { filter: brightn
 .ui2 .kadro-dik > .kadro-yildiz { padding-bottom: .35em; border-bottom: 1px solid rgba(201, 162, 74, .5); } .ui2 .kadro-yatay > .kadro-yildiz { padding-right: .45em; border-right: 1px solid rgba(201, 162, 74, .5); }
 @media (max-height: 560px) { .ui2 .kadro-ok { height: 1.6em; font-size: .8em; } .ui2 .kadro-sayfali { padding: .3em .25em !important; } .ui2 .ar-kadro { gap: .35em; } .ui2 .ar-kadro .madalyon img { width: 3em; height: 3em; } .ui2 .ar-kadro .madalyon span { display: none; } }
 .ui2 .ah-kadro.kadro-sayfali.kadro-dik, .ui2 .yu-kadro.kadro-sayfali.kadro-dik { bottom: auto; } .ui2 .ar-kadro.kadro-sayfali { margin-top: .8em; }   /* şerit içeriği kadar uzar; arenada üstteki güç satırına binmez */
+/* dik telefonda arena listesi: soldaki dikey şerit eşleşme kartının kenarına biniyordu; sekmelerle dövüşçü adları arasında yatay şerit olur */
+@media (max-aspect-ratio: 1/1) { .ui2 .ar-kadro { top: 5.4em; left: .5em; right: .5em; grid-auto-flow: column; justify-content: center; gap: .45em; } .ui2 .ar-kadro.kadro-sayfali { margin-top: 0; } .ui2 .ar-kadro .madalyon span { display: none; } .ui2 .ar-kadro .madalyon img { width: 2.9em; height: 2.9em; } }
+@media (max-aspect-ratio: 1/1) and (max-height: 740px) { .ui2 .ar-ben, .ui2 .ar-rakip { top: 23.5%; } }   /* kısa dik telefonda dövüşçü adları şeridin altına insin */
+.ui2 .kadro-yatay > .kadro-ok { width: 2.5em; } .ui2 .kadro-yatay > .kadro-ok small { font-size: .82em; letter-spacing: -.02em; }
