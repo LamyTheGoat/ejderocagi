@@ -115,7 +115,7 @@
     sing(sec) { st.sazBoost = 1; setTimeout(() => { st.sazBoost = 0; }, (sec || 9) * 1000); },
     // düello sesleri
     battle(v) { st.battle = v; },
-    charge(p) { if (ok()) tone('sine', 180 + p * 520, 190 + p * 540, now(), 0.06, 0.018); },
+    charge(p) { p = +p || 0; if (ok()) tone('sine', 180 + p * 520, 190 + p * 540, now(), 0.06, 0.018); },
     fire() { if (ok()) { const t = now(); tone('sine', 150, 38, t, 0.5, 0.5); burst(t, 0.3, 500, 0.5, 0.4, 'lowpass'); burst(t, 0.12, 2400, 0.6, 0.18); } },
     boom(k) { if (ok()) { const t = now(), g = 0.35 + (k || 0.5) * 0.4; tone('sine', 110, 30, t, 0.7, g); burst(t, 0.6, 320, 0.4, g, 'lowpass'); burst(t + 0.02, 0.25, 1800, 0.5, g * 0.4); } },
     hit() { if (ok()) { const t = now(); tone('square', 320, 90, t, 0.18, 0.09); } },

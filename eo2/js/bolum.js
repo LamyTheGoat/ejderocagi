@@ -229,7 +229,7 @@
       const yer = ZM.alanlar.map(q => ({ q, t: null }));
       ic.R0 = R0; ic.K = EO2.doku; ic.dokular = {}; ic.fx = h.T.fx; ic.golgeUv = h.uv('shadow'); ic.dip = dipDokular(R0);
       { const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d'); x.fillStyle = 'rgb(58,40,84)'; x.beginPath(); x.ellipse(128, 64, 126, 62, 0, 0, 6.3); x.fill(); ic.elips = R0.texture(c); }
-      ic.yenile = () => { for (const y of yer) y.t = R0.texture(zeminCiz(y.q[0], y.q[1], y.q[2], y.q[3], y.q[4], y.q[5])); }; ic.yenile();
+      ic.yenile = () => { for (const y of yer) { if (y.t && R0.sil) R0.sil(y.t); y.t = R0.texture(zeminCiz(y.q[0], y.q[1], y.q[2], y.q[3], y.q[4], y.q[5])); } }; ic.yenile();   // eski gölge dokusu silinir: her boyamada 2 büyük doku birikiyordu
       yukleCiz().then(() => { if (ic.yenile) ic.yenile(); });   // çizimler sahneden sonra yüklendiyse gölgeler yeniden boyanır
       h.push({ key: 960, draw(R) { for (const y of yer) { const q = y.q; R.quad(y.t, [q[0], q[1], 0.006], [q[2], q[1], 0.006], [q[2], q[3], 0.006], [q[0], q[3], 0.006], 0, 0, 1, 1, BIRR, false, 1); } } });
       for (const o of DUZEN) for (const it of nesneItler(o)) h.push(it);

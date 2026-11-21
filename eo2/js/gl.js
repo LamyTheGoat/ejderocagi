@@ -212,11 +212,30 @@
     const cam = { x: 0, y: 0, h: 3.57, F: 500, cos: 1, sin: 0, ppy: 200 };
     const fog = { col: [0.8, 0.86, 0.9, 0.8], r: [30, 120] };
 
+    /* Telefon ve iPad'de doku bellek sınırı: iOS Safari sekmeyi ~1 GB'ı aşınca kapatır ("bu sayfada birçok kez sorun oluştu").
+       Büyük çizim sayfaları (chibi atlası 2943 px, NPC 2000 px, zemin gölgesi 4000 px) ekranda hiçbir zaman o kadar büyük görünmez;
+       uzun kenarı MOBIL_KENAR'ı aşan kaynak yüklenmeden önce oranı korunarak küçültülür. opt.raw (veri dokusu) ve opt.tamBoy dokunulmaz. */
+    const mobil = (() => { try { const ua = navigator.userAgent || ''; const ios = /iP(hone|ad|od)/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+      return ios || (matchMedia('(pointer: coarse)').matches && Math.min(screen.width || 9999, screen.height || 9999) <= 820); } catch (_) { return false; } })();
+    const MOBIL_KENAR = (() => { try { return +localStorage.getItem('eo2.dokuKenar') || 1280; } catch (_) { return 1280; } })();   // deneme için değiştirilebilir
+    R.mobil = mobil; R.dokuBayt = 0;
+    function dokuBayt(w, h, opt) { return w * h * 4 * (opt.mips === false ? 1 : 4 / 3); }
+    function kucult(src, w, h, opt) {
+      const uz = Math.max(w, h), sin = Math.min(maxTex, mobil ? MOBIL_KENAR : maxTex);
+      if (!w || !h || uz <= sin || opt.raw || opt.tamBoy) return src;
+      const k = sin / uz, c = document.createElement('canvas'); c.width = c.__w = Math.max(1, Math.round(w * k)); c.height = c.__h = Math.max(1, Math.round(h * k));
+      const x = c.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(src, 0, 0, c.width, c.height);
+      return c;
+    }
+
     /* Doku: tuval ya da görsel. Küçültme zinciri + (varsa) anizotropik süzme: eğik yüzeyde keskin kalır. */
-    R.texture = function (src, opt = {}) {
+    function yukle(src, opt) {
       const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, opt.raw ? false : true);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+      const W0 = src.width || src.naturalWidth, H0 = src.height || src.naturalHeight, up = kucult(src, W0, H0, opt);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, up);
+      const bayt = dokuBayt(up === src ? W0 : up.__w, up === src ? H0 : up.__h, opt);
+      if (up !== src) { up.width = up.height = 0; }   // ara tuval hemen bırakılır (iOS tuval belleğini ancak böyle geri verir)
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
       const rep = opt.repeat ? gl.REPEAT : gl.CLAMP_TO_EDGE;
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, rep); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, rep);
@@ -224,8 +243,37 @@
       if (opt.mips === false) gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       else { gl.generateMipmap(gl.TEXTURE_2D); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
         if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT))); }
-      return { t, w: src.width || src.naturalWidth, h: src.height || src.naturalHeight };
+      R.dokuBayt += bayt; return { t, bayt, W0, H0 };
+    }
+    /* Bellek bütçesi: görselden (img) gelen doku bir süre kullanılmazsa GPU'dan silinir, kaynak görsel elde kalır;
+       yeniden gerektiğinde (.t okununca) aynı görselden sessizce yeniden yüklenir. Tuvalden gelen dokular
+       silinmez (kaynakları elde tutulmaz). Ham doku tutamağını (.t) bir kez okuyup saklayan kod, nesneyi saklamalı. Böylece gezilen her yerin dokusu belleğe birikmez: iOS'ta sekme çökmesinin asıl nedeni buydu. */
+    const silinebilir = [], BUTCE = (mobil ? 250 : 1100) * 1048576, BOSTA_MS = 15000;
+    const yenidenYuklenir = src => typeof HTMLImageElement !== 'undefined' && src instanceof HTMLImageElement;
+    R.texture = function (src, opt = {}) {
+      const y = yukle(src, opt), o = { w: y.W0, h: y.H0 };   // ölçü kaynağınki kalır: çağıranlar uv'yi 0–1 verir, küçültme onları etkilemez
+      if (!yenidenYuklenir(src)) { o.t = y.t; o.__bayt = y.bayt; return o; }
+      let tt = y.t, son = performance.now(); o.__bayt = y.bayt;
+      Object.defineProperty(o, 't', { enumerable: true, configurable: true,
+        get() { son = performance.now(); if (!tt) { const z = yukle(src, opt); tt = z.t; o.__bayt = z.bayt; R.dokuYeniden++; } return tt; },
+        set(v) { tt = v; } });
+      o.__bos = () => tt ? performance.now() - son : -1;
+      o.__sil = () => { if (!tt) return 0; gl.deleteTexture(tt); tt = null; R.dokuBayt -= o.__bayt; return o.__bayt; };
+      silinebilir.push(o); return o;
     };
+    /* Artık hiç kullanılmayacak doku (ör. yeniden boyanan zemin gölgesi) */
+    R.sil = function (o) { if (!o) return; if (o.__sil) { o.__sil(); const i = silinebilir.indexOf(o); if (i >= 0) silinebilir.splice(i, 1); return; }
+      if (o.t) { gl.deleteTexture(o.t); R.dokuBayt -= o.__bayt || 0; o.t = null; } };
+    R.dokuYeniden = 0; R.dokuSilinen = 0;
+    R.dokuDurum = () => { const MB = x => Math.round(x / 1048576); let ss = 0, yuklu = 0; for (const o of silinebilir) if (o.__bos() >= 0) { ss += o.__bayt; yuklu++; }
+      return { toplamMB: MB(R.dokuBayt), gorselMB: MB(ss), tuvalMB: MB(R.dokuBayt - ss), gorselYuklu: yuklu, gorselHepsi: silinebilir.length, yeniden: R.dokuYeniden, silinenMB: MB(R.dokuSilinen), mobil }; };
+    R.dokuTemizle = function (zorla) {
+      if (!zorla && R.dokuBayt <= BUTCE) return;
+      const aday = silinebilir.map(o => [o, o.__bos()]).filter(a => a[1] > (zorla ? 1500 : BOSTA_MS)).sort((a, b) => b[1] - a[1]);
+      for (const [o] of aday) { if (!zorla && R.dokuBayt <= BUTCE * 0.85) break; R.dokuSilinen += o.__sil(); }
+    };
+    setInterval(() => R.dokuTemizle(false), 4000);
+    document.addEventListener('visibilitychange', () => { if (document.hidden && mobil) R.dokuTemizle(true); });   // arka planda iOS sekmeyi önce büyük bellek tutanlardan kapatır
 
     R.resize = function (w, h, dpr) {
       R.w = w; R.h = h; R.dpr = dpr; const pw = Math.round(w * dpr), ph = Math.round(h * dpr);
@@ -263,8 +311,8 @@
     function flush() {
       if (!n) return;
       gl.bufferSubData(gl.ARRAY_BUFFER, 0, buf.subarray(0, n * 4 * STRIDE));
-      gl.bindTexture(gl.TEXTURE_2D, curTex.t);
-      const nr = !curAdd && !curScreen && curTex.nrm && R.kabartma > 0 ? curTex.nrm : null;
+      const nr = !curAdd && !curScreen && R.kabartma > 0 ? curTex.nrm || null : null, tt = curTex.t;   // önce tutamaklar okunur: silinmiş doku yeniden yüklenirken birim 0'a bağlanır
+      gl.bindTexture(gl.TEXTURE_2D, tt);
       if (nr) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, nr); gl.activeTexture(gl.TEXTURE0); const wm = curTex.wm || 4, hm = curTex.hm || 4, lp = curTex.lp || [0.5, 0.5, 0.001, 0];
         gl.uniform4f(prog.u.u_rel, (curTex.relK || 1) * R.kabartma, R.kayma ? (curTex.derin === undefined ? 0.14 : curTex.derin) * R.kayma : 0, curTex.yon || 0, R.zaman); gl.uniform4f(prog.u.u_wm, wm, hm, wm / hm, 0); gl.uniform4f(prog.u.u_lp, lp[0], lp[1], lp[2], lp[3]); relAcik = true; }
       else if (relAcik) { gl.uniform4f(prog.u.u_rel, 0, 0, 0, 0); relAcik = false; }
@@ -302,8 +350,9 @@
       const L = isikBuf; L.fill(0); for (let i = 0; i < g.lights.length && i < 16; i++) L.set(g.lights[i], i * 4);   // tek tampon: her kare yeni dizi açılmaz (çöp toplayıcı daha seyrek çalışır)
       gl.uniform4fv(progG.u.u_lights, L); gl.uniform1i(progG.u.u_nl, Math.min(16, g.lights.length));
       gl.uniform1f(progG.u.u_kab, g.kab === undefined ? R.kabartma : g.kab); const t1 = g.t1, t2 = g.t2; gl.uniform4f(progG.u.u_dok, t1 ? 1 : 0, t2 ? 1 : 0, g.s1 || 6, g.s2 || 7); gl.uniform1i(progG.u.u_t1, 1); gl.uniform1i(progG.u.u_t2, 2);
-      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, (t1 || mapTex).t); gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, (t2 || mapTex).t); gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, mapTex.t); gl.blendFunc(gl.ONE, gl.ZERO);
+      const h1 = (t1 || mapTex).t, h2 = (t2 || mapTex).t, h0 = mapTex.t;   // önce tutamaklar: yeniden yükleme bağlamaları bozmasın
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, h1); gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, h2); gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, h0); gl.blendFunc(gl.ONE, gl.ZERO);
       const [x0, y0, x1, y1] = rect, c = WHITE; let o = 0;
       const put = (x, y) => { buf[o++] = x; buf[o++] = y; buf[o++] = 0; buf[o++] = 0; buf[o++] = 0; buf[o++] = 1; buf[o++] = 1; buf[o++] = 1; buf[o++] = 1; buf[o++] = 1; };
       put(x0, y0); put(x1, y0); put(x1, y1); put(x0, y1);

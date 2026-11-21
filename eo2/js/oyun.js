@@ -91,7 +91,13 @@
   G.ekran = () => cur ? cur.id : null;      // açık ekranın kimliği (müzik ve rehber buna bakar)
   /* BASINCA KAYMA YOK (kullanıcı, 2026-11-17): bir ekran ilk açılışta giriş canlandırmasıyla gelir; aynı ekran her dokunuşta yeniden çizilirken
      canlandırmalar baştan oynamaz (gövdeye "yeniden" sınıfı konur; css/deneyim.css giriş canlandırmalarını son hâline alır). */
-  function draw() { if (!cur) return; const govde = $id('scrB'); cur.cizim = (cur.cizim || 0) + 1; govde.classList.toggle('yeniden', cur.cizim > 1); $id('scrGold').textContent = S.gold; $id('scrUn').textContent = S.un; $id('scrWeek').innerHTML = S.week >= SEASON ? 'Sezonu Bitir' : 'Haftayı Bitir'; SCREENS[cur.id].draw($id('scrB'), cur.arg); }
+  /* yeniden çizimde kaydırma konumu korunur (2026-11-21 oyuncu geri bildirimi: ejderha listesinde seçim yapınca liste en üste atıyordu).
+     Ekran yeniden çizilmeden önce kaydırılmış her kutunun yeri sınıf adı ve sırasıyla not alınır, çizimden sonra aynı kutuya geri verilir. */
+  function kaydirmaAl(k) { const L = [], say = {}; k.querySelectorAll('*').forEach(e => { const a = e.tagName + '.' + e.className; say[a] = (say[a] || 0) + 1; if (e.scrollTop || e.scrollLeft) L.push([a, say[a], e.scrollTop, e.scrollLeft]); }); return L; }
+  function kaydirmaVer(k, L) { if (!L.length) return; const say = {}, bul = {}; k.querySelectorAll('*').forEach(e => { const a = e.tagName + '.' + e.className; say[a] = (say[a] || 0) + 1; bul[a + '#' + say[a]] = e; });
+    for (const [a, n, t, l] of L) { const e = bul[a + '#' + n]; if (e && !e.scrollTop && !e.scrollLeft) { e.scrollTop = t; e.scrollLeft = l; } } }   // çizim kutuyu kendisi kaydırdıysa (örneğin kayıt dibe) ona dokunulmaz
+  function draw() { if (!cur) return; const govde = $id('scrB'); cur.cizim = (cur.cizim || 0) + 1; govde.classList.toggle('yeniden', cur.cizim > 1); $id('scrGold').textContent = S.gold; $id('scrUn').textContent = S.un; $id('scrWeek').innerHTML = S.week >= SEASON ? 'Sezonu Bitir' : 'Haftayı Bitir';
+    const kay = cur.cizim > 1 ? kaydirmaAl(govde) : []; SCREENS[cur.id].draw(govde, cur.arg); kaydirmaVer(govde, kay); }
   G.redraw = function () { if (!G.live) return; draw(); hud(); };
   EO2_BUS.render = G.redraw;
   $id('scrBack').addEventListener('click', () => G.close());      // çağrı anındaki G.close: başka dosya sarmışsa (kiraathane2.js) o da çalışır
@@ -102,12 +108,18 @@
 
   /* ---------- HUD: gerçek veriler ---------- */
   const fmt = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  let kariyerUyari = '';
   function hud() { if (!G.live) return; const chips = document.querySelectorAll('#hud .tc .chip'), se = seasonOf();
     chips[0].innerHTML = '<span class="coin"></span>' + fmt(S.gold); chips[1].lastChild.textContent = fmt(S.un);
     chips[2].innerHTML = '<b>Hafta ' + S.week + '</b>/ ' + SEASON + '<small>' + se.ad + '</small>';
     const pr = document.querySelector('#profile > span'); pr.innerHTML = '<b>' + esc(G.ad()) + '</b><span>' + S.dragons.length + ' / ' + capacity() + ' ejder</span>';
     const ul = document.querySelector('.quests ul'), gs = activeGoals(3);      // hedefe dokununca rehber ilgili yere götürür (js/rehber.js)
-    ul.innerHTML = gs.length ? gs.map(g => '<li data-hedef="' + g.id + '" role="button" tabindex="0" title="Oraya git">' + g.t + '<span class="au">+' + g.r + '</span></li>').join('') : '<li class="bos">Bütün hedefler tamam.</li>';
+    /* yıldızın kariyer hedefi hedeflerin başında durur: tutturamazsa yıldız emekli olur, bu oyuncuya hep görünmeli (2026-11-21 geri bildirim) */
+    let kar = ''; { const C = typeof career === 'function' && !S.over ? career() : null, g = C && C.goals[C.i], kd = C && byId(C.id);
+      if (g && kd) { const wl = weeksLeft(g); kar = '<li class="kariyer' + (wl <= 1 ? ' acil' : wl <= 3 ? ' uyari' : '') + '" data-kariyer="' + kd.id + '" role="button" tabindex="0" title="Yıldızın kariyer hedefi: tutturamazsa emekli olur">' + esc(kd.name) + ': ' + esc(g.t) + '<span>' + (wl <= 0 ? 'son hafta' : wl + ' hafta') + '</span></li>';
+        /* son haftada bir kez uyarı: telefonda hedef listesi görünmediği için bildirim olarak da çıkar */
+        const an = C.id + ':' + C.i + ':' + S.week; if (wl <= 0 && kariyerUyari !== an && typeof toast === 'function') { kariyerUyari = an; setTimeout(() => toast('<b>' + esc(kd.name) + ': kariyer hedefinin son haftası</b>' + esc(g.t) + '. Bu hafta tutturamazsa emekli olur ve bir daha dövüşmez.', 'goal'), 900); } } }
+    ul.innerHTML = kar + (gs.length ? gs.map(g => '<li data-hedef="' + g.id + '" role="button" tabindex="0" title="Oraya git">' + g.t + '<span class="au">+' + g.r + '</span></li>').join('') : '<li class="bos">Bütün hedefler tamam.</li>');
     if (EO2.rehber) EO2.rehber.tazele();
     const b = $id('btnWeek'); if (b) { b.textContent = S.week >= SEASON ? 'Sezonu Bitir' : 'Haftayı Bitir'; b.dataset.hafta = 'Hafta ' + S.week + ' / ' + SEASON; } document.getElementById('profile').style.setProperty('--sezon', Math.round(S.week / SEASON * 100) + '%'); if (EO2.api && EO2.api.player) EO2.api.setPlate(EO2.api.player); }
   G.hud = hud;
@@ -158,14 +170,15 @@
   /* doğum sahnesi: yumurtaya dokundukça çatlar; üçüncü dokunuşta kabuk açılır, yavru görünür ve adı konur (hatchEgg oyunun kendisidir) */
   function hatchPen(egg) { return new Promise(res => { pens++; const w = el('div', 'dogum-s'); w.style.setProperty('--sahne', 'url("' + G.bgUrl('bg-yuva') + '")'); let n = 0;
     w.innerHTML = '<div class="dg-bas"><small>Kuluçka ocağı</small><h1>Kabuk çatlıyor</h1><p>' + (egg.origin || 'Yumurta') + '. İçeriden tırmalama sesleri geliyor.</p></div><button type="button" class="dg-yumurta" aria-label="Yumurtaya dokun"><i class="kabuk res" style="background-image:url(' + G.yumurtaResim(egg) + ')"></i><svg viewBox="0 0 100 130" class="catlak"><path class="c1" d="M54 13l-9 12 9 9-10 12 6 10"/><path class="c2" d="M18 58l14 4 6-10 10 12 12-8 8 12 14-4"/><path class="c3" d="M30 100l8-14 10 8 6-14 10 12 8-10"/></svg></button><div class="dg-alt"><span class="dg-ipucu">Yumurtaya dokun</span></div>';
-    app.appendChild(w); const yum = w.querySelector('.dg-yumurta');
-    const ac = () => { const { d, notes } = hatchEgg(egg); if (EO2.audio) EO2.audio.chime(); if (G.fx) { G.fx.flash('rgba(255,245,210,.85)'); G.fx.stars(yum, 34); G.fx.burst(yum, G.ELC[d.el], 26); }
+    app.appendChild(w); const yum = w.querySelector('.dg-yumurta'); let acildi = false;
+    /* kabuk yalnız bir kez açılır: üçüncü dokunuştan sonra gelen hızlı dokunuşlar yeni yavru çıkarmaz (bir yumurtadan çok yavru hatası, 2026-11-21) */
+    const ac = () => { if (acildi) return; acildi = true; const r = hatchEgg(egg); if (!r) { pens--; w.remove(); res(); return; } const { d, notes } = r; if (EO2.audio) EO2.audio.chime(); if (G.fx) { G.fx.flash('rgba(255,245,210,.85)'); G.fx.stars(yum, 34); G.fx.burst(yum, G.ELC[d.el], 26); }
       w.classList.add('acildi'); w.style.setProperty('--el', G.ELC[d.el]);
       w.innerHTML = '<div class="dg-bas"><small>Yeni bir ejderha</small><h1>' + EL_AD[d.el] + ' yavrusu</h1></div><div class="dg-yavru"><i class="hale"></i><img alt="" src="' + OLD + 'img/angle/' + d.el + '-yavru-front.webp" onerror="this.onerror=null;this.src=\'' + G.img(d) + '\'"></div>' +
         '<div class="dg-alt"><label class="dg-ad"><span>Adını koy</span><input id="hatchName" maxlength="16" value="' + esc(d.name) + '" autocomplete="off"></label><div class="dg-pot">' + STATS.map(k => { const s = d.genes.pot[k][0] + d.genes.pot[k][1]; return '<span>' + ST_KISA[k] + ' <b class="harf g' + Math.floor(s / 2) + '">' + potLetter(s) + '</b></span>'; }).join('') + '</div><ul class="dg-not">' + notes.map(x => '<li>' + x + '</li>').join('') + '</ul><button type="button" class="gbtn altin buyuk" id="dgTamam">Hoş geldin</button></div>';
       w.querySelector('#dgTamam').addEventListener('click', () => { const v = (w.querySelector('#hatchName').value || '').trim(); if (v) d.name = v.slice(0, 16); afterAction(true); pens--; w.classList.add('git'); setTimeout(() => w.remove(), 400); if (G.fx) G.fx.hearts('.dg-yavru', 10); res(); });
       const inp = w.querySelector('#hatchName'); inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') w.querySelector('#dgTamam').click(); }); };
-    yum.addEventListener('click', () => { n++; yum.className = 'dg-yumurta c' + n + ' vur'; void yum.offsetWidth; if (EO2.audio) EO2.audio.pop(); if (G.fx) G.fx.burst(yum, '#fff3c4', 6 + n * 3); setTimeout(() => yum.classList.remove('vur'), 300); const ip = w.querySelector('.dg-ipucu'); if (ip) ip.textContent = n === 1 ? 'Bir daha' : 'Son bir kez'; if (n >= 3) setTimeout(ac, window.__fastFx ? 0 : 420); });
+    yum.addEventListener('click', () => { if (n >= 3) return; n++; yum.className = 'dg-yumurta c' + n + ' vur'; void yum.offsetWidth; if (EO2.audio) EO2.audio.pop(); if (G.fx) G.fx.burst(yum, '#fff3c4', 6 + n * 3); setTimeout(() => yum.classList.remove('vur'), 300); const ip = w.querySelector('.dg-ipucu'); if (ip) ip.textContent = n === 1 ? 'Bir daha' : 'Son bir kez'; if (n >= 3) setTimeout(ac, window.__fastFx ? 0 : 420); });
     if (window.__fastFx) { n = 3; ac(); } }); }
   function reportBody(R, before) { const rows = R.report.map((r, i) => '<div style="animation-delay:' + (i * 0.07) + 's"><img alt="" src="' + G.img(r.d) + '"><div><b class="kim">' + esc(r.d.name) + '</b>' + r.lines.map(l => '<span>' + l + '</span>').join('') + '</div></div>').join('');
     const dg = S.gold - before.gold, du = S.un - before.un;
@@ -225,6 +238,8 @@
     const q = document.querySelector('.quests'), b = el('button', 'gbtn altin', 'Haftayı Bitir'); b.id = 'btnWeek'; b.type = 'button'; b.addEventListener('click', () => G.endWeek()); q.appendChild(b);
     const hedefAc = e => { const li = e.target.closest('li[data-hedef]'); if (!li || (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ')) return; if (e.type === 'keydown') { e.preventDefault(); e.stopPropagation(); } if (EO2.audio) EO2.audio.ui(); if (EO2.rehber) EO2.rehber.git(li.dataset.hedef); };
     q.addEventListener('click', hedefAc); q.addEventListener('keydown', hedefAc);
+    const kariyerAc = e => { const li = e.target.closest('li[data-kariyer]'); if (!li || (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ')) return; if (e.type === 'keydown') { e.preventDefault(); e.stopPropagation(); } if (EO2.audio) EO2.audio.ui(); UI.sel = +li.dataset.kariyer; G.open('ejderhalar'); if (cur && cur.id === 'ejderhalar' && EO2.ahir && (!EO2.rehber || !EO2.rehber.kilitEngel || !EO2.rehber.kilitEngel('ahir:rol'))) { EO2.ahir.setMod('rol'); draw(); } };
+    q.addEventListener('click', kariyerAc); q.addEventListener('keydown', kariyerAc);
     EO2.hooks.panel = id => { if (!G.live) return true; if (id === 'ejderhalar' || id === 'bahce') { G.open('ejderhalar'); return true; } if (id === 'ocak') { if (EO2.ocak) EO2.ocak.git(); return true; } if (id === 'arena') { G.open('arena'); return true; } if (id === 'pazar' || id === 'uretim') { G.open('pazar'); return true; } if (id === 'kuzey') { G.open('sefer'); return true; } if (id === 'sosyal' || id === 'han') { G.open('han'); return true; } if (id === 'gorevler') { G.open('defter'); return true; } if (id === 'envanter') { G.open('canta'); return true; } if (id === 'menu') { G.open('menu'); return true; } return false; };
     EO2.hooks.act = act => { if (!G.live) return true; if (act.startsWith('pet:')) { G.open('ejderhalar'); return true; } return false; };
     const P = A.PANELS, rows = a => '<ul class="rows">' + a.map(r => '<li><div><b>' + r[0] + '</b>' + (r[1] ? '<span>' + r[1] + '</span>' : '') + '</div></li>').join('') + '</ul>';

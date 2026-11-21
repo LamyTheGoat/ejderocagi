@@ -1,27 +1,59 @@
 {
   "ad": "Şahmeran'ın Defilesi",
   "alt": "Yılan Kraliçe yükseltide bekliyor",
-  "ipucu": "Zemin kırılmaz. Tacına nişan al. Durduğun yere ok yağdırır: her tur yerini değiştir, sonra ateş et.",
+  "ipucu": "Yılan kalmayınca Şahmeran her tur başında altı yılan çağırır. Yılanları mı eritirsin, tacı mı vurursun: sen seç. Durduğun yere ok yağdırır, her tur yerini değiştir.",
   "tema": "sirca",
   "ortam": "spor",
   "ust": "#07201a",
   "altRenk": "#0a2a20",
   "dusman": [
     {
-      "tip": "zs_agir",
-      "ad": "Sırça Taht Muhafızı",
-      "hp": 640
+      "tip": "zs_kucuk",
+      "ad": "Sırça Engerek",
+      "hp": 240,
+      "hasar": 0.15,
+      "cagri": true
     },
     {
-      "tip": "zs_agir",
-      "ad": "Sırça Taht Muhafızı",
-      "hp": 640
+      "tip": "zs_vurucu",
+      "ad": "Bronz Engerek Muhafızı",
+      "hp": 240,
+      "hasar": 0.15,
+      "cagri": true
+    },
+    {
+      "tip": "zs_kucuk",
+      "ad": "Sırça Engerek",
+      "hp": 240,
+      "hasar": 0.15,
+      "cagri": true
+    },
+    {
+      "tip": "zs_kucuk",
+      "ad": "Sırça Engerek",
+      "hp": 240,
+      "hasar": 0.15,
+      "cagri": true
+    },
+    {
+      "tip": "zs_vurucu",
+      "ad": "Bronz Engerek Muhafızı",
+      "hp": 240,
+      "hasar": 0.15,
+      "cagri": true
+    },
+    {
+      "tip": "zs_kucuk",
+      "ad": "Sırça Engerek",
+      "hp": 240,
+      "hasar": 0.15,
+      "cagri": true
     }
   ],
   "boss": {
     "tip": "sahmeran_v3",
     "ad": "Yılan Kraliçe Şahmeran",
     "unvan": "Zümrüt Saray'ın ebedi hükümdarı",
-    "hp": 3600
+    "hp": 2400
   }
 }

@@ -4,11 +4,15 @@ const { createOrtakOdalar } = require('../server/ortak_odalar');
 const { createZindanOrtak, HASAR_UST } = require('../server/zindan_ortak');
 
 const bekle = async (n = 6) => { for (let i = 0; i < n; i++) await new Promise(r => setImmediate(r)); };
-function kur() {
+/* Kural testleri sabit bir deneme tarifiyle koşar (Zümrüt Saray'ın 2026-11-17 düzeni: altı yılan, iki muhafız, boss); oyundaki güncel Zümrüt Saray en alttaki testte. */
+const DENEME = { tarif: { zumrut: { ad: 'Zümrüt Saray', asama: ['k', 'd'] } }, arena: {
+  k: { ad: 'Köprü', dusman: [{ hp: 640, dalga: 3 }, { hp: 800, dalga: 2 }, { hp: 760 }, { hp: 760 }, { hp: 800, dalga: 2 }, { hp: 640, dalga: 3 }] },
+  d: { ad: 'Defile', dusman: [{ hp: 640 }, { hp: 640 }], boss: { hp: 3600 } } } };
+function kur(gercek) {
   const soketler = new Set(), kutu = new Map(); let zaman = 1000;
   const send = (s, m) => { if (!kutu.has(s)) kutu.set(s, []); kutu.get(s).push(m); };
   const O = createOrtakOdalar({ send, sockets: () => soketler, kimlik: s => s.k, now: () => zaman });
-  O.kaydet('zindan', createZindanOrtak({ now: () => zaman }).tanim);
+  O.kaydet('zindan', createZindanOrtak(Object.assign({ now: () => zaman }, gercek ? {} : DENEME)).tanim);
   const baglan = id => { const s = { k: { accountId: id, handle: '@' + id } }; soketler.add(s); return s; };
   const son = (s, tur) => (kutu.get(s) || []).filter(m => m.type === tur).pop();
   const eylem = async (s, e) => { zaman += 200; O.onMessage(s, { type: 'ortak_eylem', eylem: e }); await bekle(); };
@@ -93,7 +97,31 @@ test('ortak sıra: önce oyuncular sırayla, sonra yaşayan düşmanlar; rüzgâ
   assert.equal(son(a, 'ortak_olay').durum.dusman.filter(q => q.hp > 0).length, 4);
   // a düşer: sırası hemen b'ye geçer; sonraki turda a atlanır
   await eylem(a, { t: 'dustu' }); o = olay(b, 'sira'); assert.equal(o.kim, 'b'); assert.equal(o.adim, 5);
-  await eylem(b, { t: 'tur_bitti', adim: 5 }); o = olay(b, 'sira'); assert.equal(o.tip, 'dusman'); assert.equal(o.hedef, 'b', 'düşman yalnız ayaktakini hedef alır'); assert.equal(o.i, 1, 'ikinci dalganın ilk düşmanı');
+  await eylem(b, { t: 'tur_bitti', adim: 5 }); o = olay(b, 'sira'); assert.equal(o.tip, 'oyuncu', 'ikinci dalga çıktığı tur saldırmaz (kullanıcı, 2026-11-20)'); assert.equal(o.kim, 'b'); assert.equal(o.tur, 3);
+  await eylem(b, { t: 'tur_bitti', adim: 6 }); o = olay(b, 'sira'); assert.equal(o.tip, 'dusman'); assert.equal(o.hedef, 'b', 'düşman yalnız ayaktakini hedef alır'); assert.equal(o.i, 1, 'sonraki turda ikinci dalganın ilk düşmanı');
   // kimse bitirmezse adım süresi dolunca ilerlenir
-  ileri(17000); O.supur(); await bekle(8); assert.equal(olay(b, 'sira').adim, 7);
+  ileri(17000); O.supur(); await bekle(8); assert.equal(olay(b, 'sira').adim, 8);
+});
+
+test('Zümrüt Saray (2026-11-20): köprüde üç dalga × sekiz yılan; Defile’de Şahmeran yılan kalmayan her tur başında altı yılan çağırır', async () => {
+  const { O, baglan, son, eylem, olay } = kur(true), a = baglan('a');
+  O.onMessage(a, { type: 'ortak_kur', tur: 'zindan', anahtar: 'zumrut-normal' }); O.onMessage(a, { type: 'ortak_baslat' }); await bekle();
+  await eylem(a, { t: 'hazir' }); let d = son(a, 'ortak_olay').durum;
+  assert.equal(d.dusman.length, 24); for (const n of [1, 2, 3]) assert.equal(d.dusman.filter(q => q.dalga === n).length, 8, 'her dalgada sekiz yılan');
+  assert.deepEqual([...new Set(d.dusman.map(q => q.max))].sort(), [225, 255, 270], '300, 340 ve 360 × 0,75 (tek kişi)');
+  for (let i = 0; i < 24; i++) await eylem(a, { t: 'hasar', i, h: 5000 });
+  assert.equal(son(a, 'ortak_olay').durum.faz, 'cark'); await eylem(a, { t: 'cark' }); await eylem(a, { t: 'hazir' });
+  d = son(a, 'ortak_olay').durum; assert.equal(d.dusman.length, 7); assert.ok(d.dusman.slice(0, 6).every(q => q.cagri && q.hp === 0 && q.max === 180), 'çağrı yılanları başta yok (240 × 0,75)');
+  await eylem(a, { t: 'tur_bitti', adim: 0 });
+  let c = olay(a, 'cagri'); assert.deepEqual(c.liste.map(x => x.i), [0, 1, 2, 3, 4, 5], 'ilk tur başında altı yılan doğar'); assert.equal(olay(a, 'sira').kim, 'a');
+  for (let i = 0; i < 6; i++) await eylem(a, { t: 'hasar', i, h: 5000 });
+  await eylem(a, { t: 'tur_bitti', adim: 1 }); assert.equal(olay(a, 'sira').i, 6, 'ölü yılanlar atlanır: sıra Şahmeran’da');
+  await eylem(a, { t: 'tur_bitti', adim: 2 }); const L = (son(a, 'ortak_olay').olaylar || []).map(o => o.t);
+  assert.ok(L.indexOf('cagri') >= 0 && L.indexOf('cagri') < L.indexOf('sira'), 'yılan kalmayınca yeni tur çağrıyla başlar, çağrı sıradan önce gelir');
+  d = son(a, 'ortak_olay').durum; assert.equal(d.dusman.filter(q => q.cagri && q.hp > 0).length, 6);
+  await eylem(a, { t: 'tur_bitti', adim: 3 }); assert.equal(olay(a, 'sira').i, 6, 'yeni çağrılan yılanlar o tur saldırmaz: sıra Şahmeran’da');
+  await eylem(a, { t: 'hasar', i: 0, h: 5000 }); let cagriVar = false;
+  for (let adim = 4; adim < 14; adim++) { await eylem(a, { t: 'tur_bitti', adim }); const S = son(a, 'ortak_olay'); cagriVar = cagriVar || S.olaylar.some(o => o.t === 'cagri'); if (S.durum.sav.kim === 'a') break; }
+  assert.equal(son(a, 'ortak_olay').durum.sav.kim, 'a', 'yeni tur başladı'); assert.equal(cagriVar, false, 'ayakta yılan varken çağrı yok');
+  await eylem(a, { t: 'hasar', i: 6, h: 6000 }); assert.equal(son(a, 'ortak_olay').durum.faz, 'cark', 'Şahmeran düşünce yılanlar da düşer');
 });

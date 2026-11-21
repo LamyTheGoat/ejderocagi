@@ -104,7 +104,7 @@
   const mac = cfg => { G.close(); const bek = B.ac(cfg); ipucuGoster(cfg); return bek; };      // savaş kendi tam ekran katmanıdır; ekran çerçevesi kapanır, bitince sahneye dönülür
   const dondur = () => { const M = B.state(); if (M) M.dur = true; };                             // çark ve çizgi roman sırasında meydan arkada donuk durur
   const bitis = () => { B.kapat(); G.open('topcu'); };
-  async function talim() { for (;;) { const cfg = talimCfg(), r = await mac(cfg); if (r.terk) break;
+  async function talim() { for (;;) { const cfg = talimCfg(), r = await mac(cfg); if (r.terk) break; if (EO2.rehber && EO2.rehber.olay) EO2.rehber.olay('talim');   /* öğretici: talim düellosu bitti */
       const v = await G.pen({ k: 'Talim', t: r.zafer ? 'Zafer' : 'Yenildin', body: '<p>' + (r.zafer ? 'Talimci başını eğdi.' : 'Talimci bu kez isabetliydi.') + ' Talim ödülsüzdür: altın, ün ya da sıralama yazılmaz.</p>' + ozet(r), btns: [{ t: 'Sahneye dön', v: false }, { t: 'Yeniden', cls: 'altin', v: true }] }); if (!v) break; }
     bitis(); }
   async function kervan() { if (kilitli()) return kilitPen(); const cv = bosKervan(); if (!cv) return G.toast('Bu hafta yoldaki kervanların hepsine baskın verildi.');
@@ -114,7 +114,7 @@
       const v = await G.pen({ k: 'Kervan Baskını', t: 'Yenildin', body: '<p>Pusu seni geri püskürttü. Ganimet yok.</p>' + ozet(r), btns: [{ t: 'Çekil', v: false }, { t: 'Yeniden dene', cls: 'altin', v: true }] }); if (!v) break; }
     bitis(); }
   const destan = (z, hangi) => { const Z = V.ZINDAN[z], id = hangi === 'zafer' ? Z.zafer : Z.prolog; if (!G.comic || typeof COMIC === 'undefined' || !COMIC[id]) return Promise.resolve(false); return G.comic({ id, title: Z.destan, opts: [{ t: hangi === 'zafer' ? 'Ocağa dön' : Z.gir, fx: () => null }] }); };
-  async function zindan(z, zorluk, ilkAsama) { if (kilitli()) return kilitPen(); const Z = V.ZINDAN[z], T = kayit();
+  async function zindan(z, zorluk, ilkAsama) { if (kilitli()) return kilitPen(); const Z = V.ZINDAN[z], T = kayit(); if (EO2.rehber && EO2.rehber.olay) EO2.rehber.olay('zindan');   /* öğretici: ilk zindan seferi */
     /* Tek kişi = içinde tek kişi olan aynı zindan (kullanıcı, 2026-11-17). Yeni yöntemle kurulmuş zindan (js/zindan_tarif.js) varsa tek kişilik sefer açılır. */
     if (!ilkAsama && EO2.zindan && EO2.zindan.tekVar && EO2.zindan.tekVar(z)) { if (!T.okundu[z]) { await destan(z, 'prolog'); T.okundu[z] = 1; if (typeof saveGame === 'function') saveGame(); } if (EO2.zindan.tekBasla(z, zorluk)) return; }
     ornek = { kimlik: z + '-' + zorluk + '-' + Date.now(), zindan: z, zorluk, yol: yolu(z), asama: ilkAsama || 0, altin: 0, ganimet: [], hasar: 0 };      // ilkAsama yalnız denetim betikleri içindir; oyunda sefer hep ilk aşamadan başlar
@@ -138,6 +138,9 @@
   const YER = [   // konumlar tp-kapilar.webp üzerindeki oranlardır (2:1 çizim)
     { k: 'sahmeran', x: 0.214, y: 0.585, w: 0.085, h: 0.31, tur: 'zindan' }, { k: 'komutan', x: 0.5, y: 0.585, w: 0.09, h: 0.32, tur: 'zindan' }, { k: 'abra', x: 0.791, y: 0.585, w: 0.075, h: 0.3, tur: 'zindan' },
     { k: 'talim', x: 0.176, y: 0.905, w: 0.15, h: 0.13, tur: 'talim' }, { k: 'kervan', x: 0.726, y: 0.9, w: 0.13, h: 0.17, tur: 'kervan' }, { k: 'meydan', x: 0.325, y: 0.79, w: 0.12, h: 0.2, tur: 'pvp' }];
+  /* Tarifte olmayan zindanın kapısı gösterilmez (Kaldera ve Donanma kapalı, 2026-11-20); eski tek kişilik yoldan da açılmaz. */
+  const zindanAcik = k => Object.values(window.EO2_ZINDAN || {}).some(t => t.odul === k);
+  const kapat = () => { for (let i = YER.length - 1; i >= 0; i--) if (YER[i].tur === 'zindan' && !zindanAcik(YER[i].k)) YER.splice(i, 1); };   /* tarif dosyası bu dosyadan sonra yüklenir: ekran çizilirken süzülür */
   const yerAd = y => y.tur === 'zindan' ? ['Zindan ' + V.ZINDAN[y.k].rakam, V.ZINDAN[y.k].ad] : y.tur === 'talim' ? ['Talim alanı', 'Talim'] : y.tur === 'pvp' ? ['Dostça düello', 'Er Meydanı'] : ['Kervan yolu', 'Kervan Baskını'];
   function kunye(y) { const kil = kilitli(), T = kayit();
     if (y.tur === 'pvp') return EO2.topcuPvp ? EO2.topcuPvp.kunye() : '<div class="tp-k-bas"><small>Dostça düello</small><h2>Er Meydanı</h2></div><p>Oda sistemi yüklenemedi.</p>';
@@ -153,7 +156,7 @@
   function yerlestir(body) { const pano = body.querySelector('.tp-pano'), tuval = body.querySelector('.tp-tuval'); if (!pano) return; const w = pano.clientWidth, h = pano.clientHeight; if (!w || !h) return; const k = Math.max(w / 2, h), tw = Math.round(k * 2), th = Math.round(k);
     tuval.style.width = tw + 'px'; tuval.style.height = th + 'px'; tuval.style.marginTop = Math.min(0, h - th) + 'px'; pano.classList.toggle('kayar', tw > w + 2); if (tw > w + 2 && !pano.dataset.kaydi) { pano.dataset.kaydi = '1'; const y = YER.find(v => v.k === secili); pano.style.scrollBehavior = 'auto'; pano.scrollLeft = y ? y.x * tw - w / 2 : sonKaydir != null ? sonKaydir : (tw - w) / 2; pano.style.scrollBehavior = ''; pano.addEventListener('scroll', () => { sonKaydir = pano.scrollLeft; }, { passive: true }); } }
   G.screen('topcu', { k: 'Topunla sen dövüşürsün', t: 'Topçu Arenası', cls: 'tp', enter() { secili = kilitli() ? 'talim' : null; }, draw(body) {   /* omuz ejderi yokken (yeni oyuncu) Talim seçili açılır */
-    const kil = kilitli(), T = kayit(), y = YER.find(v => v.k === secili);
+    kapat(); const kil = kilitli(), T = kayit(), y = YER.find(v => v.k === secili);
     body.innerHTML = '<div class="tp-pano"><div class="tp-tuval"><img class="tp-resim" alt="Üç zindan kapısı, talim alanı ve kervan yolu" src="assets/bg/tp-kapilar.webp" draggable="false">' +
       YER.map(v => { const ad = yerAd(v), kk = kil && v.tur !== 'talim' && v.tur !== 'pvp', zf = v.tur === 'zindan' ? T.zafer[v.k] || 0 : 0;
         return '<button type="button" class="tp-yer ' + v.tur + (kk ? ' kilitli' : '') + '" data-yer="' + v.k + '" aria-pressed="' + (secili === v.k) + '" style="left:' + (v.x * 100) + '%;top:' + (v.y * 100) + '%;width:' + (v.w * 100) + '%;height:' + (v.h * 100) + '%"><i class="tp-cerceve"></i><span class="tp-plaka"><small>' + ad[0] + '</small><b>' + ad[1] + '</b>' + (kk ? '<em class="kilit">Mühürlü</em>' : zf ? '<em>' + zf + ' zafer</em>' : '') + '</span></button>'; }).join('') + '</div></div>' +

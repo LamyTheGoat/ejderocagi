@@ -1,12 +1,12 @@
 // EO2 · ilk hafta kilidi denetimi (gerçek akış): yeni oyuncu ilk haftada yalnız öğreticinin üç adımını yapabilir.
 // Ölçülenler: kuluçka adımında başka yapı kurulamaz (altın harcanmaz), arazi açılamaz, kuşam alınamaz, başka ekran açılmaz, ocaktan çıkılmaz;
 // Kuluçka Ocağı kurulabilir ve yumurta yerleşir; emir adımında Ejderhalar açılır ama yalnız Emir ve Bilgi çalışır, yapı kurulamaz, kuluçka yıkılamaz;
-// emir verilince hafta bitirilebilir; ikinci haftada kilit kalkar ve her yer açılır.
+// emir verilince hafta bitirilebilir; ikinci haftada ilk hafta kilidi kalkar: Topçu (2. bölüm) açılır, sırası gelmemiş Pazar kapalı kalır (bkz. check_ogretici.mjs).
 // Kullanım: node eo2/tools/check_kilit.mjs   (EKRAN=<klasör> ile ekran görüntüsü)
 import fs from 'node:fs'; import path from 'node:path'; import { createRequire } from 'node:module'; import { fileURLToPath } from 'node:url';
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..'), require = createRequire(path.join(repo, 'package.json')), { chromium } = require('playwright-core');
 const url = process.env.URL || 'http://localhost:3210/', ekran = process.env.EKRAN || '', hata = [], log = {}; if (ekran) fs.mkdirSync(ekran, { recursive: true });
-const b = await chromium.launch({ channel: 'msedge', headless: true, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
+const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : { channel: 'msedge', headless: true, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const ctx = await b.newContext({ viewport: { width: 1280, height: 720 } }); await ctx.addInitScript(() => { window.__gercekAkis = true; });
 const p = await ctx.newPage(); p.on('pageerror', e => hata.push(String(e.message).slice(0, 200)));
 const bekle = (f, ms = 30000) => p.waitForFunction(f, null, { timeout: ms }).then(() => true, () => false), dur = ms => p.waitForTimeout(ms), cek = async ad => { if (ekran) await p.screenshot({ path: path.join(ekran, ad + '.png') }); };
@@ -48,7 +48,7 @@ try {
   await p.evaluate(() => { if (EO2.game.ekran()) EO2.game.close(); EO2.game.endWeek(); }); log.geceGeldi = await bekle('document.querySelector(".gece")', 15000);
   for (let i = 0; i < 12 && !(await p.evaluate(() => S.week >= 2 && !EO2.game.busy)); i++) { await p.evaluate(() => { const L = [...document.querySelectorAll('.gece button, .pen button, .sabah button, .vn button, .cizgi button, #modal-root button')].filter(b => b.offsetParent !== null); const d = L[L.length - 1]; if (d) d.click(); }); await dur(1800); }
   log.hafta2 = await p.evaluate(() => S.week);
-  log.kilitKalkti = await p.evaluate(() => { const k = EO2.rehber.kilit() === null; if (EO2.game.ekran()) EO2.game.close(); EO2.game.open('arena'); const a = EO2.game.ekran() === 'arena'; EO2.game.close(); return k && a; }); await cek('kilit_3_hafta2');
+  log.kilitKalkti = await p.evaluate(() => { const k = EO2.rehber.kilit() === null; if (EO2.game.ekran()) EO2.game.close(); EO2.game.open('topcu'); const a = EO2.game.ekran() === 'topcu'; EO2.game.close(); EO2.game.open('pazar'); const z = EO2.game.ekran() !== 'pazar'; EO2.game.close(); return k && a && z; }); await cek('kilit_3_hafta2');
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
 const V = log.vitrin || {};

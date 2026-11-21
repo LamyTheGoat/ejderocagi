@@ -69,7 +69,8 @@ export function arenaKur(ad, json, blok, katman) {
     ppu: blok.ppu, en: blok.en, boy: blok.boy, taban: blok.taban, px: blok.px, kameraBoy: json.kameraBoy || KAMERA_BOY, kamera: blok.kamera, oyuncu: blok.oyuncu,
     // fizik: true = altındaki zemine düşer · false = uçar (hayalet: true ise zeminin içinden de geçer)
     // dalga: 2, 3… = önceki dalgalar inince belirir · uyan: mesafe = bir terbiyeci bu kadar yaklaşana (ya da vurana) dek uyur
-    dusman: dus.map((q, i) => Object.assign({ tip: q.tip, ad: q.ad, hp: q.hp, fizik: q.fizik !== false, hayalet: !!q.hayalet }, q.dalga > 1 ? { dalga: Math.floor(q.dalga) } : {}, q.uyan > 0 ? { uyan: Math.round(q.uyan) } : {}, blok.dusman[i])),
+    // hasar: düşmanın hasar oranı (1 = türün olağan hasarı) · cagri: boss çağırır (sahnede yılan kalmayan tur başında hepsi birden belirir)
+    dusman: dus.map((q, i) => Object.assign({ tip: q.tip, ad: q.ad, hp: q.hp, fizik: q.fizik !== false, hayalet: !!q.hayalet }, q.dalga > 1 ? { dalga: Math.floor(q.dalga) } : {}, q.uyan > 0 ? { uyan: Math.round(q.uyan) } : {}, q.hasar > 0 ? { hasar: Math.round(q.hasar * 100) / 100 } : {}, q.cagri ? { cagri: true } : {}, blok.dusman[i])),
     boss: json.boss ? Object.assign({ tip: json.boss.tip, ad: json.boss.ad, unvan: json.boss.unvan, hp: json.boss.hp }, blok.boss) : null, maske: blok.maske };
 }
 

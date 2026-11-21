@@ -18,7 +18,7 @@ try {
   log.kamp = await bekle('EO2.ortak.durum().ortak && EO2.api.scene() === "kamp"'); await p.waitForTimeout(1200); await p.evaluate(() => EO2.api.runAct('zindan:hazir'));
   log.savas = await bekle('EO2.battle.active() && EO2.battle.state().faz === "nisan" && EO2.battle.state().aktif === EO2.battle.state().ben && EO2.ortak.durum().ortak', 40000);
   log.once = await durum();
-  await p.evaluate(() => { const M = EO2.battle.state(); EO2.battle.api.hasarMob(M.act[3], 300); });   // act[3]: birinci dalganın soldaki yılanı (köprü üç dalgalıdır) await p.waitForTimeout(900);
+  await p.evaluate(() => { const M = EO2.battle.state(); EO2.battle.api.hasarMob(M.act[3], 100); });   // 100: yılanlar 2026-11-20'den beri tek vuruşluk (225-270 can)   // act[3]: birinci dalganın soldaki yılanı (köprü üç dalgalıdır) await p.waitForTimeout(900);
   await p.reload(); await p.waitForFunction('window.EO2 && EO2.api && EO2.game && document.querySelector(".giris")', null, { timeout: 60000 }); await p.waitForTimeout(1500);
   await p.locator('.giris .gbtn').first().click();
   log.dondu = await bekle('EO2.battle.active() && EO2.battle.state().faz === "nisan" && EO2.battle.state().aktif === EO2.battle.state().ben', 60000);
@@ -31,6 +31,6 @@ try {
   log.carkGecildi = await bekle('EO2.ortak.durum().ortak && EO2.ortak.durum().ortak.faz === "bekleme" && EO2.ortak.durum().ortak.asama === 1', 40000);
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && log.cevrimici && log.tekBasladi && log.kamp && log.savas && log.once && log.once.uye === 1 && log.once.tekArena && log.dondu && log.sonra && log.sonra.faz === 'savas' && log.sonra.hp[2] === log.once.hp[2] - 300 && JSON.stringify(log.sonra.ekran) === JSON.stringify(log.sonra.hp) && log.cark && log.carkGecildi;
+const ok = !hata.length && log.cevrimici && log.tekBasladi && log.kamp && log.savas && log.once && log.once.uye === 1 && log.once.tekArena && log.dondu && log.sonra && log.sonra.faz === 'savas' && log.sonra.hp[2] === log.once.hp[2] - 100 && JSON.stringify(log.sonra.ekran) === JSON.stringify(log.sonra.hp) && log.cark && log.carkGecildi;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

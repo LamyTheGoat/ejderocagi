@@ -50,6 +50,8 @@ function makeEggs(A, B) {
 function kuluckaFree() { return hasB('kulucka') ? 2 - S.eggs.filter(e => e.inK).length : 0; }
 
 function hatchEgg(egg) {
+  // Bir yumurta yalnız bir kez açılır: yumurta artık listede yoksa (zaten açılmış) yeni ejderha üretme.
+  if (!egg || !S.eggs.includes(egg)) return null;
   const d = mkDragon({ pids: egg.pids, genes: egg.genes, sex: egg.sex, traits: egg.traits, stage: 'yavru', age: 0, gen: egg.gen, parents: egg.parents, origin: egg.origin, bond: 40, mood: 3 });
   if (egg.special === 'dede') d.name = 'Gece';
   S.eggs = S.eggs.filter(e => e !== egg);

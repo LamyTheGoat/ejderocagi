@@ -26,7 +26,9 @@ try {
     await p.waitForFunction('EO2.ag.cevrimici() && EO2.game.live', null, { timeout: 30000 }); await p.evaluate(() => { window.__fastFx = true; window.canEnterZindanOrTopcu = () => true; }); }
   const A = P[0];
   log.gordu = await bekle(A, 'EO2.meydanAg.sayi() === ' + (N - 1) + ' && [...EO2.meydanAg.kisiler.values()].every(c => c.handle)');
-  await A.evaluate(() => EO2.game.open('zindan')); await A.locator('[data-zin="kaldera"]').click(); await A.waitForTimeout(300); await A.locator('[data-zn="kur"]').click();
+  await A.evaluate(() => EO2.game.open('zindan')); await A.waitForTimeout(300);
+  /* kırılan zemini ölçmek için Kaldera seçilir; Kaldera kapalıyken (2026-11-20) tek açık zindan Zümrüt Saray'dır ve zemini kırılmaz: oyuk ölçümü atlanır */
+  const kirilir = await A.locator('[data-zin="kaldera"]').count() > 0; log.zindan = kirilir ? 'kaldera' : 'zumrut'; if (kirilir) { await A.locator('[data-zin="kaldera"]').click(); await A.waitForTimeout(300); } await A.locator('[data-zn="kur"]').click();
   await bekle(A, 'document.querySelector(".zn-toplan .ms-kodluk b")');
   for (let i = 1; i < N; i++) { await A.evaluate(ad => { const c = [...EO2.meydanAg.kisiler.values()].find(x => x.name === ad); EO2.zindan.cagir(c.handle, c.name); }, ADLAR[i]);
     const d = await P[i].waitForSelector('.pen:has-text("Sefer daveti")', { timeout: 15000 }).then(() => true, () => false); if (!d) hata.push(ADLAR[i] + ': davet gelmedi'); else await P[i].locator('.pen .gbtn:has-text("Sefere katıl")').click();
@@ -45,7 +47,7 @@ try {
   // kurucunun gerçek atışı: zemin her ekranda aynı yerden oyulur; sıra ikinci oyuncuya geçer
   await A.evaluate(() => { EO2.battle.state().ben.angle = 60; }); await A.bringToFront(); await A.keyboard.down('Space'); await A.waitForTimeout(260); await A.keyboard.up('Space');
   log.sira2 = (await Promise.all(P.map((p, i) => sirada(i, ADLAR[1])))).every(Boolean); await hepsi('!(EO2.battle.state().hayalet || []).length', 15000); await A.waitForTimeout(900);
-  const o1 = await Promise.all(P.map((p, i) => p.evaluate(ozet, ADLAR[i]))); log.zeminOyuldu = o1[0].dolu < o0[0].dolu; log.zeminAyni = ayni(o1, 'zemin');
+  const o1 = await Promise.all(P.map((p, i) => p.evaluate(ozet, ADLAR[i]))); log.zeminOyuldu = kirilir ? o1[0].dolu < o0[0].dolu : true; log.zeminAyni = ayni(o1, 'zemin');
   // öteki oyuncular sırayla geçer: sıra her ekranda aynı kişide dolaşır
   log.siralar = []; for (let k = 1; k < N; k++) { if (k > 1) log.siralar.push((await Promise.all(P.map((p, i) => sirada(i, ADLAR[k])))).every(Boolean)); await P[k].waitForTimeout(500); await P[k].evaluate(() => { EO2.battle.pas(); }); }
   // düşman sırası ve tur dönüşü: yerler, zemin ve canlar her ekranda aynı
@@ -57,7 +59,8 @@ try {
   log.yerAyni = ayni(o2, 'yer'); log.zeminAyni2 = ayni(o2, 'zemin'); log.dusmanAyni = ayni(o2, 'dusman');
   log.canAyni = canEs(o2);
   if (ekran) await P[1].screenshot({ path: path.join(ekran, 'uc_4_tur.png') });
-  await A.evaluate(() => { const M = EO2.battle.state(); for (const a of M.act) if (a.takim === 1 && !a.dead) EO2.battle.api[a.tur === 'boss' ? 'hasarBoss' : 'hasarMob'](a, 99999); });
+  /* bütün dalgalar indirilir (Zümrüt köprüsü üç dalgalıdır; Kaldera'nın ilk aşamasında tek dalga vardı) */
+  for (let k = 0; k < 4; k++) { await A.evaluate(() => { const M = EO2.battle.state(); if (M) for (const a of M.act) if (a.takim === 1 && !a.dead) EO2.battle.api[a.tur === 'boss' ? 'hasarBoss' : 'hasarMob'](a, 99999); }); await A.waitForTimeout(1500); }
   log.cark = await hepsi('EO2.ortak.durum().ortak && EO2.ortak.durum().ortak.faz === "cark"', 40000); for (const p of P) await cark(p);
   log.kampaDonus = await hepsi('EO2.ortak.durum().ortak && EO2.ortak.durum().ortak.faz === "bekleme" && EO2.ortak.durum().ortak.asama === 1 && EO2.api.scene() === "kamp" && !EO2.battle.active()', 40000);
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
