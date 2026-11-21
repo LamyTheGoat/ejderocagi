@@ -131,8 +131,8 @@ bir şey kalmayacak, her şey yeni chibi sisteminde kurulacak; chibi çizimleri 
   - Kayıt yedeği ve kurtarma kodu Firestore'da `eo_saves`, `eo_recovery` koleksiyonlarını kullanır; yalnız emülatörde denendi, gerçek projede denenmedi.
   - Gizlilik ve kullanım koşulları sayfaları taslaktır: işletenin adı ve iletişim adresi yok, hukukçu görmedi.
 
-- `gold.local` hâlâ açık: değiştirilmiş bir istemci altın bildirebilir (kullanıcı kararı: şimdilik hile koruması yok).
-- İki kese: gösterge = yerel kese + sunucudaki arena payı. 2.1 bitene kadar geçici düzen.
+- `gold.local` hâlâ açık: değiştirilmiş bir istemci altın bildirebilir (kullanıcı kararı: şimdilik hile koruması yok). 2026-11-20'den beri bu altın bağlı yazılır, takasa giremez (`TEK_KESE_2026-11-20.md`).
+- ~~İki kese~~ Tek kese (2026-11-20): gösterge = sunucu kesesi; yerel kese her hesapta bir kez taşınır (`TEK_KESE_2026-11-20.md`).
 - Yedek: çalışma GitHub'da `ejder-ocagi-2.0` dalında. `main`'e birleştirme ve yayına alma ayrı onay ister.
 - Chibi çalışması (`prototype/chibi_rig`, 2 GB) hiçbir depoda değil; yalnız diskte ve yerel pakette (15 Kasım hâli).
 - Disk: C: sürücüsünde yer dar; görsel üretim ve kayıt çıktıları hızla dolduruyor.

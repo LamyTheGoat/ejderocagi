@@ -76,7 +76,7 @@ try {
   // ikisi sırayla bütün düşmanları indirir
   // dalga kontrolü: birinci dalga inince ikinci, o inince üçüncü dalga iki ekranda da belirir
   const indir = p => p.evaluate(() => { const M = EO2.battle.state(); for (const a of M.act) if (a.takim === 1 && !a.dead) EO2.battle.api.hasarMob(a, 9999); });
-  const dalgada = n => 'EO2.battle.state() && EO2.battle.state().dalgaNo === ' + n + ' && EO2.battle.state().act.filter(a => a.takim === 1 && !a.dead).length === 2';
+  const dalgada = n => 'EO2.battle.state() && EO2.battle.state().dalgaNo === ' + n + ' && EO2.battle.state().act.filter(a => a.takim === 1 && !a.dead).length === 8';   // köprü: üç dalga × sekiz yılan (2026-11-20)
   await indir(A); log.dalga2 = await bekle(A, dalgada(2), 15000) && await bekle(B, dalgada(2), 15000); await A.waitForTimeout(700); await cek(B, 'zindan_3d_dalga2');
   await indir(B); log.dalga3 = await bekle(A, dalgada(3), 15000) && await bekle(B, dalgada(3), 15000); await A.waitForTimeout(700);
   await indir(A);
@@ -108,7 +108,7 @@ try {
   log.altinToplam = await A.evaluate(() => S.gold) - altin0;
 } catch (e) { hata.push('denetim: ' + String(e.message).slice(0, 300)); }
 await b.close();
-const ok = !hata.length && log.gordu && log.kod && log.davet && log.hazirGorundu && log.kamp && log.kamptaGordu && log.serit && log.tekHazirBaslamadi && log.savas && JSON.stringify(log.dusman) === '[720,900,855,855,900,720]' && log.ilkDalga === 2 && log.dalga2 && log.dalga3 && log.yoldasTopcu && log.yoldasAd === 'Aylin' && log.yoldasAtes && log.yoldasYer && log.ortakCan && log.siraA && log.ruzgar[0] === log.ruzgar[1] && log.siraB && log.ruzgar2[0] === log.ruzgar2[1] && log.dusmanSirasi && log.dusmanAyni[0] === log.dusmanAyni[1] && log.turDondu && JSON.stringify(log.dusmanYer[0]) === JSON.stringify(log.dusmanYer[1]) && log.yoldasCercevesi
+const ok = !hata.length && log.gordu && log.kod && log.davet && log.hazirGorundu && log.kamp && log.kamptaGordu && log.serit && log.tekHazirBaslamadi && log.savas && log.dusman.length === 24 && JSON.stringify([...new Set(log.dusman)].sort()) === '[338,383,405]' && log.ilkDalga === 8 && log.dalga2 && log.dalga3 && log.yoldasTopcu && log.yoldasAd === 'Aylin' && log.yoldasAtes && log.yoldasYer && log.ortakCan && log.siraA && log.ruzgar[0] === log.ruzgar[1] && log.siraB && log.ruzgar2[0] === log.ruzgar2[1] && log.dusmanSirasi && log.dusmanAyni[0] === log.dusmanAyni[1] && log.turDondu && JSON.stringify(log.dusmanYer[0]) === JSON.stringify(log.dusmanYer[1]) && log.yoldasCercevesi
   && log.asama1 && log.kampaDonus && log.altinAsama >= 150 && log.savas2 && log.kirilmaz && log.sahmeranCizim && log.siraA2 && log.siraB2 && log.dustuArenada && !!log.dusenAtlandi && log.dusenYoldasYerde && log.lafYok && log.asama2 && log.sonPen && log.cikti && log.altinToplam >= 400;
 console.log(JSON.stringify({ ok, log, hata: hata.slice(0, 10) }, null, 1));
 process.exit(ok ? 0 : 1);

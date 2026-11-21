@@ -34,7 +34,7 @@ const ZORLUK = { normal: 0.75, zor: 1.0 };
 // Zindanlar tek tarif dosyasından okunur (eo2/js/zindan_tarif.js; oyun da aynı dosyayı okur). Yeni zindan oraya eklenir; burada değişiklik gerekmez.
 // Arenalar (düşman sayısı ve canları) eo2/js/arena_veri.js'ten gelir: eo2/arenalar klasörlerinden derlenir (eo2/tools/arena_derle.mjs).
 const TARIF = require('../eo2/js/zindan_tarif.js'), ARENA = require('../eo2/js/arena_veri.js');
-const tariftenKur = (T, AR) => { const Z = {}; for (const k in T) Z[k] = { ad: T[k].ad, asama: T[k].asama.map(ad => { const A = (AR || ARENA)[ad]; if (!A) throw new Error('arena yok: ' + ad); return { ad: A.ad, dusman: (A.dusman || []).map(q => ({ hp: q.hp, dalga: q.dalga > 1 ? q.dalga : 1 })).concat(A.boss ? [{ hp: A.boss.hp, boss: true }] : []) }; }) }; return Z; };
+const tariftenKur = (T, AR) => { const Z = {}; for (const k in T) Z[k] = { ad: T[k].ad, asama: T[k].asama.map(ad => { const A = (AR || ARENA)[ad]; if (!A) throw new Error('arena yok: ' + ad); return { ad: A.ad, dusman: (A.dusman || []).map(q => Object.assign({ hp: q.hp, dalga: q.dalga > 1 ? q.dalga : 1 }, q.cagri ? { cagri: true } : {})).concat(A.boss ? [{ hp: A.boss.hp, boss: true }] : []) }; }) }; return Z; };
 const ZINDANLAR = tariftenKur(TARIF);
 const HASAR_UST = 6000;   // tek bildirimde kabul edilen en büyük hasar (hata ve bozuk veri süzgeci; denge kuralı değildir)
 const hata = kod => Object.assign(new Error(kod), { kod });
@@ -50,18 +50,27 @@ function createZindanOrtak(secenek) {
   const bagli = oda => oda.uyeler.filter(u => u.bagli).map(u => u.id);
   const uye = (d, id) => d.uye[id] || (d.uye[id] = { hazir: false, hayatta: true, hasar: 0, cark: false, hp: 0, max: 0 });
   function asamaBasla(d, oda, olaylar) { const A = ZINDANLAR[d.zindan].asama[d.asama], k = ZORLUK[d.zorluk] * partiCarpan(bagli(oda).length);
-    d.faz = 'savas'; d.tur++; d.dusman = A.dusman.map(q => { const hp = Math.round(q.hp * k); return { hp, max: hp, boss: !!q.boss, dalga: q.dalga || 1 }; });   // dalga: önceki dalgalar inmeden sıra almaz (ekranda da yoktur)
+    d.faz = 'savas'; d.tur++; d.dusman = A.dusman.map(q => { const hp = Math.round(q.hp * k); return Object.assign({ hp: q.cagri ? 0 : hp, max: hp, boss: !!q.boss, dalga: q.dalga || 1 }, q.cagri ? { cagri: true } : {}); });   // cagri: boss çağırana dek yok (canı 0)   // dalga: önceki dalgalar inmeden sıra almaz (ekranda da yoktur)
     for (const id in d.uye) Object.assign(d.uye[id], { hazir: false, hayatta: true, cark: false, hp: 0, max: 0 });
-    d.sav = { adim: 0, tur: 0, tip: 'giris', kim: null, i: -1, hedef: null, tohum: 0, ruzgar: 0, t0: now(), tb: 0, bitti: {}, kuyruk: [], ex: null };
+    d.dalgaAktif = null; d.dalgaTur = -1; d.sav = { adim: 0, tur: 0, tip: 'giris', kim: null, i: -1, hedef: null, tohum: 0, ruzgar: 0, t0: now(), tb: 0, bitti: {}, kuyruk: [], ex: null };
     olaylar.push({ t: 'asama_basla', asama: d.asama, dusman: d.dusman.map(q => q.max) }); }
   const ayakta = (d, oda) => bagli(oda).filter(id => d.uye[id] && d.uye[id].hayatta);
+  /* BOSS ÇAĞRISI (kullanıcı, 2026-11-20): boss ayaktayken sahnede ayakta boss dışı düşman kalmadıysa her yeni turun başında "cagri" düşmanların hepsi tam canla doğar.
+     Olay ('cagri') sıra olayından önce yayılır; ekranlar yılanları doğduğu yerde gösterir. */
+  function cagir(d, olaylar) { const boss = d.dusman.find(q => q.boss); if (!boss || !(boss.hp > 0) || !d.dusman.some(q => q.cagri) || d.dusman.some(q => !q.boss && q.hp > 0)) return;
+    const liste = []; d.dusman.forEach((q, i) => { if (q.cagri) { q.hp = q.max; q.geldi = d.sav.tur; liste.push({ i, hp: q.hp, max: q.max }); } }); olaylar.push({ t: 'cagri', liste }); }
+  /* YENİ GELEN SALDIRMAZ (kullanıcı, 2026-11-20: "yeni dalga çıktığı tur saldırmayabilir"): dalga (2, 3…) ya da çağrı hangi turda sahneye çıktıysa o tur sıra almaz.
+     Dalganın çıktığı tur, önceki dalganın son düşmanı düştüğü anda yazılır (hasar bildiriminde ve her adımda denetlenir). */
+  const enAzDalga = d => Math.min(...d.dusman.filter(q => q.hp > 0 && !q.boss && !q.cagri).map(q => q.dalga || 1), 99);
+  function dalgaIzle(d) { if (!d.sav) return; const n = enAzDalga(d); if (n !== 99 && n !== d.dalgaAktif) { if (d.dalgaAktif != null) d.dalgaTur = d.sav.tur; d.dalgaAktif = n; } }
   /* sıradaki adım: turun kuyruğu boşsa yeni tur kurulur (önce oyuncular, sonra düşmanlar); düşen oyuncu ve ölen düşman atlanır */
   function ilerle(d, oda, olaylar) { const s = d.sav, canli = ayakta(d, oda); if (!canli.length) return;
     for (let k = 0; k < 60; k++) {
-      if (!s.kuyruk.length) { s.tur++; s.kuyruk = canli.map(id => ({ p: id })).concat(d.dusman.map((q, i) => ({ e: i }))); }
+      if (!s.kuyruk.length) { s.tur++; cagir(d, olaylar); s.kuyruk = canli.map(id => ({ p: id })).concat(d.dusman.map((q, i) => ({ e: i }))); }
       const n = s.kuyruk.shift();
       if (n.p) { if (!canli.includes(n.p)) continue; Object.assign(s, { tip: 'oyuncu', kim: n.p, i: -1, hedef: null, tohum: 0, ruzgar: Math.round((rast() * 4.6 - 2.3) * 10) / 10 }); }
-      else { if (!(d.dusman[n.e].hp > 0)) continue; const dalga = Math.min(...d.dusman.filter(q => q.hp > 0 && !q.boss).map(q => q.dalga || 1), 99); if (!d.dusman[n.e].boss && (d.dusman[n.e].dalga || 1) > dalga) continue;   // bekleyen dalga sıra almaz
+      else { const q = d.dusman[n.e]; if (!(q.hp > 0)) continue; dalgaIzle(d); const dalga = Math.min(...d.dusman.filter(x => x.hp > 0 && !x.boss).map(x => x.dalga || 1), 99); if (!q.boss && (q.dalga || 1) > dalga) continue;   // bekleyen dalga sıra almaz
+        if (!q.boss && ((q.cagri && q.geldi === s.tur) || (!q.cagri && (q.dalga || 1) > 1 && d.dalgaTur === s.tur && (q.dalga || 1) === d.dalgaAktif))) continue;   // bu tur gelen saldırmaz
         Object.assign(s, { tip: 'dusman', kim: null, i: n.e, hedef: canli[Math.floor(rast() * canli.length) % canli.length], tohum: 1 + Math.floor(rast() * 2147483646) }); }
       s.adim++; s.t0 = now(); s.tb = 0; s.bitti = {};
       olaylar.push({ t: 'sira', adim: s.adim, tur: s.tur, tip: s.tip, kim: s.kim, i: s.i, hedef: s.hedef, tohum: s.tohum, ruzgar: s.ruzgar, ex: s.ex }); return; } }
@@ -87,7 +96,7 @@ function createZindanOrtak(secenek) {
       if (e.t === 'hazir') { if (d.faz !== 'bekleme') throw hata('faz_uygun_degil'); u.hazir = e.v !== false; olaylar.push({ t: 'hazir', kim: kim.id, v: u.hazir }); }
       else if (e.t === 'hasar') { if (d.faz !== 'savas') return { olaylar };   // aşama bitmişken yolda kalan hasar bildirimi sessizce düşer
         const q = d.dusman[e.i], h = Math.floor(+e.h); if (!q || !(h > 0)) throw hata('eylem_gecersiz'); if (q.hp <= 0 || !u.hayatta) return { olaylar };
-        const v = Math.min(h, HASAR_UST, q.hp); q.hp -= v; u.hasar += v; if (q.boss && q.hp <= 0) for (const o of d.dusman) o.hp = 0;   // boss düşünce yanındakiler de düşer (savaş motorunun kuralı)
+        const v = Math.min(h, HASAR_UST, q.hp); q.hp -= v; u.hasar += v; dalgaIzle(d); if (q.boss && q.hp <= 0) for (const o of d.dusman) o.hp = 0;   // boss düşünce yanındakiler de düşer (savaş motorunun kuralı)
         olaylar.push({ t: 'hasar', kim: kim.id, i: e.i, h: v, hp: q.hp }); }
       else if (e.t === 'can') { if (d.faz !== 'savas') return { olaylar }; u.max = Math.max(1, Math.min(99999, Math.floor(+e.max) || 1)); u.hp = Math.max(0, Math.min(u.max, Math.floor(+e.hp) || 0)); olaylar.push({ t: 'can', kim: kim.id, hp: u.hp, max: u.max }); }
       else if (e.t === 'konum' || e.t === 'ates') { if (d.faz !== 'savas' || !u.hayatta) return { olaylar };   // yoldaşların ekranında topçunun yeri, nişanı ve atışı (yalnız görüntü)

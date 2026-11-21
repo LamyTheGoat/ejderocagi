@@ -120,7 +120,13 @@
        Döşemeyle birlikte boyanır: nesne gölge lekeleri ve ışık havuzları üstüne düşer. Palette görünmez. api.zeminResim(0) ile kapatılır (kıyas için). */
     const ZRES = (ZM.resimler || []).slice(), ekle = a => a.length && EO2.doku && EO2.doku.ekle ? EO2.doku.ekle(a, klasor) : Promise.resolve([]);
     /* çizimler ilk istendiğinde yüklenir: sahneye girilirken (EO2.sahneYukle) ya da sahne kurulurken. Başlangıç sahnesi (master) hemen yükler. */
-    let yukP = null; const yukleCiz = () => yukP || (yukP = Promise.all([ekle(adlar), ekle(ZRES.map(q => q[0]))]));
+    /* ilk açılışta yalnız sahnede gerçekten çizilenler iner (seçili setin eşi, ışıksız eş açıksa o, açı ailesinin bütün açıları, ön plan, tavan).
+       Editör paletinin öteki çizimleri, kullanılmayan eski eşler ve ışıksız eşler editör açılınca ya da set/ışıksız düğmesine basılınca iner (tumunuYukle). */
+    const gerekenAdlar = () => { const k = new Set(); for (const o of DUZEN) { if (o.sil) continue; const A = AILE[o.ad];
+        if (A) { for (const a of A.acilar) k.add(ad3(A, a)); continue; } const q = s.set && SET2[o.ad]; if (q) { if (q[0]) k.add(q[0]); continue; } k.add(o.ad); if (s.deneme && ISIKSIZ[o.ad]) k.add(ISIKSIZ[o.ad]); }
+      for (const q of (V.onPlan || [])) k.add(q[0]); if (V.tavan && V.tavan.ad) k.add(V.tavan.ad); return adlar.filter(a => k.has(a)); };
+    let yukP = null, tumP = null; const yukleCiz = () => yukP || (yukP = Promise.all([ekle(gerekenAdlar()), ekle(ZRES.map(q => q[0]))]));
+    const tumunuYukle = () => tumP || (tumP = Promise.all([yukleCiz(), ekle(adlar)]).then(r => { if (ic.yenile) ic.yenile(); return r; }));
     if (id === 'master') yukleCiz();
     const dokuOf = ad => { const t = ic.dokular[ad]; if (t) return t; const im = ad && ic.K && ic.K.im[ad]; if (!im || !ic.R0) return null; return ic.dokular[ad] = Object.assign(ic.R0.texture(im), { oran: im.naturalHeight / im.naturalWidth, gen: im.naturalWidth }); };
     /* ışıma ve gölge dokuları çizimin kendisinden üretilir:
@@ -223,7 +229,7 @@
       const yer = ZM.alanlar.map(q => ({ q, t: null }));
       ic.R0 = R0; ic.K = EO2.doku; ic.dokular = {}; ic.fx = h.T.fx; ic.golgeUv = h.uv('shadow'); ic.dip = dipDokular(R0);
       { const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d'); x.fillStyle = 'rgb(58,40,84)'; x.beginPath(); x.ellipse(128, 64, 126, 62, 0, 0, 6.3); x.fill(); ic.elips = R0.texture(c); }
-      ic.yenile = () => { for (const y of yer) y.t = R0.texture(zeminCiz(y.q[0], y.q[1], y.q[2], y.q[3], y.q[4], y.q[5])); }; ic.yenile();
+      ic.yenile = () => { for (const y of yer) { if (y.t && R0.sil) R0.sil(y.t); y.t = R0.texture(zeminCiz(y.q[0], y.q[1], y.q[2], y.q[3], y.q[4], y.q[5])); } }; ic.yenile();   // eski gölge dokusu silinir: her boyamada 2 büyük doku birikiyordu
       yukleCiz().then(() => { if (ic.yenile) ic.yenile(); });   // çizimler sahneden sonra yüklendiyse gölgeler yeniden boyanır
       h.push({ key: 960, draw(R) { for (const y of yer) { const q = y.q; R.quad(y.t, [q[0], q[1], 0.006], [q[2], q[1], 0.006], [q[2], q[3], 0.006], [q[0], q[3], 0.006], 0, 0, 1, 1, BIRR, false, 1); } } });
       for (const o of DUZEN) for (const it of nesneItler(o)) h.push(it);
@@ -301,7 +307,7 @@
       else if (e === 'set') { api.set(!s.set); }
       else if (e === 'kapat') { editor(false); return; }
       panelCiz(); }
-    function editor(v) { ED.acik = !!v; if (v) { const b = bulaniklik(); if (b.length) console.warn('[bölüm ' + id + '] 1920 genişlikte yakından büyüyen çizimler (oran, kaynak piksel): ' + b.map(q => q.ad + ' ×' + q.yakin + ' (' + q.kaynak + ')').join(', ')); } if (v && !ED.el) { editorStili();
+    function editor(v) { ED.acik = !!v; if (v) tumunuYukle(); if (v) { const b = bulaniklik(); if (b.length) console.warn('[bölüm ' + id + '] 1920 genişlikte yakından büyüyen çizimler (oran, kaynak piksel): ' + b.map(q => q.ad + ' ×' + q.yakin + ' (' + q.kaynak + ')').join(', ')); } if (v && !ED.el) { editorStili();
         ED.el = document.createElement('div'); ED.el.className = 'mEd'; ED.cerceve = document.createElement('div'); ED.cerceve.className = 'mEdCer'; ED.el.appendChild(ED.cerceve); ED.panel = document.createElement('div'); ED.panel.className = 'mEdPanel';
         const cv = document.getElementById('world'); cv.parentElement.appendChild(ED.el); cv.parentElement.appendChild(ED.panel);
         const yer = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
@@ -333,8 +339,8 @@
       kilavuz: v => { s.kilavuz = v ? 1 : 0; kaydet(); },
       zeminResim: v => { s.zeminResim = v ? 1 : 0; kaydet(); if (ic.yenile) ic.yenile(); },
       zeminSer: (ad, x0, y0, x1, y1) => { ZRES.push([ad, x0, y0, x1, y1]); return EO2.doku.ekle([ad], klasor).then(() => { if (ic.yenile) ic.yenile(); }); },   // deneme için: çalışırken zemine resim ser
-      set: v => { s.set = v ? 1 : 0; kaydet(); carpKur(); if (ic.yenile) ic.yenile(); },
-      deneme: v => { s.deneme = v ? 1 : 0; kaydet(); carpKur(); if (ic.yenile) ic.yenile(); } };
+      set: v => { s.set = v ? 1 : 0; kaydet(); carpKur(); if (ic.yenile) ic.yenile(); tumunuYukle(); },
+      deneme: v => { s.deneme = v ? 1 : 0; kaydet(); carpKur(); if (ic.yenile) ic.yenile(); tumunuYukle(); }, tumunuYukle };
     B.hepsi[id] = api; if (id === 'master') EO2.master = api;   // EO2.master: eski ad, uyumluluk için
     return api;
   };

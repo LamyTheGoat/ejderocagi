@@ -96,7 +96,7 @@
   EO2.audio = {
     start, isOn: () => on,
     toggle() { on = !on; if (master) master.gain.setTargetAtTime(on && !gizli ? vol : 0, now(), 0.08); muzikTazele(); return on; },
-    duraklat(v) { gizli = !!v; if (master) master.gain.setTargetAtTime(v ? 0 : (on ? vol : 0), now(), 0.12); muzikTazele(); },      // sekme arka plandayken susar; müzik de durur
+    duraklat(v) { gizli = !!v; if (!v && ctx && ctx.state !== 'running' && ctx.state !== 'closed') { const p = ctx.resume(); if (p && p.catch) p.catch(() => { }); } if (master) master.gain.setTargetAtTime(v ? 0 : (on ? vol : 0), now(), 0.12); muzikTazele(); },      // sekme arka plandayken susar; müzik de durur
     /* kanal düzeyi: 'muzik' | 'efekt' | 'ortam', 0..1 */
     duzey(k, v) { if (!(k in duz)) return; duz[k] = Math.max(0, Math.min(1, +v || 0)); const g = k === 'muzik' ? gMus : k === 'efekt' ? gFx : gAmb; if (g) g.gain.setTargetAtTime(KAZANC[k](duz[k]), now(), 0.05); if (k === 'muzik') muzikTazele(); },
     duzeyler: () => Object.assign({}, duz),
@@ -115,7 +115,7 @@
     sing(sec) { st.sazBoost = 1; setTimeout(() => { st.sazBoost = 0; }, (sec || 9) * 1000); },
     // düello sesleri
     battle(v) { st.battle = v; },
-    charge(p) { if (ok()) tone('sine', 180 + p * 520, 190 + p * 540, now(), 0.06, 0.018); },
+    charge(p) { p = +p || 0; if (ok()) tone('sine', 180 + p * 520, 190 + p * 540, now(), 0.06, 0.018); },
     fire() { if (ok()) { const t = now(); tone('sine', 150, 38, t, 0.5, 0.5); burst(t, 0.3, 500, 0.5, 0.4, 'lowpass'); burst(t, 0.12, 2400, 0.6, 0.18); } },
     boom(k) { if (ok()) { const t = now(), g = 0.35 + (k || 0.5) * 0.4; tone('sine', 110, 30, t, 0.7, g); burst(t, 0.6, 320, 0.4, g, 'lowpass'); burst(t + 0.02, 0.25, 1800, 0.5, g * 0.4); } },
     hit() { if (ok()) { const t = now(); tone('square', 320, 90, t, 0.18, 0.09); } },
@@ -125,6 +125,7 @@
     update(px, py, f, oz) { st.fx = f.x - px; st.fy = f.y - py; if (oz) { st.ox = oz.x - px; st.oy = oz.y - py; } if (!ok()) return;
       const d = Math.hypot(st.fx, st.fy), g = st.battle ? 0 : Math.max(0, 1 - d / 16); nodes.fount.gain.setTargetAtTime(g * g * 0.12, now(), 0.15); nodes.fountLow.gain.setTargetAtTime(g * g * 0.22, now(), 0.15); },
   };
-  const kick = () => { start(); if (ctx && ctx.state === 'suspended') ctx.resume(); };
-  addEventListener('pointerdown', kick, { passive: true }); addEventListener('keydown', kick);
+  /* iOS Safari sesi yalnız dokunuş bitince (touchend/click) açar; arka plandan dönünce bağlam 'interrupted' kalabilir */
+  const kick = () => { start(); if (ctx && ctx.state !== 'running' && ctx.state !== 'closed' && !gizli) { const p = ctx.resume(); if (p && p.catch) p.catch(() => { }); } };
+  addEventListener('pointerdown', kick, { passive: true }); addEventListener('touchend', kick, { passive: true }); addEventListener('click', kick, { passive: true }); addEventListener('keydown', kick);
 })();

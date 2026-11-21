@@ -186,7 +186,7 @@ EO2.bolum.tanimla({
         { id: 'arena', label: 'Topçu Arenası', x: -4.5, y: 3.2, z: 2.6 }, { id: 'bahce', label: 'Ejder Bahçesi', x: 9.55, y: 3.2, z: 2.6 }],
       /* kapılardan dönüş: oyuncu çıktığı kapının önünde belirir */
       entry: { hanici: { x: -0.8, y: 11.6, dir: 'down' }, han: { x: -0.8, y: 11.6, dir: 'down' }, kuzeyyolu: { x: kapi[0], y: kapi[1] + 0.8, dir: 'down' }, yol: { x: kapi[0], y: kapi[1] + 0.8, dir: 'down' },
-        carsi: { x: 9.6, y: 18.6, dir: 'down' }, pazar: { x: 9.6, y: 18.6, dir: 'down' }, arena: { x: -4.5, y: 6.9, dir: 'up' }, bahce: { x: 9.55, y: 6.9, dir: 'up' } },
+        carsi: { x: 9.6, y: 18.6, dir: 'down' }, pazar: { x: 9.6, y: 18.6, dir: 'down' }, arena: { x: -4.5, y: 6.9, dir: 'up' }, bahce: { x: 9.55, y: 7.4, dir: 'up' } },   // bahçe dönüşü tabelanın (9.4, 6.6) bir adım önünde: noktaya düşen oyuncu kaydırılmaz
       interact: [
         { id: 'cesme', x: cesme[0], y: cesme[1], r: 1.8, z: 2.4, label: 'Etkileşime geç', sub: 'Çeşme', act: 'toast:Su, ejderin ağzından serin serin akıyor.' },
         { id: 'han', x: -0.8, y: 13.4, r: 1.5, z: 2.4, label: 'Hana gir', sub: 'Kervansaray Kıraathanesi', act: 'go:hanici' },

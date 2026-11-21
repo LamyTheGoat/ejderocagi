@@ -71,12 +71,12 @@
     kok.querySelectorAll('canvas.dov-yuz').forEach(cv => { try { const ben = cv.dataset.yuz === 'ben', set = ben ? A.player.set : (FT.rakipSet && L.includes(FT.rakipSet) ? FT.rakipSet : L[adKarma(terbiyeci('rakip')) % L.length]);
       A.drawPortrait(cv, set, 0.66, ben ? true : (FT.rakipH || undefined)); } catch (e) { cv.hidden = true; } }); }
   function fightUI() { const F = FT.F, w = el('div', 'dov fight'); w.id = 'dov'; w.addEventListener('animationend', e => { if (e.target === w) w.classList.add('girdi'); });   /* açılış solması bir kez oynar: sarsıntı bitince yeniden başlamasın (ekran bir an saydamlaşıyordu) */ w.style.setProperty('--sahne', 'url("' + (FT.mode === 'kule' ? G.bgUrl('a:kule') : G.url('img/' + (FT.tier === 'cukur' ? 'bg-pit' : FT.mode === 'tour' ? 'bg-saray' : 'bg-arena') + '.webp')) + '")');
-    w.innerHTML = '<header><small>' + esc(FT.title) + '</small><b id="dovTur"></b></header><div class="dov-saha"><div class="taraf sol" style="--el:' + G.ELC[F.p.el] + '"><div class="isim"><canvas class="dov-yuz" width="96" height="96" data-yuz="ben" aria-hidden="true"></canvas><span class="dov-ad"><b>' + esc(F.p.name) + '</b><small>' + esc(terbiyeci('ben')) + '</small></span><span class="etk el-' + F.p.el + '">' + EL_AD[F.p.el] + '</span></div><div class="can"><i id="hpP"></i><b id="hpPt"></b></div><div class="nefes"><i id="stP"></i></div><div class="govde"><img id="imP" alt="" src="' + G.img(FT.d) + '"><em id="dmP"></em></div></div>' +
-      '<div class="vs">VS</div><div class="taraf sag" style="--el:' + G.ELC[F.e.el] + '"><div class="isim"><span class="etk el-' + F.e.el + '">' + EL_AD[F.e.el] + '</span><span class="dov-ad"><b>' + esc(F.e.name) + '</b><small>' + esc(terbiyeci('rakip')) + '</small></span><canvas class="dov-yuz" width="96" height="96" data-yuz="rakip" aria-hidden="true"></canvas></div><div class="can"><i id="hpE"></i><b id="hpEt"></b></div><div class="nefes"><i id="stE"></i></div><div class="govde"><img id="imE" alt="" src="' + G.img(FT.opp) + '"><em id="dmE"></em></div></div></div>' +
+    w.innerHTML = '<header><small>' + esc(FT.title) + '</small><b id="dovTur"></b></header><div class="dov-saha"><div class="taraf sol" style="--el:' + G.ELC[F.p.el] + '"><div class="isim"><canvas class="dov-yuz" width="96" height="96" data-yuz="ben" aria-hidden="true"></canvas><span class="dov-ad"><b>' + esc(F.p.name) + '</b><small>' + esc(terbiyeci('ben')) + '</small></span><span class="etk el-' + F.p.el + '">' + EL_AD[F.p.el] + '</span></div><div class="can"><i id="hpP"></i><b id="hpPt"></b></div><div class="nefes" title="Nefes: nefes ve kükreme bunu harcar, Savun ve her tur doldurur"><i id="stP"></i><b id="stPt"></b></div><div class="govde"><img id="imP" alt="" src="' + G.img(FT.d) + '"><em id="dmP"></em></div></div>' +
+      '<div class="vs">VS</div><div class="taraf sag" style="--el:' + G.ELC[F.e.el] + '"><div class="isim"><span class="etk el-' + F.e.el + '">' + EL_AD[F.e.el] + '</span><span class="dov-ad"><b>' + esc(F.e.name) + '</b><small>' + esc(terbiyeci('rakip')) + '</small></span><canvas class="dov-yuz" width="96" height="96" data-yuz="rakip" aria-hidden="true"></canvas></div><div class="can"><i id="hpE"></i><b id="hpEt"></b></div><div class="nefes" title="Rakibin nefesi"><i id="stE"></i><b id="stEt"></b></div><div class="govde"><img id="imE" alt="" src="' + G.img(FT.opp) + '"><em id="dmE"></em></div></div></div>' +
       '<div class="dov-kayit cam kay" id="dovLog"></div><div class="dov-eylem" id="dovAct"></div>';
-    app.appendChild(w); yuzCiz(w); FT.view = { p: { hp: F.p.hp, sta: F.p.sta }, e: { hp: F.e.hp, sta: F.e.sta } }; for (const l of FT.log) logLine(l); paint();
+    app.appendChild(w); yuzCiz(w); if (EO2.seyirci) EO2.seyirci.sifirla(); if (EO2.ruh) EO2.ruh.kur(w, F.p.el, F.e.el); FT.view = { p: { hp: F.p.hp, sta: F.p.sta }, e: { hp: F.e.hp, sta: F.e.sta } }; for (const l of FT.log) logLine(l); paint();
     /* açılış karesi (ilk sürümdeki gibi): iki ejderha karşı karşıya, "ÇARPIŞMA!"; kare bitene dek hamle seçilmez */
-    if (FT.mode !== 'mp' && kareVar()) { FT.busy = true; paint(); kare('kalkis').then(() => { if (!FT) return; FT.busy = false; paint(); }); } }
+    if (FT.mode !== 'mp' && kareVar()) { FT.busy = true; paint(); kare('kalkis').then(() => { if (!FT) return; FT.busy = false; paint(); if (FT.auto) act(pickAuto()); }); } }   /* açılış karesi sürerken Otomatik'e basıldıysa kare bitince başlar */
   /* ---------- dövüş kareleri: ilk sürümün çizgi roman ara kareleri (js/fsupport.js fightCut, fightCutPick) ----------
      Kural değiştirmez; yalnız gösterir. Hangi hamlede kare çıkacağını eski seçici belirler (dövüş ortasında en çok üç kare,
      bitişte zafer ya da yenilgi karesi). Hareketi azalt ayarında ve hızlı kipte kare çıkmaz. */
@@ -88,45 +88,80 @@
   function bars() { const F = FT.F, v = FT.view, set = (id, k) => { document.getElementById(id).style.width = Math.max(0, Math.min(100, k * 100)) + '%'; };
     set('hpP', v.p.hp / F.p.maxHp); set('hpE', v.e.hp / F.e.maxHp); set('stP', v.p.sta / 100); set('stE', v.e.sta / 100);
     document.getElementById('hpPt').textContent = Math.max(0, v.p.hp) + ' / ' + F.p.maxHp; document.getElementById('hpEt').textContent = Math.max(0, v.e.hp) + ' / ' + F.e.maxHp;
+    { const nf = (id, n) => { const b = document.getElementById(id); if (b) { b.textContent = 'Nefes ' + Math.max(0, Math.round(n)); b.parentElement.classList.toggle('az', n < 15); } }; nf('stPt', v.p.sta); nf('stEt', v.e.sta); }   // nefes sayıyla da görünür (2026-11-21 geri bildirim); 15'in altı: kükreyemez
     document.getElementById('hpP').classList.toggle('az', v.p.hp / F.p.maxHp < 0.3); document.getElementById('hpE').classList.toggle('az', v.e.hp / F.e.maxHp < 0.3);
+    { const gP = document.getElementById('imP').parentElement, gE = document.getElementById('imE').parentElement; gP.classList.toggle('yorgun', v.p.hp > 0 && v.p.hp / F.p.maxHp < 0.3); gE.classList.toggle('yorgun', v.e.hp > 0 && v.e.hp / F.e.maxHp < 0.3); }   // canı azalan soluklanır (dovus_ruh.css)
     document.getElementById('dovTur').textContent = 'Tur ' + Math.max(1, F.round + (F.over ? 0 : 1)) + ' / 30'; }
+  /* çizimin görünen kutusu (dik telefonda ejderha resim kutusunun dibinde küçük durur; efektler çizime oturur) */
+  const gk = e => EO2.ruh ? EO2.ruh.gorsel(e) : e.getBoundingClientRect();
+  const orta = (im, fy) => { const v = gk(im), A = app.getBoundingClientRect(); return [v.left - A.left + v.width / 2, v.top - A.top + v.height * (fy || 0.45)]; };
+  function yaziYeri(d, im) { const v = gk(im), g = im.parentElement.getBoundingClientRect(); d.style.top = Math.max(0, v.top - g.top + v.height * 0.08) + 'px'; }
   const MDL = { pence: 'gu', nefes: 'nefes', kukre: 'kukre', savun: 'da', teslim: 'teslim' };   // dövüş düğmeleri: madalyon ailesi (assets/ik/mdl-*.webp)
   /* nefes ışını: saldıranın ağzından hedefe uzanan, elementin renginde kısa bir ışın (ilk sürümdeki nefes efektinin karşılığı) */
   function isin(me, im, renk) { const dov = document.getElementById('dov'); if (!dov || window.__fastFx || app.classList.contains('sakin')) return;
-    const D = dov.getBoundingClientRect(), a = me.getBoundingClientRect(), b = im.getBoundingClientRect(), sol = a.left < b.left;
+    const D = dov.getBoundingClientRect(), a = gk(me), b = gk(im), sol = a.left < b.left;
     const x0 = (sol ? a.right - a.width * 0.18 : a.left + a.width * 0.18) - D.left, x1 = (sol ? b.left + b.width * 0.3 : b.right - b.width * 0.3) - D.left, y = a.top + a.height * 0.36 - D.top;
     const e = el('i', 'dov-isin' + (sol ? '' : ' ters')); e.style.cssText = 'left:' + Math.min(x0, x1) + 'px;top:' + y + 'px;width:' + Math.abs(x1 - x0) + 'px;--c:' + renk; dov.appendChild(e); setTimeout(() => e.remove(), 560);
     const t = el('i', 'dov-ton'); t.style.setProperty('--c', renk); dov.appendChild(t); setTimeout(() => t.remove(), 520); }
   function paint() { bars(); const box = document.getElementById('dovAct'), p = FT.F.p, mp = FT.mode === 'mp'; if (FT.F.over) { box.innerHTML = ''; return; }
     const IK = { pence: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.600" stroke-linecap="round"><path d="M6 3c1.600 6 2 11 0 18M12 2c1.600 7 2 13 0 20M18 3c1.600 6 2 11 0 18"/></svg>', nefes: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.500 2c1 4-3.500 6-3.500 10 0 1.500.8 2.600 1.800 3-.2-2 .9-3.200 2-4.200.3 2.500 3.200 3.400 3.200 6.400 0 2.700-2 4.800-4.800 4.800C7.600 22 5 19.400 5 15.600 5 9.800 11 8 12.500 2z"/></svg>', kukre: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round"><path d="M4 9v6M9 5v14M14 8v8M19 3v18"/></svg>', savun: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l8 3v6c0 5-3.500 9-8 11-4.500-2-8-6-8-11V5z"/></svg>', teslim: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 2h2v20H5zM8 3h11l-3 4 3 4H8z"/></svg>' };
-    const B = (x, t, sub, cls) => { const card = x.startsWith('card:') ? x.slice(5) : null; return '<button type="button" class="beceri ' + (cls || '') + '" data-x="' + x + '" ' + (can(x) && !FT.busy && !FT.bekle ? '' : 'disabled') + ' title=""' + (card && CARDS[card].d ? CARDS[card].d : '') + '"><i>' + (card ? '<img alt="" src="' + G.OLD + 'img/ui/card-' + card + '.webp">' : MDL[x] ? '<img class="mdl" alt="" src="assets/ik/mdl-' + MDL[x] + '.webp">' : IK[x] || '') + '</i><b>' + t + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</button>'; };
+    const B = (x, t, sub, cls) => { const card = x.startsWith('card:') ? x.slice(5) : null; return '<button type="button" class="beceri ' + (cls || '') + '" data-x="' + x + '" ' + (can(x) && !FT.busy && !FT.bekle ? '' : 'disabled') + ' title="' + (card && CARDS[card].d ? esc(CARDS[card].d) : '') + '"><i>' + (card ? '<img alt="" src="' + G.OLD + 'img/ui/card-' + card + '.webp">' : MDL[x] ? '<img class="mdl" alt="" src="assets/ik/mdl-' + MDL[x] + '.webp">' : IK[x] || '') + '</i><b>' + t + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</button>'; };
     box.innerHTML = B('pence', 'Pençe', '', 'altin') + B('nefes', EL_AD[p.el] + ' nefesi', NEFES_COST + ' nefes', 'kor') + B('kukre', 'Kükre', '15 nefes', '') + B('savun', 'Savun', 'nefes toplar', 'cini') +
       p.cards.filter(k => !(p.used || []).includes(k)).map(k => B('card:' + k, CARDS[k].ad, 'kart', 'kart')).join('') + '<span class="ara"></span>' + (mp ? '<span class="dov-bekle' + (FT.bekle ? ' acik' : '') + '">' + (FT.bekle ? 'Hamlen gitti · rakip bekleniyor' : 'Hamleni seç') + '</span>' : '<button type="button" class="beceri kucuk' + (FT.auto ? ' secili' : '') + '" data-auto="1"><i><img class="mdl" alt="" src="assets/ik/mdl-oto.webp"></i><b>Otomatik</b></button>') + B('teslim', 'Teslim ol', '', 'kucuk');
-    on(box, '[data-x]', b => act(b.dataset.x)); on(box, '[data-auto]', () => { FT.auto = !FT.auto; paint(); if (FT.auto && !FT.busy) act(pickAuto()); }); }
+    hazir(!FT.busy && !FT.bekle && !FT.auto); on(box, '[data-x]', b => act(b.dataset.x)); on(box, '[data-auto]', () => { FT.auto = !FT.auto; paint(); if (FT.auto && !FT.busy) act(pickAuto()); }); }
   /* vuruş hissi (2026-11-17): her isabette çarpma parlaması, kısa donma, sahne sarsıntısı ve geri savrulma; kritikte daha sert; canı bitiren darbede ağır çekim ve yıkılış.
      Yalnız görüntü: hasar, sıra ve sonuç değişmez. "Hareketi azalt" ayarında ve hızlı kipte çalışmaz. Dönen değer: donma süresi (ms). */
   function carpma(im, tgt, ev, olum) { const dov = document.getElementById('dov'); if (!dov || !im || window.__fastFx || app.classList.contains('sakin')) return 0;
-    const q = im.getBoundingClientRect(), R = dov.getBoundingClientRect(), k = el('i', 'dov-carpma' + (olum ? ' olum' : ev.crit ? ' kritik' : '')); k.style.left = (q.left - R.left + q.width * (tgt === 'E' ? 0.42 : 0.58)) + 'px'; k.style.top = (q.top - R.top + q.height * 0.46) + 'px'; dov.appendChild(k); setTimeout(() => k.remove(), 560);
+    const q = gk(im), R = dov.getBoundingClientRect(), k = el('i', 'dov-carpma' + (olum ? ' olum' : ev.crit ? ' kritik' : '')); k.style.left = (q.left - R.left + q.width * (tgt === 'E' ? 0.42 : 0.58)) + 'px'; k.style.top = (q.top - R.top + q.height * 0.46) + 'px'; dov.appendChild(k); setTimeout(() => k.remove(), 560);
     dov.classList.remove('yumruk', 'yumruk-agir'); void dov.offsetWidth; dov.classList.add(ev.crit || olum ? 'yumruk-agir' : 'yumruk'); im.classList.toggle('agir', !!(ev.crit || olum));
     const sure = olum ? 280 : ev.crit ? 130 : 65; dov.classList.add('donma'); setTimeout(() => dov.classList.remove('donma'), sure);
     if (olum) { dov.classList.add('son-darbe'); setTimeout(() => dov.classList.remove('son-darbe'), 950); setTimeout(() => im.classList.add('yikildi'), sure + 380); } return sure; }
-  async function play(ev) { const t = evText(ev); logLine(t); if (ev.after) FT.view = ev.after; const tgt = ev.who === 'p' ? 'E' : 'P', im = document.getElementById('im' + tgt), me = document.getElementById('im' + (ev.who === 'p' ? 'P' : 'E'));
-    const fx = G.fx, who = ev.who === 'p' ? FT.d : FT.opp, elc = G.ELC[(ev.who === 'p' ? FT.F.p : FT.F.e).el], pz = ev.act === 'kukre' ? 'P7' : ev.act === 'savun' ? 'P6' : ev.act === 'nefes' || (ev.act || '').startsWith('card') ? 'P12' : ev.act === 'pence' ? 'P8' : null;
-    if (pz && who && who.stage === 'yetiskin' && typeof hasPose === 'function' && hasPose(who, pz) && !window.__fastFx) { const base = me.dataset.base || (me.dataset.base = me.getAttribute('src')); me.src = G.poz(who, pz); clearTimeout(me._pz); me._pz = setTimeout(() => { me.src = base; }, 720); }
-    if (ev.act !== 'savun' && ev.act !== 'stun' && ev.act !== 'teslim') { me.classList.remove('hamle'); void me.offsetWidth; me.classList.add('hamle'); }
-    if (fx && ev.act === 'kukre') { fx.shake(document.getElementById('dov')); fx.stars(me, 8, '#fff3c4'); } if (fx && ev.act === 'savun') fx.stars(me, 8, '#a6e0ff');
-    if ((ev.act === 'nefes' || (ev.act || '').startsWith('card')) && !ev.miss) { isin(me, im, elc); if (EO2.audio && EO2.audio.fire) EO2.audio.fire(); }
-    else if (ev.act === 'pence' && EO2.audio && EO2.audio.whoosh) EO2.audio.whoosh();
-    else if (ev.act === 'kukre' && EO2.audio && EO2.audio.charge) EO2.audio.charge();
-    if (fx && (ev.act === 'nefes' || (ev.act || '').startsWith('card')) && !ev.miss) { const a = me.getBoundingClientRect(), b = im.getBoundingClientRect(), A = app.getBoundingClientRect(); for (let i = 1; i <= 5; i++) setTimeout(() => fx.burst([a.left - A.left + a.width / 2 + (b.left + b.width / 2 - a.left - a.width / 2) * i / 6, a.top - A.top + a.height * 0.42], elc, 5), i * 28); }
-    if (ev.dmg && !ev.miss && !ev.blocked) { await wait(170); const d = document.getElementById('dm' + tgt); d.textContent = '-' + ev.dmg; d.className = ev.crit ? 'kritik' : ''; void d.offsetWidth; d.classList.add('uc'); im.classList.remove('vuruldu'); void im.offsetWidth; im.classList.add('vuruldu');
-      const hs = ev.after && (tgt === 'E' ? ev.after.e : ev.after.p), olum = !!(hs && typeof hs.hp === 'number' && hs.hp <= 0), don = carpma(im, tgt, ev, olum);
-      if (fx) { fx.burst(im, ev.act === 'pence' ? '#fff' : elc, olum ? 40 : ev.crit ? 26 : 12); fx.shake(document.getElementById('dov'), !!(ev.crit || olum)); if (ev.crit || olum) fx.flash(olum ? 'rgba(255,255,255,.42)' : 'rgba(255,255,255,.28)'); } if (don) await wait(don); if (EO2.audio) (ev.crit ? EO2.audio.boom || EO2.audio.pop : EO2.audio.hit || EO2.audio.pop)(); }
-    else if (EO2.audio) EO2.audio.pop();
-    bars(); await wait(FT.auto ? 300 : 620); }
+  /* bir hamlenin gösterimi (2026-11-20 hareket dili: js/dovus_ruh.js). Sıra: hazırlık (geri çekilme, nefes toplama, dikilme) →
+     temas anında hedefin tepkisi (savrulma, kaçma, kalkan), kamera itişi, donma, ses ve hasar yazısı birlikte → toparlanma.
+     Yalnız görüntü ve ses: hasar, sıra ve sonuç değişmez. Bir gösterim hatası dövüşü kilitlemez. */
+  const ses = (k, ...a) => { const A = EO2.audio; try { if (A && A[k]) A[k](...a); } catch (e) {} };
+  async function play(ev) { try { await oynat(ev); } catch (e) { console.error('dövüş gösterimi', ev && ev.act, e); } bars(); }
+  async function oynat(ev) { const t = evText(ev); logLine(t); if (ev.after) FT.view = ev.after; const tgt = ev.who === 'p' ? 'E' : 'P', im = document.getElementById('im' + tgt), me = document.getElementById('im' + (ev.who === 'p' ? 'P' : 'E'));
+    const fx = G.fx, R = EO2.ruh, dir = ev.who === 'p' ? 1 : -1, hiz = FT.auto ? 0.75 : 1, who = ev.who === 'p' ? FT.d : FT.opp, elc = G.ELC[(ev.who === 'p' ? FT.F.p : FT.F.e).el];
+    const nefesli = (ev.act === 'nefes' && !ev.fb) || ev.act === 'card', sifa = ev.act === 'card' && ev.heal && !ev.dmg, saldiri = ev.act === 'pence' || ev.act === 'nefes' || (ev.act === 'card' && !sifa);
+    const pz = ev.act === 'kukre' ? 'P7' : ev.act === 'savun' ? 'P6' : nefesli ? 'P12' : ev.act === 'pence' || ev.fb ? 'P8' : null;
+    const pozla = () => { if (pz && who && who.stage === 'yetiskin' && typeof hasPose === 'function' && hasPose(who, pz) && !window.__fastFx) { const base = me.dataset.base || (me.dataset.base = me.getAttribute('src')); me.src = G.poz(who, pz); clearTimeout(me._pz); me._pz = setTimeout(() => { me.src = base; }, 820 * hiz); } };
+    if (!R) { pozla(); if (saldiri || ev.act === 'kukre') { me.classList.remove('hamle'); void me.offsetWidth; me.classList.add('hamle'); } }
+    /* 1. hazırlık: temas anına kadar beklenir */
+    let varis = 0;
+    if (ev.act === 'stun') { if (R) R.sersem(me); ses('pop'); await wait(700 * hiz); return; }
+    if (ev.act === 'teslim') { ses('pop'); await wait(400); return; }
+    if (ev.act === 'savun' || sifa) { if (R) R.savun(me, sifa ? '#9ff0b0' : '#a6e0ff'); pozla(); if (fx) fx.stars(orta(me), 8, sifa ? '#c8ffd0' : '#a6e0ff'); ses('chime'); await wait((FT.auto ? 300 : 620) + 120); return; }
+    if (ev.act === 'kukre') { if (R) await R.kukre(me, dir, elc, hiz); pozla(); ses('boom', 0.25); if (fx) { fx.shake(document.getElementById('dov'), !!ev.ok); fx.stars(orta(me), 8, '#fff3c4'); } if (ev.ok && R) R.vurul(im, dir, false); await wait(FT.auto ? 300 : 620); return; }
+    if (nefesli) { if (R) { ses('charge', 0.15); varis = await R.nefes(me, dir, elc, hiz); } pozla(); if (!ev.miss) { isin(me, im, elc); ses('fire');
+        if (fx) { const a = gk(me), b = gk(im), A = app.getBoundingClientRect(); for (let i = 1; i <= 5; i++) setTimeout(() => fx.burst([a.left - A.left + a.width / 2 + (b.left + b.width / 2 - a.left - a.width / 2) * i / 6, a.top - A.top + a.height * 0.42], elc, 5), i * 28); } }
+      else ses('whoosh'); }
+    else { ses('whoosh'); if (R) await R.pence(me, dir, hiz); pozla(); }
+    if (varis) await wait(varis);
+    /* 2. temas */
+    const d = document.getElementById('dm' + tgt); yaziYeri(d, im);
+    if (ev.miss) { if (R) R.kac(im, dir); d.textContent = 'Iska'; d.className = 'iska'; void d.offsetWidth; d.classList.add('uc'); ses('pop'); }
+    else if (ev.blocked) { if (R) R.engel(im, '#cfe6ff'); ses('hit'); if (fx) fx.burst(orta(im), '#cfe6ff', 10); }
+    else if (ev.dmg) { d.textContent = '-' + ev.dmg; d.className = ev.crit ? 'kritik' : ''; void d.offsetWidth; d.classList.add('uc'); im.classList.remove('vuruldu'); void im.offsetWidth; im.classList.add('vuruldu');
+      const hs = ev.after && (tgt === 'E' ? ev.after.e : ev.after.p), olum = !!(hs && typeof hs.hp === 'number' && hs.hp <= 0), agir = !!(ev.crit || olum);
+      ses(agir ? 'boom' : 'hit', olum ? 1 : 0.6); if (R) { R.vurul(im, dir, agir); R.kamera(im, agir); }
+      const don = carpma(im, tgt, ev, olum); if (R) R.donma(don);
+      if (fx) { { fx.burst(orta(im), ev.act === 'pence' || ev.fb ? '#fff' : elc, olum ? 40 : ev.crit ? 26 : 12); } fx.shake(document.getElementById('dov'), agir); if (agir) fx.flash(olum ? 'rgba(255,255,255,.42)' : 'rgba(255,255,255,.28)'); } if (don) await wait(don); }
+    else ses('pop');
+    /* 3. toparlanma */
+    bars(); await wait(FT.auto ? 280 : 560); }
+  /* sırası gelen ejderha öne eğilir (dovus_ruh.css .hazir) */
+  function hazir(v) { const g = document.getElementById('imP'); if (g && g.parentElement) g.parentElement.classList.toggle('hazir', !!v); }
   async function act(x) { if (!FT || FT.busy || FT.F.over || !can(x)) return; if (FT.mode === 'mp') return mpHamle(x);
-    FT.busy = true; paint(); const evs = FT.srv ? tohumla(FT.srv.rnd, () => fightRound(FT.F, x)) : fightRound(FT.F, x); if (FT.srv) FT.srv.acts.push(x); for (const ev of evs) await play(ev); await turKaresi(evs); if (!FT) return; FT.busy = false;
-    if (FT.F.over) return finish(); paint(); if (FT.auto) act(pickAuto()); }
+    FT.busy = true; hazir(false); paint(); const evs = FT.srv ? tohumla(FT.srv.rnd, () => fightRound(FT.F, x)) : fightRound(FT.F, x); if (FT.srv) FT.srv.acts.push(x); const sy = EO2.seyirci, F0 = FT.F, T0 = FT;
+    /* gösterim ne olursa olsun tur kilitli kalmaz (2026-11-21: oyuncu Kükre'de dövüşün donduğunu bildirdi; eski sürümde ses hatası turu kilitliyordu) */
+    const syc = ev => { try { if (sy && FT) sy.olay(ev, F0); } catch (e) { console.error('seyirci', e); } };
+    try { syc({ act: 'round' }); for (const ev of evs) { await play(ev); syc(ev); } await turKaresi(evs); } catch (e) { console.error('dövüş turu', x, e); } finally { if (T0) T0.busy = false; } if (!FT) return; FT.busy = false;
+    if (FT.F.over) { await sonPoz(); return finish(); } paint(); if (FT.auto) act(pickAuto()); }
+  /* dövüş bitti: kazanan dikilip sıçrar (yalnız görüntü) */
+  async function sonPoz() { const F = FT && FT.F; if (!F || !EO2.ruh || F.surrender || !F.winner) return; const ben = F.winner === 'p', im = document.getElementById(ben ? 'imP' : 'imE');
+    const who = ben ? FT.d : FT.opp; if (who && who.stage === 'yetiskin' && typeof hasPose === 'function' && hasPose(who, 'P7') && !window.__fastFx) im.src = G.poz(who, 'P7');
+    await EO2.ruh.zafer(im, ben ? 1 : -1); }
   function closeFight() { const w = document.getElementById('dov'); if (w) w.remove(); FT = null; }
   async function died(d, why, where) { killDragon(d, why); afterAction(true); await G.pen({ k: where, t: esc(d.name) + ' aramızdan ayrıldı', face: G.img(d), body: '<p>' + esc(d.name) + ' ' + why + '. Ocak bu gece sessiz.</p>', btns: [{ t: 'Uğurla', cls: 'altin' }] }); }
   async function ending() { closeFight(); return G.son(); }
@@ -139,6 +174,7 @@
     if (i >= 0 && sec[i]) { if (!T.boons.includes(sec[i].k)) T.boons.push(sec[i].k); saveGame(); return G.kuleBasla(d); } G.open('kule'); }
   async function finish() { const { F, d, opp } = FT; let lines = [], dead = false, tourOver = false;
     /* altın: sunucu dövüşü yeniden oynatır ve öder; yerel keseye arena altını yazılmaz */
+    if (EO2.huni) EO2.huni('dovus');   // oyuncu hunisi: ilk biten dövüş
     const srv = await sunucuBitir(), won = F.winner === 'p';
     const altin = g => srv && srv.ok ? '+' + srv.gold + ' altın' : '<span class="kotu">altın yazılmadı</span>';
     const altinNot = () => { if (!srv || srv.ok || !won) return; lines.push(srv.bekliyor ? '<span class="kotu">Bağlantı koptu. Bağlantı gelince yeniden gönderilecek; ödül o zaman yazılır.</span>' : '<span class="kotu">Bağlantı yoktu: altın ödülü yazılmadı' + (srv.why === 'çevrimdışı' ? '' : ' (' + srv.why + ')') + '.</span>'); };
@@ -269,7 +305,7 @@
       FT.busy = true; paint(); for (const ev of m.events || []) await play(olayCevir(ev, FT.rol));
       FT.F = cevir(m.fight, FT.rol); FT.view = { p: { hp: FT.F.p.hp, sta: FT.F.p.sta }, e: { hp: FT.F.e.hp, sta: FT.F.e.sta } }; FT.busy = false; FT.bekle = (m.submitted || []).includes(benim());
       if (FT.F.over) return mpBitir(m); paint(); }).catch(e => console.error('[er]', e)); }
-  async function mpBitir(m) { const F = FT.F, d = FT.d, kopan = m.fight.disconnected, lines = [];
+  async function mpBitir(m) { const F = FT.F, d = FT.d, kopan = m.fight.disconnected, lines = []; if (EO2.huni) EO2.huni('dovus');
     const won = F.winner === 'p', berabere = F.winner == null;
     lines.push(berabere ? '<b>Berabere.</b> İki taraf da meydandan çekildi.' : won ? '<b class="iyi">Zafer!</b> ' + (kopan ? esc(FT.rakip) + ' meydanı bıraktı.' : F.surrender ? esc(FT.rakip) + ' teslim oldu.' : esc(FT.opp.name) + ' yere serildi.') : '<span class="kotu">Yenilgi.</span> ' + (kopan ? 'Meydanı bıraktın.' : F.surrender ? 'Teslim oldun.' : esc(d.name) + ' bu kez geride kaldı.'));
     lines.push('Dostça düello: altın, ün ve ganimet yazılmaz. ' + esc(d.name) + ' yorulmadı, yaralanmadı.');

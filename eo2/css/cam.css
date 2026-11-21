@@ -101,6 +101,7 @@
 /* --- giriş ekranı --- */
 .ui2 .giris { position: absolute; inset: 0; z-index: 55; display: grid; place-items: center; padding: 1em; background: radial-gradient(ellipse 70% 60% at 50% 42%, rgba(40, 70, 190, .28), rgba(4, 6, 24, .78)); -webkit-backdrop-filter: blur(.5em) saturate(1.2); backdrop-filter: blur(.5em) saturate(1.2); transition: opacity .6s, visibility 0s .6s; touch-action: auto; }
 .ui2 .giris.gitti { opacity: 0; visibility: hidden; pointer-events: none; }
+.ui2 .giris.gitti, .ui2 .giris.gitti *, .ui2 .scr:not(.acik)::before { animation-play-state: paused; }   /* görünmeyen giriş ekranı ve kapalı ekranın zemini canlandırılmaz */
 .ui2 .giris-ic { width: min(34em, 100%); text-align: center; display: grid; gap: 1em; justify-items: center; animation: pen-zip .7s cubic-bezier(.3, 1.3, .5, 1); }
 .ui2 .giris img { width: min(24em, 82%); filter: drop-shadow(0 .6em 1.6em rgba(4, 8, 40, .7)); animation: suzul 5s ease-in-out infinite; }
 .ui2 .giris p { margin: 0; font: 500 1.12em/1.55 'Alegreya', var(--f-ui), serif; color: #fbf0d4; text-shadow: 0 .08em .4em rgba(4, 8, 28, .9); }
@@ -1218,3 +1219,12 @@
 .ui2 .yr25 .rend .btn { margin-top: .4em; min-height: 3em; padding: .5em 2.6em; border: 0; border-radius: 2em; font: 700 1.1em var(--f-ui); color: #0d2242; cursor: pointer; background: linear-gradient(180deg, #c4ecff 0, #7cc8ff 45%, #3d9bea 55%, #2f86d8 100%); box-shadow: inset 0 0 0 1.5px #e6f6ff, inset 0 .16em 0 rgba(255, 255, 255, .8), 0 0 0 1.5px rgba(8, 10, 20, .85), 0 .25em 0 #1a4a86, 0 .55em 1em rgba(4, 6, 16, .5); }
 @media (max-height: 560px) { .ui2 .y-ad b { font-size: 1.05em; } .ui2 .y-ust { gap: .6em; } .ui2 .y-atil, .ui2 .y-cirp { width: 5em; height: 5em; font-size: .8em; } .ui2 .y-atil { left: 13.6em; width: 4.2em; height: 4.2em; } .ui2 .y-hirs { width: 11em; } .ui2 .y-ipucu { display: none; } .ui2 .y-fark { font-size: .76em; top: 4em; } .ui2 .y-say { font-size: 5em; } .ui2 .yr25 .rend { font-size: .76em; } .ui2 .y-yorum { font-size: .78em; max-width: 46%; } }
 @media (max-aspect-ratio: 1/1) { .ui2 .y-ust { grid-template-columns: 1fr auto; } .ui2 .y-pist { grid-column: 1 / -1; order: 3; } .ui2 .y-ipucu { white-space: normal; width: 86%; top: 9.4em; text-align: center; } .ui2 .y-fark { top: 9em; } .ui2 .y-yorum { bottom: 9.6em; width: 92%; } }
+/* Ejderha tüccarı kartı: soy mührü (eski çarşıdaki İyi soy / Seçkin soy) ve kartın altında dört yetenek + potansiyel harfi */
+.ui2 .pz-mallar { grid-auto-rows: max-content; }   /* kart (overflow: hidden) dar rafta ezilip yetenek satırını fiyat şeridinin altına gizlemesin; raf kayar */
+.ui2 .mal2 .mal-soy { position: absolute; bottom: .4em; right: .4em; z-index: 1; padding: .18em .6em .2em; border-radius: 1em; font: 700 .68em/1.2 var(--f-ui); font-style: normal; letter-spacing: .02em; text-transform: uppercase; color: #e6f4ff; background: linear-gradient(180deg, #3a6a8e, #1c3a56); box-shadow: inset 0 0 0 1.5px #a9d4f2, 0 .15em .4em rgba(4, 6, 16, .5); text-shadow: none; }
+.ui2 .mal2 .mal-soy.s3 { color: #3a2604; background: linear-gradient(180deg, #fff3c4, #e9bc55); box-shadow: inset 0 0 0 1.5px #fffbe6, 0 0 .7em rgba(255, 214, 120, .55), 0 .15em .4em rgba(4, 6, 16, .5); }
+.ui2 .mal2 .mal-st { display: grid; grid-template-columns: 1fr 1fr; gap: .15em .5em; margin-top: .25em; padding: 0 .5em; font-size: .72em; color: #d6dcec; }
+.ui2 .mal2 .mal-st > span { display: flex; align-items: center; justify-content: space-between; gap: .25em; white-space: nowrap; }
+.ui2 .mal2 .mal-st b { margin: 0 0 0 auto; padding: 0; font: 700 1em var(--f-ui); color: #fff; }
+.ui2 .mal2 .mal-st .harf { display: inline-grid; place-items: center; min-width: 1.7em; height: 1.45em; padding: 0 .15em; border-radius: .3em; font: 800 .9em var(--f-ui); font-style: normal; }
+@media (max-height: 560px) { .ui2 .mal2 .mal-st { font-size: .8em; gap: .05em .35em; padding: 0 .3em; } .ui2 .mal2 .mal-soy { font-size: .74em; padding: .1em .45em; } }

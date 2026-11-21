@@ -47,3 +47,13 @@ test('2.0 sayfası: dosya içeriği değişince yalnız o dosyanın ve ortak dam
   let t0 = 1000; const sayfa = createEo2Page(dir, 'http://x', 5000, () => t0), a = sayfa();
   fs.writeFileSync(path.join(dir, 'eo2', 'js', 'a.js'), '1b'); assert.equal(sayfa(), a); t0 += 5000; assert.notEqual(sayfa().v, a.v);
 });
+
+test('2.0 sayfası: arena sahne çizimleri (zindan aşamaları ve Er Meydanı haritaları) sunulur; arena kaynak dosyaları sunulmaz', () => {
+  const dosya = createPublicFiles(kok, []), ARENA = require('../eo2/js/arena_veri.js');
+  const resimler = Object.values(ARENA).flatMap(a => (a.katman || []).map(k => k.src));
+  assert.ok(resimler.length >= 2, 'çizimli arena var');
+  for (const src of resimler) assert.ok(dosya('/eo2/' + src), src + ' sunulmuyor');
+  assert.equal(dosya('/eo2/arenalar/zumrut-kopru/blok.png'), null);
+  assert.equal(dosya('/eo2/arenalar/zumrut-kopru/arena.json'), null);
+  for (const k of ['er-meydani', 'zumrut-kopru', 'zumrut-defile']) assert.ok(dosya('/eo2/assets/arena/harita-' + k + '.webp'), k + ' küçük resmi sunulmuyor');
+});

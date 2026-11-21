@@ -1,0 +1,30 @@
+name: Testler
+
+on:
+  push:
+    branches: [ejder-ocagi-2.0, main]
+  pull_request:
+    branches: [ejder-ocagi-2.0, main]
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  birim-testleri:
+    name: Birim testleri (npm test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # Playwright ve tarayıcı gerekmiyor; yalnız çalışma bağımlılıkları.
+      - run: npm ci --omit=dev --ignore-scripts
+      - run: npm test

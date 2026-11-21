@@ -74,7 +74,9 @@ test('ENG07 partial and full food sale: earned gold and earned food move atomica
   const second = buy(f, c, listing, 3);
   assert.equal(second.listing.status, 'sold'); assert.equal(second.listing.remaining, 0);
   const A = f.eco(a), B = f.eco(b), C = f.eco(c);
-  assert.equal(A.gold, 460); assert.deepEqual(A.funds, { schema: 1, bound: 0, unknown: 0, earned: 460 });
+  // D7: satıcıya %5 kesintiden sonrası geçer (10 → 10, 30 → 29). Alıcılar tam fiyatı öder.
+  assert.equal(first.sale.net, 10); assert.equal(second.sale.fee, 1); assert.equal(second.sale.net, 29);
+  assert.equal(A.gold, 459); assert.deepEqual(A.funds, { schema: 1, bound: 0, unknown: 0, earned: 459 });
   assert.equal(B.gold, 410); assert.equal(B.funds.earned, 410); assert.equal(C.gold, 390);
   assert.equal(A.game.food.balik, 1); assert.deepEqual(A.game.foodSources.balik, { bound: 0, unknown: 0, earned: 1 });
   assert.equal(B.game.food.balik, 6); assert.deepEqual(B.game.foodSources.balik, { bound: 0, unknown: 0, earned: 6 });
@@ -96,7 +98,7 @@ test('ENG07 offline seller: dragon, egg and item sell while the seller sends not
   // Seller presence is irrelevant: no session, socket or command from `a` from here on.
   for (const l of [dragon, egg, item]) assert.equal(buy(f, b, l).listing.status, 'sold');
   const A = f.eco(a), B = f.eco(b);
-  assert.equal(A.gold, 595); assert.equal(B.gold, 245); assert.equal(A.funds.earned, 595); assert.equal(B.funds.earned, 245);
+  assert.equal(A.gold, 587); assert.equal(B.gold, 245); assert.equal(A.funds.earned, 587); // 175 satış, %5 kesinti 8 (D7) assert.equal(B.funds.earned, 245);
   assert.equal(A.version, seller.version + 3); assert.equal(A.dragons.length, 0); assert.equal(A.eggs.length, 0);
   for (const [kind, id] of [['dragons', seller.dragons[0].assetId], ['eggs', seller.eggs[0].assetId], ['items', seller.items.at(-1).assetId]]) {
     const row = B[kind].find(x => x.assetId === id);
@@ -129,7 +131,7 @@ test('ENG07 idempotency: same requestId replays one transfer; changed body is re
   const again = f.market(b, { ...input });
   assert.equal(again.replayed, true); assert.deepEqual({ ...again, replayed: false }, first);
   assert.throws(() => f.market(b, { ...input, quantity: 2 }), /request_id_reused/);
-  assert.equal(f.rows()[0].remaining, 2); assert.equal(f.eco(a).gold, 440);
+  assert.equal(f.rows()[0].remaining, 2); assert.equal(f.eco(a).gold, 439); // 20 satış, kesinti 1 (D7)
   const listInput = op('list', { kind: 'food', foodKey: 'balik', quantity: 1, unitPrice: 5 });
   const l1 = f.market(a, listInput), l2 = f.market(a, { ...listInput });
   assert.equal(l2.replayed, true); assert.equal(l1.listing.id, l2.listing.id); assert.equal(f.rows().length, 2);
@@ -144,7 +146,7 @@ test('ENG07 two buyers for the last unit: exactly one wins, the other changes no
   const results = [b, c].map(id => { try { return buy(f, id, listing); } catch (e) { return e; } });
   assert.equal(results.filter(r => r instanceof Error).length, 1);
   assert.match(results.find(r => r instanceof Error).code, /listing_closed/);
-  assert.equal(f.eco(b).gold + f.eco(c).gold, 740); assert.equal(f.eco(a).gold, 520);
+  assert.equal(f.eco(b).gold + f.eco(c).gold, 740); assert.equal(f.eco(a).gold, 515);
   assert.equal(f.eco(b).dragons.length + f.eco(c).dragons.length, 3);
 });
 
@@ -246,7 +248,7 @@ test('ENG07 strict schema: legacy client shapes, injected identity fields, offer
   ];
   for (const [input, error] of bad) assert.throws(() => f.market(a, input), error, JSON.stringify(input));
   assert.throws(() => f.market(a, { op: 'offer' }), e => e.status === 503);
-  assert.equal(MARKET_FEE_BPS, 0);
+  assert.equal(MARKET_FEE_BPS, 500); // D7: %5
   for (let i = 0; i < LIMITS.maxOpenPerAccount; i++) { const g = f.load(a); g.food.balik += 1; g.foodSources.balik.earned += 1; f.save(a, g); listFood(f, a, 1, 1); }
   assert.throws(() => listFood(f, a, 1, 1), /market_listing_limit/);
   assert.equal(f.rows().length, LIMITS.maxOpenPerAccount);
@@ -279,5 +281,5 @@ test('ENG07 SQLite: two processes buying the last unit concurrently settle exact
   const results = await Promise.all(pending);
   assert.equal(results.filter(r => r.ok === 100).length, 1, JSON.stringify(results));
   assert.match(results.find(r => r.error).error, /listing_closed/);
-  assert.equal(f.eco(a).gold, 520); assert.equal(f.eco(b).gold + f.eco(c).gold, 740);
+  assert.equal(f.eco(a).gold, 515); assert.equal(f.eco(b).gold + f.eco(c).gold, 740);
 });

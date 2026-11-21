@@ -62,7 +62,7 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 #actions.acik #actionsDaha .ic { box-shadow: 0 0 0 2px #ffe9a8, 0 0 1em rgba(255, 214, 120, .6), 0 .22em .5em rgba(4, 6, 16, .55); }
 
 /* ---------- Yer tutucular (çıkışta görünmez; ?gelistirici ile geri gelir) ---------- */
-.ui2:not(.gelistirici) #btnBell,                                   /* bildirim sistemi yok: boş zil gösterilmez */
+.ui2:not(.gelistirici) #btnBell:not(.posta-hazir),                 /* zil Ocak Postası'na bağlı (js/posta.js); posta okunana dek gizli */
 .ui2:not(.gelistirici) #btnCam,                                    /* K23: tek kamera */
 .ui2:not(.gelistirici) .menu-d[data-m="kamera"] { display: none !important; }
 #loading .yeniden { margin-top: 1.2em; font-size: 1.05em; }
@@ -96,7 +96,7 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .sorun-durum { min-height: 1.3em; margin: .6em 0 0 !important; font-size: .9em; color: var(--varak-hi, #f6d98a); }
 
 /* Kıraathane: alt şerit masa kartları ve oyuncu paneliyle dolu; bildirim başlığın altında, ortada durur */
-.ui2.ekranda:has(#scrB.kr2) .bildirimler { top: max(5.4em, env(safe-area-inset-top, 0px)) !important; bottom: auto; left: 50%; transform: translateX(-50%); justify-items: center; max-width: min(30em, 80vw); }
+.ui2.ekranda:has(#scrB.kr2) .bildirimler:not([class*="by-"]) { top: max(5.4em, env(safe-area-inset-top, 0px)) !important; bottom: auto; left: 50%; transform: translateX(-50%); justify-items: center; max-width: min(30em, 80vw); }
 .ui2.ekranda:has(#scrB.kr2) .bildirim { text-align: center; }
 
 /* hesap yedeği ve kurtarma (js/hesap.js) */
@@ -159,6 +159,10 @@ html, body, #app.ui2 { overflow: clip; }
 /* ================= dövüş kareleri (css/kare.css eski stilden ayıklanır; burada 2.0 sahnesine oturtulur) ================= */
 .ui2 .dov.fight > .rcut { position: absolute; inset: 0; z-index: 60; }
 .ui2 .dov.fight > .rcut .rccap { font-family: 'Noto Sans', 'Alegreya Sans', system-ui, sans-serif; }
+/* kare her ekranda bütünüyle görünür (2026-11-20): genişliği yalnız ekran enine değil boyuna da bağlıdır. -2° eğik kare ve
+   16/7,4 oranında kaplanan yükseklik ≈ 0,5 × genişlik; telefonda (16/9,5) ≈ 0,63 × genişlik. Yan kenarlarda da 10 px pay kalır. */
+.ui2 .rcut .rcp { max-width: min(calc(100vw - 20px), calc((100vh - 24px) * 2)); max-width: min(calc(100vw - 20px), calc((100dvh - 24px) * 2)); }
+@media (max-width: 520px) { .ui2 .rcut .rcp { max-width: min(calc(100vw - 20px), calc((100dvh - 24px) * 1.58)); } }
 /* karelerin içindeki poz çizimi: eski stildeki genel .pose kuralı 2.0'da yok; yalnız kare içinde tanımlanır */
 .rcut .rcd .pose { display: block; width: 100%; height: auto; overflow: visible; }
 .rcut .rcd.edge .pose { width: auto; height: 100%; }
@@ -293,6 +297,15 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .bildirimler.by-orta { top: 30% !important; } .ui2 .bildirimler.by-orta2 { top: 56% !important; }
 .ui2 .bildirimler.by-alt2 { top: auto !important; bottom: calc(max(1.1em, env(safe-area-inset-bottom, 0px)) + 6.6em) !important; } .ui2 .bildirimler.by-alt { top: auto !important; bottom: max(1.1em, env(safe-area-inset-bottom, 0px)) !important; }
 .ui2 .bildirimler.by-bas { top: max(.35em, env(safe-area-inset-top, 0px)) !important; width: min(22em, 46%) !important; font-size: .9em; }
+/* dar yedek: telefonda her yer düğmeyle doluysa bildirim küçülür; by-sol / by-sag kenara yaslanır (js/oyun.js trayYer) */
+.ui2 .bildirimler.by-dar { width: min(13.5em, 42vw) !important; font-size: .8em; gap: .3em; }
+.ui2 .bildirimler.by-dar .bildirim { padding: .35em .7em; }
+.ui2 .bildirimler.by-sol, .ui2 .bildirimler.by-sag { transform: none !important; top: 42% !important; justify-items: start !important; }
+.ui2 .bildirimler.by-sol { left: max(.4em, env(safe-area-inset-left, 0px)) !important; right: auto !important; }
+.ui2 .bildirimler.by-sag { left: auto !important; right: max(.4em, env(safe-area-inset-right, 0px)) !important; justify-items: end !important; }
+.ui2 .bildirimler.by-sol.by-alt, .ui2 .bildirimler.by-sag.by-alt { top: auto !important; bottom: max(1.1em, env(safe-area-inset-bottom, 0px)) !important; }
+/* tarama: hazır yerlerin hepsi doluysa tepsi --by-y yüksekliğinde denenir (js/oyun.js trayYer) */
+.ui2 .bildirimler.by-tara, .ui2 .bildirimler.by-tara.by-sol, .ui2 .bildirimler.by-tara.by-sag { top: var(--by-y, 50%) !important; bottom: auto !important; }
 
 /* ---------- 2026-11-17 düzeltmeleri: hafta sonu, Dostlar, Çarşı ---------- */
 /* Hafta sonu: kartlar alanı küçülebilir (düğme ekranın dışına itilmez); ejderha resmi kartın üstünden taşarken kesilmez */
@@ -468,3 +481,53 @@ html, body, #app.ui2 { overflow: clip; }
 .ui2 .gr-hazir-alt [data-gr-hazir] { width: 100%; }
 @media (max-height: 520px) { .ui2 .gr-hazir-alt { margin: 0 -.8em; padding: .5em .8em .6em; } }
 .ui2 .gr-secenek:has(> .gr-hazir-alt) { padding-bottom: 0; }
+
+/* ---------- Ocak Postası (js/posta.js) ---------- */
+#btnBell.yeni-var { position: relative; }
+#btnBell.yeni-var::after { content: attr(data-say); position: absolute; right: -.15em; top: -.2em; min-width: 1.5em; height: 1.5em; padding: 0 .3em; border-radius: 1em; display: grid; place-items: center; font: 800 .72em var(--f-ui); color: #fff; background: #e0482c; box-shadow: 0 0 0 1.5px #1a1030; }
+.posta { min-width: min(30em, 80vw); }
+.posta .po-liste { list-style: none; margin: 0; padding: 0; max-height: 52vh; overflow-y: auto; }
+.posta .po-satir { display: grid; grid-template-columns: 2.2em 1fr auto auto; gap: .6em; align-items: center; padding: .55em .3em; border-bottom: 1px solid rgba(255, 255, 255, .08); }
+.posta .po-satir div { display: flex; flex-direction: column; min-width: 0; }
+.posta .po-satir span, .posta .po-satir small { opacity: .75; font-size: .88em; }
+.posta .po-satir.yeni b::before { content: ''; display: inline-block; width: .5em; height: .5em; margin-right: .4em; border-radius: 50%; background: #e0482c; vertical-align: middle; }
+.posta .po-ik { width: 2.2em; height: 2.2em; border-radius: 50%; background: rgba(255, 214, 120, .18); }
+.posta .po-ik.altin { background: center / 70% no-repeat url(../assets/ik/para.webp), rgba(255, 214, 120, .18); }
+.posta .po-ik.dost { background: center / 70% no-repeat url(../assets/ik/mdl-dostlar.webp), rgba(160, 200, 255, .16); }
+.posta .po-satir .gbtn { min-height: 44px; }
+.posta .po-hata { color: #ffb4a0; }
+.posta .dip { opacity: .6; font-size: .82em; margin-top: .8em; }
+
+/* ---------- Mühürler (Defter, js/muhur.js) ---------- */
+.muhurler { display: grid; grid-template-columns: repeat(auto-fill, minmax(11em, 1fr)); gap: .5em; }
+.muhurler .muhur { display: flex; gap: .55em; align-items: center; padding: .45em .5em; border-radius: .6em; opacity: .55; }
+.muhurler .muhur i { flex: 0 0 2.1em; height: 2.1em; border-radius: 50%; border: 2px dashed rgba(120, 70, 30, .45); }
+.muhurler .muhur.tamam { opacity: 1; }
+.muhurler .muhur.tamam i { border: 0; background: radial-gradient(circle at 35% 30%, #e8775a, #9e2b1c 70%); box-shadow: inset 0 0 0 3px rgba(255, 220, 190, .35), 0 .1em .25em rgba(60, 20, 10, .4); }
+.muhurler .muhur div { display: flex; flex-direction: column; min-width: 0; }
+.muhurler .muhur span, .muhurler .muhur small { font-size: .82em; opacity: .8; }
+/* dövüşte nefes sayıyla da görünür (2026-11-21 oyuncu geri bildirimi): çubuk biraz kalınlaşır, sayı can çubuğundaki gibi ortada durur; 15'in altında (kükreyemez) soluk kızıl */
+.ui2 .dov .nefes { position: relative; height: 1.1em; border-radius: .4em; } .ui2 .dov .nefes i { border-radius: inherit; }
+.ui2 .dov .nefes b { position: absolute; inset: 0; display: grid; place-items: center; font: 800 .72em/1 var(--f-ui); letter-spacing: .02em; color: #f2fbff; text-shadow: 0 .06em .15em rgba(0, 0, 0, .9), 0 0 .3em rgba(0, 0, 0, .6); font-variant-numeric: tabular-nums; pointer-events: none; }
+.ui2 .dov .nefes.az b { color: #ffc9b8; }
+@media (max-height: 560px) { .ui2 .dov .nefes { height: .95em; } .ui2 .dov .nefes b { font-size: .64em; } }
+/* ahırda sağ üst sütun: "Bu hafta" emri ve altında yıldızın kariyer hedefi ya da emeklilik nedeni (2026-11-21) */
+.ui2 .ah-sag { position: absolute; right: .4em; top: .4em; z-index: 2; display: flex; flex-direction: column; align-items: stretch; gap: .45em; width: max-content; max-width: min(20em, 34%); }
+.ui2 .ah-sag > .ah-emir { position: relative; right: auto; top: auto; }
+.ui2 .ah-kariyer { display: block; width: 100%; margin: 0; padding: .45em 1.3em .55em 1.2em; border: 0; border-radius: .8em; text-align: right; color: #fff; font: inherit; background: var(--ref-dolgu); box-shadow: inset 0 0 0 1.5px #c9a24a, 0 0 0 1.5px rgba(8, 10, 20, .8), 0 .3em .9em rgba(4, 6, 16, .45); }
+button.ah-kariyer { cursor: pointer; } button.ah-kariyer:hover { filter: brightness(1.12); } button.ah-kariyer:focus-visible { outline: 2px solid #a6e0ff; outline-offset: 2px; }
+.ui2 .ah-kariyer .ust { letter-spacing: .12em; font-size: .74em; } .ui2 .ah-kariyer b { display: block; font: 700 1.02em/1.25 var(--f-ui); margin: .1em 0 .15em; text-wrap: balance; } .ui2 .ah-kariyer small { color: #c9cfdf; font-size: .82em; }
+.ui2 .ah-kariyer.uyari { box-shadow: inset 0 0 0 1.5px #e0a050, 0 0 0 1.5px rgba(8, 10, 20, .8), 0 0 .9em rgba(240, 160, 60, .35); } .ui2 .ah-kariyer.uyari .ust { color: #ffcf7a; }
+.ui2 .ah-kariyer.acil { box-shadow: inset 0 0 0 1.5px #ff8a6a, 0 0 0 1.5px rgba(8, 10, 20, .8), 0 0 1em rgba(255, 110, 80, .45); } .ui2 .ah-kariyer.acil .ust, .ui2 .ah-kariyer.acil small { color: #ffb8a6; }
+.ui2 .ah-kariyer.emekli { box-shadow: inset 0 0 0 1.5px #8f897b, 0 0 0 1.5px rgba(8, 10, 20, .8), 0 .3em .9em rgba(4, 6, 16, .45); } .ui2 .ah-kariyer.emekli .ust { color: #c9cfdf; }
+.ui2 .rol-yildiz .uyari-not { margin: .5em 0 0; padding: .45em .7em; border-radius: .5em; background: rgba(255, 140, 90, .12); box-shadow: inset 0 0 0 1px rgba(255, 150, 110, .45); font-size: .9em; } .ui2 .rol-yildiz .uyari-not b { color: #ffc0a8; }
+@media (max-height: 560px) { .ui2 .ah-sag { max-width: 40%; gap: .3em; } .ui2 .ah-kariyer { font-size: .8em; padding: .35em .9em .4em; } }
+.ui2 .ah-kariyer .kisa { display: none; }
+/* dik telefonda halkaların üstüne binmesin: kariyer kutusu tek satırlık bir şeride iner, dokununca Rol sekmesinde bütün hedefler açılır */
+@media (max-aspect-ratio: 1/1) { .ui2 .ah-sag { top: 6.8em; max-width: 60%; align-items: flex-end; } .ui2 .ah-sag > .ah-emir { min-width: 0; }
+  .ui2 .ah-kariyer { width: auto; padding: .32em .85em; border-radius: 1em; font-size: .95em; } .ui2 .ah-kariyer > .ust, .ui2 .ah-kariyer > b, .ui2 .ah-kariyer > small { display: none; }
+  .ui2 .ah-kariyer .kisa { display: block; font: 700 1em/1.2 var(--f-ui); font-style: normal; color: #ffe7a8; white-space: nowrap; } .ui2 .ah-kariyer.acil .kisa { color: #ffb8a6; } .ui2 .ah-kariyer.emekli .kisa { color: #d7dcec; } }
+/* hedef listesinde yıldızın kariyer hedefi (2026-11-21): kutucuk yerine yıldız, kalan hafta azaldıkça sarı ve kızıl */
+.ui2 .quests li.kariyer { color: #ffe7a8; cursor: pointer; } .ui2 .quests li.kariyer::before { content: "★"; display: grid; place-items: center; border: 0; background: none; color: #ffd76a; font-size: 1.05em; line-height: 1; }
+.ui2 .quests li.kariyer.uyari span { color: #ffcf7a; } .ui2 .quests li.kariyer.acil { color: #ffc4b0; } .ui2 .quests li.kariyer.acil::before { color: #ff9a7a; } .ui2 .quests li.kariyer.acil span { color: #ffb0a0; font-weight: 700; }
+.ui2 .quests li[data-kariyer]:hover { background: rgba(255, 255, 255, .07); border-radius: .5em; } .ui2 .quests li[data-kariyer]:focus-visible { outline: 2px solid #ffe9a8; outline-offset: 2px; border-radius: .5em; }

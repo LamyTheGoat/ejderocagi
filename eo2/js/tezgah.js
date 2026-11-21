@@ -33,10 +33,14 @@
   setInterval(hafta, 5000);
 
   /* ---------- mallar ---------- */
-  function muhur(eko) { const f = eko.funds || {}; return (f.bound || 0) + (f.unknown || 0) > 0 ? ['bagli', 'Hesaba bağlı'] : ['satilir', 'Satılabilir']; }
+  /* Tek keseli hesapta (eko.game.tekKese) tezgâh önce kazanılmış altından öder: kazanılmış altın fiyata yetiyorsa mal satılabilir. */
+  const tek = eko => !!(eko && eko.game && eko.game.tekKese);
+  function muhur(eko, fiyat) { const f = eko.funds || {}; if (tek(eko)) return (f.earned || 0) >= (fiyat || 0) ? ['satilir', 'Satılabilir'] : ['bagli', 'Hesaba bağlı']; return (f.bound || 0) + (f.unknown || 0) > 0 ? ['bagli', 'Hesaba bağlı'] : ['satilir', 'Satılabilir']; }
   function not(eko, fiyat) {
     const f = eko.funds || {}, tutulan = (f.bound || 0) + (f.unknown || 0);
     if (eko.gold < fiyat) return ' Hesap tezgâhı yalnız hesabındaki altını kabul eder: hesabında <b>' + eko.gold + '</b> altın var. Arena kazançların hesabına yazılır.';
+    if (tek(eko)) return (f.earned || 0) >= fiyat ? ' Kazanılmış altınla alınır: senindir, dilersen Bedesten\'de satarsın.'
+      : ' Kazanılmış altının (<b>' + (f.earned || 0) + '</b>) yetmiyor; kalanı kesendeki öteki altından düşer. Böyle alınan mal senindir ama Bedesten\'de satılamaz.';
     return tutulan > 0 ? ' Hesabında <b>' + tutulan + '</b> bağlı altın duruyor; önce o harcanır. Bağlı altınla alınan mal senindir ama Bedesten\'de satılamaz.'
       : ' Kazanılmış altınla alınır: senindir, dilersen Bedesten\'de satarsın.';
   }
@@ -54,12 +58,12 @@
   function mallar(stall) {
     const eko = AG.kese(), L = [];
     if (!AG.cevrimici() || !bagli(eko) || !eko.game.market || (stall !== 'ejder' && stall !== 'yumurta')) return L;
-    const [cls, yazi] = muhur(eko), yetmez = f => Math.min(S.gold, eko.gold) < f;
-    if (stall === 'ejder') for (const d of eko.game.market.dragons || []) L.push({ key: 'h:' + d.id, img: G.img(d), ad: d.name, alt: EL_AD[d.el] + ' · ' + STAGE_AD[d.stage] + ' ' + (d.sex === 'F' ? '♀' : '♂'), el: d.el, fiyat: d.price,
+    const yetmez = f => Math.min(S.gold, eko.gold) < f, K = G.ejderKart;
+    if (stall === 'ejder') for (const d of eko.game.market.dragons || []) { const [cls, yazi] = muhur(eko, d.price); L.push({ key: 'h:' + d.id, img: G.img(d), ad: d.name, alt: EL_AD[d.el] + ' · ' + STAGE_AD[d.stage] + ' ' + (d.sex === 'F' ? '♀' : '♂'), el: d.el, fiyat: d.price,
       tier: d.stage === 'yetiskin' ? 3 : d.stage === 'genc' ? 2 : 1, muhur: yazi, muhurCls: cls, yetmez: yetmez(d.price),
-      d: STATS.map(s => ST_AD[s] + ' ' + d.st[s]).join(' · ') + (d.traits && d.traits.length ? '. Huy: ' + d.traits.map(t => TRAITS[t] ? TRAITS[t].ad : t).join(', ') : '') + '.' + not(eko, d.price), btn: 'Satın al',
-      go() { if (freeSlots() < 1) { if (typeof vSay === 'function') vSay('ejder', 'full'); return ciz(); } al('shop.dragon', d.id, d.name, 'ejder'); } });
-    else { const e = eko.game.market.egg; if (e) { const f = eggPrice(e); L.push({ key: 'h:' + e.id, img: G.yumurtaResim(e), ad: e.origin || 'Pazar yumurtası', alt: 'Yumurta', fiyat: f, tier: 3, muhur: yazi, muhurCls: cls, yetmez: yetmez(f),
+      soy: K ? K.soy(d) : 0, stat: K ? K.yetenek(d) : '', d: (K ? K.bilgi(d) : STATS.map(s => ST_AD[s] + ' ' + d.st[s]).join(' · ') + '.') + not(eko, d.price), btn: 'Satın al',
+      go() { if (freeSlots() < 1) { if (typeof vSay === 'function') vSay('ejder', 'full'); return ciz(); } al('shop.dragon', d.id, d.name, 'ejder'); } }); }
+    else { const e = eko.game.market.egg; if (e) { const f = eggPrice(e), [cls, yazi] = muhur(eko, f); L.push({ key: 'h:' + e.id, img: G.yumurtaResim(e), ad: e.origin || 'Pazar yumurtası', alt: 'Yumurta', fiyat: f, tier: 3, muhur: yazi, muhurCls: cls, yetmez: yetmez(f),
       d: 'İçinden ne çıkacağını Hatice de bilmiyor.' + not(eko, f) + (cls === 'satilir' ? ' Ocağında çatlarsa yavru hesaba bağlı olur.' : ''), btn: 'Satın al', go() { al('shop.egg', e.id, 'Yumurta', 'yumurta'); } }); } }
     return L;
   }

@@ -58,8 +58,7 @@
       interact: [
         { id: 'cikis', x: 0, y: 0.7, r: 1.5, z: 2.4, label: 'Meydana dön', sub: 'Arena kapısı', act: 'go:meydan' },
         { id: 'duello', x: 0, y: 21.4, r: 2.0, z: 3.6, label: 'Düelloya gir', sub: 'Gösterim düellosu', act: 'duel' },
-        { id: 'zindan', x: -7.85, y: 21.4, r: 2.6, z: 3.0, label: 'Kapılara bak', sub: 'Şahmeran · Komutan', act: 'panel:arena' },
-        { id: 'abra', x: 6.3, y: 21.4, r: 1.5, z: 3.0, label: 'Kapıya bak', sub: 'Abra', act: 'panel:arena' },
+        { id: 'zindan', x: -7.85, y: 21.4, r: 2.6, z: 3.0, label: 'Kapıya bak', sub: 'Zümrüt Saray', act: 'panel:arena' },
         { id: 'tribun', x: 9.6, y: 21.2, r: 1.4, z: 3.0, label: 'Tribüne çık', sub: 'Canlı Tribün', act: 'panel:arena' },
         { id: 'hedef', x: -8.6, y: 10.2, r: 1.6, z: 2.2, label: 'Hedefe bak', sub: 'Talim hedefi', act: 'toast:Hedef tahtası top izleriyle dolu.' },
       ],
