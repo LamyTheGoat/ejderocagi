@@ -1,7 +1,7 @@
 // EO2 · Kor Örsü denetimi (tek tarayıcı).
 // Ölçülenler: taş yokken dövme düğmesi kapalıdır; bedel peşin düşer; üç çekiç darbesi (düğme ve boşluk tuşu) denemeyi bitirir; tutan deneme kademeyi yükseltir;
 // harlı kademede tutmayan deneme bir kademe düşürür, Anka Mührü korur ve harcanır; cehennem kademesinde top çatlar ve artış durur; onarım dört kademe geri getirir;
-// topçunun hasarı ve canı kademeyle artar; çarşıda Usta Kerim'in tezgâhındaki düğme örsü açar; kayıt sayfa yenilenince durur.
+// topçunun hasarı silahın kademesiyle artar (2026-11-21 ekipman: kademe başına %1,25; can zırhtan gelir); çarşıda Usta Kerim'in tezgâhındaki düğme örsü açar; kayıt sayfa yenilenince durur.
 // Kullanım: node eo2/tools/check_ors.mjs   (EKRAN=<klasör> ile ekran görüntüsü)
 import fs from 'node:fs'; import path from 'node:path'; import { createRequire } from 'node:module'; import { fileURLToPath } from 'node:url';
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..'), require = createRequire(path.join(repo, 'package.json')), { chromium } = require('playwright-core');
@@ -16,7 +16,7 @@ try {
   await p.evaluate(() => { window.__fastFx = true; });
   const durum = () => p.evaluate(() => { const d = EO2.ors.durum(), h = S.topcu.ganimet; return { k: d.kademe, c: d.catlak, altin: S.gold, t1: h.kor_t1 | 0, t2: h.kor_t2 | 0, t3: h.kor_t3 | 0, anka: h.anka_koruma | 0, faz: EO2.ors.ekranDurumu().faz, carpan: EO2.ors.carpan() }; });
   // 1) taş yokken düğme kapalı
-  await p.evaluate(() => { S.topcu = S.topcu || {}; S.topcu.ganimet = {}; S.ors = { kademe: 0 }; EO2.game.open('ors'); }); await p.waitForTimeout(500);
+  await p.evaluate(() => { S.topcu = S.topcu || {}; S.topcu.ganimet = {}; EO2.ors.durum().kademe = 0; EO2.game.open('ors'); }); await p.waitForTimeout(500);
   log.tassizKapali = await p.locator('[data-or="basla"]').isDisabled();
   const deger0 = await p.evaluate(() => { const v = EO2.topcu.oyuncuDeger(true); return { hp: v.hp, dmg: v.dmg }; });
   // 2) taş ve altınla: bedel peşin düşer, üç darbe (iki düğme, bir boşluk tuşu), tutar
@@ -31,29 +31,29 @@ try {
   const s1 = await durum(); log.tuttu = s1.faz === 'sonuc' && s1.k >= 1 && !!(await p.locator('.or-damga').count());
   await cek(p, 'ors_3_tuttu'); await p.locator('[data-or="tamam"]').click(); await p.waitForTimeout(250);
   // 3) usta işi: üç altın darbe iki kademe verir (oyunsuz yol)
-  log.usta = await p.evaluate(() => { S.ors.kademe = 2; const r = EO2.ors.dene({ vuruslar: ['altin', 'altin', 'altin'], zar: 0 }); return r && r.olay === 'usta' && EO2.ors.durum().kademe === 4; });
+  log.usta = await p.evaluate(() => { EO2.ors.durum().kademe = 2; const r = EO2.ors.dene({ vuruslar: ['altin', 'altin', 'altin'], zar: 0 }); return r && r.olay === 'usta' && EO2.ors.durum().kademe === 4; });
   // 4) harlı kademe: tutmazsa bir düşer; Anka korur ve harcanır
-  log.harliDustu = await p.evaluate(() => { S.ors.kademe = 5; const r = EO2.ors.dene({ vuruslar: ['soguk', 'soguk', 'soguk'], zar: 99.9 }); return r.olay === 'dustu' && EO2.ors.durum().kademe === 4; });
-  log.ankaKorudu = await p.evaluate(() => { S.ors.kademe = 5; const a0 = S.topcu.ganimet.anka_koruma, r = EO2.ors.dene({ vuruslar: [], zar: 99.9, anka: true }); return r.olay === 'anka' && EO2.ors.durum().kademe === 5 && S.topcu.ganimet.anka_koruma === a0 - 1; });
+  log.harliDustu = await p.evaluate(() => { EO2.ors.durum().kademe = 5; const r = EO2.ors.dene({ vuruslar: ['soguk', 'soguk', 'soguk'], zar: 99.9 }); return r.olay === 'dustu' && EO2.ors.durum().kademe === 4; });
+  log.ankaKorudu = await p.evaluate(() => { EO2.ors.durum().kademe = 5; const a0 = S.topcu.ganimet.anka_koruma, r = EO2.ors.dene({ vuruslar: [], zar: 99.9, anka: true }); return r.olay === 'anka' && EO2.ors.durum().kademe === 5 && S.topcu.ganimet.anka_koruma === a0 - 1; });
   // 5) cehennem: ekranda oynanır, tutmaz, top çatlar; artış durur; onarım
-  await p.evaluate(() => { S.ors.kademe = 9; S.ors.catlak = false; window.__orsZar = 99.9; EO2.game.redraw(); }); await p.waitForTimeout(300);
+  await p.evaluate(() => { EO2.ors.durum().kademe = 9; EO2.ors.durum().catlak = false; window.__orsZar = 99.9; EO2.game.redraw(); }); await p.waitForTimeout(300);
   log.riskYazisi = (await p.locator('.or-risk').innerText()).includes('çatlar'); log.ankaSecenegi = await p.locator('[data-or-sec="anka"]').count() === 1;
   const c9 = (await durum()).carpan; await cek(p, 'ors_4_cehennem');
   await p.locator('[data-or="basla"]').click(); await p.waitForTimeout(200); for (let i = 0; i < 3; i++) { await p.keyboard.press('Space'); await p.waitForTimeout(120); }
   await p.waitForFunction('EO2.ors.ekranDurumu().faz === "sonuc"', null, { timeout: 8000 }).catch(() => { });
-  const s5 = await durum(); log.catladi = s5.c === true && s5.k === 9 && s5.carpan === 1 && Math.abs(c9 - 1.18) < 1e-9; await cek(p, 'ors_5_catladi');
+  const s5 = await durum(); log.catladi = s5.c === true && s5.k === 9 && s5.carpan === 1 && Math.abs(c9 - 1.1125) < 1e-9; await cek(p, 'ors_5_catladi');
   await p.locator('[data-or="tamam"]').click(); await p.waitForTimeout(250);
   log.catlakkenDovulmez = await p.locator('[data-or="basla"]').count() === 0 && await p.locator('[data-or="onar"]').count() === 1; await cek(p, 'ors_6_catlak');
   const o0 = await durum(); await p.locator('[data-or="onar"]').click(); await p.waitForTimeout(300); const o1 = await durum();
-  log.onarildi = o1.c === false && o1.k === 5 && o1.altin === o0.altin - 600 && o1.t1 === o0.t1 - 12 && Math.abs(o1.carpan - 1.1) < 1e-9;
+  log.onarildi = o1.c === false && o1.k === 5 && o1.altin === o0.altin - 600 && o1.t1 === o0.t1 - 12 && Math.abs(o1.carpan - 1.0625) < 1e-9;
   // 6) topçunun değerleri kademeyle artar
   const deger5 = await p.evaluate(() => { const v = EO2.topcu.oyuncuDeger(true); return { hp: v.hp, dmg: v.dmg }; });
-  log.topcuArtti = deger5.hp === Math.round(deger0.hp * 1.1) && deger5.dmg === Math.round(deger0.dmg * 1.1); log.deger = [deger0, deger5];
+  log.topcuArtti = deger5.hp === deger0.hp && Math.abs(deger5.dmg - deger0.dmg * 1.0625) <= 1;   /* ekipman (2026-11-21): silah +5 yalnız hasarı %6,25 artırır; can zırhtan gelir */ log.deger = [deger0, deger5];
   // 7) zirve
-  log.zirve = await p.evaluate(() => { S.ors.kademe = 12; EO2.game.redraw(); return !!document.querySelector('.or-zirve') && !document.querySelector('[data-or="basla"]') && EO2.ors.dene({ zar: 0 }) === null; });
+  log.zirve = await p.evaluate(() => { EO2.ors.durum().kademe = 12; EO2.game.redraw(); return !!document.querySelector('.or-zirve') && !document.querySelector('[data-or="basla"]') && EO2.ors.dene({ zar: 0 }) === null; });
   await cek(p, 'ors_7_zirve');
   // 8) çarşıdaki giriş
-  await p.evaluate(() => { S.ors.kademe = 5; EO2.game.close(); EO2.game.open('pazar'); }); await p.waitForTimeout(500);
+  await p.evaluate(() => { EO2.ors.durum().kademe = 5; EO2.game.close(); EO2.game.open('pazar'); }); await p.waitForTimeout(500);
   await p.locator('[data-stall="demir"]').first().click().catch(() => { }); await p.waitForTimeout(400); await cek(p, 'ors_8_carsi');
   log.carsiDugmesi = await p.locator('[data-ors]').count() === 1; if (log.carsiDugmesi) { await p.locator('[data-ors]').click(); await p.waitForTimeout(400); }
   log.carsidanAcildi = await p.evaluate(() => EO2.game.ekran() === 'ors');

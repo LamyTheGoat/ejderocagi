@@ -96,7 +96,7 @@
     { ad: 'Kasaba ve bakım', t: 'Kasabayı gez, ejderhanla bağ kur, ilk zırhını giy ve Köy Arenası\'nda ilk dövüşüne çık.', acar: ['Harita', 'Köy Arenası'] },
     { ad: 'Üreme', t: 'Her ejderha anne ile babasından gen alır; yavru ikisinin karışımıdır. Usta sana bir damızlık armağan ediyor.', acar: ['Pazar', 'Yuva'] },
     { ad: 'Zindan', t: 'Zindanlara omuz ejderiyle girilir: Sonsuz Gençlik İksiri içmiş bir yavru topunun üstünde seninle savaşır.', acar: ['Zindanlar', 'Sefer', 'Kule'] },
-    { ad: 'Ticaret', t: 'Her şey takas edilir. Bedesten\'de oyuncular mal satar; Kor Örsü\'nde Ejder Topu\'nu dövüp güçlendirirsin.', acar: ['Bedesten', 'Kor Örsü', 'Takas'] },
+    { ad: 'Ticaret', t: 'Her şey takas edilir. Bedesten\'de oyuncular mal satar; Kor Örsü\'nde kuşam parçalarını dövüp güçlendirirsin.', acar: ['Bedesten', 'Kor Örsü', 'Takas'] },
     { ad: 'Birlikte', t: 'Ejder Ocağı birlikte oynanır: dost edin, Han\'da akşamı geçir, Kıraathane\'de masaya otur.', acar: ['Han', 'Kıraathane', 'Dostlar', 'Takım Meydanı'] }];
   /* hangi ekran hangi bölümde açılır (adı geçmeyen ekran hep açıktır: menü, ayarlar, kuşam, çanta, defter...) */
   const YER_BOLUM = { topcu: 2, ermeydani: 2, harita: 3, arena: 3, pazar: 4, yuva: 4, damizlik: 4, zindan: 5, boss: 5, kervan: 5, sefer: 5, kule: 5,
@@ -110,7 +110,7 @@
     { id: 'k-harita', b: 3, bitti: () => !!(gor['a-harita'] || gor['ac-harita']), m: () => '<b>Mini haritaya</b> dokun: kasabada hızlı seyahat et.', dugme: 'Harita', git: 'harita' },
     { id: 'k-bakim', b: 3, bitti: () => S.st.talk > 0 && S.st.feed > 0, ver: () => (S.st.feed > 0 ? null : { yem: { balik: 1 } }), m: () => '<b>' + kor() + '</b>\'u besle ve onunla konuş; bağınız güçlenir.', dugme: 'Ejderhalar', git: 'ejderhalar',
       ekranda: { ejderhalar: '<b>Besle</b> ile yem ver, <b>Bakım</b>\'da sohbet et.' } },
-    { id: 'k-kusam', b: 3, bitti: () => !kusamTek(), ver: () => ({ altin: 120 }), m: () => 'Hâlâ çıplaksın. <b>Portrene</b> dokun, ilk zırhını al.', dugme: 'Kuşam', git: 'gorunus' },
+    { id: 'k-kusam', b: 3, bitti: () => !kusamTek(), ver: () => ({ altin: 120 }), m: () => 'Hâlâ çıplaksın. <b>Portrene</b> dokun, ilk zırhını al.', dugme: 'Zırhçı', git: 'zirhci' },
     { id: 'k-arena', b: 3, bitti: () => S.st.fights > 0 || S.st.wins > 0, m: () => '<b>Köy Arenası</b>\'nda ilk dövüşüne çık.', dugme: 'Arena', git: 'arena',
       ekranda: { arena: 'Bir rakip seç, <b>Meydan oku</b>. Ejderhan kendi dövüşür; sen taktiği seçersin.' } },
     { id: 'u-yuva', b: 4, bitti: () => hasB('yuva'), ver: () => ({ altin: fiyat('yuva') }), m: () => 'Ocağında boş bir kareye <b>Yuva Bahçesi</b> kur; çiftleşme orada olur.', dugme: 'Ocak', git: 'ocak' },
@@ -129,7 +129,7 @@
     { id: 'z-zindan', b: 5, bitti: () => !!gor['o-zindan'] || Object.keys((S.topcu && S.topcu.zafer) || {}).length > 0, m: () => '<b>Topçu</b>\'da <b>Zümrüt Saray</b> kapısına gir; Normal zorluk yeter.', dugme: 'Topçu', git: 'topcu',
       ekranda: { topcu: 'Bir zindan kapısına dokun, <b>Normal</b> seç ve gir.' } },
     { id: 'tc-bedesten', b: 6, bitti: () => !!gor['ac-bedesten'], m: () => '<b>Bedesten</b>\'e bak: oyuncular mallarını ve ejderhalarını burada satar.', dugme: 'Bedesten', git: 'bedesten' },
-    { id: 'tc-ors', b: 6, bitti: () => !!(S.ors && S.ors.deneme > 0), ver: () => ({ altin: 40, tas: { kor_t1: 3 } }), m: () => '<b>Kor Örsü</b>\'nde Ejder Topu\'nu bir kez döv. İbre altın kora gelince çekici indir.', dugme: 'Örs', git: 'ors' },
+    { id: 'tc-ors', b: 6, bitti: () => !!((S.ekipman && (S.ekipman.parca || []).some(p => p.deneme > 0)) || (S.ors && S.ors.deneme > 0)), ver: () => ({ altin: 40, tas: { kor_t1: 3 } }), m: () => '<b>Kor Örsü</b>\'nde Ejder Topu\'nu bir kez döv. İbre altın kora gelince çekici indir.', dugme: 'Örs', git: 'ors' },
     { id: 'b-dost', b: 7, bitti: () => !!gor['o-dost'], m: () => 'Meydanda terbiyeci <b>Ayaz</b> seni bekliyor. Yanına git, dost ol.', dugme: 'Meydan', git: 'meydan' },
     { id: 'b-han', b: 7, bitti: () => !!gor['ac-han'], m: () => '<b>Han</b>\'a uğra: haftada bir akşamı biriyle geçirirsin.', dugme: 'Han', git: 'han' },
     { id: 'b-masa', b: 7, bitti: () => !!(gor['ac-kiraathane'] || gor['ac-masa']), m: () => '<b>Kıraathane</b>\'de masalara bak: Ejder Pokeri burada oynanır.', dugme: 'Kıraathane', git: 'kiraathane' },
@@ -166,7 +166,7 @@
      İlk haftada oyuncu yalnız birinci bölümü yapabilir: Kuluçka Ocağı'nı kur, ejderhana emir ver, haftayı bitir.
      Bu sırada başka ekran açılmaz, ocaktan çıkılmaz, hafta erken bitirilmez; basılan yerde ne yapılacağı söylenir.
      Otomatik denetimlerde (navigator.webdriver) kilit kapalıdır; gerçek akışı ölçen denetim window.__gercekAkis ile açar. */
-  const ORTAK_EKRAN = ['menu', 'ayarlar', 'gorunus'];
+  const ORTAK_EKRAN = ['menu', 'ayarlar', 'gorunus', 'dolap'];
   const KILIT_IZIN = { 'a-kulucka': ['ocak', 'gorevler', 'kur:kulucka'], 'a-emir': ['ocak', 'gorevler', 'ejderhalar'], 'a-hafta': ['ocak', 'gorevler', 'ejderhalar'] };
   function kilitAdim() { if (!G.live || typeof S === 'undefined' || !S || S.over || S.week !== 1 || gor['kilit-gec'] || otoKip()) return null;
     const a = aktifAdim(); return a && a.b === 1 ? a : null; }
