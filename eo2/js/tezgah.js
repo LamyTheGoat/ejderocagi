@@ -59,9 +59,9 @@
     const eko = AG.kese(), L = [];
     if (!AG.cevrimici() || !bagli(eko) || !eko.game.market || (stall !== 'ejder' && stall !== 'yumurta')) return L;
     const yetmez = f => Math.min(S.gold, eko.gold) < f;
-    if (stall === 'ejder') for (const d of eko.game.market.dragons || []) { const [cls, yazi] = muhur(eko, d.price); L.push({ key: 'h:' + d.id, img: G.img(d), ad: d.name, alt: EL_AD[d.el] + ' · ' + STAGE_AD[d.stage] + ' ' + (d.sex === 'F' ? '♀' : '♂'), el: d.el, fiyat: d.price,
+    if (stall === 'ejder') for (const d of eko.game.market.dragons || []) { const [cls, yazi] = muhur(eko, d.price); L.push({ key: 'h:' + d.id, dr: d, img: G.img(d), ad: d.name, alt: EL_AD[d.el] + ' · ' + STAGE_AD[d.stage], el: d.el, fiyat: d.price,
       tier: d.stage === 'yetiskin' ? 3 : d.stage === 'genc' ? 2 : 1, muhur: yazi, muhurCls: cls, yetmez: yetmez(d.price),
-      d: STATS.map(s => ST_AD[s] + ' ' + d.st[s]).join(' · ') + (d.traits && d.traits.length ? '. Huy: ' + d.traits.map(t => TRAITS[t] ? TRAITS[t].ad : t).join(', ') : '') + '.' + not(eko, d.price), btn: 'Satın al',
+      d: (G.ejderKunye ? G.ejderKunye(d).trim() : '') + not(eko, d.price), btn: 'Satın al',
       go() { if (freeSlots() < 1) { if (typeof vSay === 'function') vSay('ejder', 'full'); return ciz(); } al('shop.dragon', d.id, d.name, 'ejder'); } }); }
     else { const e = eko.game.market.egg; if (e) { const f = eggPrice(e), [cls, yazi] = muhur(eko, f); L.push({ key: 'h:' + e.id, img: G.yumurtaResim(e), ad: e.origin || 'Pazar yumurtası', alt: 'Yumurta', fiyat: f, tier: 3, muhur: yazi, muhurCls: cls, yetmez: yetmez(f),
       d: 'İçinden ne çıkacağını Hatice de bilmiyor.' + not(eko, f) + (cls === 'satilir' ? ' Ocağında çatlarsa yavru hesaba bağlı olur.' : ''), btn: 'Satın al', go() { al('shop.egg', e.id, 'Yumurta', 'yumurta'); } }); } }

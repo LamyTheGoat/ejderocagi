@@ -146,6 +146,10 @@
 
 /* ================= 7. EKRANLAR · TEK TEK ================= */
 @media (max-width: 900px), (max-height: 500px) {
+  /* Ejder tüccarı: ejderha kartları ad, tür ve statlar okunacak genişlikte; statlar 12 px, etiketler 10 px */
+  #app .pz-mallar:has(.ejd) { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); } #app .mal2.ejd .res img { height: 88%; width: auto; }
+  #app .mal2.ejd b { font-size: 13px; } #app .mal2.ejd small { font-size: 11px; }
+  #app .mal2 .pz-st { font-size: 12px; gap: 5px; } #app .mal2 .pz-st u, #app .mal2 .pz-st s { font-size: 9px; } #app .mal2 .pz-soy { font-size: 9px; }
   /* Ahır: durum halkalarının adları (YORGUNLUK, TEMİZLİK) üst üste biniyordu */
   #app .ah-durum { grid-template-columns: repeat(4, 80px); gap: 4px; }
   #app .ah-halka-g span { letter-spacing: 0; white-space: nowrap; }
