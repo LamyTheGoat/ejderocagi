@@ -97,7 +97,7 @@
   function kaydirmaVer(k, L) { if (!L.length) return; const say = {}, bul = {}; k.querySelectorAll('*').forEach(e => { const a = e.tagName + '.' + e.className; say[a] = (say[a] || 0) + 1; bul[a + '#' + say[a]] = e; });
     for (const [a, n, t, l] of L) { const e = bul[a + '#' + n]; if (e && !e.scrollTop && !e.scrollLeft) { e.scrollTop = t; e.scrollLeft = l; } } }   // çizim kutuyu kendisi kaydırdıysa (örneğin kayıt dibe) ona dokunulmaz
   function draw() { if (!cur) return; const govde = $id('scrB'); cur.cizim = (cur.cizim || 0) + 1; govde.classList.toggle('yeniden', cur.cizim > 1); $id('scrGold').textContent = S.gold; $id('scrUn').textContent = S.un; $id('scrWeek').innerHTML = S.week >= SEASON ? 'Sezonu Bitir' : 'Haftayı Bitir';
-    const kay = cur.cizim > 1 ? kaydirmaAl(govde) : []; SCREENS[cur.id].draw(govde, cur.arg); kaydirmaVer(govde, kay); }
+    const kay = cur.cizim > 1 ? kaydirmaAl(govde) : []; SCREENS[cur.id].draw(govde, cur.arg); kaydirmaVer(govde, kay); if (EO2.kadroSayfa) try { EO2.kadroSayfa(govde, cur.id, cur.cizim === 1); } catch (e) { console.error('ejderha listesi sayfası', e); } }   // kalabalık listede ok düğmeleri, yıldız başta (js/kadro_sayfa.js)
   G.redraw = function () { if (!G.live) return; draw(); hud(); };
   EO2_BUS.render = G.redraw;
   $id('scrBack').addEventListener('click', () => G.close());      // çağrı anındaki G.close: başka dosya sarmışsa (kiraathane2.js) o da çalışır
