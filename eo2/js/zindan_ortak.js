@@ -79,7 +79,7 @@
   async function asamaBaslat(donus) { const d = od(); if (!d || d.faz !== 'savas' || Z.savas) return;
     if (!G.live) return;   /* giriş ekranındayken (sayfa yenilendi, kayıt henüz açılmadı) savaş kurulmaz; ocağa girilince aşağıdaki nöbetçi savaşa döndürür */
     Z.savas = true; Z.savasBitti = false; Z.sonAsama = null; seyirKapat(); G.close(); document.querySelectorAll('.pen-perde').forEach(w => w.remove());
-    const cfg = cfgKur(d), bek = B.ac(cfg); yoldaslariKur(); if (donus) canEsitle(); else setTimeout(() => { const M = B.state(), d2 = od(); if (M && M.on && Z.savas && d2 && d2.dusman) B.cagriEsitle(d2.dusman); }, 300);
+    const cfg = cfgKur(d), bek = B.ac(cfg); yoldaslariKur(); canEsitle();   /* her girişte sunucudaki hâle eşitlenir (canlar, çağrılan yılanlar); yeni aşamada her şey tam olduğu için iş yapmaz. Bağlantı yenilenen dönüş yolu her zaman donus=true ile gelmiyor (2026-11-21) */
     setTimeout(() => { const M = B.state(); if (M && Z.savas) OR.eylem({ t: 'konum', x: M.ben.x, y: M.ben.y, aci: Math.round(M.ben.angle), yon: M.ben.face }); }, 700);
     setTimeout(() => { if (B.active() && cfg.ipucu) B.ipucu(cfg.baslik, cfg.ipucu); const M = B.state(); if (M) OR.eylem({ t: 'can', hp: Math.round(M.ben.hp), max: Math.round(M.ben.max) }); yoldasCiz(); }, window.__fastFx ? 0 : 2400);
     const r = await bek; Z.savasBitti = true;
