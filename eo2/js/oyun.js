@@ -55,7 +55,7 @@
   let pens = 0;
   G.pen = function (o) { return new Promise(res => { pens++; const w = el('div', 'pen-perde'), p = el('div', 'pen' + (o.wide ? ' genis' : '')); p.setAttribute('role', 'dialog'); p.setAttribute('aria-modal', 'true');
     p.innerHTML = '<header>' + (o.face ? '<img class="yuz" alt="" src="' + o.face + '">' : '') + (o.k ? '<small>' + o.k + '</small>' : '') + '<h2>' + o.t + '</h2></header><div class="pen-b kay">' + (o.body || '') + '</div><div class="pen-f' + (o.dikey ? ' dikey' : '') + '"></div>';
-    const f = p.querySelector('.pen-f'), done = v => { pens--; w.remove(); res(v); };
+    let kapandi = false; const f = p.querySelector('.pen-f'), done = v => { if (kapandi) return; kapandi = true; pens--; w.remove(); res(v); };
     for (const b of (o.btns || [{ t: 'Tamam', cls: 'altin', v: true }])) { const x = el('button', 'gbtn ' + (b.cls || ''), b.t + (b.sub ? '<small>' + b.sub + '</small>' : '')); x.type = 'button'; if (b.off) { x.disabled = true; x.title = b.off; if (!b.sub) x.insertAdjacentHTML('beforeend', '<small>' + esc(b.off) + '</small>'); }      // kilidin nedeni dokunmatikte de okunur
       x.addEventListener('click', () => { if (EO2.audio) EO2.audio.ui(); if (b.fn) { const r = b.fn(p, done); if (r === false) return; if (r && r.keep) return; } done(b.v === undefined ? true : b.v); }); f.appendChild(x); }
     w.appendChild(p); app.appendChild(w); if (o.on) o.on(p, done); const first = f.querySelector('.gbtn:not([disabled])'); if (first) first.focus(); }); };
@@ -70,7 +70,7 @@
     const paint = () => { let left = shown; for (const [nd, full] of nodes) { const k = Math.min(full.length, Math.max(0, left)); if (nd.nodeValue.length !== k) nd.nodeValue = full.slice(0, k); left -= full.length; } };
     const finish = () => { if (ready) return; ready = true; clearInterval(tm); shown = total; paint(); if (ek) ek.hidden = false; sec.hidden = false; ok.hidden = btns.length > 1; const f = sec.querySelector('.gbtn:not([disabled])'); if (f) f.focus(); };
     tm = setInterval(() => { shown += 3; paint(); if (shown >= total) finish(); }, 16);
-    const done = v => { pens--; w.classList.add('git'); setTimeout(() => w.remove(), 220); res(v); };
+    let kapandi = false; const done = v => { if (kapandi) return; kapandi = true; pens--; w.classList.add('git'); setTimeout(() => w.remove(), 220); res(v); };
     btns.forEach((b, i) => { const x = el('button', 'gbtn vn-opt ' + (b.cls || ''), '<span>' + b.t + '</span>' + (b.sub ? '<small>' + b.sub + '</small>' : '')); x.type = 'button'; x.style.animationDelay = (i * 0.06) + 's'; if (b.off) { x.disabled = true; x.title = b.off; }
       x.addEventListener('click', e => { e.stopPropagation(); if (EO2.audio) EO2.audio.ui(); if (b.fn) b.fn(); done(b.v === undefined ? true : b.v); }); sec.appendChild(x); });
     w.addEventListener('click', () => { if (!ready) finish(); else if (btns.length === 1 && !btns[0].off) sec.querySelector('.gbtn').click(); });
@@ -176,7 +176,7 @@
       w.classList.add('acildi'); w.style.setProperty('--el', G.ELC[d.el]);
       w.innerHTML = '<div class="dg-bas"><small>Yeni bir ejderha</small><h1>' + EL_AD[d.el] + ' yavrusu</h1></div><div class="dg-yavru"><i class="hale"></i><img alt="" src="' + OLD + 'img/angle/' + d.el + '-yavru-front.webp" onerror="this.onerror=null;this.src=\'' + G.img(d) + '\'"></div>' +
         '<div class="dg-alt"><label class="dg-ad"><span>Adını koy</span><input id="hatchName" maxlength="16" value="' + esc(d.name) + '" autocomplete="off"></label><div class="dg-pot">' + STATS.map(k => { const s = d.genes.pot[k][0] + d.genes.pot[k][1]; return '<span>' + ST_KISA[k] + ' <b class="harf g' + Math.floor(s / 2) + '">' + potLetter(s) + '</b></span>'; }).join('') + '</div><ul class="dg-not">' + notes.map(x => '<li>' + x + '</li>').join('') + '</ul><button type="button" class="gbtn altin buyuk" id="dgTamam">Hoş geldin</button></div>';
-      w.querySelector('#dgTamam').addEventListener('click', () => { const v = (w.querySelector('#hatchName').value || '').trim(); if (v) d.name = v.slice(0, 16); afterAction(true); pens--; w.classList.add('git'); setTimeout(() => w.remove(), 400); if (G.fx) G.fx.hearts('.dg-yavru', 10); res(); });
+      w.querySelector('#dgTamam').addEventListener('click', () => { if (w.dataset.bitti) return; w.dataset.bitti = '1'; const v = (w.querySelector('#hatchName').value || '').trim(); if (v) d.name = v.slice(0, 16); afterAction(true); pens--; w.classList.add('git'); setTimeout(() => w.remove(), 400); if (G.fx) G.fx.hearts('.dg-yavru', 10); res(); });
       const inp = w.querySelector('#hatchName'); inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') w.querySelector('#dgTamam').click(); }); };
     yum.addEventListener('click', () => { if (n >= 3) return; n++; yum.className = 'dg-yumurta c' + n + ' vur'; void yum.offsetWidth; if (EO2.audio) EO2.audio.pop(); if (G.fx) G.fx.burst(yum, '#fff3c4', 6 + n * 3); setTimeout(() => yum.classList.remove('vur'), 300); const ip = w.querySelector('.dg-ipucu'); if (ip) ip.textContent = n === 1 ? 'Bir daha' : 'Son bir kez'; if (n >= 3) setTimeout(ac, window.__fastFx ? 0 : 420); });
     if (window.__fastFx) { n = 3; ac(); } }); }
@@ -191,7 +191,7 @@
     app.appendChild(w); const cards = [...w.querySelectorAll('.gk')], btn = w.querySelector('#geceDevam'), fast = window.__fastFx;
     cards.forEach((c, i) => setTimeout(() => { c.classList.add('acik'); if (EO2.audio) EO2.audio.pop(); }, fast ? 0 : 900 + i * 420));
     setTimeout(() => { const e = w.querySelector('#geceAltin'); if (G.fx) G.fx.count(e, 0, dg, 900, v => (v > 0 ? '+' : '') + v); else e.textContent = (dg > 0 ? '+' : '') + dg; if (dg > 0 && G.fx) G.fx.coins(e, Math.min(12, 3 + dg / 20), e); btn.disabled = false; btn.focus(); }, fast ? 0 : 1100 + cards.length * 420);
-    btn.addEventListener('click', () => { if (EO2.audio) EO2.audio.ui(); pens--; w.classList.add('git'); setTimeout(() => w.remove(), 620); res(); }); }); }
+    btn.addEventListener('click', () => { if (w.dataset.bitti) return; w.dataset.bitti = '1'; if (EO2.audio) EO2.audio.ui(); pens--; w.classList.add('git'); setTimeout(() => w.remove(), 620); res(); }); }); }
   function sabah() { return new Promise(res => { if (S.over) return res(); const w = el('div', 'sabah', '<div><small>' + seasonOf().ad + '</small><b>Hafta ' + S.week + '</b></div>'); w.style.setProperty('--sahne', sahneUrl('a:sabah')); app.appendChild(w); if (EO2.audio) EO2.audio.chime(); setTimeout(() => { w.classList.add('git'); setTimeout(() => w.remove(), 720); res(); }, window.__fastFx ? 300 : 1900); }); }
   const ENDING = { taj: ['Kızıl Taç senin', 'Dedenin harabe ocağı yirmi haftada diyarın en ünlü ocağı oldu. Demirhan tribünde ayağa kalkıp seni alkışladı. O gece Kor\'un kuyruğu kuluçka ocağının taşlarına dolanmış uyudu.'], 'tac-kayip': ['Taç bu yıl başkasının', 'Kızıl Taç\'a kadar geldin ama son adım tutmadı. Yine de meydanda senin ocağının adı konuşuluyor. Bahar yeniden gelecek.'] };
   G.endWeek = async function () { if (!G.live || G.busy) return;

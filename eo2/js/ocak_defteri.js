@@ -18,7 +18,7 @@
   const EO2 = window.EO2, G = EO2 && EO2.game, AG = EO2 && EO2.ag;
   if (!G || !AG) return;
   const PARTI = 20;                                                       // bir istekte en çok bu kadar ejderha
-  const ATLA = ['seenTalk', 'task', 'pids', 'equip', 'assetId', 'srv', 'funding'];   // deftere taşınmayan yerel alanlar
+  const ATLA = ['ilanda', 'seenTalk', 'task', 'pids', 'equip', 'assetId', 'srv', 'funding'];   // deftere taşınmayan yerel alanlar
   let calisiyor = false, bekle = 0, zaman = 0;
   const ozet = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + '.' + s.length.toString(36); };
   const sade = r => { const o = {}; for (const k of Object.keys(r)) if (!ATLA.includes(k)) o[k] = r[k]; return o; };
@@ -62,6 +62,29 @@
     return degisti;
   }
 
+  /* ---------- ilandaki ve takastaki mal yerelde kilitli ----------
+     Sunucu, Bedesten ilanındaki ya da süren takastaki malı kendi defterinde ayırır; yerel kopya da aynı süre kilitli kalır
+     (`ilanda`: 'bedesten' | 'takas'). Kilitliyken yerelde satılamaz, kuluçkaya konamaz: yoksa ilan satıldığında aynı mal
+     iki kez değer üretirdi (2026-11-21 denetimi). Liste ağdan okunamazsa önceki kilit olduğu gibi kalır. */
+  let kilitT = 0;
+  async function kilitTazele(zorla) {
+    if (!zorla && Date.now() - kilitT < 20000) return false;
+    kilitT = Date.now();
+    const kilit = new Map();
+    try {
+      const p = await AG.istek('/api/market'); for (const L of p.mine || []) if (L.status === 'open' && L.assetId) kilit.set(L.assetId, 'bedesten');
+      const t = (await AG.istek('/api/trade/state')).trade, ben = (AG.kimlik() || {}).accountId;
+      if (t && ['active', 'invited'].includes(t.status) && ben && t.offers && t.offers[ben]) for (const k of ['items', 'dragons', 'eggs']) for (const id of t.offers[ben][k] || []) if (!kilit.has(id)) kilit.set(id, 'takas');
+    } catch (_) { kilitT = Date.now() - 15000; return false; }
+    let degisti = false;
+    for (const alan of ['dragons', 'eggs', 'inv']) for (const r of S[alan]) {
+      const k = r.srv && r.assetId ? kilit.get(r.assetId) : undefined;
+      if (k) { if (r.ilanda !== k) { r.ilanda = k; degisti = true; } if (alan === 'eggs' && r.inK) { r.inK = false; degisti = true; } }
+      else if (r.ilanda) { delete r.ilanda; degisti = true; }
+    }
+    return degisti;
+  }
+
   /* ---------- yerelden deftere ---------- */
   async function govde(eko, E, bagli) {
     const O = { ocak: S.ocakId, ej: [], yu: [], ejIds: [], yuIds: [] }, gonderilen = { ej: {}, yu: {} }; let gerek = !bagli || !eko.game.ocak.kese;   // kese: çift başlangıç kesesi henüz sıfırlanmadıysa bir tur gönderilir
@@ -100,6 +123,7 @@
       E.var = [...eldeki];
       const bagli = !!(eko.game.ocak && eko.game.ocak.id === S.ocakId);
       if (bagli && cek(eko, E)) degisti = true;
+      if (bagli && await kilitTazele()) degisti = true;
       const g = await govde(eko, E, bagli);
       if (g) {
         const r = (await AG.komut('ocak.sync', { body: JSON.stringify(g.O) })).result.ocak;
@@ -134,6 +158,8 @@
   EO2.ocakDefteri = {
     esle,                                                                    // Promise: bir eşleme turu (gerekmiyorsa hiçbir şey yapmaz)
     sunucuKokenli: r => !!(r && r.srv && r.assetId),
+    kilitli: r => !!(r && r.srv && r.ilanda),                               // Bedesten ilanında ya da takasta: yerelde satılamaz, kuluçkaya konamaz
+    kilitTazele: () => kilitTazele(true),
     cikti(assetId) { const E = kayit(); E.var = E.var.filter(id => id !== assetId); E.birak = E.birak.filter(b => b.id !== assetId); },   // varlık bir sunucu komutuyla defterden çıktı (sipariş, müzayede): ayrıca bırakma bildirilmez                         // bu satırın gerçeği sunucuda mı (kazanılmış varlık)
     teklif(assetId) { const E = kayit(); if (!E.birak.some(b => b.id === assetId)) E.birak.push({ id: assetId, yol: 'teklif' }); zamanla(200); },
     durum: () => { const E = (typeof S !== 'undefined' && S && S.ocakEs) || {}; return { ocak: typeof S !== 'undefined' && S ? S.ocakId || null : null, hesap: E.acct || null, bekleyenBirakma: (E.birak || []).length, sunucuKokenli: (E.var || []).length }; },

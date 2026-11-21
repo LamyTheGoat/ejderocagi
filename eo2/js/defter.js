@@ -67,7 +67,10 @@
   /* üzerine yazılacak kaydın ham hâli saklanır: bir kez geri alınabilir */
   function yedekle(neden) { const ham = depo.al(anahtar()); if (!ham) return false; return depo.yaz(YEDEK, JSON.stringify({ t: Date.now(), neden: neden || '', kayit: ham })); }
   function yedekOku() { try { const y = JSON.parse(depo.al(YEDEK) || 'null'); if (y && typeof y.kayit === 'string') { const sv = JSON.parse(y.kayit); if (sv && Array.isArray(sv.dragons)) return { t: y.t, neden: y.neden, sv }; } } catch (_) { } return null; }
-  function yerlestir(sv) { if (typeof importSaveString !== 'function' || !importSaveString(JSON.stringify(sv))) return false;
+  /* Yüklenen eski kayıttaki gönderilmemiş altın farkı yeniden gönderilmez: o fark kayıt alındıktan sonra hesaba zaten yazılmış
+     olabilir (aynı altın iki kez gelirdi). Altının doğrusu sunucudadır; yoldaki istek (aynı istek kimliği) kalır, sunucu onu bir kez işler. */
+  function farkSifirla(sv) { const A = sv && sv.ag; if (A && typeof A === 'object' && A.tek === true) { const b = Math.round(Number(A.bek)) || 0; if (b) { if (Number.isFinite(Number(sv.gold))) sv.gold = Number(sv.gold) - b; A.bek = 0; } } return sv; }   // gösterge (gold) farkı içerir; düşülmezse erişimci farkı yeniden bekleyene ekler
+  function yerlestir(sv) { farkSifirla(sv); if (typeof importSaveString !== 'function' || !importSaveString(JSON.stringify(sv))) return false;
     if (typeof careerRepair === 'function') careerRepair(); if (typeof registerAllHeirlooms === 'function') registerAllHeirlooms(); UI.sel = S.dragons[0] ? S.dragons[0].id : null; if (G.adUygula) G.adUygula(); return true; }
 
   /* dosyaya aktar: okunur JSON; içinde oyunun kaydı olduğu gibi durur */
@@ -106,7 +109,7 @@
     if (v2 === 'aktar') { aktar(); return false; } if (v2 !== 'sil') return false;
     engel = true; if (typeof clearSave === 'function') clearSave(); else { depo.sil(anahtar()); depo.sil(anahtar() + '-bak'); } depo.sil(YEDEK); if (EO2.rehber) EO2.rehber.sifirla();
     G.close(); engel = false; G.title(); toast('Ocak silindi.'); return true; }
-  EO2.kayit = { anahtar, ham: () => depo.al(anahtar()), aktar, aktarMetni, yukle, yukleMetin, coz, yedekle, yedekVar: () => !!yedekOku(), geriAl, sil, engelli: () => engel };
+  EO2.kayit = { farkSifirla, anahtar, ham: () => depo.al(anahtar()), aktar, aktarMetni, yukle, yukleMetin, coz, yedekle, yedekVar: () => !!yedekOku(), geriAl, sil, engelli: () => engel };
 
   /* ---------- iki sekme: aynı oyun iki sekmede açılırsa kayıtlar birbirini ezer ---------- */
   let perde = null;
