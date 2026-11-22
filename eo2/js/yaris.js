@@ -24,9 +24,10 @@
           '<button type="button" class="gbtn altin buyuk" data-yaris="' + sel + '" ' + (f && S.gold >= r.fee ? '' : 'disabled') + '>' + (!f ? 'Yarışçı yok' : 'Yarışa gir') + '<small>giriş ' + r.fee + ' altın' + (f && S.gold < r.fee ? ' · yetmiyor' : '') + '</small></button></div>'
         : '<div class="yr-bilgi"><span class="ust">Gök yarışı</span><h2>Bu haftanın yarışları bitti</h2><p class="yr-nasil">Haftaya yeni pistler ilan edilir.</p></div>') +
       '<div class="yr-alt"><div class="kadro">' + R.list.map((x, i) => '<button type="button" class="madalyon bolge-m" data-pist="' + i + '" aria-pressed="' + (i === sel) + '"><img alt="" src="' + G.url('img/' + RACE_VENUES[x.venue].bg + '.webp') + '"><span>' + x.ad + '</span></button>').join('') + '</div>' +
-        '<button type="button" class="gbtn" data-prac="1" ' + (f && !R.practiced ? '' : 'disabled') + '>' + (R.practiced ? 'Bu hafta uçtun' : 'Antrenman uçuşu') + '<small>ödülsüz · bağ +2, çeviklik +1</small></button></div>';
+        (EO2.yaris3 && EO2.yaris3.acik() ? '<button type="button" class="gbtn" data-arka="1" ' + (f ? '' : 'disabled') + '>Sırtından uç<small>deneme · ödülsüz</small></button>' : '') + '<button type="button" class="gbtn" data-prac="1" ' + (f && !R.practiced ? '' : 'disabled') + '>' + (R.practiced ? 'Bu hafta uçtun' : 'Antrenman uçuşu') + '<small>ödülsüz · bağ +2, çeviklik +1</small></button></div>';
     on(body, '[data-sel]', b => { UI.arenaSel = +b.dataset.sel; render(); }); on(body, '[data-pist]', b => { sel = +b.dataset.pist; render(); });
     on(body, '[data-yaris]', b => { const x = races().list[+b.dataset.yaris]; if (!canRace(f) || !x || S.gold < x.fee) return; S.gold -= x.fee; basla(f, x, false); });
+    on(body, '[data-arka]', () => { if (f && EO2.yaris3) EO2.yaris3.basla(f); });
     on(body, '[data-prac]', () => { if (canRace(f) && !races().practiced) basla(f, null, true); });
   } });
   const NAV = [['arena', 'Arena'], ['yaris', 'Gök Yarışı']]; G.navOf = Object.assign(G.navOf || {}, { arena: NAV, yaris: NAV });
