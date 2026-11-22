@@ -1,0 +1,235 @@
+{
+ "surum": 1,
+ "sablon": {
+  "sac": {
+   "cw": 199,
+   "ch": 245,
+   "ax": 114,
+   "ay": 374,
+   "hucre": [
+    "down_durus",
+    "down_yuru",
+    "up_durus",
+    "up_yuru",
+    "right_durus",
+    "right_yuru"
+   ]
+  },
+  "yuz": {
+   "cw": 128,
+   "ch": 124,
+   "ax": 72,
+   "ay": 330,
+   "hucre": [
+    "down_durus",
+    "down_yuru",
+    "up_durus",
+    "up_yuru",
+    "right_durus",
+    "right_yuru",
+    "down_sevinc",
+    "right_sevinc"
+   ]
+  },
+  "kulak": {
+   "cw": 127,
+   "ch": 48,
+   "ax": 70,
+   "ay": 272,
+   "hucre": [
+    "down_durus",
+    "down_yuru",
+    "up_durus",
+    "up_yuru",
+    "right_durus",
+    "right_yuru"
+   ]
+  }
+ },
+ "iz": {
+  "down": [
+   0,
+   0.62
+  ],
+  "up": [
+   0,
+   2.62
+  ],
+  "right": [
+   0,
+   -10.12
+  ]
+ },
+ "rampa": {
+  "dosya": "kat/rampa.png",
+  "satir": {
+   "black": 0,
+   "blond": 1,
+   "white": 2,
+   "blue": 3,
+   "orange": 4,
+   "green": 5,
+   "pink": 6
+  }
+ },
+ "sac": {
+  "orig": {
+   "ad": "Özgün",
+   "dosya": "kat/sac_orig.webp",
+   "ozgun": "kat/sac_orig_ozgun.webp",
+   "parca": [
+    "sacArka",
+    "sacOn"
+   ]
+  },
+  "kisa": {
+   "ad": "Kısa kesim",
+   "dosya": "kat/sac_kisa.webp",
+   "ozgun": "kat/sac_kisa_ozgun.webp",
+   "parca": [
+    "sacArka",
+    "sacOn"
+   ]
+  },
+  "topuz": {
+   "ad": "Topuz",
+   "dosya": "kat/sac_topuz.webp",
+   "ozgun": "kat/sac_topuz_ozgun.webp",
+   "parca": [
+    "sacArka",
+    "sacOn"
+   ]
+  },
+  "atkuyrugu": {
+   "ad": "At kuyruğu",
+   "dosya": "kat/sac_atkuyrugu.webp",
+   "ozgun": "kat/sac_atkuyrugu_ozgun.webp",
+   "parca": [
+    "sacArka",
+    "sacOn"
+   ]
+  },
+  "yan": {
+   "ad": "Yana taranmış",
+   "dosya": "kat/sac_yan.webp",
+   "ozgun": "kat/sac_yan_ozgun.webp",
+   "parca": [
+    "sacArka",
+    "sacOn"
+   ]
+  },
+  "uzun": {
+   "ad": "Uzun düz",
+   "dosya": "kat/sac_uzun.webp",
+   "ozgun": "kat/sac_uzun_ozgun.webp",
+   "parca": [
+    "sacArka",
+    "sacOn"
+   ]
+  },
+  "ikiz": {
+   "ad": "İkiz kuyruk",
+   "dosya": "kat/sac_ikiz.webp",
+   "ozgun": "kat/sac_ikiz_ozgun.webp",
+   "parca": [
+    "sacArka",
+    "sacOn"
+   ]
+  },
+  "kut": {
+   "ad": "Küt kesim",
+   "dosya": "kat/sac_kut.webp",
+   "ozgun": "kat/sac_kut_ozgun.webp",
+   "parca": [
+    "sacArka",
+    "sacOn"
+   ]
+  },
+  "orgu": {
+   "ad": "Örgü",
+   "dosya": "kat/sac_orgu.webp",
+   "ozgun": "kat/sac_orgu_ozgun.webp",
+   "parca": [
+    "sacArka",
+    "sacOn"
+   ]
+  }
+ },
+ "sacRenk": {
+  "orig": {
+   "ad": "Özgün",
+   "rampa": null
+  },
+  "black": {
+   "ad": "Siyah",
+   "rampa": "black"
+  },
+  "blond": {
+   "ad": "Sarı",
+   "rampa": "blond"
+  },
+  "white": {
+   "ad": "Beyaz",
+   "rampa": "white"
+  },
+  "blue": {
+   "ad": "Mavi",
+   "rampa": "blue"
+  },
+  "orange": {
+   "ad": "Turuncu",
+   "rampa": "orange"
+  },
+  "green": {
+   "ad": "Yeşil",
+   "rampa": "green"
+  },
+  "pink": {
+   "ad": "Pembe",
+   "rampa": "pink"
+  }
+ },
+ "goz": {
+  "orig": {
+   "ad": "Özgün",
+   "dosya": "kat/yuz_orig.webp"
+  },
+  "iri": {
+   "ad": "İri ve yuvarlak",
+   "dosya": "kat/yuz_iri.webp"
+  },
+  "dar": {
+   "ad": "Dar, yarı kapalı",
+   "dosya": "kat/yuz_dar.webp"
+  }
+ },
+ "gozRenk": {
+  "orig": {
+   "ad": "Kırmızı",
+   "satir": 0
+  },
+  "blue": {
+   "ad": "Mavi",
+   "satir": 1
+  },
+  "green": {
+   "ad": "Yeşil",
+   "satir": 2
+  },
+  "gold": {
+   "ad": "Altın",
+   "satir": 3
+  },
+  "purple": {
+   "ad": "Mor",
+   "satir": 4
+  },
+  "grey": {
+   "ad": "Gri",
+   "satir": 5
+  }
+ },
+ "kulak": {
+  "dosya": "kat/kulak.webp"
+ }
+}

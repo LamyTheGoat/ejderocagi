@@ -1,4 +1,5 @@
 /* Ejder Ocağı 2.0 · Karakter görünüşü (EO2.gorunum) · 2026-11-17
+   2026-11-22: meydan çizimi Kat sisteminden kurulur (js/kat.js, assets/kat/katalog.js); aşağıdaki eski kurucu yalnız eo2.kat = '0' iken çalışır.
    Oyuncu saç stilini, saç rengini, göz biçimini ve göz rengini seçer. Çizim katmanları chibi katman sisteminden pişirilir
    (tools/bake_gorunus.mjs → assets/gorunus/, assets/gorunus_atlas.js): gövde, yüz, saç ve kulak ayrı atlaslardır.
    Bu dosya seçilen görünüşün katmanlarını üst üste çizip tek bir karakter atlası kurar ve oyuna kaydeder (EO2.setEkle).
@@ -14,7 +15,11 @@
   const BOYA = { sacRenk: { orig: '#9a3b2a', black: '#262433', blond: '#f0cc60', white: '#dcdcea', blue: '#4a8ae8', orange: '#ee7428', green: '#3aa858', pink: '#ec7ab4' },
     gozRenk: { orig: '#d8303a', blue: '#3f8fe6', green: '#3fb85a', gold: '#e6b83c', purple: '#9a55d8', grey: '#9aa0a8' } };
   const esc_ = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const temiz = g => { const o = {}; for (const k of ALAN) o[k] = g && GA.ad[k] && GA.ad[k][g[k]] ? g[k] : 'orig'; return o; };
+  /* KAT SİSTEMİ (2026-11-22, js/kat.js + assets/kat/katalog.js): saç, yüz ve kulak katalogdan kurulur; seçenekler de oradan gelir.
+     Geri alma: localStorage eo2.kat = '0' → eski 53 karelik katman sayfaları (assets/gorunus/) ve eski kurucu. */
+  const KT = () => window.EO2_KAT_KUR || null, katAcik = () => { if (!KT()) return false; try { return localStorage.getItem('eo2.kat') !== '0'; } catch (_) { return true; } };
+  const AD = () => katAcik() ? KT().secenekler() : GA.ad, renkOrnek = (alan, v) => (katAcik() && KT().ornek(alan, v)) || (BOYA[alan] && BOYA[alan][v]) || '#888';
+  const temiz = g => { const o = {}, A = AD(); for (const k of ALAN) o[k] = g && A[k] && A[k][g[k]] ? g[k] : 'orig'; return o; };
   const kod = g => ALAN.map(k => g[k]).join('.'), coz = s => { const p = String(s || '').split('.'); return p.length === 4 ? temiz({ sac: p[0], sacRenk: p[1], goz: p[2], gozRenk: p[3] }) : null; };
   const ozgunMu = g => kod(g) === kod(OZGUN);
   const resimler = new Map(), yukle = ad => { if (!resimler.has(ad)) resimler.set(ad, new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => { resimler.delete(ad); no(new Error(ad)); }; i.src = 'assets/gorunus/' + ad + '.webp'; })); return resimler.get(ad); };
@@ -22,6 +27,7 @@
   /* seçilen görünüşün atlasını kurar; dönen ad oyunun set kaydındaki addır (özgün görünüşte null) */
   function kur(set, g) { g = temiz(g); if (ozgunMu(g) || !GA.govde[set] || !AT.sets[set]) return Promise.resolve(null);
     const ad = 'g_' + set + '_' + kod(g).replace(/\./g, '_'); if (kurulan.has(ad)) return kurulan.get(ad);
+    if (katAcik()) { const ks_ = KT().kur(set, g).then(({ cv, m }) => { EO2.setEkle(ad, cv, m); return ad; }); kurulan.set(ad, ks_); ks_.catch(() => kurulan.delete(ad)); return ks_; }
     const sb = g.sac === 'orig' ? 'a' : 'b', sac = g.sac + '_' + g.sacRenk;
     const K = [['sac', sac + '_a'], ['govde', set], ['yuz', g.goz + '_' + g.gozRenk + '_' + sb], ['sac', sac + '_o'], ['kulak', sb]].filter(([grup, k]) => GA[grup][k]);
     const soz = Promise.all(K.map(([grup, k]) => yukle(grup + '_' + k))).then(R => { const M = K.map(([grup, k]) => GA[grup][k]), B = AT.sets[set];
@@ -77,7 +83,7 @@
     const g = benim(), imza = p.set + '|' + kod(g); if (imza === sonImza) return; sonImza = imza;
     try { const ad = await kur(p.set, g); if (sonImza === imza) { p.gor = ad; if (EO2.api.portreTazele) EO2.api.portreTazele(); } } catch (_) { sonImza = ''; } }
   setInterval(uygula, 400);
-  function sec(alan, v) { if (!ALAN.includes(alan) || !GA.ad[alan][v]) return; S.gorunus = Object.assign(benim(), { [alan]: v }); if (typeof saveGame === 'function') saveGame(); uygula(); }
+  function sec(alan, v) { if (!ALAN.includes(alan) || !AD()[alan][v]) return; S.gorunus = Object.assign(benim(), { [alan]: v }); if (typeof saveGame === 'function') saveGame(); uygula(); }
   /* meydandaki öteki oyuncu: görünüş kodu gelince atlası kurulur, hazır olunca giydirilir */
   function uzak(c, s) { const g = coz(s); if (!g || ozgunMu(g)) { c.gor = null; c.gorKod = ''; return; } const imza = c.set + '|' + kod(g); if (c.gorKod === imza) return; c.gorKod = imza; kur(c.set, g).then(ad => { if (c.gorKod === imza) c.gor = ad; }).catch(() => { c.gorKod = ''; }); }
 
@@ -90,7 +96,7 @@
     body.innerHTML = '<div class="gr-kok"><div class="gr-ayna"><canvas width="300" height="460" data-yon="down" aria-label="Önden"></canvas><canvas width="210" height="330" data-yon="right" aria-label="Yandan"></canvas><canvas width="210" height="330" data-yon="up" aria-label="Arkadan"></canvas></div>' +
       '<div class="gr-secenek">' + (ilk ? '<p class="gr-ilk">Terbiyeni seç: saçını ve gözünü belirle. Sonra da değiştirebilirsin.</p>' : EO2.ekipman ? '<section class="gr-dolap"><h3>Kuşam</h3><p class="soluk">Zırh, başlık, pelerin, yüz aksesuarı ve silah artık Dolap\'ta.</p><button type="button" class="gbtn altin" data-gr-dolap="1">Kuşam ve dolap</button></section>' : '<section><h3>Zırh seti <small>' + (typeof S !== 'undefined' ? Math.floor(S.gold) : 0) + ' altın</small></h3><div class="gr-setler" role="radiogroup" aria-label="Zırh seti">' + KUSAM.map(K => { const var_ = k.sahip.includes(K[0]), giyili = k.giyili === K[0];
           return '<button type="button" role="radio" class="gr-set' + (var_ ? '' : ' satilik') + '" data-set="' + K[0] + '" aria-checked="' + (D ? dene === K[0] : giyili) + '" title="' + esc_(K[3]) + '"><b>' + esc_(K[1]) + '</b><small>' + (giyili ? 'Giyili' : var_ ? 'Sende' : K[2] + ' altın' + (Object.keys(K[4]).length ? ' + malzeme' : '')) + '</small></button>'; }).join('') + '</div>' +
-          (D ? '<div class="gr-al"><span><b>' + esc_(D[1]) + ' seti</b> · ' + esc_(D[3]) + (Object.keys(D[4]).length ? '<span class="gr-malzler">' + malzHtml(D) + '</span><small class="gr-nereden">Kor Taşları zindan çarkından, Obsidiyen Cevheri Kervan Yolu\'ndan düşer.</small>' : '') + '</span><button type="button" class="gbtn altin" data-gr-al="' + D[0] + '" ' + (yeter(D) ? '' : 'disabled title="' + (S.gold >= D[2] ? 'Malzemen eksik' : 'Yeterli altının yok') + '"') + '>' + (Object.keys(D[4]).length ? 'Dövdür' : 'Satın al') + '<small>' + D[2] + ' altın</small></button></div>' : '') + '</section>') + SATIR.map(([alan, ad]) => '<section><h3>' + ad + '</h3><div class="gr-sira' + (BOYA[alan] ? ' renk' : '') + '" role="radiogroup" aria-label="' + ad + '">' + Object.keys(GA.ad[alan]).map(v => '<button type="button" role="radio" class="' + (BOYA[alan] ? 'gr-boya' : 'gbtn kucuk') + '" data-alan="' + alan + '" data-v="' + v + '" aria-checked="' + (g[alan] === v) + '" title="' + esc_(GA.ad[alan][v]) + '"' + (BOYA[alan] ? ' style="--c:' + BOYA[alan][v] + '"><span>' + esc_(GA.ad[alan][v]) + '</span>' : '>' + esc_(GA.ad[alan][v])) + '</button>').join('') + '</div></section>').join('') +
+          (D ? '<div class="gr-al"><span><b>' + esc_(D[1]) + ' seti</b> · ' + esc_(D[3]) + (Object.keys(D[4]).length ? '<span class="gr-malzler">' + malzHtml(D) + '</span><small class="gr-nereden">Kor Taşları zindan çarkından, Obsidiyen Cevheri Kervan Yolu\'ndan düşer.</small>' : '') + '</span><button type="button" class="gbtn altin" data-gr-al="' + D[0] + '" ' + (yeter(D) ? '' : 'disabled title="' + (S.gold >= D[2] ? 'Malzemen eksik' : 'Yeterli altının yok') + '"') + '>' + (Object.keys(D[4]).length ? 'Dövdür' : 'Satın al') + '<small>' + D[2] + ' altın</small></button></div>' : '') + '</section>') + SATIR.map(([alan, ad]) => '<section><h3>' + ad + '</h3><div class="gr-sira' + (BOYA[alan] ? ' renk' : '') + '" role="radiogroup" aria-label="' + ad + '">' + Object.keys(AD()[alan]).map(v => '<button type="button" role="radio" class="' + (BOYA[alan] ? 'gr-boya' : 'gbtn kucuk') + '" data-alan="' + alan + '" data-v="' + v + '" aria-checked="' + (g[alan] === v) + '" title="' + esc_(AD()[alan][v]) + '"' + (BOYA[alan] ? ' style="--c:' + renkOrnek(alan, v) + '"><span>' + esc_(AD()[alan][v]) + '</span>' : '>' + esc_(AD()[alan][v])) + '</button>').join('') + '</div></section>').join('') +
         '<p class="soluk">Saç ve göz yalnız görüntüdür. Meydandaki öteki terbiyeciler de seni böyle görür.</p>' + (ilk ? '<div class="gr-hazir-alt"><button type="button" class="gbtn altin buyuk" data-gr-hazir="1">Hazırım<small>ocağına git</small></button></div>' : '<button type="button" class="gbtn" data-gr-ozgun="1" ' + (ozgunMu(g) ? 'disabled' : '') + '>Özgün saç ve göze dön</button>') + '</div></div>';
     const ciz = async () => { const set = D ? D[0] : p.set; if (EO2.setAl(set) && !EO2.setAl(set).img) { try { EO2.api.drawPortrait(document.createElement('canvas'), set, 0.5); } catch (_) { } await new Promise(r => setTimeout(r, 500)); }   /* çizimi henüz yüklenmemiş set */
       const ad = (await kur(set, benim()).catch(() => null)) || set; body.querySelectorAll('.gr-ayna canvas').forEach(cv => onizle(cv, ad, cv.dataset.yon)); }; ciz();
@@ -108,5 +114,5 @@
   function ilkSecim() { return new Promise(coz => { ilk = coz; G.open('gorunus'); }); }
   /* portreye dokununca (ve I tuşuyla) Kuşam ve görünüş açılır: görünür, tek dokunuşluk yer */
   if (!window.EO2_EKIPMAN) { const pr = document.getElementById('profile'); if (pr) { pr.title = 'Kuşam ve görünüş'; pr.addEventListener('click', e => { if (!G.live) return; e.stopImmediatePropagation(); e.preventDefault(); if (G.ekran && G.ekran() === 'gorunus') G.close(); else G.open('gorunus'); }, true); } }
-  EO2.gorunum = { kur, savas, kodOf, adOf, kurKod, uzak, sec, kod: () => kod(benim()), benim, secenekler: () => GA.ad, kusam: () => ({ giyili: ks().giyili, sahip: ks().sahip.slice(), setler: KUSAM.map(k => ({ set: k[0], ad: k[1], fiyat: k[2], malzeme: Object.assign({}, k[4]) })) }), giy, satinAl, ilkSecim };
+  EO2.gorunum = { kur, savas, kodOf, adOf, kurKod, uzak, sec, kod: () => kod(benim()), benim, secenekler: () => AD(), kusam: () => ({ giyili: ks().giyili, sahip: ks().sahip.slice(), setler: KUSAM.map(k => ({ set: k[0], ad: k[1], fiyat: k[2], malzeme: Object.assign({}, k[4]) })) }), giy, satinAl, ilkSecim };
 })();
