@@ -49,7 +49,7 @@
     K('sancak', 'pelerin', 'Tuğlu Pelerin', 'Ağır, süslü pelerin.', 550, { kalip_zirh: 3 }, { ikon: null }),
     K('sargi', 'yuz', 'Bez Sargı', 'Sade yüz sargısı.', 90, {}, { ikon: null }),
     K('monokl', 'yuz', 'Mercek', 'Tek gözlük mercek.', 200, { kalip_silah: 1 }, { ikon: null }),
-    K('gozluk', 'yuz', 'Demirci Gözlüğü', 'Kıvılcıma karşı gözlük.', 300, { kalip_silah: 1 }, { ikon: null }),
+    K('gozluk', 'yuz', 'Demirci Gözlüğü', 'Kıvılcıma karşı gözlük.', 300, { kalip_silah: 1 }, { ikon: null, kat: 'gozluk' }),
     K('tunc_maske', 'yuz', 'Tunç Maske', 'Dövme tunç yüz maskesi.', 500, { kalip_silah: 2 }, { ikon: null })
   ];
   const KAT = Object.fromEntries(KATALOG.map(k => [k.id, k]));

@@ -32,13 +32,16 @@
       kulak: { cw: 127, ch: 48, ax: 70, ay: 272, hucre: HUCRE6 },
       baslik: { cw: 172, ch: 256, ax: 96, ay: 365, hucre: HUCRE6 },
       /* başlık takılıyken saçın görünen kısmı: başlık başına bir sayfa, satır = stil x parça (stiller sırasıyla, her stilde parca sırasıyla) */
+      /* yüz aksesuarı: yüzsüz baş silüetine çizdirilir (tools/kat_yuzaks_donustur.py); önden, arkadan, yandan duruş, yürüyüş "iz" ile */
+      yuzAks: { cw: 168, ch: 168, ax: 88, ay: 348, hucre: ['down_durus', 'up_durus', 'right_durus'] },
       sacAlti: { cw: 197, ch: 244, ax: 113, ay: 374, hucre: HUCRE6, stiller: ['orig', 'kisa', 'topuz', 'atkuyrugu', 'yan', 'uzun', 'ikiz', 'kut', 'orgu'], parca: ['sacArka', 'sacOn', 'sacUst'] }
     },
     /* yürüyüş hücresi olmayan parçanın duruş hücresine göre kayması (piksel, ölçüm 2026-11-22: saç, yüz ve kulak aynı kaymayı verir) */
     iz: { down: [0, 0.62], up: [0, 2.62], right: [0, -10.12] },
     /* katman sırası, alttan üste. Henüz çizimi olmayan slotlar (pelerin, yüz aksesuarı) yerlerini tutar.
+       yuzAks saçın önündedir: gözlüğün kayışı arkadan ve yandan saçın üstünden geçer; başlık onun da üstündedir.
        baslikArka: başlığın gövde arkasında kalan ucu · yama: kapüşonun kulak yerini örten ten · kulakUst: başlığın üstündeki kulak · sacUst: arkadan açık başlığın üstünde kalan topuz */
-    sira: ['pelerinArka', 'sacArka', 'baslikArka', 'govde', 'yuz', 'yama', 'yuzAks', 'sacOn', 'kulak', 'baslik', 'kulakUst', 'sacUst', 'pelerinOn'],
+    sira: ['pelerinArka', 'sacArka', 'baslikArka', 'govde', 'yuz', 'yama', 'sacOn', 'yuzAks', 'kulak', 'baslik', 'kulakUst', 'sacUst', 'pelerinOn'],
     siraYon: {},
     rampa: { dosya: 'kat/rampa.png', satir: { black: 0, blond: 1, white: 2, blue: 3, orange: 4, green: 5, pink: 6 } },
 
@@ -98,6 +101,12 @@
       bork: { ad: 'Keçe Börk', kaynak: 'fes', dosya: 'kat/baslik_bork.webp' },
       tolga: { ad: 'Tunç Tolga', kaynak: 'kask1', dosya: 'kat/baslik_tolga.webp' },
       kara_migfer: { ad: 'Kara Miğfer', kaynak: 'kask1', dosya: 'kat/baslik_kara_migfer.webp' }
+    },
+    /* YÜZ AKSESUARLARI (Faz 3, 2026-11-22). Kullanıcı (Mehmet): aksesuar yüzü olan bir kafaya çizdirilmez; göz ya da ten değişince bozulmamalı.
+       Üretim: görsel model yüzsüz gri baş silüetinin (önden, arkadan, yandan) üstüne yalnız eşyayı çizer, camlar düz magenta;
+       tools/kat_yuzaks_donustur.py katmanı ayırır, camı yarı saydam yapar, sablon.yuzAks hücrelerine koyar. Ekipman: eşyanın "kat" alanı. */
+    yuzAks: {
+      gozluk: { ad: 'Demirci Gözlüğü', dosya: 'kat/yuzaks_gozluk.webp' }
     },
     /* zırh setlerinin gövdesi (53 kare, eski sayfa; ölçüler assets/gorunus_atlas.js govde.<set>) */
     govde: { dosya: set => 'gorunus/govde_' + set + '.webp' }

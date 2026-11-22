@@ -101,3 +101,11 @@ test('ekipman başlıkları Kat kataloğunda karşılığını bulur', () => {
   const bas = w.EO2_EKIPMAN.KATALOG.filter(k => k.slot === 'baslik'); assert.ok(bas.length);
   for (const k of bas) assert.ok(k.kat && K.baslik[k.kat], k.id + ': kat ' + k.kat);
 });
+
+test('yüz aksesuarları (Faz 3): dosya ve ölçü, sırada yeri var; ekipmandaki "kat" alanı katalogda', () => {
+  const T = K.sablon.yuzAks; assert.ok(K.sira.includes('yuzAks'));
+  assert.ok(K.sira.indexOf('yuzAks') > K.sira.indexOf('sacOn') && K.sira.indexOf('yuzAks') < K.sira.indexOf('baslik'), 'yüz aksesuarı saçın önünde, başlığın altında');
+  for (const [id, o] of Object.entries(K.yuzAks)) { assert.ok(o.ad && fs.existsSync(yol(o.dosya)), id + ': ' + o.dosya); assert.deepStrictEqual(olcu(yol(o.dosya)), { w: T.cw * T.hucre.length, h: T.ch }, id + ': ölçü'); }
+  const w = {}; new Function('window', fs.readFileSync(path.join(__dirname, '..', 'eo2', 'js', 'ekipman_kural.js'), 'utf8'))(w);
+  for (const k of w.EO2_EKIPMAN.KATALOG.filter(k => k.slot === 'yuz' && k.kat)) assert.ok(K.yuzAks[k.kat], k.id + ': kat ' + k.kat);
+});

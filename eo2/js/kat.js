@@ -1,6 +1,6 @@
 /* Ejder Ocağı 2.0 · Kat kurucusu (window.EO2_KAT_KUR, oyunda EO2.kat) · 2026-11-22
    Karakteri katalogdan (assets/kat/katalog.js) kurar: gövde (zırh seti) + başa bağlı parçalar (saç, yüz, kulak, başlık; sonra yüz aksesuarı, pelerin).
-   g: { sac, sacRenk, goz, gozRenk, baslik? } (baslik: katalogdaki başlık kimliği, ekipmandan gelir).
+   g: { sac, sacRenk, goz, gozRenk, baslik?, yuzAks? } (baslik, yuzAks: katalogdaki kimlik, ekipmandan gelir).
    Çıktı eski kurucuyla (js/gorunum.js) aynı biçimdeki 53 karelik karakter sayfasıdır; oyun onu EO2.setEkle ile kaydeder.
    - Parça başına tek dosya, yön başına birkaç hücre. Hücre seçimi: yürüyüş karesi → <yön>_yuru (yoksa <yön>_durus, iz kadar kaydırılmış);
      sevinç karesi → <yön>_sevinc (yoksa duruş); öteki kareler → <yön>_durus.
@@ -56,6 +56,8 @@
     if (goz) L.push(resim(goz.dosya).then(img => ({ katman: 'yuz', img, sab: K.sablon.yuz, satir: gr ? gr.satir : 0, liste: goz.hucre })));
     if (K.kulak) L.push(resim(K.kulak.dosya).then(img => ({ katman: tasi('kulak'), img, sab: K.sablon.kulak, satir: 0 })));
     if (bs) bs.parca.forEach((kt, i) => L.push(resim(bs.B.dosya).then(img => ({ katman: kt, img, sab: K.sablon.baslik, satir: i, gizler: gizBas }))));
+    /* yüz aksesuarı (gözlük, maske, sargı): tek satır, 3 hücre; yüzün üstünde, saçın önünde (kayış arkadan saçın üstünden geçer) */
+    const ya = g.yuzAks && K.yuzAks && K.yuzAks[g.yuzAks]; if (ya) L.push(resim(ya.dosya).then(img => ({ katman: 'yuzAks', img, sab: K.sablon.yuzAks, satir: 0 })));
     return Promise.all(L);
   }
   const sirasi = yon => K.siraYon[yon] || K.sira;
@@ -84,7 +86,7 @@
     });
   }
   /* seçenekler (görünüş ekranı): katalogdaki adlar ve renk örnekleri */
-  const secenekler = () => { const ad = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v.ad])); return { sac: ad(K.sac), sacRenk: ad(K.sacRenk), goz: ad(K.goz), gozRenk: ad(K.gozRenk), baslik: ad(K.baslik || {}) }; };
+  const secenekler = () => { const ad = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v.ad])); return { sac: ad(K.sac), sacRenk: ad(K.sacRenk), goz: ad(K.goz), gozRenk: ad(K.gozRenk), baslik: ad(K.baslik || {}), yuzAks: ad(K.yuzAks || {}) }; };
   const ornek = (alan, v) => { const o = K[alan] && K[alan][v]; return o && o.ornek || null; };
   const api = { kur, hucre, secenekler, ornek, katalog: K, boya };
   window.EO2_KAT_KUR = api; if (window.EO2) window.EO2.kat = api;

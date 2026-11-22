@@ -8,8 +8,8 @@
      Portreye dokunmak (ve I tuşu) bu ekranı açar; saç ve göz için "Görünüş" düğmesi js/gorunum.js ekranına gider.
    - Zırhçı (G.screen 'zirhci'): Usta Kerim'in tezgâhındaki vitrin. Slot sekmeleri, fiyat (altın + malzeme), malzemenin nereden düştüğü, "Sende" işareti.
    ÇİZİM: zırh setlerinin meydan ve savaş çizimi var. Başlık meydanda, aynada ve kartta karakterin üstünde çizilir (Kat sistemi, 2026-11-22:
-     eşyanın "kat" alanı assets/kat/katalog.js başlığıdır); savaş karelerinde henüz yok. Pelerin ve yüz aksesuarının karakter üstü çizimi
-     henüz yok; kartlarda eşya resmi görünür, ekran bunu açıkça yazar.
+     eşyanın "kat" alanı assets/kat/katalog.js başlığıdır); yüz aksesuarı da öyle (Demirci Gözlüğü, katalog yuzAks). Savaş karelerinde henüz yok.
+     Pelerinin ve çizimi gelmemiş yüz aksesuarlarının karakter üstü çizimi henüz yok; kartlarda eşya resmi görünür, ekran bunu açıkça yazar.
    KAYIT: S.ekipman (bkz. ekipman_kural.js). S.kusam (giyili set ve sahip olunan setler) buradan eşitlenir: js/gorunum.js çizimi oradan okur.
    BEDESTEN: kademeli satış Faz 2'dir (kademe önce sunucuya taşınmalı; şartname §7). */
 (function () {
@@ -37,18 +37,19 @@
   const ikonUrl = k => (k && k.ikon ? (/^img\//.test(k.ikon) ? G.url(k.ikon) : k.ikon) : '');
   const SEVIYE = p => (p.kademe >= 12 ? 4 : p.kademe >= 7 ? 3 : p.kademe >= 4 ? 2 : 1);   // kart çerçevesi (mal2 t1–t4)
   /* zırh seti için ayna/kart çizimi: görünüşlü atlas (saç, göz) varsa onu kullanır */
-  /* baslik: verilirse giyili başlık yerine o başlıkla çizer ('' = başlıksız; aynada ve kartta deneme) */
-  async function setCiz(cv, set, yon, baslik) { const A = EO2.api; if (!A || !cv) return; try { if (EO2.setAl(set) && !EO2.setAl(set).img) { A.drawPortrait(document.createElement('canvas'), set, 0.5); await new Promise(r => setTimeout(r, 500)); } } catch (_) { }
-    let ad = set; try { if (EO2.gorunum && EO2.gorunum.kur) ad = (await EO2.gorunum.kur(set, Object.assign(EO2.gorunum.benim(), baslik === undefined ? {} : { baslik }))) || set; } catch (_) { }
+  /* dene: { alan, id } verilirse giyili başlık ya da yüz aksesuarı yerine o eşyayla çizer (aynada ve kartta deneme) */
+  async function setCiz(cv, set, yon, dene) { const A = EO2.api; if (!A || !cv) return; try { if (EO2.setAl(set) && !EO2.setAl(set).img) { A.drawPortrait(document.createElement('canvas'), set, 0.5); await new Promise(r => setTimeout(r, 500)); } } catch (_) { }
+    let ad = set; try { if (EO2.gorunum && EO2.gorunum.kur) ad = (await EO2.gorunum.kur(set, Object.assign(EO2.gorunum.benim(), dene ? { [dene.alan]: dene.id } : {}))) || set; } catch (_) { }
     const st = EO2.setAl && EO2.setAl(ad); if (!st || !st.img || !cv.isConnected) return; const m = st.m, i = m.frames[(yon || 'down') + '_idle'], x = cv.getContext('2d'), k = Math.min(cv.width / m.cw, cv.height / m.ch);
     x.clearRect(0, 0, cv.width, cv.height); x.imageSmoothingQuality = 'high'; x.drawImage(st.img, (i % m.cols) * m.cw, Math.floor(i / m.cols) * m.ch, m.cw, m.ch, (cv.width - m.cw * k) / 2, cv.height - m.ch * k, m.cw * k, m.ch * k); }
-  /* karakter üstü çizimi olan eşya: zırh (set) ve Kat kataloğunda karşılığı olan başlık (kat). Ötekiler (pelerin, yüz) yalnız dolapta görünür. */
-  const katBaslik = k => !!(k && k.slot === 'baslik' && k.kat && window.EO2_KAT && window.EO2_KAT.baslik && window.EO2_KAT.baslik[k.kat]);
-  const cizimsiz = k => !!k && k.slot !== 'zirh' && k.slot !== 'silah' && !katBaslik(k);
+  /* karakter üstü çizimi olan eşya: zırh (set) ve Kat kataloğunda karşılığı olan başlık ya da yüz aksesuarı (kat). Ötekiler yalnız dolapta görünür. */
+  const KAT_ALAN = { baslik: 'baslik', yuz: 'yuzAks' };   // ekipman slotu → Kat kataloğu alanı
+  const katCizim = k => { const a = k && KAT_ALAN[k.slot], K = window.EO2_KAT; return a && k.kat && K && K[a] && K[a][k.kat] ? { alan: a, id: k.kat } : null; };
+  const cizimsiz = k => !!k && k.slot !== 'zirh' && k.slot !== 'silah' && !katCizim(k);
   const giyiliSet = () => { try { return EK.kat(EK.giyiliParca(durum(), 'zirh').id).set; } catch (_) { return 'temel'; } };
   const resimHtml = (k, cls) => (k.slot === 'zirh' ? '<canvas class="' + (cls || '') + '" width="120" height="150" data-set-ciz="' + esc_(k.set) + '" aria-hidden="true"></canvas>' :
-    katBaslik(k) ? '<canvas class="' + (cls || '') + ' dl-bas" width="120" height="150" data-set-ciz="' + esc_(giyiliSet()) + '" data-baslik="' + esc_(k.kat) + '" aria-hidden="true"></canvas>' : (k.ikon ? '<img alt="" src="' + esc_(ikonUrl(k)) + '"' + (cls ? ' class="' + cls + '"' : '') + '>' : '<i class="dl-bos-ik' + (cls ? ' ' + cls : '') + '" aria-hidden="true"></i>'));
-  const cizimleriKur = kok => kok.querySelectorAll('canvas[data-set-ciz]').forEach(cv => setCiz(cv, cv.dataset.setCiz, 'down', cv.dataset.baslik));
+    katCizim(k) ? '<canvas class="' + (cls || '') + ' dl-bas" width="120" height="150" data-set-ciz="' + esc_(giyiliSet()) + '" data-kat-alan="' + katCizim(k).alan + '" data-kat-id="' + esc_(k.kat) + '" aria-hidden="true"></canvas>' : (k.ikon ? '<img alt="" src="' + esc_(ikonUrl(k)) + '"' + (cls ? ' class="' + cls + '"' : '') + '>' : '<i class="dl-bos-ik' + (cls ? ' ' + cls : '') + '" aria-hidden="true"></i>'));
+  const cizimleriKur = kok => kok.querySelectorAll('canvas[data-set-ciz]').forEach(cv => setCiz(cv, cv.dataset.setCiz, 'down', cv.dataset.katAlan ? { alan: cv.dataset.katAlan, id: cv.dataset.katId } : undefined));
   const etkiYazi = p => { const s = EK.slotu(p), e = EK.ETKI[s]; if (!e) return 'Güç vermez; yalnız görünüş.'; if (p.catlak) return 'Çatlak: artış işlemiyor. Kor Örsü\'nde onarılır.'; return EK.ETKI_AD[e] + ' +%' + yuzde(EK.artis(p)) + (p.kademe < EK.EN_COK ? ' · Örs\'te kademe başına +%' + yuzde(EK.ARTIS) : ' · zirve'); };
 
   /* ---------- Kuşam ve Dolap ---------- */
@@ -78,13 +79,13 @@
       '<button type="button" class="gbtn altin dl-zirhci" data-dl-git="zirhci">Zırhçı vitrini<small>Usta Kerim · yeni parça al</small></button></section>';
     return '<div class="dl-kok">' + ust + alt + '</div>'; }
   function aynaCiz(body) { const cv = body.querySelector('#dlAyna'); if (!cv) return; const E = durum(), p = U.dene ? parcaById(U.dene) : null, s = p && EK.slotu(p), set = s === 'zirh' ? EK.kat(p.id).set : EK.kat(EK.giyiliParca(E, 'zirh').id).set;
-    setCiz(cv, set, 'down', s === 'baslik' ? EK.kat(p.id).kat : undefined); }
+    setCiz(cv, set, 'down', p && s !== 'zirh' ? katCizim(EK.kat(p.id)) || undefined : undefined); }
   G.screen('dolap', { k: 'Terbiyeci', t: 'Kuşam ve dolap', cls: 'dl', bg: 'a:kiraathane', enter() { U.dene = null; }, leave() { U.dene = null; }, draw(body) {
     body.innerHTML = dolapHtml(); aynaCiz(body); cizimleriKur(body);
     body.querySelectorAll('[data-dl-sekme]').forEach(b => b.addEventListener('click', () => { ses('ui'); U.sekme = b.dataset.dlSekme; U.sec = null; U.dene = null; G.redraw(); }));
     const sr = body.querySelector('[data-dl-sirala]'); if (sr) sr.addEventListener('change', () => { ses('ui'); U.sirala = sr.value; G.redraw(); });
     body.querySelectorAll('[data-dl-slot]').forEach(b => b.addEventListener('click', () => { ses('ui'); const s = b.dataset.dlSlot, E = durum(); U.sekme = s; U.sec = E.giyili[s] || null; U.dene = null; G.redraw(); }));
-    body.querySelectorAll('[data-dl-kart]').forEach(b => b.addEventListener('click', () => { ses('ui'); U.sec = b.dataset.dlKart; const p = durum().parca.find(q => q.uid === U.sec); const sl = p && EK.slotu(p); U.dene = p && (sl === 'zirh' || (sl === 'baslik' && katBaslik(EK.kat(p.id)))) && durum().giyili[sl] !== p.uid ? p.id : null; G.redraw(); }));
+    body.querySelectorAll('[data-dl-kart]').forEach(b => b.addEventListener('click', () => { ses('ui'); U.sec = b.dataset.dlKart; const p = durum().parca.find(q => q.uid === U.sec); const sl = p && EK.slotu(p); U.dene = p && (sl === 'zirh' || katCizim(EK.kat(p.id))) && durum().giyili[sl] !== p.uid ? p.id : null; G.redraw(); }));
     body.querySelectorAll('[data-dl-git]').forEach(b => b.addEventListener('click', () => { ses('ui'); G.open(b.dataset.dlGit); }));
     body.querySelectorAll('[data-dl]').forEach(b => b.addEventListener('click', () => { const E = durum(), p = E.parca.find(q => q.uid === U.sec); if (!p) return; const k = EK.kat(p.id), e = b.dataset.dl;
       if (e === 'giy') { if (giy(p.uid)) { ses('chime'); U.dene = null; G.toast('<b>' + esc_(k.ad) + '</b> kuşanıldı.', 'goal'); } }

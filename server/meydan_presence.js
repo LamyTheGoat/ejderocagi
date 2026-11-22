@@ -35,7 +35,7 @@ function temizDurum(msg) {
   const a = typeof msg.a === 'string' && /^[a-z0-9]{2,16}$/.test(msg.a) ? msg.a : null, x = sayi(msg.x, -400, 400), y = sayi(msg.y, -400, 400);
   if (!a || x === null || y === null) return null;
   const e = msg.e && typeof msg.e === 'object' && JEST.has(msg.e.k) && Number.isSafeInteger(msg.e.t) ? { k: msg.e.k, t: msg.e.t } : null;
-  return { a, x, y, d: YON.has(msg.d) ? msg.d : 'down', s: typeof msg.s === 'string' && /^[a-z]{2,12}$/.test(msg.s) ? msg.s : 'temel', gr: typeof msg.g === 'string' && /^[a-z]{2,10}(\.[a-z]{2,10}){3}(\.[a-z0-9_]{2,16})?$/.test(msg.g) ? msg.g : '', p: msg.p ? 1 : 0, e, n: temizAd(msg.n) };
+  return { a, x, y, d: YON.has(msg.d) ? msg.d : 'down', s: typeof msg.s === 'string' && /^[a-z]{2,12}$/.test(msg.s) ? msg.s : 'temel', gr: typeof msg.g === 'string' && /^[a-z]{2,10}(\.[a-z]{2,10}){3}(\.[a-z0-9_]{2,16}){0,2}$/.test(msg.g) ? msg.g : '', p: msg.p ? 1 : 0, e, n: temizAd(msg.n) };
 }
 
 // kimlik(socket): oyuncunun sunucudaki hesap adı (@gezgin_...). Gizli değildir; düello daveti ve takas bu adla yapılır.

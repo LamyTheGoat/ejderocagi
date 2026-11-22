@@ -23,7 +23,9 @@ test('durum doğrulaması: sayılar sınırlanır, bilinmeyen değerler varsayı
   assert.equal(temizDurum({ a: 'master', x: 0, y: 0, g: 'atkuyrugu.blue.iri.green' }).gr, 'atkuyrugu.blue.iri.green');
   // 2026-11-22 (Kat Faz 3): isteğe bağlı beşinci parça giyilen başlıktır
   assert.equal(temizDurum({ a: 'master', x: 0, y: 0, g: 'kisa.blue.iri.green.kara_migfer' }).gr, 'kisa.blue.iri.green.kara_migfer');
-  for (const kotu of ['<script>', 'a.b.c', 'A.B.C.D', 'a.b.c.d.<x>', 'kisa.blue.iri.green.a.b', 'x'.repeat(60), 12, null]) assert.equal(temizDurum({ a: 'master', x: 0, y: 0, g: kotu }).gr, '');
+  // altıncı parça giyilen yüz aksesuarı (başlık yoksa beşinci parça 'yok')
+  assert.equal(temizDurum({ a: 'master', x: 0, y: 0, g: 'kisa.blue.iri.green.yok.gozluk' }).gr, 'kisa.blue.iri.green.yok.gozluk');
+  for (const kotu of ['<script>', 'a.b.c', 'A.B.C.D', 'a.b.c.d.<x>', 'kisa.blue.iri.green.a.b', 'kisa.blue.iri.green.yok.gozluk.fazla', 'x'.repeat(60), 12, null]) assert.equal(temizDurum({ a: 'master', x: 0, y: 0, g: kotu }).gr, '');
   assert.equal(temizDurum({ a: 'master', x: 'NaN', y: 1 }), null);
   assert.equal(temizDurum({ a: '../etc', x: 1, y: 1 }), null);
   assert.equal(temizDurum({ a: 'master', x: 1, y: 1, e: { k: 'küfür', t: 1 } }).e, null);

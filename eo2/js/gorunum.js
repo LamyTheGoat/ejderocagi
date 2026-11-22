@@ -19,12 +19,14 @@
      Geri alma: localStorage eo2.kat = '0' → eski 53 karelik katman sayfaları (assets/gorunus/) ve eski kurucu. */
   const KT = () => window.EO2_KAT_KUR || null, katAcik = () => { if (!KT()) return false; try { return localStorage.getItem('eo2.kat') !== '0'; } catch (_) { return true; } };
   const AD = () => katAcik() ? KT().secenekler() : GA.ad, renkOrnek = (alan, v) => (katAcik() && KT().ornek(alan, v)) || (BOYA[alan] && BOYA[alan][v]) || '#888';
-  /* Giyilen başlık (Faz 3, 2026-11-22): ekipmandan gelir (js/ekipman_kural.js eşyanın "kat" alanı = Kat kataloğundaki başlık kimliği).
-     Kod: sac.sacRenk.goz.gozRenk[.baslik] (başlık yoksa eski 4 parçalı kod: eski istemciler aynen okur). */
-  const baslikVar = id => !!(id && katAcik() && KT().katalog.baslik && KT().katalog.baslik[id]);
-  const temiz = g => { const o = {}, A = AD(); for (const k of ALAN) o[k] = g && A[k] && A[k][g[k]] ? g[k] : 'orig'; o.baslik = g && baslikVar(g.baslik) ? g.baslik : ''; return o; };
-  const kod = g => ALAN.map(k => g[k]).join('.') + (g.baslik ? '.' + g.baslik : ''), coz = s => { const p = String(s || '').split('.'); return p.length === 4 || p.length === 5 ? temiz({ sac: p[0], sacRenk: p[1], goz: p[2], gozRenk: p[3], baslik: p[4] || '' }) : null; };
-  const giyilenBaslik = () => { try { const E = EO2.ekipman && EO2.ekipman.durum(), EK = window.EO2_EKIPMAN, p = E && EK && EK.giyiliParca(E, 'baslik'), k = p && EK.kat(p.id); return (k && k.kat) || ''; } catch (_) { return ''; } };
+  /* Giyilen başlık ve yüz aksesuarı (Faz 3, 2026-11-22): ekipmandan gelir (js/ekipman_kural.js eşyanın "kat" alanı = Kat kataloğundaki kimlik).
+     Kod: sac.sacRenk.goz.gozRenk[.baslik[.yuzAks]] (ikisi de yoksa eski 4 parçalı kod: eski istemciler aynen okur; başlıksız yüz aksesuarında başlık yerine 'yok'). */
+  const GIYIM = { baslik: 'baslik', yuzAks: 'yuz' };   // görünüş alanı → ekipman slotu
+  const katVar = (alan, id) => !!(id && katAcik() && KT().katalog[alan] && KT().katalog[alan][id]);
+  const temiz = g => { const o = {}, A = AD(); for (const k of ALAN) o[k] = g && A[k] && A[k][g[k]] ? g[k] : 'orig'; for (const k in GIYIM) o[k] = g && katVar(k, g[k]) ? g[k] : ''; return o; };
+  const kod = g => ALAN.map(k => g[k]).join('.') + (g.baslik || g.yuzAks ? '.' + (g.baslik || 'yok') : '') + (g.yuzAks ? '.' + g.yuzAks : ''),
+    coz = s => { const p = String(s || '').split('.'); return p.length >= 4 && p.length <= 6 ? temiz({ sac: p[0], sacRenk: p[1], goz: p[2], gozRenk: p[3], baslik: p[4] || '', yuzAks: p[5] || '' }) : null; };
+  const giyilen = alan => { try { const E = EO2.ekipman && EO2.ekipman.durum(), EK = window.EO2_EKIPMAN, p = E && EK && EK.giyiliParca(E, GIYIM[alan]), k = p && EK.kat(p.id); return (k && k.kat) || ''; } catch (_) { return ''; } };
   const ozgunMu = g => kod(g) === kod(OZGUN);
   const resimler = new Map(), yukle = ad => { if (!resimler.has(ad)) resimler.set(ad, new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => { resimler.delete(ad); no(new Error(ad)); }; i.src = 'assets/gorunus/' + ad + '.webp'; })); return resimler.get(ad); };
   const kurulan = new Map();   // anahtar → Promise<anahtar>
@@ -45,7 +47,7 @@
   /* savaş ekranı: aynı görünüş Topçu savaş karelerine de giydirilir (tools/bake_savas_gorunus.mjs). Gövde sayfaları olduğu gibi üst üste çizilir;
      baş parçaları (yüz, saç, kulak) az hücrelidir ve her kareye o karenin dönüşümüyle çizilir. Dönen: { ad, cv } (özgün görünüşte ya da çizimi olmayan sette null). Kare ölçüleri window.EO2_BATTLE.sets[ad] olarak kaydedilir. */
   const SG = window.EO2_SAVAS_GORUNUS, savasKurulan = new Map(), savasResim = ad => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error(ad)); i.src = 'assets/gorunus_savas/' + ad + '.webp'; });
-  function savas(set, g) { g = typeof g === 'string' ? coz(g) : temiz(g); if (g) g.baslik = '';   /* savaş karelerinde başlık henüz yok (Faz 4) */ const BT = window.EO2_BATTLE; if (!g || ozgunMu(g) || !SG || !SG.kutu || !SG.set[set] || !BT) return Promise.resolve(null);
+  function savas(set, g) { g = typeof g === 'string' ? coz(g) : temiz(g); if (g) { g.baslik = ''; g.yuzAks = ''; }   /* savaş karelerinde başlık ve yüz aksesuarı henüz yok (Faz 4) */ const BT = window.EO2_BATTLE; if (!g || ozgunMu(g) || !SG || !SG.kutu || !SG.set[set] || !BT) return Promise.resolve(null);
     const ad = 'g_' + set + '_' + kod(g).replace(/\./g, '_'); if (savasKurulan.has(ad)) return savasKurulan.get(ad);
     const sb = g.sac === 'orig' ? 'a' : 'b', sac = 'sac_' + g.sac + '_' + g.sacRenk, K = SG.kutu;
     const L = ['govde_' + set + '_1', sac + '_a', 'govde_' + set + '_2', sac + '_m', 'govde_' + set + '_3', 'yuz_' + g.goz + '_' + g.gozRenk + '_' + sb, sac + '_o', 'kulak_' + sb].filter(k => SG.var[k]);
@@ -81,13 +83,13 @@
   function satinAl(set) { if (EO2.ekipman) { const K0 = KUSAM.find(x => x[0] === set); if (!K0) return false; const p = EO2.ekipman.satinAl(window.EO2_EKIPMAN.KATALOG.find(q => q.set === set).id); if (p) { if (G.hud) G.hud(); uygula(); } return !!p; } const k = ks(), K = KUSAM.find(x => x[0] === set); if (!K || k.sahip.includes(set) || !yeter(K)) return false; if (EO2.rehber && EO2.rehber.kilitEngel && EO2.rehber.kilitEngel('kusam-al')) return false; S.gold -= K[2]; for (const m in K[4]) heybe()[m] = (heybe()[m] | 0) - K[4][m]; k.sahip.push(set); k.giyili = set; kaydet(); if (G.hud) G.hud(); uygula(); return true; }
 
   /* ---------- oyuncunun kendi görünüşü ---------- */
-  const benim = () => temiz(Object.assign({}, typeof S !== 'undefined' && S && S.gorunus, { baslik: giyilenBaslik() }));
+  const benim = () => temiz(Object.assign({}, typeof S !== 'undefined' && S && S.gorunus, { baslik: giyilen('baslik'), yuzAks: giyilen('yuzAks') }));
   let sonImza = '';
   async function uygula() { const p = EO2.api && EO2.api.player; if (!p || !G.live) return; const giyili = ks().giyili; if (p.set !== giyili && AT.sets[giyili]) { p.set = giyili; p.gor = null; }   /* giyili set kayıttan gelir */
     const g = benim(), imza = p.set + '|' + kod(g); if (imza === sonImza) return; sonImza = imza;
     try { const ad = await kur(p.set, g); if (sonImza === imza) { p.gor = ad; if (EO2.api.portreTazele) EO2.api.portreTazele(); } } catch (_) { sonImza = ''; } }
   setInterval(uygula, 400);
-  function sec(alan, v) { if (!ALAN.includes(alan) || !AD()[alan][v]) return; const g = Object.assign(benim(), { [alan]: v }); delete g.baslik; S.gorunus = g; if (typeof saveGame === 'function') saveGame(); uygula(); }
+  function sec(alan, v) { if (!ALAN.includes(alan) || !AD()[alan][v]) return; const g = Object.assign(benim(), { [alan]: v }); for (const k in GIYIM) delete g[k]; S.gorunus = g; if (typeof saveGame === 'function') saveGame(); uygula(); }
   /* meydandaki öteki oyuncu: görünüş kodu gelince atlası kurulur, hazır olunca giydirilir */
   function uzak(c, s) { const g = coz(s); if (!g || ozgunMu(g)) { c.gor = null; c.gorKod = ''; return; } const imza = c.set + '|' + kod(g); if (c.gorKod === imza) return; c.gorKod = imza; kur(c.set, g).then(ad => { if (c.gorKod === imza) c.gor = ad; }).catch(() => { c.gorKod = ''; }); }
 
