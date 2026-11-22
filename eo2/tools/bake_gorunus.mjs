@@ -1,3 +1,6 @@
+// 2026-11-22 · KAT SİSTEMİ: meydandaki karakter artık assets/kat/ (katalog.js + js/kat.js) ile kurulur; buradaki saç/yüz/kulak sayfaları
+// yalnız eski yol (localStorage eo2.kat = '0') ve Kat vitrinindeki karşılaştırma içindir. Yeni saç ya da göz BURADAN DEĞİL, katalogdan eklenir.
+// govde_<set>.webp hâlâ kullanılır (Kat'ın gövde katmanı).
 // EO2 · karakter görünüşü katmanlarını pişirir (2026-11-17, kullanıcı: "karakterimin saçını rengini vs ayarlayamıyorum"; chibi tarafına izin verildi).
 // Kaynak: prototype/chibi_rig/gate7/social.html (salt okunur; chibi katman sisteminin kendi çizicisi, saç stilleri, renk rampaları ve göz
 // renkleri aynen kullanılır). Yöntem: çizicinin katman sırası tablosu (CHIBI_ORDER) çekim sırasında süzülür; böylece gövde, yüz, saç ve

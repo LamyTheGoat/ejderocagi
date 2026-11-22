@@ -1,0 +1,108 @@
+<!doctype html>
+<!-- Ejder Ocağı 2.0 · Kat vitrini (2026-11-22). Yeni bir saç, göz ya da renk oyuna girmeden önce burada her yönde, yürürken ve dururken görülür.
+     Açmak için eo2/ klasörünü bir sunucuyla sun (ör. depo kökünde: python3 -m http.server -d eo2 8411) ve /tools/kat_vitrini.html adresine git.
+     "Eski kurucuyla karşılaştır": aynı görünüşü eski 53 karelik katman sayfalarından (assets/gorunus/) kurar, farkı sayıyla gösterir.
+     Denetim betikleri window.katKarsilastir(set, g) ile aynı ölçümü alır. Pakete girmez (tools/). -->
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kat vitrini</title>
+<style>
+  :root { --bg: #1c1a26; --kart: #2a2738; --yazi: #ece6d8; --soluk: #a49cb4; --altin: #e6b84c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--yazi); font: 14px/1.4 system-ui, sans-serif; padding: 16px; }
+  h1 { font-size: 18px; margin: 0 0 4px; } h2 { font-size: 15px; margin: 18px 0 8px; color: var(--altin); }
+  p.soluk { color: var(--soluk); margin: 0 0 12px; }
+  .secim { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  label { display: grid; gap: 2px; font-size: 12px; color: var(--soluk); }
+  select, button { font: inherit; padding: 4px 8px; border-radius: 6px; border: 1px solid #4a4560; background: var(--kart); color: var(--yazi); }
+  .sahne { display: flex; flex-wrap: wrap; gap: 8px; }
+  .kutu { background: var(--kart); border-radius: 8px; padding: 6px; text-align: center; font-size: 12px; color: var(--soluk); }
+  .kutu canvas { display: block; background: repeating-conic-gradient(#3a3650 0 25%, #332f47 0 50%) 0 0 / 16px 16px; border-radius: 4px; }
+  .fark { font-variant-numeric: tabular-nums; }
+  .iyi { color: #7fd68a; } .kotu { color: #f08a7a; }
+</style>
+</head>
+<body>
+<h1>Kat vitrini</h1>
+<p class="soluk">Katalog: assets/kat/katalog.js · kurucu: js/kat.js. Yeni parçayı ekledikten sonra burada bak.</p>
+<div class="secim" id="secim"></div>
+<h2>Seçilen görünüş</h2>
+<div class="sahne" id="anim"></div>
+<h2>Bütün saçlar (bu renkte, önden)</h2>
+<div class="sahne" id="saclar"></div>
+<h2>Eski kurucuyla karşılaştırma</h2>
+<p class="soluk">Sol: eski (53 karelik sayfalar) · sağ: Kat. Fark: kare başına, opak piksellerde ortalama renk farkı (0-255).</p>
+<div class="sahne" id="karsi"></div>
+<script>window.EO2_KAT_KOK = '../assets/';</script>
+<script src="../assets/atlas.js"></script>
+<script src="../assets/gorunus_atlas.js"></script>
+<script src="../assets/kat/katalog.js"></script>
+<script src="../js/kat.js"></script>
+<script>
+(function () {
+  'use strict';
+  const K = window.EO2_KAT, KK = window.EO2_KAT_KUR, GA = window.EO2_GORUNUS, AT = window.EO2_ATLAS, $ = id => document.getElementById(id);
+  const durum = { set: 'temel', sac: 'kisa', sacRenk: 'blue', goz: 'iri', gozRenk: 'gold' };
+  const SETLER = Object.keys(GA.govde);
+  const secenek = (alan, liste) => { const l = document.createElement('label'); l.textContent = alan; const s = document.createElement('select');
+    liste.forEach(([v, ad]) => { const o = document.createElement('option'); o.value = v; o.textContent = ad; s.appendChild(o); }); s.value = durum[alan];
+    s.addEventListener('change', () => { durum[alan] = s.value; ciz(); }); l.appendChild(s); $('secim').appendChild(l); };
+  secenek('set', SETLER.map(s => [s, s]));
+  for (const alan of ['sac', 'sacRenk', 'goz', 'gozRenk']) secenek(alan, Object.entries(K[alan]).map(([k, v]) => [k, v.ad]));
+
+  /* ---------- eski kurucu (js/gorunum.js, 2026-11-17 sürümü): karşılaştırma için aynen ---------- */
+  const eskiResim = new Map(), eskiYukle = ad => { if (!eskiResim.has(ad)) eskiResim.set(ad, new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error(ad)); i.src = '../assets/gorunus/' + ad + '.webp'; })); return eskiResim.get(ad); };
+  function eskiKur(set, g) {
+    const sb = g.sac === 'orig' ? 'a' : 'b', sac = g.sac + '_' + g.sacRenk;
+    const L = [['sac', sac + '_a'], ['govde', set], ['yuz', g.goz + '_' + g.gozRenk + '_' + sb], ['sac', sac + '_o'], ['kulak', sb]].filter(([grup, k]) => GA[grup][k]);
+    return Promise.all(L.map(([grup, k]) => eskiYukle(grup + '_' + k))).then(R => { const M = L.map(([grup, k]) => GA[grup][k]), B = AT.sets[set];
+      const sol = Math.ceil(Math.max(...M.map(m => m.ax))), sag = Math.ceil(Math.max(...M.map(m => m.cw - m.ax))), ust = Math.ceil(Math.max(...M.map(m => m.ay))), alt = Math.ceil(Math.max(...M.map(m => m.ch - m.ay)));
+      const cw = sol + sag, ch = ust + alt, anahtarlar = Object.keys(B.frames), cols = 9, rows = Math.ceil(anahtarlar.length / cols), c = document.createElement('canvas'); c.width = cols * cw; c.height = rows * ch; const x = c.getContext('2d'), frames = {};
+      anahtarlar.forEach((key, i) => { const cx = (i % cols) * cw, cy = Math.floor(i / cols) * ch; frames[key] = i;
+        M.forEach((m, j) => { const f = m.frames[key]; if (f == null) return; x.drawImage(R[j], (f % m.cols) * m.cw, Math.floor(f / m.cols) * m.ch, m.cw, m.ch, cx + sol - Math.round(m.ax), cy + ust - Math.round(m.ay), m.cw, m.ch); }); });
+      return { cv: c, m: { cw, ch, cols, rows, ax: sol, ay: ust, tall: B.tall, frames } }; });
+  }
+  /* bir kareyi ayak noktasına hizalı ortak tuvale çizer (iki kurucunun hücre ölçüleri farklı olabilir) */
+  const KUTU = { w: 380, h: 420, ax: 190, ay: 400 };
+  function kare(sonuc, key, hedef, olcek) { const m = sonuc.m, i = m.frames[key], x = hedef.getContext('2d'), k = olcek || 1; x.clearRect(0, 0, hedef.width, hedef.height); x.imageSmoothingQuality = 'high';
+    x.drawImage(sonuc.cv, (i % m.cols) * m.cw, Math.floor(i / m.cols) * m.ch, m.cw, m.ch, (KUTU.ax - m.ax) * k, (KUTU.ay - m.ay) * k, m.cw * k, m.ch * k); }
+  const tuval = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  function farkOlc(a, b, key) { const A = tuval(KUTU.w, KUTU.h), B = tuval(KUTU.w, KUTU.h); kare(a, key, A); kare(b, key, B);
+    const p = A.getContext('2d').getImageData(0, 0, KUTU.w, KUTU.h).data, q = B.getContext('2d').getImageData(0, 0, KUTU.w, KUTU.h).data; let t = 0, n = 0, en = 0;
+    for (let i = 0; i < p.length; i += 4) { if (p[i + 3] < 8 && q[i + 3] < 8) continue; const pa = p[i + 3] / 255, qa = q[i + 3] / 255;
+      const d = (Math.abs(p[i] * pa - q[i] * qa) + Math.abs(p[i + 1] * pa - q[i + 1] * qa) + Math.abs(p[i + 2] * pa - q[i + 2] * qa) + Math.abs(p[i + 3] - q[i + 3])) / 4; t += d; n++; if (d > en) en = d; }
+    return { ort: n ? t / n : 0, en, n }; }
+  /* denetim betikleri için: bütün karelerde ortalama ve en kötü kare */
+  window.katKarsilastir = async (set, g) => { const [a, b] = await Promise.all([eskiKur(set, g), KK.kur(set, g)]); let top = 0, enKotu = { ort: 0 }; const keys = Object.keys(AT.sets[set].frames);
+    for (const key of keys) { const f = farkOlc(a, b, key); top += f.ort; if (f.ort > enKotu.ort) enKotu = Object.assign({ key }, f); } return { ort: top / keys.length, enKotu }; };
+  window.katEskiKur = eskiKur;
+
+  let animSay = 0, animKur = null;
+  async function ciz() {
+    const g = { sac: durum.sac, sacRenk: durum.sacRenk, goz: durum.goz, gozRenk: durum.gozRenk }, set = durum.set, benim = ++animSay;
+    const yeni = await KK.kur(set, g); if (benim !== animSay) return;
+    /* canlı önizleme: üç yön yürüyüş + duruş + sevinç */
+    const A = $('anim'); A.innerHTML = ''; const anim = [];
+    const ekle = (ad, fn) => { const d = document.createElement('div'); d.className = 'kutu'; const c = tuval(KUTU.w / 2, KUTU.h / 2); d.appendChild(c); d.append(ad); A.appendChild(d); anim.push([c, fn]); };
+    for (const yon of ['down', 'up', 'right']) ekle(yon + ' yürüyüş', t => yon + '_walk_' + (Math.floor(t * 16) % 16));
+    for (const yon of ['down', 'up', 'right']) ekle(yon + ' duruş', () => yon + '_idle');
+    for (const yon of ['down', 'right']) ekle(yon + ' sevinç', () => yon + '_happy');
+    clearInterval(animKur); const t0 = performance.now(); const adim = () => { const t = (performance.now() - t0) / 1000 * 1.2; anim.forEach(([c, fn]) => kare(yeni, fn(t), c, 0.5)); }; adim(); animKur = setInterval(adim, 50);
+    /* bütün saçlar */
+    const S = $('saclar'); S.innerHTML = '';
+    for (const st of Object.keys(K.sac)) { const d = document.createElement('div'); d.className = 'kutu'; const c = tuval(KUTU.w / 2, KUTU.h / 2); d.appendChild(c); d.append(K.sac[st].ad); S.appendChild(d);
+      KK.kur(set, Object.assign({}, g, { sac: st })).then(r => kare(r, 'down_idle', c, 0.5)); }
+    /* karşılaştırma */
+    const KR = $('karsi'); KR.innerHTML = '';
+    let eski = null; try { eski = await eskiKur(set, g); } catch (e) { KR.textContent = 'Eski sayfa yok (yeni parça): karşılaştırılamaz.'; return; }
+    for (const key of ['down_idle', 'down_walk_5', 'up_idle', 'right_walk_3', 'right_happy']) { const d = document.createElement('div'); d.className = 'kutu'; const a = tuval(KUTU.w / 2, KUTU.h / 2), b = tuval(KUTU.w / 2, KUTU.h / 2); kare(eski, key, a, 0.5); kare(yeni, key, b, 0.5);
+      const f = farkOlc(eski, yeni, key), s = document.createElement('div'); s.className = 'fark ' + (f.ort < 4 ? 'iyi' : 'kotu'); s.textContent = key + ' · fark ' + f.ort.toFixed(2);
+      const r = document.createElement('div'); r.style.display = 'flex'; r.append(a, b); d.append(r, s); KR.appendChild(d); }
+  }
+  ciz();
+})();
+</script>
+</body>
+</html>
