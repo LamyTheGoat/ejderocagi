@@ -32,6 +32,8 @@
 <div class="sahne" id="anim"></div>
 <h2>Bütün saçlar (bu renkte, önden)</h2>
 <div class="sahne" id="saclar"></div>
+<h2>Bütün başlıklar (bu saç ve renkte)</h2>
+<div class="sahne" id="basliklar"></div>
 <h2>Eski kurucuyla karşılaştırma</h2>
 <p class="soluk">Sol: eski (53 karelik sayfalar) · sağ: Kat. Fark: kare başına, opak piksellerde ortalama renk farkı (0-255).</p>
 <div class="sahne" id="karsi"></div>
@@ -44,13 +46,14 @@
 (function () {
   'use strict';
   const K = window.EO2_KAT, KK = window.EO2_KAT_KUR, GA = window.EO2_GORUNUS, AT = window.EO2_ATLAS, $ = id => document.getElementById(id);
-  const durum = { set: 'temel', sac: 'kisa', sacRenk: 'blue', goz: 'iri', gozRenk: 'gold' };
+  const durum = { set: 'temel', sac: 'kisa', sacRenk: 'blue', goz: 'iri', gozRenk: 'gold', baslik: '' };
   const SETLER = Object.keys(GA.govde);
   const secenek = (alan, liste) => { const l = document.createElement('label'); l.textContent = alan; const s = document.createElement('select');
     liste.forEach(([v, ad]) => { const o = document.createElement('option'); o.value = v; o.textContent = ad; s.appendChild(o); }); s.value = durum[alan];
     s.addEventListener('change', () => { durum[alan] = s.value; ciz(); }); l.appendChild(s); $('secim').appendChild(l); };
   secenek('set', SETLER.map(s => [s, s]));
   for (const alan of ['sac', 'sacRenk', 'goz', 'gozRenk']) secenek(alan, Object.entries(K[alan]).map(([k, v]) => [k, v.ad]));
+  secenek('baslik', [['', 'Başlıksız']].concat(Object.entries(K.baslik || {}).map(([k, v]) => [k, v.ad])));
 
   /* ---------- eski kurucu (js/gorunum.js, 2026-11-17 sürümü): karşılaştırma için aynen ---------- */
   const eskiResim = new Map(), eskiYukle = ad => { if (!eskiResim.has(ad)) eskiResim.set(ad, new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error(ad)); i.src = '../assets/gorunus/' + ad + '.webp'; })); return eskiResim.get(ad); };
@@ -81,7 +84,7 @@
 
   let animSay = 0, animKur = null;
   async function ciz() {
-    const g = { sac: durum.sac, sacRenk: durum.sacRenk, goz: durum.goz, gozRenk: durum.gozRenk }, set = durum.set, benim = ++animSay;
+    const g = { sac: durum.sac, sacRenk: durum.sacRenk, goz: durum.goz, gozRenk: durum.gozRenk, baslik: durum.baslik }, set = durum.set, benim = ++animSay;
     const yeni = await KK.kur(set, g); if (benim !== animSay) return;
     /* canlı önizleme: üç yön yürüyüş + duruş + sevinç */
     const A = $('anim'); A.innerHTML = ''; const anim = [];
@@ -94,8 +97,13 @@
     const S = $('saclar'); S.innerHTML = '';
     for (const st of Object.keys(K.sac)) { const d = document.createElement('div'); d.className = 'kutu'; const c = tuval(KUTU.w / 2, KUTU.h / 2); d.appendChild(c); d.append(K.sac[st].ad); S.appendChild(d);
       KK.kur(set, Object.assign({}, g, { sac: st })).then(r => kare(r, 'down_idle', c, 0.5)); }
+    /* bütün başlıklar: bu saçla, önden, arkadan ve yandan */
+    const BS = $('basliklar'); BS.innerHTML = '';
+    for (const id of Object.keys(K.baslik || {})) { const d = document.createElement('div'); d.className = 'kutu'; const r = document.createElement('div'); r.style.display = 'flex'; const cs = ['down', 'up', 'right'].map(() => tuval(KUTU.w / 2, KUTU.h / 2)); r.append(...cs); d.append(r, K.baslik[id].ad); BS.appendChild(d);
+      KK.kur(set, Object.assign({}, g, { baslik: id })).then(res => ['down', 'up', 'right'].forEach((y, i) => kare(res, y + '_idle', cs[i], 0.5))); }
     /* karşılaştırma */
     const KR = $('karsi'); KR.innerHTML = '';
+    if (g.baslik) { KR.textContent = 'Başlıklı görünüşün eski karşılığı yok.'; return; }
     let eski = null; try { eski = await eskiKur(set, g); } catch (e) { KR.textContent = 'Eski sayfa yok (yeni parça): karşılaştırılamaz.'; return; }
     for (const key of ['down_idle', 'down_walk_5', 'up_idle', 'right_walk_3', 'right_happy']) { const d = document.createElement('div'); d.className = 'kutu'; const a = tuval(KUTU.w / 2, KUTU.h / 2), b = tuval(KUTU.w / 2, KUTU.h / 2); kare(eski, key, a, 0.5); kare(yeni, key, b, 0.5);
       const f = farkOlc(eski, yeni, key), s = document.createElement('div'); s.className = 'fark ' + (f.ort < 4 ? 'iyi' : 'kotu'); s.textContent = key + ' · fark ' + f.ort.toFixed(2);

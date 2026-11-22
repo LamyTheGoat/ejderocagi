@@ -1,0 +1,298 @@
+{
+ "sablon": {
+  "baslik": {
+   "cw": 172,
+   "ch": 256,
+   "ax": 96,
+   "ay": 365
+  },
+  "sacAlti": {
+   "cw": 197,
+   "ch": 244,
+   "ax": 113,
+   "ay": 374
+  }
+ },
+ "stiller": [
+  "orig",
+  "kisa",
+  "topuz",
+  "atkuyrugu",
+  "yan",
+  "uzun",
+  "ikiz",
+  "kut",
+  "orgu"
+ ],
+ "parca": [
+  "sacArka",
+  "sacOn",
+  "sacUst"
+ ],
+ "baslik": {
+  "bandana": {
+   "ad": "Bandana",
+   "tur": "open",
+   "parca": [
+    "baslik"
+   ],
+   "bos": [
+    "uzun.sacUst",
+    "kut.sacUst"
+   ]
+  },
+  "sapka1": {
+   "ad": "Ozan şapkası",
+   "tur": "closed",
+   "parca": [
+    "baslik"
+   ],
+   "bos": [
+    "orig.sacUst",
+    "kisa.sacUst",
+    "topuz.sacUst",
+    "atkuyrugu.sacUst",
+    "yan.sacUst",
+    "uzun.sacUst",
+    "ikiz.sacUst",
+    "kut.sacUst",
+    "orgu.sacUst"
+   ]
+  },
+  "fes": {
+   "ad": "Fes",
+   "tur": "closed",
+   "parca": [
+    "baslik"
+   ],
+   "bos": [
+    "orig.sacUst",
+    "kisa.sacUst",
+    "topuz.sacUst",
+    "atkuyrugu.sacUst",
+    "yan.sacUst",
+    "uzun.sacUst",
+    "ikiz.sacUst",
+    "kut.sacUst",
+    "orgu.sacUst"
+   ]
+  },
+  "kep1": {
+   "ad": "Brokar kep",
+   "tur": "closed",
+   "parca": [
+    "baslik"
+   ],
+   "bos": [
+    "orig.sacUst",
+    "kisa.sacUst",
+    "topuz.sacUst",
+    "atkuyrugu.sacUst",
+    "yan.sacUst",
+    "uzun.sacUst",
+    "ikiz.sacUst",
+    "kut.sacUst",
+    "orgu.sacUst"
+   ]
+  },
+  "tac1": {
+   "ad": "Demir taç",
+   "tur": "open",
+   "parca": [
+    "baslik"
+   ],
+   "bos": [
+    "uzun.sacUst",
+    "kut.sacUst"
+   ],
+   "sacAltiOrtak": "bandana"
+  },
+  "kapuson1": {
+   "ad": "Kapüşon",
+   "tur": "hood",
+   "parca": [
+    "baslikArka",
+    "baslik",
+    "yama"
+   ],
+   "bos": [
+    "orig.sacArka",
+    "orig.sacUst",
+    "kisa.sacArka",
+    "kisa.sacUst",
+    "topuz.sacArka",
+    "topuz.sacUst",
+    "atkuyrugu.sacArka",
+    "atkuyrugu.sacUst",
+    "yan.sacArka",
+    "yan.sacUst",
+    "uzun.sacArka",
+    "uzun.sacUst",
+    "ikiz.sacArka",
+    "ikiz.sacUst",
+    "kut.sacArka",
+    "kut.sacUst",
+    "orgu.sacArka",
+    "orgu.sacUst"
+   ]
+  },
+  "kask1": {
+   "ad": "Demir miğfer",
+   "tur": "closed",
+   "parca": [
+    "baslik"
+   ],
+   "bos": [
+    "orig.sacUst",
+    "kisa.sacUst",
+    "topuz.sacUst",
+    "atkuyrugu.sacUst",
+    "yan.sacUst",
+    "uzun.sacUst",
+    "ikiz.sacUst",
+    "kut.sacUst",
+    "orgu.sacUst"
+   ]
+  },
+  "kefiye1": {
+   "ad": "Kefiye",
+   "tur": "wrap",
+   "parca": [
+    "baslikArka",
+    "baslik",
+    "yama"
+   ],
+   "bos": [
+    "orig.sacArka",
+    "orig.sacUst",
+    "kisa.sacArka",
+    "kisa.sacUst",
+    "topuz.sacArka",
+    "topuz.sacUst",
+    "atkuyrugu.sacArka",
+    "atkuyrugu.sacUst",
+    "yan.sacArka",
+    "yan.sacUst",
+    "uzun.sacArka",
+    "uzun.sacUst",
+    "ikiz.sacArka",
+    "ikiz.sacUst",
+    "kut.sacArka",
+    "kut.sacUst",
+    "orgu.sacArka",
+    "orgu.sacUst"
+   ]
+  },
+  "hasir1": {
+   "ad": "Hasır şapka",
+   "tur": "closed",
+   "parca": [
+    "baslik"
+   ],
+   "bos": [
+    "orig.sacUst",
+    "kisa.sacUst",
+    "topuz.sacUst",
+    "atkuyrugu.sacUst",
+    "yan.sacUst",
+    "uzun.sacUst",
+    "ikiz.sacUst",
+    "kut.sacUst",
+    "orgu.sacUst"
+   ]
+  },
+  "kukuleta1": {
+   "ad": "Kukuleta",
+   "tur": "hood",
+   "parca": [
+    "baslik",
+    "yama"
+   ],
+   "bos": [
+    "orig.sacArka",
+    "orig.sacUst",
+    "kisa.sacArka",
+    "kisa.sacUst",
+    "topuz.sacArka",
+    "topuz.sacUst",
+    "atkuyrugu.sacArka",
+    "atkuyrugu.sacUst",
+    "yan.sacArka",
+    "yan.sacUst",
+    "uzun.sacArka",
+    "uzun.sacUst",
+    "ikiz.sacArka",
+    "ikiz.sacUst",
+    "kut.sacArka",
+    "kut.sacUst",
+    "orgu.sacArka",
+    "orgu.sacUst"
+   ]
+  },
+  "basortu1": {
+   "ad": "Başörtüsü",
+   "tur": "wrap",
+   "parca": [
+    "baslikArka",
+    "baslik",
+    "yama"
+   ],
+   "bos": [
+    "orig.sacArka",
+    "orig.sacUst",
+    "kisa.sacArka",
+    "kisa.sacUst",
+    "topuz.sacArka",
+    "topuz.sacUst",
+    "atkuyrugu.sacArka",
+    "atkuyrugu.sacUst",
+    "yan.sacArka",
+    "yan.sacUst",
+    "uzun.sacArka",
+    "uzun.sacUst",
+    "ikiz.sacArka",
+    "ikiz.sacUst",
+    "kut.sacArka",
+    "kut.sacUst",
+    "orgu.sacArka",
+    "orgu.sacUst"
+   ]
+  },
+  "sarik1": {
+   "ad": "Sarık",
+   "tur": "closed",
+   "parca": [
+    "baslik"
+   ],
+   "bos": [
+    "orig.sacUst",
+    "kisa.sacUst",
+    "topuz.sacUst",
+    "atkuyrugu.sacUst",
+    "yan.sacUst",
+    "uzun.sacUst",
+    "ikiz.sacUst",
+    "kut.sacUst",
+    "orgu.sacUst"
+   ]
+  },
+  "bork": {
+   "kaynak": "fes",
+   "parca": [
+    "baslik"
+   ]
+  },
+  "tolga": {
+   "kaynak": "kask1",
+   "parca": [
+    "baslik"
+   ]
+  },
+  "kara_migfer": {
+   "kaynak": "kask1",
+   "parca": [
+    "baslik"
+   ]
+  }
+ }
+}

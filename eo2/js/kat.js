@@ -1,5 +1,6 @@
 /* Ejder Ocağı 2.0 · Kat kurucusu (window.EO2_KAT_KUR, oyunda EO2.kat) · 2026-11-22
-   Karakteri katalogdan (assets/kat/katalog.js) kurar: gövde (zırh seti) + başa bağlı parçalar (saç, yüz, kulak; sonra başlık, yüz aksesuarı).
+   Karakteri katalogdan (assets/kat/katalog.js) kurar: gövde (zırh seti) + başa bağlı parçalar (saç, yüz, kulak, başlık; sonra yüz aksesuarı, pelerin).
+   g: { sac, sacRenk, goz, gozRenk, baslik? } (baslik: katalogdaki başlık kimliği, ekipmandan gelir).
    Çıktı eski kurucuyla (js/gorunum.js) aynı biçimdeki 53 karelik karakter sayfasıdır; oyun onu EO2.setEkle ile kaydeder.
    - Parça başına tek dosya, yön başına birkaç hücre. Hücre seçimi: yürüyüş karesi → <yön>_yuru (yoksa <yön>_durus, iz kadar kaydırılmış);
      sevinç karesi → <yön>_sevinc (yoksa duruş); öteki kareler → <yön>_durus.
@@ -40,12 +41,21 @@
   }
 
   /* ---------- seçilen görünüşün katmanları ---------- */
+  /* başlık: kendi satırları (baslikArka, baslik, yama) + türünün kuralı (baslikTur: hangi katman gizlenir, hangisi başka yuvaya taşınır).
+     Başlık takılıyken saç, başlığın kendi "saç altı" sayfasından çizilir (çizicinin kestiği hâli: taç başlığın altında kalır, kapüşonda yalnız perçem).
+     Saç altı sayfası olmayan bir stil (çizicide henüz pişirilmemiş yeni saç) çıplak hâliyle çizilir; katalog denetimi bunu yakalar. */
+  const baslikOf = id => { const B = id && K.baslik && K.baslik[id]; if (!B) return null; const kaynak = B.kaynak ? K.baslik[B.kaynak] : B; return kaynak ? { B, kaynak, parca: B.parca || kaynak.parca, tur: K.baslikTur[kaynak.tur] || {} } : null; };
   function katmanlar(set, g) {
-    const L = [], sac = K.sac[g.sac], sr = K.sacRenk[g.sacRenk], goz = K.goz[g.goz], gr = K.gozRenk[g.gozRenk];
+    const L = [], sac = K.sac[g.sac], sr = K.sacRenk[g.sacRenk], goz = K.goz[g.goz], gr = K.gozRenk[g.gozRenk], bs = baslikOf(g.baslik), rAd = sr && sr.rampa;
+    const tasi = k => (bs && bs.tur.tasi && bs.tur.tasi[k]) || k, gizBas = bs && bs.tur.gizler || [];
     L.push(resim(K.govde.dosya(set)).then(img => ({ katman: 'govde', img, govde: GA.govde[set] })));
-    if (sac) { const rAd = sr && sr.rampa, s = rAd ? boya(sac.dosya, rAd) : resim(sac.ozgun || sac.dosya);   /* Özgün renk: stilin kendi renkli sayfası */ sac.parca.forEach((kt, pi) => L.push(s.then(img => ({ katman: kt, img, sab: K.sablon.sac, satir: pi, liste: sac.hucre, gizler: sac.gizler })))); }
+    const SA = K.sablon.sacAlti, si = sac && bs && bs.kaynak.sacAlti && SA ? SA.stiller.indexOf(g.sac) : -1;
+    if (si >= 0) { const s = rAd ? boya(bs.kaynak.sacAlti, rAd) : resim(bs.kaynak.sacAltiOzgun || bs.kaynak.sacAlti);
+      SA.parca.forEach((kt, pi) => L.push(s.then(img => ({ katman: kt, img, sab: SA, satir: si * SA.parca.length + pi })))); }
+    else if (sac) { const s = rAd ? boya(sac.dosya, rAd) : resim(sac.ozgun || sac.dosya);   /* Özgün renk: stilin kendi renkli sayfası */ sac.parca.forEach((kt, pi) => L.push(s.then(img => ({ katman: kt, img, sab: K.sablon.sac, satir: pi, liste: sac.hucre, gizler: sac.gizler })))); }
     if (goz) L.push(resim(goz.dosya).then(img => ({ katman: 'yuz', img, sab: K.sablon.yuz, satir: gr ? gr.satir : 0, liste: goz.hucre })));
-    if (K.kulak) L.push(resim(K.kulak.dosya).then(img => ({ katman: 'kulak', img, sab: K.sablon.kulak, satir: 0 })));
+    if (K.kulak) L.push(resim(K.kulak.dosya).then(img => ({ katman: tasi('kulak'), img, sab: K.sablon.kulak, satir: 0 })));
+    if (bs) bs.parca.forEach((kt, i) => L.push(resim(bs.B.dosya).then(img => ({ katman: kt, img, sab: K.sablon.baslik, satir: i, gizler: gizBas }))));
     return Promise.all(L);
   }
   const sirasi = yon => K.siraYon[yon] || K.sira;
@@ -74,7 +84,7 @@
     });
   }
   /* seçenekler (görünüş ekranı): katalogdaki adlar ve renk örnekleri */
-  const secenekler = () => { const ad = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v.ad])); return { sac: ad(K.sac), sacRenk: ad(K.sacRenk), goz: ad(K.goz), gozRenk: ad(K.gozRenk) }; };
+  const secenekler = () => { const ad = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v.ad])); return { sac: ad(K.sac), sacRenk: ad(K.sacRenk), goz: ad(K.goz), gozRenk: ad(K.gozRenk), baslik: ad(K.baslik || {}) }; };
   const ornek = (alan, v) => { const o = K[alan] && K[alan][v]; return o && o.ornek || null; };
   const api = { kur, hucre, secenekler, ornek, katalog: K, boya };
   window.EO2_KAT_KUR = api; if (window.EO2) window.EO2.kat = api;

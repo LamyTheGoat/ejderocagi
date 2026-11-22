@@ -7,8 +7,9 @@
      Sağda Dolap: slot sekmeleri, sıralama, parça kartları. Seçili kartta: kuşan / çıkar / Örs'e götür. Zırh kartı aynada denenir.
      Portreye dokunmak (ve I tuşu) bu ekranı açar; saç ve göz için "Görünüş" düğmesi js/gorunum.js ekranına gider.
    - Zırhçı (G.screen 'zirhci'): Usta Kerim'in tezgâhındaki vitrin. Slot sekmeleri, fiyat (altın + malzeme), malzemenin nereden düştüğü, "Sende" işareti.
-   ÇİZİM: zırh setlerinin meydan ve savaş çizimi var. Başlık, pelerin ve yüz aksesuarının karakter üstü çizimi henüz pişirilmedi
-     (chibi rig katmanları, Mehmet'in PC'sinde); kartlarda eşya resmi görünür, karakterin üstünde görünmez. Ekran bunu açıkça yazar.
+   ÇİZİM: zırh setlerinin meydan ve savaş çizimi var. Başlık meydanda, aynada ve kartta karakterin üstünde çizilir (Kat sistemi, 2026-11-22:
+     eşyanın "kat" alanı assets/kat/katalog.js başlığıdır); savaş karelerinde henüz yok. Pelerin ve yüz aksesuarının karakter üstü çizimi
+     henüz yok; kartlarda eşya resmi görünür, ekran bunu açıkça yazar.
    KAYIT: S.ekipman (bkz. ekipman_kural.js). S.kusam (giyili set ve sahip olunan setler) buradan eşitlenir: js/gorunum.js çizimi oradan okur.
    BEDESTEN: kademeli satış Faz 2'dir (kademe önce sunucuya taşınmalı; şartname §7). */
 (function () {
@@ -36,14 +37,19 @@
   const ikonUrl = k => (k && k.ikon ? (/^img\//.test(k.ikon) ? G.url(k.ikon) : k.ikon) : '');
   const SEVIYE = p => (p.kademe >= 12 ? 4 : p.kademe >= 7 ? 3 : p.kademe >= 4 ? 2 : 1);   // kart çerçevesi (mal2 t1–t4)
   /* zırh seti için ayna/kart çizimi: görünüşlü atlas (saç, göz) varsa onu kullanır */
-  async function setCiz(cv, set, yon) { const A = EO2.api; if (!A || !cv) return; try { if (EO2.setAl(set) && !EO2.setAl(set).img) { A.drawPortrait(document.createElement('canvas'), set, 0.5); await new Promise(r => setTimeout(r, 500)); } } catch (_) { }
-    let ad = set; try { if (EO2.gorunum && EO2.gorunum.kur) ad = (await EO2.gorunum.kur(set, EO2.gorunum.benim())) || set; } catch (_) { }
+  /* baslik: verilirse giyili başlık yerine o başlıkla çizer ('' = başlıksız; aynada ve kartta deneme) */
+  async function setCiz(cv, set, yon, baslik) { const A = EO2.api; if (!A || !cv) return; try { if (EO2.setAl(set) && !EO2.setAl(set).img) { A.drawPortrait(document.createElement('canvas'), set, 0.5); await new Promise(r => setTimeout(r, 500)); } } catch (_) { }
+    let ad = set; try { if (EO2.gorunum && EO2.gorunum.kur) ad = (await EO2.gorunum.kur(set, Object.assign(EO2.gorunum.benim(), baslik === undefined ? {} : { baslik }))) || set; } catch (_) { }
     const st = EO2.setAl && EO2.setAl(ad); if (!st || !st.img || !cv.isConnected) return; const m = st.m, i = m.frames[(yon || 'down') + '_idle'], x = cv.getContext('2d'), k = Math.min(cv.width / m.cw, cv.height / m.ch);
     x.clearRect(0, 0, cv.width, cv.height); x.imageSmoothingQuality = 'high'; x.drawImage(st.img, (i % m.cols) * m.cw, Math.floor(i / m.cols) * m.ch, m.cw, m.ch, (cv.width - m.cw * k) / 2, cv.height - m.ch * k, m.cw * k, m.ch * k); }
-  const resimHtml = (k, cls) => (k.slot === 'zirh' ? '<canvas class="' + (cls || '') + '" width="120" height="150" data-set-ciz="' + esc_(k.set) + '" aria-hidden="true"></canvas>' : (k.ikon ? '<img alt="" src="' + esc_(ikonUrl(k)) + '"' + (cls ? ' class="' + cls + '"' : '') + '>' : '<i class="dl-bos-ik' + (cls ? ' ' + cls : '') + '" aria-hidden="true"></i>'));
-  const cizimleriKur = kok => kok.querySelectorAll('canvas[data-set-ciz]').forEach(cv => setCiz(cv, cv.dataset.setCiz));
+  /* karakter üstü çizimi olan eşya: zırh (set) ve Kat kataloğunda karşılığı olan başlık (kat). Ötekiler (pelerin, yüz) yalnız dolapta görünür. */
+  const katBaslik = k => !!(k && k.slot === 'baslik' && k.kat && window.EO2_KAT && window.EO2_KAT.baslik && window.EO2_KAT.baslik[k.kat]);
+  const cizimsiz = k => !!k && k.slot !== 'zirh' && k.slot !== 'silah' && !katBaslik(k);
+  const giyiliSet = () => { try { return EK.kat(EK.giyiliParca(durum(), 'zirh').id).set; } catch (_) { return 'temel'; } };
+  const resimHtml = (k, cls) => (k.slot === 'zirh' ? '<canvas class="' + (cls || '') + '" width="120" height="150" data-set-ciz="' + esc_(k.set) + '" aria-hidden="true"></canvas>' :
+    katBaslik(k) ? '<canvas class="' + (cls || '') + ' dl-bas" width="120" height="150" data-set-ciz="' + esc_(giyiliSet()) + '" data-baslik="' + esc_(k.kat) + '" aria-hidden="true"></canvas>' : (k.ikon ? '<img alt="" src="' + esc_(ikonUrl(k)) + '"' + (cls ? ' class="' + cls + '"' : '') + '>' : '<i class="dl-bos-ik' + (cls ? ' ' + cls : '') + '" aria-hidden="true"></i>'));
+  const cizimleriKur = kok => kok.querySelectorAll('canvas[data-set-ciz]').forEach(cv => setCiz(cv, cv.dataset.setCiz, 'down', cv.dataset.baslik));
   const etkiYazi = p => { const s = EK.slotu(p), e = EK.ETKI[s]; if (!e) return 'Güç vermez; yalnız görünüş.'; if (p.catlak) return 'Çatlak: artış işlemiyor. Kor Örsü\'nde onarılır.'; return EK.ETKI_AD[e] + ' +%' + yuzde(EK.artis(p)) + (p.kademe < EK.EN_COK ? ' · Örs\'te kademe başına +%' + yuzde(EK.ARTIS) : ' · zirve'); };
-  const CIZIMSIZ = { baslik: 1, pelerin: 1, yuz: 1 };   // karakter üstü çizimi henüz olmayan slotlar
 
   /* ---------- Kuşam ve Dolap ---------- */
   const U = { sekme: 'tumu', sirala: 'kademe', sec: null, dene: null };
@@ -63,7 +69,7 @@
     let kunye = '';
     if (secili) { const k = EK.kat(secili.id), s = EK.slotu(secili), giyili = giyiliMi(secili), guc = EK.gucVerir(s);
       kunye = '<div class="pz-kunye dl-kunye"><div><h3>' + esc_(k.ad) + (guc ? ' <span class="dl-k">+' + secili.kademe + '</span>' : '') + '</h3><p>' + esc_(k.acik) + '</p><p class="dl-etki">' + esc_(etkiYazi(secili)) + '</p>' +
-        (CIZIMSIZ[s] ? '<p class="dl-not">Bu parçanın karakter üstündeki çizimi hazırlanıyor; şimdilik yalnız dolapta görünür.</p>' : '') + '</div><div class="dl-eylem">' +
+        (cizimsiz(k) ? '<p class="dl-not">Bu parçanın karakter üstündeki çizimi hazırlanıyor; şimdilik yalnız dolapta görünür.</p>' : '') + '</div><div class="dl-eylem">' +
         (giyili ? (EK.BOS_OLUR[s] ? '<button type="button" class="gbtn" data-dl="cikar">Çıkar</button>' : '<span class="dl-giyili">Giyili</span>') : '<button type="button" class="gbtn altin" data-dl="giy">Kuşan</button>') +
         (guc ? '<button type="button" class="gbtn' + (secili.catlak ? ' kor' : '') + '" data-dl="ors">' + (secili.catlak ? 'Örs\'te onar' : 'Örs\'e götür') + '</button>' : '') + '</div></div>'; }
     const alt = '<section class="dl-dolap cam"><div class="dl-bas"><div class="sekme" role="tablist" aria-label="Slot">' + SEKME.map(([k, ad]) => '<button type="button" role="tab" data-dl-sekme="' + k + '" aria-selected="' + (U.sekme === k) + '">' + ad + '</button>').join('') + '</div>' +
@@ -71,13 +77,14 @@
       (L.length ? '<div class="pz-mallar dl-izgara kay">' + kartlar + '</div>' : '<p class="ah-not dl-bosnot">Bu bölmede parçan yok. Usta Kerim\'in Zırhçı vitrininde bulursun.</p>') + kunye +
       '<button type="button" class="gbtn altin dl-zirhci" data-dl-git="zirhci">Zırhçı vitrini<small>Usta Kerim · yeni parça al</small></button></section>';
     return '<div class="dl-kok">' + ust + alt + '</div>'; }
-  function aynaCiz(body) { const cv = body.querySelector('#dlAyna'); if (!cv) return; const E = durum(), p = U.dene ? parcaById(U.dene) : null, set = p && EK.slotu(p) === 'zirh' ? EK.kat(p.id).set : EK.kat(EK.giyiliParca(E, 'zirh').id).set; setCiz(cv, set); }
+  function aynaCiz(body) { const cv = body.querySelector('#dlAyna'); if (!cv) return; const E = durum(), p = U.dene ? parcaById(U.dene) : null, s = p && EK.slotu(p), set = s === 'zirh' ? EK.kat(p.id).set : EK.kat(EK.giyiliParca(E, 'zirh').id).set;
+    setCiz(cv, set, 'down', s === 'baslik' ? EK.kat(p.id).kat : undefined); }
   G.screen('dolap', { k: 'Terbiyeci', t: 'Kuşam ve dolap', cls: 'dl', bg: 'a:kiraathane', enter() { U.dene = null; }, leave() { U.dene = null; }, draw(body) {
     body.innerHTML = dolapHtml(); aynaCiz(body); cizimleriKur(body);
     body.querySelectorAll('[data-dl-sekme]').forEach(b => b.addEventListener('click', () => { ses('ui'); U.sekme = b.dataset.dlSekme; U.sec = null; U.dene = null; G.redraw(); }));
     const sr = body.querySelector('[data-dl-sirala]'); if (sr) sr.addEventListener('change', () => { ses('ui'); U.sirala = sr.value; G.redraw(); });
     body.querySelectorAll('[data-dl-slot]').forEach(b => b.addEventListener('click', () => { ses('ui'); const s = b.dataset.dlSlot, E = durum(); U.sekme = s; U.sec = E.giyili[s] || null; U.dene = null; G.redraw(); }));
-    body.querySelectorAll('[data-dl-kart]').forEach(b => b.addEventListener('click', () => { ses('ui'); U.sec = b.dataset.dlKart; const p = durum().parca.find(q => q.uid === U.sec); U.dene = p && EK.slotu(p) === 'zirh' && durum().giyili.zirh !== p.uid ? p.id : null; G.redraw(); }));
+    body.querySelectorAll('[data-dl-kart]').forEach(b => b.addEventListener('click', () => { ses('ui'); U.sec = b.dataset.dlKart; const p = durum().parca.find(q => q.uid === U.sec); const sl = p && EK.slotu(p); U.dene = p && (sl === 'zirh' || (sl === 'baslik' && katBaslik(EK.kat(p.id)))) && durum().giyili[sl] !== p.uid ? p.id : null; G.redraw(); }));
     body.querySelectorAll('[data-dl-git]').forEach(b => b.addEventListener('click', () => { ses('ui'); G.open(b.dataset.dlGit); }));
     body.querySelectorAll('[data-dl]').forEach(b => b.addEventListener('click', () => { const E = durum(), p = E.parca.find(q => q.uid === U.sec); if (!p) return; const k = EK.kat(p.id), e = b.dataset.dl;
       if (e === 'giy') { if (giy(p.uid)) { ses('chime'); U.dene = null; G.toast('<b>' + esc_(k.ad) + '</b> kuşanıldı.', 'goal'); } }
@@ -97,7 +104,7 @@
       const malz = M.length ? '<span class="gr-malzler">' + M.map(m => '<i class="gr-malz' + ((h[m] | 0) >= secili.malzeme[m] ? '' : ' eksik') + '">' + esc_(EK.MALZ_AD[m] || m) + ' <b>' + (h[m] | 0) + ' / ' + secili.malzeme[m] + '</b></i>').join('') + '</span><small class="gr-nereden">' + M.map(m => esc_(EK.MALZ_AD[m]) + ': ' + esc_(EK.MALZ_NEREDEN[m] || 'zindan')).join(' · ') + '</small>' : '';
       const etki = EK.gucVerir(secili.slot) ? EK.ETKI_AD[EK.ETKI[secili.slot]] + ' verir: Kor Örsü\'nde kademe başına +%' + yuzde(EK.ARTIS) + ', +12\'de +%15.' : 'Güç vermez; yalnız görünüş.';
       const neden = { altin: 'Yeterli altının yok', malzeme: 'Malzemen eksik', sende: 'Bu parça sende' }[d.neden] || '';
-      kunye = '<div class="pz-kunye zc-kunye"><div><h3>' + esc_(secili.ad) + '</h3><p>' + esc_(secili.acik) + '</p><p class="dl-etki">' + esc_(etki) + '</p>' + malz + (CIZIMSIZ[secili.slot] ? '<p class="dl-not">Karakter üstündeki çizimi hazırlanıyor; şimdilik dolapta görünür.</p>' : '') + '</div>' +
+      kunye = '<div class="pz-kunye zc-kunye"><div><h3>' + esc_(secili.ad) + '</h3><p>' + esc_(secili.acik) + '</p><p class="dl-etki">' + esc_(etki) + '</p>' + malz + (cizimsiz(secili) ? '<p class="dl-not">Karakter üstündeki çizimi hazırlanıyor; şimdilik dolapta görünür.</p>' : '') + '</div>' +
         '<button type="button" class="gbtn buyuk altin" data-zc-al="' + secili.id + '" ' + (d.ok ? '' : 'disabled title="' + esc_(neden) + '"') + '>' + (sende ? 'Sende' : M.length ? 'Dövdür' : 'Satın al') + '<small>' + (sende ? 'Dolabında' : secili.fiyat + ' altın' + (d.ok ? '' : ' · ' + neden.toLocaleLowerCase('tr'))) + '</small></button></div>'; }
     return '<div class="pz-satici"><img alt="Usta Kerim" src="' + G.npcImg('kerim') + '"></div><div class="pz-kim"><span class="ust">Demirci ve zırhçı</span><h2>Usta Kerim</h2></div><div class="pz-balon">' + esc_(Z.balon || 'Her parça bir kez dövülür, gerisi örste. Hangisine bakarsın?') + '</div>' +
       '<div class="pz-raf zc-raf"><div class="sekme" role="tablist" aria-label="Slot">' + VSEKME.map(s => '<button type="button" role="tab" data-zc-sekme="' + s + '" aria-selected="' + (Z.sekme === s) + '">' + EK.SLOT_AD[s] + '</button>').join('') + '</div>' +
