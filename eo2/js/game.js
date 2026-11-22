@@ -225,6 +225,7 @@
       const w = m.cw * k, h = m.ch * k, x0 = c.x - m.ax * k, zb = -(m.ch - m.ay) * k, br = c.moving ? 1 : 1 + Math.sin(F.time * 2.1 + c.seed) * 0.006;
       const a = c.isPlayer ? 1 : W.nearFade(F, c.y), sh = uv('shadow'), col4 = litCol(F, c.x, c.y, a);
       R.quad(FX, [c.x - 0.52, c.y - 0.2, 0.012], [c.x + 0.52, c.y - 0.2, 0.012], [c.x + 0.52, c.y + 0.2, 0.012], [c.x - 0.52, c.y + 0.2, 0.012], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, 0.8 * a]);
+      if (L.cila) R.quad(FX, [c.x - 0.26, c.y - 0.07, 0.0122], [c.x + 0.26, c.y - 0.07, 0.0122], [c.x + 0.26, c.y + 0.07, 0.0122], [c.x - 0.26, c.y + 0.07, 0.0122], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, 0.92 * a]);   // temas: ayağın bastığı koyu çekirdek (L.cila sahnelerinde)
       R.quad(st.tex, [x0, c.y, zb], [x0 + w, c.y, zb], [x0 + w, c.y, zb + h * br], [x0, c.y, zb + h * br], u0, v0, u1, v1, col4);
     }
     const DK = 0.0034, DG = A.dragon;
@@ -232,6 +233,7 @@
       const hopZ = pet.moving ? Math.abs(Math.sin(pet.hop * Math.PI)) * 0.16 : (pet.cheer > 0 ? Math.abs(Math.sin(pet.cheer * 9)) * 0.14 : 0), t = F.time, dir = pet.face;
       const col = litCol(F, pet.x, pet.y), sh = uv('shadow'), ss = 1 - hopZ * 1.6;
       R.quad(FX, [pet.x - 0.42 * ss, pet.y - 0.16 * ss, 0.012], [pet.x + 0.42 * ss, pet.y - 0.16 * ss, 0.012], [pet.x + 0.42 * ss, pet.y + 0.16 * ss, 0.012], [pet.x - 0.42 * ss, pet.y + 0.16 * ss, 0.012], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, 0.75]);
+      if (L.cila) R.quad(FX, [pet.x - 0.22 * ss, pet.y - 0.06 * ss, 0.0122], [pet.x + 0.22 * ss, pet.y - 0.06 * ss, 0.0122], [pet.x + 0.22 * ss, pet.y + 0.06 * ss, 0.0122], [pet.x - 0.22 * ss, pet.y + 0.06 * ss, 0.0122], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, 0.75 * ss]);
       const b = DG.body, bs = b.scale, an = n => [(b[n][0] - b.pivot[0]) * bs, (b[n][1] - b.pivot[1]) * bs];
       const part = (name, at, rot) => { const r = DG.rects[name], d = DG[name], s = d.scale, cs = Math.cos(rot), sn = Math.sin(rot);
         const P = (px, py) => { const lx = (px - d.pivot[0]) * s, ly = (py - d.pivot[1]) * s, rx = lx * cs - ly * sn + at[0], ry = lx * sn + ly * cs + at[1]; return [pet.x + dir * rx * DK, pet.y, -ry * DK + hopZ + 0.02]; };
@@ -269,7 +271,7 @@
         R.quad(FX, [-0.5 - r * asp, cy - r, 0], [-0.5 + r * asp, cy - r, 0], [-0.5 + r * asp, cy + r, 0], [-0.5 - r * asp, cy + r, 0], d[0], d[1], d[2], d[3], [0.96, 0.95, 0.88, n], false, 0, true); } } });
 
     for (const it of (L.interact || [])) fxStatics.push({ key: it.y - 0.05, draw(R, F) { const d = Math.hypot(player.x - it.x, player.y - it.y); if (d > 24 || (EO2.battle && EO2.battle.active())) return; const wv = uv('white'), g = uv('glow'), nearK = clamp(1 - (d - it.r) / 3, 0, 1), far = clamp((d - it.r) / 2, 0, 1);
-      const z = it.z + 0.55 + Math.sin(F.time * 2.2 + it.x) * 0.12, s = 0.17 * (0.8 + far * 0.2), a = (0.35 + far * 0.6) * W.nearFade(F, it.y); if (a < 0.02) return;
+      const z = it.z + 0.55 + Math.sin(F.time * 2.2 + it.x) * 0.12, s = 0.17 * (0.8 + far * 0.2), a = (0.35 + far * 0.6) * W.nearFade(F, it.y) * (L.cila ? clamp((it.y - player.y + 2.5) / 1.5, 0, 1) : 1); if (a < 0.02) return;   // L.cila: oyuncunun gerisindeki (kameraya yakın) işaret kafanın üstüne binmez
       if (it.id !== 'cesme') { R.quad(FX, [it.x - s * 3, it.y - 0.05, z - s * 3], [it.x + s * 3, it.y - 0.05, z - s * 3], [it.x + s * 3, it.y - 0.05, z + s * 3], [it.x - s * 3, it.y - 0.05, z + s * 3], g[0], g[1], g[2], g[3], [0.9 * a, 0.65 * a, 0.2 * a, 1], true, 0);
         R.quad(FX, [it.x - s, it.y - 0.05, z], [it.x, it.y - 0.05, z - s * 1.5], [it.x + s, it.y - 0.05, z], [it.x, it.y - 0.05, z + s * 1.5], wv[0], wv[1], wv[2], wv[3], [1, 0.84, 0.36, a], false, 0);
         R.quad(FX, [it.x - s * 0.5, it.y - 0.051, z], [it.x, it.y - 0.051, z - s * 0.75], [it.x + s * 0.5, it.y - 0.051, z], [it.x, it.y - 0.051, z + s * 0.75], wv[0], wv[1], wv[2], wv[3], [1, 0.97, 0.8, a], false, 0); }
@@ -293,11 +295,11 @@
       const df = D * cos + H * sin, uf = D * sin - H * cos, dh = D * cos + (H - CHAR_H) * sin, uh = D * sin - (H - CHAR_H) * cos;
       const Fc = (cam.kisi || 0.2) * base / (uh / dh - uf / df), ppy = feet * h + Fc * uf / df;
       R.setCamera({ x: cam.x, y: cam.y - D, h: H, F: Fc, cos, sin, ppy });
-      const fogC = [lerp(0.80, 0.33, n), lerp(0.89, 0.25, n), lerp(0.97, 0.44, n), LT.fog === undefined ? 0.86 : LT.fog];
-      R.setFog(fogC, [30, 105]);
+      const fg = LT.fogCol || [0.80, 0.89, 0.97], fogC = [lerp(fg[0], 0.33, n), lerp(fg[1], 0.25, n), lerp(fg[2], 0.44, n), LT.fog === undefined ? 0.86 : LT.fog];   // fogCol: sahnenin gündüz sis rengi (Ocak: sıcak şeftali-lavanta)
+      R.setFog(fogC, LT.fogR || [30, 105]);
       /* çizim dünyasında gündüz "altın saat"tir: ortam ışığı sıcak, pencereler ve fenerler gündüz de hafifçe yanar (ik); gece değerleri aynı */
       const ciz = EO2.meydanUslup === 'cizim' && EO2.doku && (EO2.doku.acik || EO2.doku.hazir), IA = EO2.isikAyar || { ik: 0.24, sicak: 1 }, ik = ciz && !L.indoor ? IA.ik : 0, nI = Math.max(n, ik), sk = IA.sicak; R.zaman = S.time;
-      F.amb = LT.amb || (ciz ? [lerp(1 + 0.06 * sk, 0.50, n), lerp(1 - 0.015 * sk, 0.49, n), lerp(1 - 0.13 * sk, 0.74, n)] : [lerp(1, 0.50, n), lerp(1, 0.49, n), lerp(1, 0.74, n)]); F.camH = H; F.py = player.y; F.night = nI; F.time = S.time; F.dt = dt; F.camX = cam.x; F.camY = cam.y - D; F.D = D;
+      F.amb = LT.amb || (LT.ambGun ? [lerp(LT.ambGun[0], 0.50, n), lerp(LT.ambGun[1], 0.49, n), lerp(LT.ambGun[2], 0.74, n)] : ciz ? [lerp(1 + 0.06 * sk, 0.50, n), lerp(1 - 0.015 * sk, 0.49, n), lerp(1 - 0.13 * sk, 0.74, n)] : [lerp(1, 0.50, n), lerp(1, 0.49, n), lerp(1, 0.74, n)]); F.camH = H; F.py = player.y; F.night = nI; F.time = S.time; F.dt = dt; F.camX = cam.x; F.camY = cam.y - D; F.D = D;
       F.horizonNDC = 1 - 2 * (ppy - Fc * sin / cos) / h;
       playerScreen = R.project(player.x, player.y, 0.9);
       R.begin(LT.clear || fogC);
@@ -326,7 +328,7 @@
       for (const t of (L.trees || [])) shadows.push(t[0] === 'cinar' ? [t[1] - 0.8, t[2] + 0.5, 3.6, 2.2, 0.75] : t[0] === 'selvi' ? [t[1] - 0.3, t[2] + 0.2, 1.0, 0.7, 0.6] : [t[1] - 0.5, t[2] + 0.3, 2.3, 1.4, 0.65]);
       for (const l of (L.lamps || [])) shadows.push([l[0], l[1], 0.5, 0.3, 0.6]); for (const b of (L.benches || [])) shadows.push([b[0], b[1] + 0.1, 1.3, 0.5, 0.6]); for (const p of (L.planters || [])) shadows.push([p[0], p[1] + 0.1, 1.1, 0.5, 0.6]);
       for (const s of (L.stalls || [])) shadows.push([s[0], s[1] + 0.4, 1.9, 1.1, 0.7]); if (L.fount) shadows.push([L.fount.x, L.fount.y, 3.1, 3.0, 0.5]);
-      return R.texture(EO2.art.groundMap({ mapRect: L.mapRect, paved: L.paved, shadows }), { raw: true }); }
+      return R.texture(EO2.art.groundMap({ mapRect: L.mapRect, paved: L.paved, shadows, yolYumusak: L.yolYumusak }), { raw: true }); }
     const tEmb = R.texture(W.E.emblem);
 
     /* ---------- Dünyaya bağlı arayüz: tabela, isim, balon, istem ---------- */

@@ -388,7 +388,7 @@
     const S = 1024, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d'), [mx, my, mw, mh] = L.mapRect;
     const px = X => (X - mx) / mw * S, py = Y => (Y - my) / mh * S, k = S / mw;
     x.fillStyle = '#f00'; x.fillRect(0, 0, S, S);                                   // her yer çim
-    x.globalCompositeOperation = 'source-over'; x.shadowColor = '#000'; x.shadowBlur = 14; x.fillStyle = '#000';
+    x.globalCompositeOperation = 'source-over'; x.shadowColor = '#000'; x.shadowBlur = L.yolYumusak || 14; x.fillStyle = '#000';   // yolYumusak: patika ile çimin geçiş genişliği (px)
     for (const p of L.paved) x.fillRect(px(p[0]), py(p[1]), (p[2] - p[0]) * k, (p[3] - p[1]) * S / mh);
     x.shadowBlur = 0;
     const blob = (X, Y, rx, ry, col, a) => { const g = x.createRadialGradient(0, 0, 0, 0, 0, 1); g.addColorStop(0, col.replace('A', a)); g.addColorStop(0.55, col.replace('A', a * 0.7)); g.addColorStop(1, col.replace('A', 0));

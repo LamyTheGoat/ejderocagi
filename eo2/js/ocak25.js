@@ -54,7 +54,10 @@
     for (const sx of [-1, 1]) for (let y = 3; y < YB + 4; y += 4.4 + rn2() * 2) KORU.push([sec(), sx * (25 + rn2() * 4), y], [sec(), sx * (33 + rn2() * 6), y + 2]); }
   const trees = AGAC.map(t => ['bahce', t[1], t[2]]);
   /* fenerler: giriş, patika boyu, taş avlu. Her fenerin dibinde bir tutam çiçek durur */
-  const lamps = [[-4.6, 3.6], [4.6, 3.6], [-1.95, 9.2], [1.95, 12.4], [-1.95, 22.6], [1.95, 25.8], [-2.1, YC + 2.1], [2.1, YC + 2.1]];
+  /* görsel cila (2026-11-21, görsel bütünlük): sıcak altın saat ışığı, yumuşak kareler, temas gölgeleri, patikadan geri çekilen fenerler.
+     Yeni çizim yok; yalnız ışık, alfa ve yerleşim. localStorage eo2.gorsel = '0' eski görünümü geri getirir (önce/sonra karşılaştırması). */
+  const GV = (() => { try { return localStorage.getItem('eo2.gorsel') !== '0'; } catch (_) { return true; } })(), FY = GV ? 2.55 : 1.95;
+  const lamps = [[-4.6, 3.6], [4.6, 3.6], [-FY, 9.2], [FY, 12.4], [-FY, 22.6], [FY, 25.8], [-2.1, YC + 2.1], [2.1, YC + 2.1]];
   /* öbekler: [çizim, x, y, en, ayna, çarpışma yarıçapı]. Her öbek bir işe bağlıdır ve toprağa basar: giriş solunda çiçek arabası ve
      sepetler, sağında kuyu ve kova; avluda saksılar; ara yolun uçlarında odun ve erzak; evin önünde tarh, yanında odunluk ve oturma köşesi */
   const ESYALAR = [
@@ -76,8 +79,14 @@
     lights: [...lamps.map(l => [l[0], l[1], 5.6, 1]), [-11.6, 4.6, 5, 1.1], [11.6, 4.6, 5, 1.1], [0, YC, 8, 1.3], [0, YT + 1.2, 6, 0.8]], embers: [[-11.6, 4.6, 1.1], [11.6, 4.6, 1.1], [0, YC - 0.4, 1.4]],
     shadows: [[1.2, YC - 1.4, 3.4, 1.5, 0.7], [1.6, YT + 2.4, 5.2, 1.5, 0.7], ...lamps.map(l => [l[0], l[1], 0.5, 0.3, 0.6]), ...ESYALAR.filter(e => e[3] > 1 && !/cicek|kenar/.test(e[0])).map(e => [e[1] + 0.25, e[2] + 0.05, e[3] * 0.62, 0.5, 0.55])],
     mini: { paved: [], blocks: [], green: [], rings: [[0, YC, 2.9]], water: [[8.3, 3.9, 0.75]], floor: '#d8bd90', bg: '#4f8848' }, npcs: [] };
+  /* altın saat: gündüz ortam ışığı sıcak, uzak plan şeftali-lavanta pusa girer (katmanlar ayrışır); gece geçişi motorun kendi değerleriyle */
+  if (GV) { L.cila = true; L.yolYumusak = 28; L.light = { ambGun: [1.11, 0.975, 0.80], fogCol: [0.95, 0.80, 0.74], fogR: [18, 92], fog: 0.72 }; }
   const SABIT_DAIRE = [[0, YC + 0.25, 1.75], ...lamps.map(l => [l[0], l[1], 0.2]), ...ESYALAR.filter(e => e[5] && e[2] < YT + 0.4).map(e => [e[1], e[2], e[5]])];
   L.circles.push(...SABIT_DAIRE);
+  /* cila: kule, ev ve çevre ağaçlarının gölgesine giren karakter ve ejderha hafifçe koyulaşır (motor: game.js litCol, L.golgeKat).
+     Yapılar ve eşyalar kendi ışıklarıyla çizildiği için bu kararmayı almaz (F.lit(..., true)). */
+  if (GV) { const GK = [...L.shadows.filter(q => q[2] >= 1.5).map(q => [q[0], q[1], q[2], q[3]]), ...AGAC.map(t => [t[1], t[2] - 0.3, 1.9, 1.0])];
+    L.golgeKat = (x, y) => { let m = 0; for (const q of GK) { const dx = (x - q[0]) / q[2], dy = (y - q[1]) / q[3], d = dx * dx + dy * dy; if (d < 1 && 1 - d > m) m = 1 - d; } return 1 - 0.14 * Math.min(1, m * 1.6); }; }
   /* çarpışma: kapalı kareler ve yapılar geçilmez; arazi değiştikçe yenilenir. Mini harita aynı veriden çizilir:
      koyu zemin çalılık, açık yeşil açılmış kare, krem blok yapı, toprak rengi yollar, halka taş avlu, mavi nokta kuyu */
   function carp() { L.rects.length = 0; const S = W(); if (!S || !S.grid) return; S.grid.forEach((t, i) => { const x = cx(i), y = cy(i); if (!t.open) L.rects.push([x - TS / 2, x + TS / 2, y - TS / 2, y + TS / 2]); else if (t.b) L.rects.push([x - TS * 0.3, x + TS * 0.3, y - TS * 0.12, y + TS * 0.3]); });
@@ -116,6 +125,8 @@
   /* ilk adım (UX denetimi, 2026-11-20): Kuluçka Ocağı yokken boş açık kareler altın köşelerle ışıldar; şeritteki "Yolu göster" terbiyeciyi en yakınına yürütür */
   const kuluckaYok = () => { const S = W(); return !ziy() && !!S && !!S.grid && !S.grid.some(t => t.b === 'kulucka') && S.grid.some(t => t.open && !t.b); };
   function yakinBos() { const S = W(), p = EO2.api && EO2.api.player; if (!S || !S.grid || !p) return -1; let en = -1, m = 1e9; S.grid.forEach((t, i) => { if (!t.open || t.b) return; const d = Math.hypot(cx(i) - p.x, cy(i) - p.y); if (d < m) { m = d; en = i; } }); return en; }
+  /* cila: ilk adımda bütün boş kareler yerine yalnız terbiyeciye en yakın n tanesi ışıldar (zemin dama gibi okunmasın) */
+  function enYakinBos(n) { const S = W(), p = EO2.api && EO2.api.player; if (!S || !S.grid || !p) return []; const o = []; S.grid.forEach((t, i) => { if (t.open && !t.b) o.push([Math.hypot(cx(i) - p.x, cy(i) - p.y), i]); }); return o.sort((a, b) => a[0] - b[0]).slice(0, n).map(q => q[1]); }
   const dokunmatik = () => matchMedia('(pointer: coarse)').matches;
   /* yol: çalılıklar ve eşyalar düz yürümeyi keser; yarım metrelik ızgarada en kısa yol aranır, görüş hattıyla birkaç ara noktaya indirilir */
   function yolBul(hx, hy) { const p = EO2.api.player, h = 0.5, r = 0.5, x0 = L.bounds[0], y0 = L.bounds[2], nx = Math.ceil((L.bounds[1] - x0) / h) + 1, ny = Math.ceil((L.bounds[3] - y0) / h) + 1;
@@ -160,7 +171,7 @@
     const agacT = ad => ad.startsWith('erguvan') ? tx.erguvan[ad.endsWith('1') ? 1 : 0] : ad.startsWith('ys-cam') ? tx.selvi : ad === 'ys-agac0' ? tx.cinar : tx.bahce[ad.endsWith('1') ? 1 : 0];
     for (const t of AGAC) h.billboard(agacT(t[0]), t[1], t[2], { sway: 0.05 });
     for (const t of KORU) h.billboard(agacT(t[0]), t[1], t[2], { sway: 0.035, fade: false, occl: false });
-    for (const l of lamps) h.billboard(tx.lamp, l[0], l[1], { glowK: 1.2 });
+    for (const l of lamps) h.billboard(tx.lamp, l[0], l[1], { glowK: 1.2, yakinSol: GV && Math.abs(l[0]) < 3 ? 1.8 : 0 });   // cila: patika fenerleri oyuncunun önünde (kamerayla arasında) kalınca solar
     for (const b of L.braziers) h.billboard(tx.braz, b[0], b[1], { glowK: 1.4 });
     const tDir = h.D('direk', () => art.bannerPole(h.E, '#213270')); h.billboard(tDir, -7.4, 4.7, { ax: 0.2, sway: 0.03 }); h.billboard(tDir, 7.4, 4.7, { ax: 0.2, sway: 0.03 });
     const cit = h.ext('on-cit'); if (cit) { const ct = cit.t, cl = 4.2, chh = cl * cit.h / cit.w; ct.wm = cl; ct.hm = chh; const XK = -X0 + 1.5;
@@ -180,11 +191,11 @@
     const DEC = [], dk = (t, x, y, w, hh, rot, a, z) => { const c = Math.cos(rot || 0), s = Math.sin(rot || 0), q = (dx, dy) => [x + dx * c - dy * s, y + dx * s + dy * c, z || 0.0112]; DEC.push({ t, x, y, a: a === undefined ? 1 : a, p: [q(-w / 2, -hh / 2), q(w / 2, -hh / 2), q(w / 2, hh / 2), q(-w / 2, hh / 2)] }); };
     { seed = 4242; const yolda = (x, y, m = 0) => YOLLAR.some(r => x > r[0] - m && x < r[2] + m && y > r[1] - m && y < r[3] + m);
       /* 1) ton oynaması: iri açık ve koyu yeşil lekeler döşeme tekrarını kırar */
-      for (let i = 0; i < 46; i++) { const x = (rn() - 0.5) * 50, y = -2 + rn() * (YB + 8), w = 4 + rn() * 6; dk(i % 2 ? tAcik : tKoyu, x, y, w, w * (0.6 + rn() * 0.4), rn() * 3, i % 2 ? 0.2 : 0.26, 0.0111); }
+      for (let i = 0; i < 46; i++) { const x = (rn() - 0.5) * 50, y = -2 + rn() * (YB + 8), w = 4 + rn() * 6; dk(i % 2 ? tAcik : tKoyu, x, y, w, w * (0.6 + rn() * 0.4), rn() * 3, (i % 2 ? 0.2 : 0.26) * (GV ? 0.6 : 1), 0.0111); }
       /* 2) çayır: çiçekli yabani ot adaları; yolların ve karelerin dışında (giriş düzlüğü, yol kenarları, çit dışı) */
       for (let i = 0, n = 0; i < 400 && n < 30; i++) { const x = (rn() - 0.5) * 46, y = -1 + rn() * (YB + 6), ic = tileAt(x, y) >= 0; if (ic || yolda(x, y, 1.2)) continue; const w = 2.2 + rn() * 2.4; dk(tCay[n % 3], x, y, w, w * (0.7 + rn() * 0.3), rn() * 6.3, 1); n++; }
       /* 3) yol kenarı: çim tutamları patikanın düz kenarını yer yer örter; toprak yer yer çime taşar */
-      const kenar = (x0, y0, x1, y1) => { const u = Math.hypot(x1 - x0, y1 - y0); for (let d = 0.6 + rn(); d < u; d += 1.1 + rn() * 1.5) { const x = x0 + (x1 - x0) * d / u + (rn() - 0.5) * 0.3, y = y0 + (y1 - y0) * d / u + (rn() - 0.5) * 0.3, w = 1.0 + rn() * 1.1; if (Math.hypot(x, y - YC) < 3.3) continue; dk(rn() < 0.72 ? tTut[Math.floor(rn() * 3)] : tTop[Math.floor(rn() * 3)], x, y, w, w * (0.6 + rn() * 0.3), rn() * 6.3, 1); } };
+      const kenar = (x0, y0, x1, y1) => { const u = Math.hypot(x1 - x0, y1 - y0); for (let d = 0.6 + rn(); d < u; d += (1.1 + rn() * 1.5) * (GV ? 1.8 : 1)) { const x = x0 + (x1 - x0) * d / u + (rn() - 0.5) * 0.3, y = y0 + (y1 - y0) * d / u + (rn() - 0.5) * 0.3, w = 1.0 + rn() * 1.1; if (Math.hypot(x, y - YC) < 3.3) continue; dk(rn() < 0.72 ? tTut[Math.floor(rn() * 3)] : tTop[Math.floor(rn() * 3)], x, y, w, w * (0.6 + rn() * 0.3), rn() * 6.3, GV ? 0.72 : 1); } };
       kenar(-1.2, 0.2, -1.2, YT + 0.5); kenar(1.2, 0.2, 1.2, YT + 0.5); kenar(X0 + 0.3, YC - 1, -X0 - 0.3, YC - 1); kenar(X0 + 0.3, YC + 1, -X0 - 0.3, YC + 1); kenar(-5.2, YT + 0.5, -1.4, YT + 0.5); kenar(1.4, YT + 0.5, 5.2, YT + 0.5);
       /* 4) öbeklerin toprağı: araba, kuyu, odun, oturma köşesi çiğnenmiş toprağa basar */
       for (const q of [[-8.4, 3.3, 5.4, 2.6], [8.3, 3.6, 5.0, 2.6], [-3.3, 4.6, 2.8, 1.5], [3.5, 4.5, 2.6, 1.5], [-13.6, YC + 1.6, 3.2, 1.5], [13.5, YC + 1.6, 3.2, 1.5], [-8.4, YT + 1.9, 7.4, 2.4], [8.4, YT + 1.9, 6.4, 2.2], [-11.6, 4.4, 2.2, 1.5], [11.6, 4.4, 2.2, 1.5]]) dk(tTop[Math.floor(rn() * 3)], q[0], q[1], q[2], q[3], (rn() - 0.5) * 0.3, 1);
@@ -195,14 +206,14 @@
       for (const l of lamps) dk(tTut[Math.floor(rn() * 3)], l[0], l[1] - 0.05, 1.3, 0.8, rn() * 3, 1); }
     DEC.forEach((d, i) => { d.n = i; if (!d.t.sn) d.t.sn = i + 1; }); DEC.sort((a, b) => (a.p[0][2] - b.p[0][2]) || (a.t.sn - b.t.sn) || (a.n - b.n));   // aynı katmanda aynı doku art arda: az çizim çağrısı
     const GOLGE = [];   // sabit eşyaların temas gölgeleri: zemin geçişinde tek seferde çizilir
-    h.push({ key: 899.5, draw(R, F) { const y0 = F.camY - 2, y1 = F.camY + 75; for (const d of DEC) { if (d.y < y0 || d.y > y1) continue; R.quad(d.t, d.p[0], d.p[1], d.p[2], d.p[3], 0, 0, 1, 1, F.lit(d.x, d.y, d.a), false, 1); } } });
+    h.push({ key: 899.5, draw(R, F) { const y0 = F.camY - 2, y1 = F.camY + 75; for (const d of DEC) { if (d.y < y0 || d.y > y1) continue; R.quad(d.t, d.p[0], d.p[1], d.p[2], d.p[3], 0, 0, 1, 1, F.lit(d.x, d.y, d.a, true), false, 1); } } });
     h.push({ key: 897, draw(R, F) { const S = W(), y0 = F.camY - 1, y1 = F.camY + 60; for (const g of GOLGE) { if (g[1] < y0 || g[1] > y1) continue; R.quad(h.T.fx, [g[0] - g[2], g[1] - g[3], 0.0135], [g[0] + g[2], g[1] - g[3], 0.0135], [g[0] + g[2], g[1] + g[3] * 0.7, 0.0135], [g[0] - g[2], g[1] + g[3] * 0.7, 0.0135], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, g[4]]); }
       if (S && S.grid) S.grid.forEach((t, i) => { if (t.open) return; const x = cx(i), y = cy(i), j = (i * 7) % 5 - 2; for (const q of [[x - 0.62 + j * 0.06, y + TS * 0.3, TS * 0.56], [x + 0.66 - j * 0.05, y + TS * 0.24, TS * 0.52], [x - ((i * 3) % 5 - 2) * 0.1, y - TS * 0.18, TS * (0.74 + (i % 4) * 0.05)]]) R.quad(h.T.fx, [q[0] - q[2] * 0.46, q[1] - 0.34, 0.0135], [q[0] + q[2] * 0.46, q[1] - 0.34, 0.0135], [q[0] + q[2] * 0.46, q[1] + 0.3, 0.0135], [q[0] - q[2] * 0.46, q[1] + 0.3, 0.0135], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, 0.55]); }); } });
 
     /* dik duran öbek eşyası: dibinde temas gölgesi, kameraya yaklaşınca solar */
     const dekor = (ad, x, y, w, glowK, ayna) => { const e = h.ext('on-' + ad) || h.ext('oc-' + ad); if (!e) return; const hh = w * e.h / e.w, u0 = ayna ? 1 : 0, u1 = ayna ? 0 : 1, gd = Math.min(0.6, 0.16 + w * 0.12);
       GOLGE.push([x, y, w * 0.47, gd, 0.62]);
-      h.push({ key: y, draw(R, F) { const a = h.nearFade(F, y); if (a < 0.01) return; const c = F.lit(x, y, a);
+      h.push({ key: y, draw(R, F) { const a = h.nearFade(F, y); if (a < 0.01) return; const c = F.lit(x, y, a, true);
         R.quad(e.t, [x - w / 2, y, 0], [x + w / 2, y, 0], [x + w / 2, y, hh], [x - w / 2, y, hh], u0, 0, u1, 1, c); if (glowK) { const k = 0.3 + Math.sin(F.time * 5) * 0.05 + F.night * 0.5; R.quad(h.T.fx, [x - w * 0.7, y - 0.03, -w * 0.25], [x + w * 0.7, y - 0.03, -w * 0.25], [x + w * 0.7, y - 0.03, w * 1.15], [x - w * 0.7, y - 0.03, w * 1.15], glow[0], glow[1], glow[2], glow[3], [0.9 * k, 0.45 * k, 0.12 * k, 1], true, 0); } } }); };
     dekor('ev', 0, YT + 2.2, 9.0); dekor('kule', 0, YC + 0.3, 3.9, true);
     for (const e of ESYALAR) dekor(e[0], e[1], e[2], e[3], 0, e[4]);
@@ -210,7 +221,9 @@
 
     /* kare zeminleri. Açık boş kare: biçilmiş, hafif açık çim ve dört köşesinde sınır taşı. Yapılı kare: çiğnenmiş toprak.
        Kapalı kare: koyu, sık yabani örtü. Kareler arasında doğal çim kalır; damalı görünmez. */
-    const tBos = [0, 1].map(v => tex(cv(256, 256, (x, S) => { seed = 3100 + v * 41; sekil(x, S, true, 0.385); x.fillStyle = 'rgba(222,244,150,.17)'; x.fill(); x.lineWidth = 3; x.strokeStyle = 'rgba(40,92,50,.26)'; x.stroke();
+    const tBos = [0, 1].map(v => tex(cv(256, 256, (x, S) => { seed = 3100 + v * 41; sekil(x, S, true, 0.385);
+      if (GV) { x.fillStyle = 'rgba(222,244,150,.07)'; x.fill(); for (const [a, b] of (v ? [[30, 34], [224, 224]] : [[226, 32]])) tas(x, a + (rn() - 0.5) * 8, b + (rn() - 0.5) * 8, 9 + rn() * 3, 6 + rn() * 2, TAS_RENK[Math.floor(rn() * 3)]); return; }   // cila: kontursuz, soluk, köşede yalnız bir iki sınır taşı; kareler dama gibi okunmaz
+      x.fillStyle = 'rgba(222,244,150,.17)'; x.fill(); x.lineWidth = 3; x.strokeStyle = 'rgba(40,92,50,.26)'; x.stroke();
       for (const [a, b] of [[30, 34], [226, 32], [32, 226], [224, 224]]) tas(x, a + (rn() - 0.5) * 8, b + (rn() - 0.5) * 8, 10 + rn() * 4, 7 + rn() * 2, TAS_RENK[Math.floor(rn() * 3)]); })));
     const tYab = [0, 1].map(v => tex(leke(zCim, 256, 3300 + v * 67, 1.2, { kare: true, k: 0.4, ton: 'rgba(12,40,30,.56)', ek(x, S) { for (let i = 0; i < 70; i++) { const px = S * (0.12 + rn() * 0.76), py = S * (0.12 + rn() * 0.76), a = rn() * 6.3; x.fillStyle = ['#2c5636', '#3b6a42', '#234a30', '#4c7a48'][i % 4]; x.beginPath(); x.ellipse(px, py, 5 + rn() * 5, 2.4 + rn() * 1.6, a, 0, 7); x.fill(); }
       x.strokeStyle = 'rgba(84,60,44,.8)'; x.lineWidth = 2.2; x.lineCap = 'round'; for (let i = 0; i < 9; i++) { const px = S * (0.15 + rn() * 0.7), py = S * (0.15 + rn() * 0.7); x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + (rn() - 0.5) * 30, py + (rn() - 0.5) * 30, px + (rn() - 0.5) * 46, py + (rn() - 0.5) * 46); x.stroke(); }
@@ -222,10 +235,10 @@
     const KT = [...tYab, ...tPed, ...tBos];
     h.push({ key: 898, draw(R, F) { const S = W(); if (!S || !S.grid) return;
       const a = TS / 2 - 0.02; for (const tt of KT) S.grid.forEach((t, i) => { if ((!t.open ? tYab[i % 2] : t.b ? tPed[i % 3] : tBos[i % 2]) !== tt) return; const x = cx(i), y = cy(i), f = i % 2, g = (i >> 1) % 2;
-        R.quad(tt, [x - a, y - a, 0.012], [x + a, y - a, 0.012], [x + a, y + a, 0.012], [x - a, y + a, 0.012], f, g, 1 - f, 1 - g, F.lit(x, y, 1), false, 1); });
-      const vurgu = kuluckaYok(); S.grid.forEach((t, i) => { const x = cx(i), y = cy(i);
-        if (vurgu && t.open && !t.b) { const k = 0.6 + Math.sin(F.time * 3.2 + i) * 0.3, b = a - 0.04, rr = TS * 0.62; R.quad(h.T.fx, [x - rr, y - rr, 0.0138], [x + rr, y - rr, 0.0138], [x + rr, y + rr, 0.0138], [x - rr, y + rr, 0.0138], glow[0], glow[1], glow[2], glow[3], [0.95 * k, 0.78 * k, 0.3 * k, 1], true, 0); R.quad(tKose, [x - b, y - b, 0.014], [x + b, y - b, 0.014], [x + b, y + b, 0.014], [x - b, y + b, 0.014], 0, 0, 1, 1, [1, 0.92, 0.55, k], false, 1); }
-        if (!t.open && !ziy() && canClear(i)) { const k = 0.34 + Math.sin(F.time * 2.4 + i) * 0.14, b = a - 0.1; R.quad(tKose, [x - b, y - b, 0.014], [x + b, y - b, 0.014], [x + b, y + b, 0.014], [x - b, y + b, 0.014], 0, 0, 1, 1, [1, 1, 1, k], false, 1); } });
+        R.quad(tt, [x - a, y - a, 0.012], [x + a, y - a, 0.012], [x + a, y + a, 0.012], [x - a, y + a, 0.012], f, g, 1 - f, 1 - g, F.lit(x, y, 1, true), false, 1); });
+      const vurgu = kuluckaYok(), yakin2 = vurgu && GV ? enYakinBos(2) : null, sk = GV ? 1 - 0.5 * Math.max(0, Math.min(1, (F.night - 0.3) / 0.6)) : 1;   /* cila: gece sarı vurgular yarıya iner */ S.grid.forEach((t, i) => { const x = cx(i), y = cy(i);
+        if (vurgu && t.open && !t.b && (!yakin2 || yakin2.includes(i))) { const k = 0.6 + Math.sin(F.time * 3.2 + i) * 0.3, b = a - 0.04, rr = TS * 0.62; R.quad(h.T.fx, [x - rr, y - rr, 0.0138], [x + rr, y - rr, 0.0138], [x + rr, y + rr, 0.0138], [x - rr, y + rr, 0.0138], glow[0], glow[1], glow[2], glow[3], [0.95 * k * sk, 0.78 * k * sk, 0.3 * k * sk, 1], true, 0); R.quad(tKose, [x - b, y - b, 0.014], [x + b, y - b, 0.014], [x + b, y + b, 0.014], [x - b, y + b, 0.014], 0, 0, 1, 1, [1, 0.92, 0.55, k * sk], false, 1); }
+        if (!t.open && !ziy() && canClear(i)) { const k = (0.34 + Math.sin(F.time * 2.4 + i) * 0.14) * sk, b = a - 0.1; R.quad(tKose, [x - b, y - b, 0.014], [x + b, y - b, 0.014], [x + b, y + b, 0.014], [x - b, y + b, 0.014], 0, 0, 1, 1, [1, 1, 1, k], false, 1); } });
       const oi = onizle ? onizle.i : kare.i >= 0 && kare.r > 0 ? kare.i : -1; if (oi >= 0) { const x = cx(oi), y = cy(oi), k = (onizle ? 0.62 : 0.3) + Math.sin(F.time * 4) * 0.06, rr = TS * 0.6; R.quad(h.T.fx, [x - rr, y - rr, 0.017], [x + rr, y - rr, 0.017], [x + rr, y + rr, 0.017], [x - rr, y + rr, 0.017], ring[0], ring[1], ring[2], ring[3], onizle ? [0.62 * k, 0.86 * k, 1 * k, 1] : [1 * k, 0.9 * k, 0.6 * k, 1], true, 0); } } });
     /* her kare için dik duran şey: kapalı karede sık çalı öbeği (alçak, oyuncuyu örtmez), açık karede kurulu yapı; kuluçkadaki yumurtalar yapının önünde durur */
     const yeni = {}; EO2.ocakYeni = i => { yeni[i] = 1; };
@@ -234,11 +247,11 @@
         if (!t.open) { const e2 = h.ext('on-cali' + (i % 3)), e3 = h.ext('on-cali' + ((i + 1) % 3)), e4 = h.ext('on-cali' + ((i + 2) % 3)), c = h.amb(F, ziy() || canClear(i) ? 1 : 0.84); c[3] = a; if (!e2) { const q = tCali[i % 3]; R.quad(q.t, [x - q.w / 2, it.y, 0], [x + q.w / 2, it.y, 0], [x + q.w / 2, it.y, q.h], [x - q.w / 2, it.y, q.h], 0, 0, 1, 1, c, false, 1); return; }
           const ciz = (e, px, py, w, m) => { const hh = w * e.h / e.w; R.quad(e.t, [px - w / 2, py, 0], [px + w / 2, py, 0], [px + w / 2, py, hh], [px - w / 2, py, hh], m, 0, 1 - m, 1, c, false, 1); };
           const j = (i * 7) % 5 - 2; if (e3) ciz(e3, x - 0.62 + j * 0.06, y + TS * 0.3, TS * 0.56, i % 2); if (e4) ciz(e4, x + 0.66 - j * 0.05, y + TS * 0.24, TS * 0.52, (i + 1) % 2); ciz(e2, x - ((i * 3) % 5 - 2) * 0.1, it.y, TS * (0.74 + (i % 4) * 0.05), (i + 1) % 2); return; }
-        if (!t.b) { if (onizle && onizle.i === i && onizle.k) { const q = yapiE(onizle.k); if (q) { const e = q.e, bw = q.yeniC ? GEN2[onizle.k] || 2.8 : q.eskiC ? GEN[onizle.k] || 3.3 : Math.min(TS * 1.28, 4.6 * e.w / e.h), bh = bw * e.h / e.w, zt = q.yeniC ? 0 : q.eskiC ? 0.015 : 0.1, zz = 0.06 + Math.sin(F.time * 2.6) * 0.05, al = (0.8 + Math.sin(F.time * 2.6) * 0.08) * a, c = F.lit(x, it.y, al);
+        if (!t.b) { if (onizle && onizle.i === i && onizle.k) { const q = yapiE(onizle.k); if (q) { const e = q.e, bw = q.yeniC ? GEN2[onizle.k] || 2.8 : q.eskiC ? GEN[onizle.k] || 3.3 : Math.min(TS * 1.28, 4.6 * e.w / e.h), bh = bw * e.h / e.w, zt = q.yeniC ? 0 : q.eskiC ? 0.015 : 0.1, zz = 0.06 + Math.sin(F.time * 2.6) * 0.05, al = (0.8 + Math.sin(F.time * 2.6) * 0.08) * a, c = F.lit(x, it.y, al, true);
             R.quad(h.T.fx, [x - bw * 0.46, it.y - 0.5, 0.013], [x + bw * 0.46, it.y - 0.5, 0.013], [x + bw * 0.46, it.y + 0.45, 0.013], [x - bw * 0.46, it.y + 0.45, 0.013], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, 0.4 * a]);
             R.quad(e.t, [x - bw / 2, it.y, -bh * zt + zz], [x + bw / 2, it.y, -bh * zt + zz], [x + bw / 2, it.y, bh * (1 - zt) + zz], [x - bw / 2, it.y, bh * (1 - zt) + zz], 0, 0, 1, 1, [c[0] * 0.92, c[1] * 0.98, c[2] * 1.06, al]); } } return; }
         const q = yapiE(t.b); if (!q) return; const e = q.e, yeniC = q.yeniC, eskiC = q.eskiC; if (yeni[i] !== undefined) { yeni[i] = Math.max(0, yeni[i] - F.dt * 1.6); if (yeni[i] <= 0) delete yeni[i]; }
-        const k = yeni[i] !== undefined ? 1 - yeni[i] : 1, zip = yeni[i] !== undefined ? Math.sin(k * Math.PI) * 0.5 : 0, bw = (yeniC ? GEN2[t.b] || 2.8 : eskiC ? GEN[t.b] || 3.3 : Math.min(TS * 1.28, 4.6 * e.w / e.h)) * (0.6 + 0.4 * k), bh = bw * e.h / e.w, zt = yeniC ? 0 : eskiC ? 0.015 : 0.1; it.w = bw; it.h = bh * 0.9; it.cover += ((F.coverTest(it) ? 0.3 : 1) - it.cover) * Math.min(1, F.dt * 8); const c = F.lit(x, it.y, a * it.cover);
+        const k = yeni[i] !== undefined ? 1 - yeni[i] : 1, zip = yeni[i] !== undefined ? Math.sin(k * Math.PI) * 0.5 : 0, bw = (yeniC ? GEN2[t.b] || 2.8 : eskiC ? GEN[t.b] || 3.3 : Math.min(TS * 1.28, 4.6 * e.w / e.h)) * (0.6 + 0.4 * k), bh = bw * e.h / e.w, zt = yeniC ? 0 : eskiC ? 0.015 : 0.1; it.w = bw; it.h = bh * 0.9; it.cover += ((F.coverTest(it) ? 0.3 : 1) - it.cover) * Math.min(1, F.dt * 8); const c = F.lit(x, it.y, a * it.cover, true);
         R.quad(h.T.fx, [x - bw * 0.46, it.y - 0.5, 0.013], [x + bw * 0.46, it.y - 0.5, 0.013], [x + bw * 0.46, it.y + 0.45, 0.013], [x - bw * 0.46, it.y + 0.45, 0.013], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, 0.6 * a * it.cover]);
         R.quad(e.t, [x - bw / 2, it.y, -bh * zt + zip], [x + bw / 2, it.y, -bh * zt + zip], [x + bw / 2, it.y, bh * (1 - zt) + zip], [x - bw / 2, it.y, bh * (1 - zt) + zip], 0, 0, 1, 1, c);
         const I = ISIK[t.b]; if (I && (yeniC || eskiC)) { const gk = (0.12 + F.night * 0.7 + Math.sin(F.time * 3.1 + i) * 0.04) * a * it.cover, gz = bh * I[3], gr = Math.max(bw, bh) * 0.55; R.quad(h.T.fx, [x - gr, it.y - 0.04, gz - gr], [x + gr, it.y - 0.04, gz - gr], [x + gr, it.y - 0.04, gz + gr], [x - gr, it.y - 0.04, gz + gr], glow[0], glow[1], glow[2], glow[3], [I[0] * gk, I[1] * gk, I[2] * gk, 1], true, 0); }
@@ -250,6 +263,7 @@
     for (let k = 0; k < ejSlot.length; k++) { const it = { key: -99, draw(R, F) { const S = W(), d = S && S.dragons ? S.dragons.filter(q => !q.dead)[k] : null, g = d && gez[d.id]; if (!g) { it.key = -99; return; } it.key = g.y; const gi = G.gorunusIm && d.genes ? G.gorunusIm(d) : null; let e = null; if (gi) { e = gorT.get(gi); if (!e) { e = { t: R.texture(gi), w: gi.naturalWidth, h: gi.naturalHeight }; gorT.set(gi, e); } } else e = h.ext('dr-' + d.el + '-' + d.stage); if (!e) return;
         const w = BOY[d.stage] || 3, hh = w * e.h / e.w, a = h.nearFade(F, g.y), uyur = !!g.uyur, br = 1 + Math.sin(g.t * (uyur ? 0.8 : 1.4)) * (uyur ? 0.02 : 0.012), hop = g.sevin > 0 ? Math.abs(Math.sin(g.sevin * 9)) * 0.14 * w / 4 : g.yuru ? Math.abs(Math.sin(g.t * 6)) * 0.05 : g.is === 'train' ? Math.abs(Math.sin(g.t * 4.2)) * 0.16 : 0, c = F.lit(g.x, g.y, a), ez = uyur ? 0.62 : 1, x0 = g.x - w / 2 * g.yon, x1 = g.x + w / 2 * g.yon;
         if (a < 0.01) return; R.quad(h.T.fx, [g.x - w * 0.42, g.y - w * 0.09, 0.013], [g.x + w * 0.42, g.y - w * 0.09, 0.013], [g.x + w * 0.42, g.y + w * 0.09, 0.013], [g.x - w * 0.42, g.y + w * 0.09, 0.013], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, 0.75 * a]);
+        if (GV) R.quad(h.T.fx, [g.x - w * 0.24, g.y - w * 0.035, 0.0132], [g.x + w * 0.24, g.y - w * 0.035, 0.0132], [g.x + w * 0.24, g.y + w * 0.035, 0.0132], [g.x - w * 0.24, g.y + w * 0.035, 0.0132], sh[0], sh[1], sh[2], sh[3], [1, 1, 1, 0.68 * a]);   // temas çekirdeği
         R.quad(e.t, [x0, g.y, hop], [x1, g.y, hop], [x1, g.y, hop + hh * br * ez], [x0, g.y, hop + hh * br * ez], 0, 0, 1, 1, c); } }; h.push(it); }
     return {};
   } };

@@ -73,7 +73,7 @@
     function billboard(t, x, y, o = {}) {
       x += t.dx || 0; const w = o.w || t.wm, h = t.cz && o.w ? o.w * t.hm / t.wm : (o.h || t.hm), ax = o.ax === undefined ? 0.5 : o.ax, z0 = o.z0 || 0, it = { key: o.key === undefined ? y : o.key, x: x - w * ax + w / 2, y, w, h, tall: h > 2.2 && o.occl !== false, cover: 1,
         draw(R, F) {
-          let a = o.fade === false ? 1 : nearFade(F, y); if (it.tall) { it.cover += ((F.coverTest(it) ? 0.28 : 1) - it.cover) * Math.min(1, F.dt * 8); a *= it.cover; }
+          let a = o.fade === false ? 1 : nearFade(F, y); if (o.yakinSol) a = Math.min(a, Math.max(0, Math.min(1, (y - F.py + o.yakinSol) / 0.8)));   // yakinSol: oyuncunun yakinSol m'den daha önünde (kameraya yakın) kalan direk solar; yarı saydam hayalet kalmaz   // yakinSol (m): kameraya daha uzakta solmaya başlar if (it.tall) { it.cover += ((F.coverTest(it) ? 0.28 : 1) - it.cover) * Math.min(1, F.dt * 8); a *= it.cover; }
           if (a < 0.01) return;
           const sw = o.sway ? Math.sin(F.time * 0.9 + x * 1.7) * o.sway + Math.sin(F.time * 2.3 + x) * o.sway * 0.3 : 0, x0 = x - w * ax, x1 = x0 + w, c = amb(F); c[3] = a;
           /* katmanlı cephe (t.kat = [saçak, kat çizgisi, çıkma, çatı derinliği]; oranlar üstten): zemin kat geride, üst kat öne çıkar, çatı arkaya doğru eğik ayrı yüzeydir.
