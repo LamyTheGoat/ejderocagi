@@ -242,12 +242,13 @@
       setTimeout(() => { const var_ = ER.lobi && ER.lobi.players.some(p => p.handle === h); toast(var_ ? esc(ad || 'Terbiyeci') + ' Dost Dövüşü\'nde. <b>Meydan oku</b> ile çağır.' : esc(ad || 'Terbiyeci') + ' henüz Dost Dövüşü\'ne girmemiş. Sohbetten çağır; Arena → Dost Dövüşü\'ne gelince burada görünür.'); }, 1200); } };
 
   /* ================= Dost Dövüşü: oyuncuya karşı dostça düello =================
-     Görev bulucu mantığı: lobiye ejderhanla girersin; kuyruğa girer (eşleşince dövüş kendiliğinden açılır), sancak diker
-     (açık oda; ilk gelenle dövüşürsün), dikili bir sancağa katılır ya da birine meydan okursun. Dövüş bu dosyadaki sahnede
+     Görev bulucu mantığı: lobiye ejderhanla girersin; "Dövüş ara" ile sıraya girersin (ikinci arayan gelince eşleşirsiniz,
+     ya da lobideki biri sana katılır), dövüş arayan birine katılırsın ya da birine meydan okursun. Eski "Eşleşme ara" ve
+     "Sancak dik" tek düğmede birleşti (Mehmet, 2026-11-22; sunucu: js/duel_server.js). Dövüş bu dosyadaki sahnede
      oynanır; iki taraf hamlesini sunucuya yollar, turu sunucu çözer (js/duel_engine.js), iki ekran aynı sonucu oynatır.
      DOSTÇA: altın, ün, taş, yorgunluk, yara, ölüm YOK. Yerel kayda hiçbir şey yazılmaz. */
   const ER = { lobi: null, sec: null, girdi: null, davet: null, sira: Promise.resolve() };
-  const ET = { idle: 'meydanda', queue: 'eşleşme arıyor', found: 'rakip buldu', room: 'sancağı dikili', fight: 'dövüşte' };
+  const ET = { idle: 'meydanda', queue: 'dövüş arıyor', found: 'rakip buldu', room: 'dövüş arıyor', fight: 'dövüşte' };
   const benim = () => ((EO2.ag && EO2.ag.kimlik()) || {}).handle;
   const erDurum = () => { const me = ER.lobi && ER.lobi.players.find(p => p.handle === benim()); return me ? me.status : null; };
   const erAcik = () => UI.arenaTier === 'er' && document.querySelector('#scr.acik .scr-b.ar2');
@@ -262,21 +263,20 @@
   function erCiz(body, f, elig, sekme, sekmeBagla) {
     const acik = cevrimici(); if (acik && f && ER.girdi !== f.id) erGir(f);
     const L = ER.lobi, ben = benim(), diger = L ? L.players.filter(p => p.handle !== ben) : [], st = erDurum();
-    if (ER.sec && !diger.find(p => p.handle === ER.sec)) ER.sec = null; if (!ER.sec && diger.length) ER.sec = (diger.find(p => p.status === 'room') || diger[0]).handle;
+    if (ER.sec && !diger.find(p => p.handle === ER.sec)) ER.sec = null; if (!ER.sec && diger.length) ER.sec = (diger.find(p => p.status === 'queue') || diger[0]).handle;
     const r = diger.find(p => p.handle === ER.sec) || null, guc = f ? pw(f) : 0;
-    const muhur = st === 'found' ? ['kolay ara', 'Rakip bulundu'] : st === 'queue' ? ['denk ara', 'Eşleşme aranıyor'] : st === 'room' ? ['kolay ara', 'Sancağın dikili · rakip bekleniyor'] : r ? [r.power > guc * 1.25 ? 'olum' : r.power > guc * 1.05 ? 'zor' : r.power > guc * 0.82 ? 'denk' : 'kolay', 'Güç ' + guc + ' · ' + r.power] : ['denk', 'Meydan boş'];
+    const muhur = st === 'found' ? ['kolay ara', 'Rakip bulundu'] : st === 'queue' ? ['denk ara', 'Dövüş aranıyor'] : r ? [r.power > guc * 1.25 ? 'olum' : r.power > guc * 1.05 ? 'zor' : r.power > guc * 0.82 ? 'denk' : 'kolay', 'Güç ' + guc + ' · ' + r.power] : ['denk', 'Meydan boş'];
     body.innerHTML = sekme + '<div class="ag-rozet ' + (acik ? 'acik' : 'kapali') + '"><i></i>' + (acik ? 'Dostça düello · ödül yok' : 'Bağlantı yok: Dost Dövüşü kapalı') + '</div>' +
       '<div class="ar-ben" style="--el:' + (f ? G.ELC[f.el] : '#888') + '">' + (f ? '<img class="ar-ej" alt="" src="' + G.img(f) + '"><div class="ar-ad"><span class="ust">' + STAGE_AD[f.stage] + ' · ' + EL_AD[f.el] + '</span><h2>' + esc(f.name) + '</h2><small>Güç ' + guc + ' · ' + esc(ben || '') + '</small></div>' : '<p class="ah-not">Boşta dövüşçü yok: ejderlerin görevde ya da sakat.</p>') + '</div>' +
-      (elig.length > 1 ? '<div class="ar-kadro">' + elig.map(d => '<button type="button" class="madalyon ejm" data-sel="' + d.id + '" aria-pressed="' + (d.id === UI.arenaSel) + '" title="' + esc(d.name) + '"' + (st === 'queue' || st === 'room' || st === 'found' ? ' disabled' : '') + '><img alt="" src="' + G.img(d) + '" style="background:radial-gradient(circle at 50% 40%, color-mix(in srgb, ' + G.ELC[d.el] + ' 55%, #151a2c), #151a2c 80%)"><span>' + esc(d.name) + '</span></button>').join('') + '</div>' : '') +
+      (elig.length > 1 ? '<div class="ar-kadro">' + elig.map(d => '<button type="button" class="madalyon ejm" data-sel="' + d.id + '" aria-pressed="' + (d.id === UI.arenaSel) + '" title="' + esc(d.name) + '"' + (st === 'queue' || st === 'found' ? ' disabled' : '') + '><img alt="" src="' + G.img(d) + '" style="background:radial-gradient(circle at 50% 40%, color-mix(in srgb, ' + G.ELC[d.el] + ' 55%, #151a2c), #151a2c 80%)"><span>' + esc(d.name) + '</span></button>').join('') + '</div>' : '') +
       (!acik ? '<div class="ar-kilit"><i></i><p>Dost Dövüşü sunucuya bağlanınca açılır.<br>Şu an çevrimdışısın.</p><button type="button" class="gbtn altin" data-er="baglan">Yeniden bağlan</button></div>' :
         (r ? '<div class="ar-rakip" style="--el:' + G.ELC[r.dragon.el] + '"><img class="ar-ej" alt="" src="' + G.img(r.dragon) + '"><div class="ar-ad"><span class="ust">' + esc(r.handle) + ' · ' + ET[r.status] + '</span><h2>' + esc(r.dragon.name) + '</h2><small><span class="etk el-' + r.dragon.el + '">' + EL_AD[r.dragon.el] + '</span>' + (elMult(f ? f.el : 'ates', r.dragon.el) > 1 ? '<span class="etk iyi">üstünsün</span>' : f && elMult(r.dragon.el, f.el) > 1 ? '<span class="etk kotu">dezavantaj</span>' : '') + '</small></div></div>'
-           : '<div class="ar-rakip er-bos"><div class="er-siluet"></div><p>Meydanda senden başka terbiyeci yok.<br>Kuyruğa gir ya da sancağını dik; biri gelince dövüş kendiliğinden açılır.</p></div>') +
+           : '<div class="ar-rakip er-bos"><div class="er-siluet"></div><p>Meydanda senden başka terbiyeci yok.<br>Dövüş ara; biri gelince dövüş kendiliğinden açılır.</p></div>') +
         '<div class="ar-orta er-orta"><i class="vs2">VS</i><span class="damga2 ' + muhur[0] + '">' + muhur[1] + '</span></div>' +
         '<div class="ar-alt er-alt"><div class="ar-odul"><b class="au">Dostça düello</b><span>altın ve ün yazılmaz</span><span>' + (diger.length ? diger.length + ' terbiyeci meydanda' : 'meydan sessiz') + '</span></div>' +
           '<div class="er-dugme">' +
-            (st === 'found' ? '' : st === 'queue' ? '<button type="button" class="gbtn buyuk" data-er="unqueue">Aramayı bırak</button>' : '<button type="button" class="gbtn buyuk altin" data-er="queue" ' + (f && st !== 'room' ? '' : 'disabled') + '>Eşleşme ara</button>') +
-            (st === 'room' ? '<button type="button" class="gbtn buyuk" data-er="room_close">Sancağı indir</button>' : '<button type="button" class="gbtn buyuk" data-er="room_open" ' + (f && st !== 'queue' && st !== 'found' ? '' : 'disabled') + '>Sancak dik</button>') +
-            (r && f && st === 'idle' && r.status === 'room' ? '<button type="button" class="gbtn buyuk kor" data-er="join">Sancağına katıl</button>' : r && f && st === 'idle' && r.status !== 'fight' ? '<button type="button" class="gbtn buyuk kor" data-er="invite">Meydan oku</button>' : '') +
+            (st === 'found' ? '' : st === 'queue' ? '<button type="button" class="gbtn buyuk" data-er="unqueue">Aramayı bırak</button>' : '<button type="button" class="gbtn buyuk altin" data-er="queue" ' + (f ? '' : 'disabled') + '>Dövüş ara</button>') +
+            (r && f && st === 'idle' && (r.status === 'queue' || r.status === 'room') ? '<button type="button" class="gbtn buyuk kor" data-er="join">Dövüşüne katıl</button>' : r && f && st === 'idle' && r.status === 'idle' ? '<button type="button" class="gbtn buyuk kor" data-er="invite">Meydan oku</button>' : '') +
           '</div>' +
           '<div class="kadro">' + diger.map(x => '<button type="button" class="madalyon ejm er-' + x.status + '" data-ersec="' + esc(x.handle) + '" aria-pressed="' + (x.handle === ER.sec) + '" title="' + esc(x.handle) + ' · ' + ET[x.status] + '"><img alt="" src="' + G.img(x.dragon) + '" style="background:radial-gradient(circle at 50% 40%, color-mix(in srgb, ' + G.ELC[x.dragon.el] + ' 55%, #151a2c), #151a2c 80%)"><span>' + esc(x.dragon.name) + '</span></button>').join('') + '</div></div>');
     sekmeBagla(); on(body, '[data-sel]', b => { UI.arenaSel = +b.dataset.sel; render(); }); on(body, '[data-ersec]', b => { ER.sec = b.dataset.ersec; render(); });
@@ -298,7 +298,7 @@
     FT = { mode: 'mp', F: cevir(m.fight, rol), d, opp: rakip.dragon, rakip: rakip.handle, oda: m.roomId, rol, log: [], auto: false, busy: false, bekle: (m.submitted || []).includes(m.you), title: 'Dost Dövüşü · ' + rakip.handle };
     /* öteki oyuncu meydanda görünüyorsa adı ve kuşam seti oradan alınır: dövüşte kendi avatarıyla durur */
     { const K = EO2.meydanAg && EO2.meydanAg.kisiler, c = K ? [...K.values()].find(x => x.handle === rakip.handle) : null; FT.rakipAd = c ? c.name : rakip.handle; if (c) FT.rakipSet = c.set; FT.rakipH = rakip.handle; if (c) FT.title = 'Dost Dövüşü · ' + c.name; }
-    FT.log.push({ t: '<b>' + esc(rakip.handle) + '</b> ile dostça düello. ' + (m.via === 'queue' ? 'Kuyruk eşleştirdi.' : m.via === 'room' ? 'Sancak karşılık buldu.' : 'Meydan okuma kabul edildi.') + ' Ödül yok; iki taraf hamlesini seçince tur çözülür.', c: 'soluk' });
+    FT.log.push({ t: '<b>' + esc(rakip.handle) + '</b> ile dostça düello. ' + (m.via === 'queue' ? 'Dövüş araması eşleştirdi.' : m.via === 'room' ? 'Dövüş arayana katılım oldu.' : 'Meydan okuma kabul edildi.') + ' Ödül yok; iki taraf hamlesini seçince tur çözülür.', c: 'soluk' });
     void ben; G.close(); fightUI(); }
   function mpHamle(x) { if (FT.bekle) return; if (!EO2.ag.gonder({ type: 'duel_action', roomId: FT.oda, round: FT.F.round + 1, action: x })) { logLine({ t: 'Bağlantı yok; hamle gönderilemedi.', c: 'kotu' }); return; } FT.bekle = true; paint(); }
   function mpDurum(m) { ER.sira = ER.sira.then(async () => { if (!FT || FT.mode !== 'mp' || FT.oda !== m.roomId) return;

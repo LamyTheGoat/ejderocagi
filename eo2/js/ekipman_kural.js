@@ -54,7 +54,7 @@
   ];
   const KAT = Object.fromEntries(KATALOG.map(k => [k.id, k]));
   const MALZ_AD = { kor_t1: 'Kıvılcım Kor Taşı', kor_t2: 'Harlı Kor Taşı', kor_t3: 'Kadim Magma Taşı', obsidiyen: 'Obsidiyen Cevheri', kalip_zirh: 'Zırh kalıp parçası', kalip_silah: 'Silah ve maske kalıp parçası' };
-  const MALZ_NEREDEN = { kor_t1: 'zindan çarkı', kor_t2: 'zindan çarkı', kor_t3: 'zindan çarkı', obsidiyen: 'kervan baskını', kalip_zirh: 'zindan çarkı (büyük kalıp)', kalip_silah: 'zindan çarkı (büyük kalıp)' };
+  const MALZ_NEREDEN = { kor_t1: 'zindan çarkı', kor_t2: 'zindan çarkı', kor_t3: 'zindan çarkı', obsidiyen: 'Kervan Yolu', kalip_zirh: 'zindan çarkı (büyük kalıp)', kalip_silah: 'zindan çarkı (büyük kalıp)' };
 
   const kat = id => KAT[id] || null;
   const slotu = p => { const k = p && kat(p.id); return k ? k.slot : null; };

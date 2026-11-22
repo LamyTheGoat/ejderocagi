@@ -358,7 +358,7 @@ function createDragonDuelServer(deps) {
 
   // ---------- Er Meydanı lobisi ----------
   const foundFor = handle => [...found.values()].find(m => m.a === handle || m.b === handle) || null;
-  const lobbyStatus = L => (liveRoomFor(L.handle) ? 'fight' : foundFor(L.handle) ? 'found' : L.queued ? 'queue' : L.room ? 'room' : 'idle');
+  const lobbyStatus = L => (liveRoomFor(L.handle) ? 'fight' : foundFor(L.handle) ? 'found' : L.queued ? 'queue' : 'idle');
   const power = f => Math.round((f.gu + f.ce + f.da + f.ze) / 4);
   function lobbyView(forHandle) {
     const list = [...lobby.values()].filter(L => socketFor(L.handle));
@@ -422,13 +422,14 @@ function createDragonDuelServer(deps) {
     if (foundFor(handle)) return sendError(socket, 'Önce bulunan eşleşmeyi yanıtla.', { code: 'match_pending' });
     if (action === 'state') return send(socket, lobbyView(handle));
     if (liveRoomFor(handle)) return sendError(socket, 'Zaten devam eden bir düellodasın.', { code: 'duel_busy' });
-    if (action === 'queue') { L.queued = true; L.room = false; L.queuedAt = Date.now(); lobbyMatch(); return lobbyBroadcast(); }
-    if (action === 'unqueue') { L.queued = false; return lobbyBroadcast(); }
-    if (action === 'room_open') { L.room = true; L.queued = false; return lobbyBroadcast(); }
-    if (action === 'room_close') { L.room = false; return lobbyBroadcast(); }
+    // TEK "DÖVÜŞ ARA" (Mehmet, 2026-11-22): eski "eşleşme ara" ve "sancak dik" birleşti. Arayan sıraya girer ve lobide "queue"
+    // görünür; ikinci arayan gelince sunucu eşler (hazır onayıyla), ya da lobideki biri ona katılır (room_join, hemen başlar).
+    // room_open / room_close eski istemciler için queue / unqueue ile aynıdır.
+    if (action === 'queue' || action === 'room_open') { L.queued = true; L.room = false; L.queuedAt = Date.now(); lobbyMatch(); return lobbyBroadcast(); }
+    if (action === 'unqueue' || action === 'room_close') { L.queued = false; L.room = false; return lobbyBroadcast(); }
     if (action === 'room_join') {
       const host = lobby.get(String(msg.host || ''));
-      if (!host || host.handle === handle || !host.room || !socketFor(host.handle) || liveRoomFor(host.handle)) { lobbyBroadcast(); return sendError(socket, 'Bu oda artık açık değil.', { code: 'room_closed' }); }
+      if (!host || host.handle === handle || !host.queued || foundFor(host.handle) || !socketFor(host.handle) || liveRoomFor(host.handle)) { lobbyBroadcast(); return sendError(socket, 'Bu terbiyeci artık dövüş aramıyor.', { code: 'room_closed' }); }
       if (!startShowRoom(host.handle, handle, 'room')) return sendError(socket, 'Ejderha savaş verileri eksik; düello başlatılamadı.', { code: 'sync_required' });
       return;
     }
