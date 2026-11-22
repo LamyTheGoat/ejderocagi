@@ -261,6 +261,42 @@
   function ejderDoku(R, P, s) { const b = 8, kw = KANAT_W * s | 0, kh = KANAT_H * s | 0, qw = KUYRUK_W * s | 0, qh = KUYRUK_H * s | 0, gw = GOVDE_W * s | 0, gh = GOVDE_H * s | 0, W = kw + qw + b * 3, y2 = Math.max(kh, qh) + b * 2, H = y2 + gh + b;
     const c = tuval(W, H, x => { x.drawImage(kanatTuval(P), b, b, kw, kh); x.drawImage(kuyrukTuval(P), kw + b * 2, b, qw, qh); x.drawImage(govdeTuval(P), b, y2, gw, gh); });
     const uv = (x, y, w, h) => [(x + 0.5) / W, (y + 0.5) / H, (x + w - 0.5) / W, (y + h - 0.5) / H], o = { tx: R.texture(c), kanat: uv(b, b, kw, kh), kuyruk: uv(kw + b * 2, b, qw, qh), govde: uv(b, y2, gw, gh), P }; c.width = c.height = 0; return o; }
+  /* ---------- gerçek çizim: arkadan uçuş pozu (assets/yaris3/<el>-arka.webp) ----------
+     Çizim tek resimdir; burada kanatlar, gövde ve kuyruk olarak ayrılır ki kanat çırpsın, kuyruk salınsın.
+     Maske (aynı ad, -m): kırmızı kanal pul, yeşil kanal süs. Gen renkleri yerli renkten farklıysa o bölgelerin tonu kaydırılır.
+     Çizimi olmayan element kodla çizilen ejderhayı kullanır. Ölçüler kaynağın 1672x941 karesine göredir. */
+  const POZ = { ates: 1 }, POZ_W = 1672, POZ_H = 941, POZ_PM = 140, POZ_X = 836, POZ_Y = 420, POZ_Y0 = -0.43, RES = {};
+  const POZ_P = { kanatL: { k: [0, 60, 800, 450], y: [[0, 0], [700, 0], [700, 190], [800, 190], [800, 345], [690, 345], [690, 941], [0, 941]], m: [772, 245] },
+    kanatR: { k: [872, 60, 1672, 450], y: [[1672, 0], [972, 0], [972, 190], [872, 190], [872, 345], [982, 345], [982, 941], [1672, 941]], m: [900, 245] },
+    govde: { k: [690, 0, 985, 580], y: [[700, 0], [972, 0], [972, 190], [900, 190], [900, 345], [985, 345], [985, 580], [690, 580], [690, 345], [772, 345], [772, 190], [700, 190]], m: [836, 330] },
+    kuyruk: { k: [690, 545, 985, 941], y: [[792, 545], [884, 545], [884, 580], [985, 580], [985, 941], [690, 941], [690, 580], [792, 580]], m: [836, 562] } };
+  const cizimAcik = () => { try { return localStorage.getItem('eo2.yarisCizim') !== 'kod'; } catch (_) { return true; } };
+  function resimYukle(el) { if (!POZ[el] || !cizimAcik()) return Promise.resolve(null); if (RES[el] !== undefined) return Promise.resolve(RES[el]);
+    const y = u => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = u; });
+    return RES[el + '_'] || (RES[el + '_'] = Promise.all([y('assets/yaris3/' + el + '-arka.webp'), y('assets/yaris3/' + el + '-arka-m.webp')]).then(a => (RES[el] = a[0] ? { im: a[0], mk: a[1] } : null))); }
+  /* gen renklerinin yerli renkten farkı: pul ve süs için ton kayması, doygunluk çarpanı; pigment için açıklık */
+  function renkFarki(x) { const o = { dp: 0, ds: 0, kp: 1, ks: 1, l: 0 };
+    try { const d = x && !x.genes && x.gx ? Object.assign({ genes: x.gx }, x) : x, n = NATIVE[d.el], p = pulOf(d), s2 = susOf(d), pig = pigOf(d);
+      if (!p.native) { o.dp = p.h - n.pul.h; o.kp = clamp(p.s / (n.pul.s || 1), 0.2, 1.3); } if (!s2.native) { o.ds = s2.h - n.sus.h; o.ks = clamp(s2.s / (n.sus.s || 1), 0.2, 1.3); }
+      if (pig === 'a') { o.kp *= 0.3; o.ks *= 0.3; o.l = 0.1; } else if (pig === 'm') { o.kp *= 0.7; o.ks *= 0.7; o.l = -0.2; } } catch (_) { }
+    o.dp += (x && x.hue || 0) * 2; o.dp = Math.round(o.dp / 10) * 10; o.ds = Math.round(o.ds / 10) * 10; o.kp = Math.round(o.kp * 8) / 8; o.ks = Math.round(o.ks * 8) / 8; return o; }
+  function boya(c, mk, f) { const w = c.width, h = c.height, x = c.getContext('2d'), I = x.getImageData(0, 0, w, h), q = I.data, M = tuval(w, h, k => k.drawImage(mk, 0, 0, w, h)).getContext('2d').getImageData(0, 0, w, h).data;
+    const ton = (p, q2, t) => { t = (t % 1 + 1) % 1; return t < 1 / 6 ? p + (q2 - p) * 6 * t : t < 0.5 ? q2 : t < 2 / 3 ? p + (q2 - p) * (2 / 3 - t) * 6 : p; };
+    for (let i = 0; i < q.length; i += 4) { if (!q[i + 3]) continue; const a = M[i] / 255, b = M[i + 1] / 255; if (a + b < 0.04) continue;
+      const r = q[i] / 255, g = q[i + 1] / 255, bl = q[i + 2] / 255, mx = Math.max(r, g, bl), mn = Math.min(r, g, bl), d = mx - mn; let hh = 0, l = (mx + mn) / 2, s = d ? (l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn)) : 0;
+      if (d) hh = (mx === r ? ((g - bl) / d + (g < bl ? 6 : 0)) : mx === g ? (bl - r) / d + 2 : (r - g) / d + 4) / 6;
+      const k = Math.min(1, a + b); hh += (a * f.dp + b * f.ds) / 360; s = clamp(s * (1 + (a * (f.kp - 1) + b * (f.ks - 1))), 0, 1); l = clamp(l + f.l * k * (f.l > 0 ? 1 - l : l) * 2.2, 0, 1);
+      const q2 = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q2; q[i] = ton(p, q2, hh + 1 / 3) * 255; q[i + 1] = ton(p, q2, hh) * 255; q[i + 2] = ton(p, q2, hh - 1 / 3) * 255; }
+    x.putImageData(I, 0, 0); }
+  function resimDoku(R, el, x, P, s) { const res = RES[el]; if (!res) return null; const o = 1280 / POZ_W * s, f = renkFarki(x), b = 8, ad = Object.keys(POZ_P), yer = {};
+    const c0 = tuval(Math.round(POZ_W * o), Math.round(POZ_H * o), k => { k.imageSmoothingQuality = 'high'; k.drawImage(res.im, 0, 0, Math.round(POZ_W * o), Math.round(POZ_H * o)); });
+    if (res.mk && (f.dp || f.ds || f.kp !== 1 || f.ks !== 1 || f.l)) boya(c0, res.mk, f);
+    let px = b, py = b, satir = 0, W = 0; const en = q => Math.ceil((q.k[2] - q.k[0]) * o), boy = q => Math.ceil((q.k[3] - q.k[1]) * o), sinir = Math.ceil(1620 * o);
+    for (const a of ad) { const q = POZ_P[a]; if (px + en(q) + b > sinir && px > b) { px = b; py += satir + b; satir = 0; } yer[a] = [px, py]; px += en(q) + b; W = Math.max(W, px); satir = Math.max(satir, boy(q)); }
+    const H = py + satir + b, c = tuval(W, H, k => { for (const a of ad) { const q = POZ_P[a], t = yer[a]; k.save(); k.translate(t[0] - q.k[0] * o, t[1] - q.k[1] * o); k.beginPath(); q.y.forEach((n, i) => i ? k.lineTo(n[0] * o, n[1] * o) : k.moveTo(n[0] * o, n[1] * o)); k.closePath(); k.clip(); k.drawImage(c0, 0, 0); k.restore(); } });
+    const d = { tx: R.texture(c), resim: true, P, par: {} }; for (const a of ad) { const q = POZ_P[a], t = yer[a]; d.par[a] = [(t[0] + 0.5) / W, (t[1] + 0.5) / H, (t[0] + en(q) - 0.5) / W, (t[1] + boy(q) - 0.5) / H]; }
+    c0.width = c0.height = c.width = c.height = 0; return d; }
+  const dokuSec = (R, x, g, s) => (x && RES[x.el] && resimDoku(R, x.el, x, paletOf(g), s)) || ejderDoku(R, paletOf(g), s);
   const onaltili = hex => { const r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; let h = 0; if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return { h: h * 60, s: mx ? d / mx : 0 }; };
   /* bir ejderhanın görünüş genleri (oyunun kendi okuyucularıyla); okunamazsa element rengi */
   function gorunus(x) { const el = x && x.el, q = onaltili((G.ELC && G.ELC[el]) || '#6fd0ff'), o = { ton: q.h, doy: q.s * 100, el, sus: null, pig: 'N', par: false, boy: 0 }, d = x && !x.genes && x.gx ? Object.assign({ genes: x.gx }, x) : x;
@@ -275,8 +311,8 @@
     koy('binici', biniciTuval(), 260, 300); koy('atki', atkiTuval(), 240, 110);
     const A = atlas(L0); t.at = R.texture(A.c); t.uv = A.yer; A.c.width = A.c.height = 0;
     t.gok = R.texture(gokTuval(), { mips: false }); t.ufuk = R.texture(ufukTuval(), { mips: false });
-    t.ben = ejderDoku(R, paletOf(gorunus(d)), 1); t.rakip = {}; t.an = {};
-    for (const x of rakipler || []) { const g = gorunus(x); g.ton = Math.round(g.ton / 10) * 10; g.doy = Math.round(g.doy / 15) * 15; if (g.sus) g.sus = [Math.round(g.sus[0] / 10) * 10, Math.round(g.sus[1] / 15) * 15]; const an = JSON.stringify(g); t.an[x.name] = an; if (!t.rakip[an]) t.rakip[an] = ejderDoku(R, paletOf(g), 0.5); }
+    t.ben = dokuSec(R, d, gorunus(d), 1); t.rakip = {}; t.an = {};
+    for (const x of rakipler || []) { const g = gorunus(x); g.ton = Math.round(g.ton / 10) * 10; g.doy = Math.round(g.doy / 15) * 15; if (g.sus) g.sus = [Math.round(g.sus[0] / 10) * 10, Math.round(g.sus[1] / 15) * 15]; const an = JSON.stringify(g) + (RES[x.el] ? JSON.stringify(renkFarki(x)) : ''); t.an[x.name] = an; if (!t.rakip[an]) t.rakip[an] = dokuSec(R, x, g, 0.5); }
     return t; }
   function birak(R) { if (!T) return; const sil = o => { if (o && o.t !== undefined && R.sil) R.sil(o); }; sil(T.at); sil(T.gok); sil(T.ufuk); sil(T.ben.tx); for (const k of Object.keys(T.rakip)) sil(T.rakip[k].tx); T = null; }
 
@@ -410,11 +446,17 @@
       const parca = (tx, uv, mx, my, ax, ay, w, h, don, ayna, rk) => { const cc = Math.cos(don), ss = Math.sin(don), k = (qx, qy) => { const lx = (qx - ax) * w * (ayna ? -1 : 1), ly = (ay - qy) * h; return E(mx + lx * cc - ly * ss, my + lx * ss + ly * cc); };
         R.quad(tx, k(0, 1), k(1, 1), k(1, 0), k(0, 0), uv[0], uv[1], uv[2], uv[3], rk || renk, false, 0, true); };
       if (parla > 0) { const k = parla * a, cc = dk.P.iz, I = UV.isik; for (const yan of [-1, 1]) R.quad(AT, E(yan * 3.3 - 1.6, -2.6), E(yan * 3.3 + 1.6, -2.6), E(yan * 3.3 + 1.1, 1.0), E(yan * 3.3 - 1.1, 1.0), I[0], I[1], I[2], I[3], [cc[0] * k * 0.4, cc[1] * k * 0.4, cc[2] * k * 0.4, 1], true, 0, true); isik(ox, oy - 0.9 * s, 2.4 * s, [cc[0] * k * 0.2, cc[1] * k * 0.2, cc[2] * k * 0.2, 1]); }
+      if (dk.resim) { /* gerçek çizim: kanat omuz çizgisinden eğilir (kök yerinde kalır, uç iner kalkar), kuyruk kökünden salınır */
+        const cirp = Math.sin(faz), W = (x, y) => [(x - POZ_X) / POZ_PM, (POZ_Y - y) / POZ_PM + POZ_Y0], dort = (ad, f) => { const q = POZ_P[ad], k = q.k, uv = dk.par[ad], n = (x, y) => { const v = f(x - q.m[0], q.m[1] - y), w = W(q.m[0], q.m[1]); return E(w[0] + v[0] / POZ_PM, w[1] + v[1] / POZ_PM); };
+          R.quad(tex, n(k[0], k[3]), n(k[2], k[3]), n(k[2], k[1]), n(k[0], k[1]), uv[0], uv[1], uv[2], uv[3], renk, false, 0, true); };
+        for (const yan of [-1, 1]) { const ac = cirp * 0.34 + 0.04 + yunus * 0.1 + yan * yatis * 0.12, cc = Math.cos(ac), ss = Math.sin(ac); dort(yan < 0 ? 'kanatL' : 'kanatR', (lx, ly) => [lx * cc, ly + lx * yan * ss]); }
+        const kd = Math.sin(faz * 0.5 + 1) * 0.1 - yatis * 0.4, kc = Math.cos(kd), ks = Math.sin(kd); dort('kuyruk', (lx, ly) => [lx * kc - ly * ks, lx * ks + ly * kc]); dort('govde', (lx, ly) => [lx, ly]);
+      } else {
       const cirp = Math.sin(faz), acik = -0.2 + cirp * 0.3 + yunus * 0.1, kis = 1 - Math.abs(cirp) * 0.07, kw = 6.0 * kis, kh = kw * KANAT_H / KANAT_W;
       parca(tex, dk.kanat, -0.42, 0.62, KANAT_M[0] / KANAT_W, KANAT_M[1] / KANAT_H, kw, kh, -acik, false);
       parca(tex, dk.kanat, 0.42, 0.62, KANAT_M[0] / KANAT_W, KANAT_M[1] / KANAT_H, kw, kh, acik, true);
       const gh = 4.3, gw = gh * GOVDE_W / GOVDE_H * 1.08; parca(tex, dk.govde, 0, 0.1, 0.5, 0.5, gw, gh, 0, false);
-      const kyh = 2.5, kyw = kyh * KUYRUK_W / KUYRUK_H; parca(tex, dk.kuyruk, 0, -1.7, 0.5, 0.03, kyw, kyh, Math.sin(faz * 0.5 + 1) * 0.16 - yatis * 0.5, false);
+      const kyh = 2.5, kyw = kyh * KUYRUK_W / KUYRUK_H; parca(tex, dk.kuyruk, 0, -1.7, 0.5, 0.03, kyw, kyh, Math.sin(faz * 0.5 + 1) * 0.16 - yatis * 0.5, false); }
       const rk = ton ? [ton[0], ton[1], ton[2], a] : renk, dalga = Math.sin(u.t * 9 + faz) * 0.16 + Math.sin(u.t * 14.3) * 0.07;
       parca(AT, UV.atki, -0.1, 0.48, 0.97, 0.5, 1.3 + (ben ? (oran - 1) * 0.4 : 0), 0.5, 0.12 + dalga - yatis * 0.6, false, rk); parca(AT, UV.binici, 0, -0.14, 0.5, 0.82, 1.42, 1.64, -yatis * 0.25, false, rk); }
   }
@@ -490,8 +532,9 @@
   const denemeYarisi = (d, r) => { if (r && r.rivals && r.rivals.length) return Object.assign({}, r, { id: 'deneme' });
     const lv = Math.round(((d.st.ce || 50) + (d.st.da || 50)) / 2), adlar = RACE_NAMES.slice().sort(() => Math.random() - 0.5), huy = Object.keys(RACE_STYLE);
     return { id: 'deneme', venue: Object.keys(RACE_VENUES)[0], ad: 'Deneme pisti', fee: 0, odul: [0, 0, 0], un: 0, len: 34, rivals: [0, 1, 2].map(i => ({ name: adlar[i], trainer: TRAINERS[i % TRAINERS.length], el: rEl(), style: huy[i % huy.length], gx: randLook(), hue: 0, ce: Math.round(lv * (0.9 + Math.random() * 0.2)), da: Math.round(lv * (0.85 + Math.random() * 0.2)) })) }; };
-  async function basla(d, race, practice, o) { if (U || T) return; const A = EO2.api; if (!d && typeof S !== 'undefined' && S.dragons) d = S.dragons.find(x => typeof canRace === 'function' ? canRace(x) : x.stage === 'yetiskin') || null; if (!d) return;
-    const deneme = !!(o && o.deneme); if (deneme) { race = denemeYarisi(d, race); practice = false; } secim = { d, race: race || null, practice: !!practice, deneme };
+  let aciliyor = false;
+  async function basla(d, race, practice, o) { if (U || T || aciliyor) return; const A = EO2.api; if (!d && typeof S !== 'undefined' && S.dragons) d = S.dragons.find(x => typeof canRace === 'function' ? canRace(x) : x.stage === 'yetiskin') || null; if (!d) return;
+    const deneme = !!(o && o.deneme); if (deneme) { race = denemeYarisi(d, race); practice = false; } aciliyor = true; try { await Promise.all([d].concat(race && race.rivals || []).map(x => resimYukle(x.el))); } catch (_) { } aciliyor = false; secim = { d, race: race || null, practice: !!practice, deneme };
     onceki = A.scene() === 'gok3' ? 'meydan' : A.scene(); kam = A.S.camMode; if (G.close) G.close(); G.mesgul = true; EO2.gizli = true; app.classList.add('yarista');
     T = kur(A.R, d, race ? race.rivals : []); U = yeni(); Y = null;
     A.go('gok3'); await new Promise(r => setTimeout(r, 620));
