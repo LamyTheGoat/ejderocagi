@@ -29,12 +29,19 @@
     sablon: {
       sac: { cw: 199, ch: 245, ax: 114, ay: 374, hucre: HUCRE6 },
       yuz: { cw: 128, ch: 124, ax: 72, ay: 330, hucre: HUCRE6.concat(['down_sevinc', 'right_sevinc']) },
-      kulak: { cw: 127, ch: 48, ax: 70, ay: 272, hucre: HUCRE6 }
+      kulak: { cw: 127, ch: 48, ax: 70, ay: 272, hucre: HUCRE6 },
+      baslik: { cw: 172, ch: 256, ax: 96, ay: 365, hucre: HUCRE6 },
+      /* başlık takılıyken saçın görünen kısmı: başlık başına bir sayfa, satır = stil x parça (stiller sırasıyla, her stilde parca sırasıyla) */
+      /* yüz aksesuarı: yüzsüz baş silüetine çizdirilir (tools/kat_yuzaks_donustur.py); önden, arkadan, yandan duruş, yürüyüş "iz" ile */
+      yuzAks: { cw: 168, ch: 168, ax: 88, ay: 348, hucre: ['down_durus', 'up_durus', 'right_durus'] },
+      sacAlti: { cw: 197, ch: 244, ax: 113, ay: 374, hucre: HUCRE6, stiller: ['orig', 'kisa', 'topuz', 'atkuyrugu', 'yan', 'uzun', 'ikiz', 'kut', 'orgu'], parca: ['sacArka', 'sacOn', 'sacUst'] }
     },
     /* yürüyüş hücresi olmayan parçanın duruş hücresine göre kayması (piksel, ölçüm 2026-11-22: saç, yüz ve kulak aynı kaymayı verir) */
     iz: { down: [0, 0.62], up: [0, 2.62], right: [0, -10.12] },
-    /* katman sırası, alttan üste. Henüz çizimi olmayan slotlar (pelerin, yüz aksesuarı, başlık) yerlerini tutar. */
-    sira: ['pelerinArka', 'sacArka', 'govde', 'yuz', 'yuzAks', 'sacOn', 'kulak', 'baslik', 'pelerinOn'],
+    /* katman sırası, alttan üste. Henüz çizimi olmayan slotlar (pelerin, yüz aksesuarı) yerlerini tutar.
+       yuzAks saçın önündedir: gözlüğün kayışı arkadan ve yandan saçın üstünden geçer; başlık onun da üstündedir.
+       baslikArka: başlığın gövde arkasında kalan ucu · yama: kapüşonun kulak yerini örten ten · kulakUst: başlığın üstündeki kulak · sacUst: arkadan açık başlığın üstünde kalan topuz */
+    sira: ['pelerinArka', 'sacArka', 'baslikArka', 'govde', 'yuz', 'yama', 'sacOn', 'yuzAks', 'kulak', 'baslik', 'kulakUst', 'sacUst', 'pelerinOn'],
     siraYon: {},
     rampa: { dosya: 'kat/rampa.png', satir: { black: 0, blond: 1, white: 2, blue: 3, orange: 4, green: 5, pink: 6 } },
 
@@ -66,6 +73,41 @@
       gold: { ad: 'Altın', satir: 3, ornek: '#e6b83c' }, purple: { ad: 'Mor', satir: 4, ornek: '#9a55d8' }, grey: { ad: 'Gri', satir: 5, ornek: '#9aa0a8' }
     },
     kulak: { dosya: 'kat/kulak.webp' },
+
+    /* BAŞLIKLAR (Faz 3, 2026-11-22). Kaynak: çizicinin 12 başlığı (prototype/chibi_rig, parts/styles_npc.js), pişiren: tools/kat_baslik_pisir.mjs + kat_baslik_donustur.py.
+       dosya: başlığın kendisi, satırlar parca sırasıyla · sacAlti / sacAltiOzgun: başlık takılıyken saç (gri + özgün renk), sablon.sacAlti düzeninde
+       tur: başlığın saça ve kulağa ne yaptığı (baslikTur) · kaynak: başka bir başlığın renk çeşidi (saç kesimi ve türü ondan gelir)
+       Ekipman bağlantısı: js/ekipman_kural.js'te başlık eşyasının "kat" alanı buradaki kimliktir. */
+    baslikTur: {
+      open: { tasi: { kulak: 'kulakUst' } },     // bant, taç: saç tümüyle görünür, kulak başlığın üstünde
+      closed: { tasi: { kulak: 'kulakUst' } },   // fes, kep, miğfer, şapka: tacın hacmi başlığın altında kalır (saç altı sayfasında kesilmiş), kulak üstte
+      hood: { gizler: ['kulak'] },               // kapüşon, kukuleta: yalnız yüz çevresindeki saç; kulağın yerini ten yaması örter
+      wrap: { gizler: ['kulak'] }                // kefiye, başörtüsü: kapüşon gibi
+    },
+    baslik: {
+      bandana: { ad: 'Bandana', tur: 'open', dosya: 'kat/baslik_bandana.webp', parca: ['baslik'], sacAlti: 'kat/baslik_bandana_sac.webp', sacAltiOzgun: 'kat/baslik_bandana_sac_ozgun.webp' },
+      sapka1: { ad: 'Ozan şapkası', tur: 'closed', dosya: 'kat/baslik_sapka1.webp', parca: ['baslik'], sacAlti: 'kat/baslik_sapka1_sac.webp', sacAltiOzgun: 'kat/baslik_sapka1_sac_ozgun.webp' },
+      fes: { ad: 'Fes', tur: 'closed', dosya: 'kat/baslik_fes.webp', parca: ['baslik'], sacAlti: 'kat/baslik_fes_sac.webp', sacAltiOzgun: 'kat/baslik_fes_sac_ozgun.webp' },
+      kep1: { ad: 'Brokar kep', tur: 'closed', dosya: 'kat/baslik_kep1.webp', parca: ['baslik'], sacAlti: 'kat/baslik_kep1_sac.webp', sacAltiOzgun: 'kat/baslik_kep1_sac_ozgun.webp' },
+      tac1: { ad: 'Demir taç', tur: 'open', dosya: 'kat/baslik_tac1.webp', parca: ['baslik'], sacAlti: 'kat/baslik_bandana_sac.webp', sacAltiOzgun: 'kat/baslik_bandana_sac_ozgun.webp' },
+      kapuson1: { ad: 'Kapüşon', tur: 'hood', dosya: 'kat/baslik_kapuson1.webp', parca: ['baslikArka', 'baslik', 'yama'], sacAlti: 'kat/baslik_kapuson1_sac.webp', sacAltiOzgun: 'kat/baslik_kapuson1_sac_ozgun.webp' },
+      kask1: { ad: 'Demir miğfer', tur: 'closed', dosya: 'kat/baslik_kask1.webp', parca: ['baslik'], sacAlti: 'kat/baslik_kask1_sac.webp', sacAltiOzgun: 'kat/baslik_kask1_sac_ozgun.webp' },
+      kefiye1: { ad: 'Kefiye', tur: 'wrap', dosya: 'kat/baslik_kefiye1.webp', parca: ['baslikArka', 'baslik', 'yama'], sacAlti: 'kat/baslik_kefiye1_sac.webp', sacAltiOzgun: 'kat/baslik_kefiye1_sac_ozgun.webp' },
+      hasir1: { ad: 'Hasır şapka', tur: 'closed', dosya: 'kat/baslik_hasir1.webp', parca: ['baslik'], sacAlti: 'kat/baslik_hasir1_sac.webp', sacAltiOzgun: 'kat/baslik_hasir1_sac_ozgun.webp' },
+      kukuleta1: { ad: 'Kukuleta', tur: 'hood', dosya: 'kat/baslik_kukuleta1.webp', parca: ['baslik', 'yama'], sacAlti: 'kat/baslik_kukuleta1_sac.webp', sacAltiOzgun: 'kat/baslik_kukuleta1_sac_ozgun.webp' },
+      basortu1: { ad: 'Başörtüsü', tur: 'wrap', dosya: 'kat/baslik_basortu1.webp', parca: ['baslikArka', 'baslik', 'yama'], sacAlti: 'kat/baslik_basortu1_sac.webp', sacAltiOzgun: 'kat/baslik_basortu1_sac_ozgun.webp' },
+      sarik1: { ad: 'Sarık', tur: 'closed', dosya: 'kat/baslik_sarik1.webp', parca: ['baslik'], sacAlti: 'kat/baslik_sarik1_sac.webp', sacAltiOzgun: 'kat/baslik_sarik1_sac_ozgun.webp' },
+      /* renk çeşitleri (ekipman başlıkları): yalnız başlık sayfası ayrı */
+      bork: { ad: 'Keçe Börk', kaynak: 'fes', dosya: 'kat/baslik_bork.webp' },
+      tolga: { ad: 'Tunç Tolga', kaynak: 'kask1', dosya: 'kat/baslik_tolga.webp' },
+      kara_migfer: { ad: 'Kara Miğfer', kaynak: 'kask1', dosya: 'kat/baslik_kara_migfer.webp' }
+    },
+    /* YÜZ AKSESUARLARI (Faz 3, 2026-11-22). Kullanıcı (Mehmet): aksesuar yüzü olan bir kafaya çizdirilmez; göz ya da ten değişince bozulmamalı.
+       Üretim: görsel model yüzsüz gri baş silüetinin (önden, arkadan, yandan) üstüne yalnız eşyayı çizer, camlar düz magenta;
+       tools/kat_yuzaks_donustur.py katmanı ayırır, camı yarı saydam yapar, sablon.yuzAks hücrelerine koyar. Ekipman: eşyanın "kat" alanı. */
+    yuzAks: {
+      gozluk: { ad: 'Demirci Gözlüğü', dosya: 'kat/yuzaks_gozluk.webp' }
+    },
     /* zırh setlerinin gövdesi (53 kare, eski sayfa; ölçüler assets/gorunus_atlas.js govde.<set>) */
     govde: { dosya: set => 'gorunus/govde_' + set + '.webp' }
   };

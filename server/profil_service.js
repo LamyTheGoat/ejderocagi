@@ -14,7 +14,7 @@ const tam = (v, a, b) => Number.isFinite(+v) ? Math.max(a, Math.min(b, Math.floo
 function temizProfil(p) {
   if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
   const y = p.yildiz, st = {}; for (const k of SAYAC) st[k] = tam(p.st && p.st[k], 0, 99999);
-  return { ad: temizAd(p.ad), set: typeof p.set === 'string' && /^[a-z]{2,12}$/.test(p.set) ? p.set : 'temel', gor: typeof p.gor === 'string' && /^[a-z0-9]{1,12}(\.[a-z0-9]{1,12}){3}$/.test(p.gor) ? p.gor : '', hafta: tam(p.hafta, 1, 999), un: tam(p.un, 0, 9999), ejder: tam(p.ejder, 0, 50),
+  return { ad: temizAd(p.ad), set: typeof p.set === 'string' && /^[a-z]{2,12}$/.test(p.set) ? p.set : 'temel', gor: typeof p.gor === 'string' && /^[a-z0-9]{1,12}(\.[a-z0-9]{1,12}){3}(\.[a-z0-9_]{1,16}){0,2}$/.test(p.gor) ? p.gor : '', hafta: tam(p.hafta, 1, 999), un: tam(p.un, 0, 9999), ejder: tam(p.ejder, 0, 50),
     yildiz: y && typeof y === 'object' && EL.has(y.el) && EVRE.has(y.stage) ? { name: temizAd(y.name), el: y.el, stage: y.stage, sex: y.sex === 'M' ? 'M' : 'F' } : null, st };
 }
 

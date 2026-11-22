@@ -39,17 +39,17 @@
     K('senlik', 'zirh', 'Ocak Şenliği', 'Bayram kuşağı, süslü yelek.', 350, { kor_t1: 6 }, { set: 'senlik' }),
     K('buyucu', 'zirh', 'Büyücü', 'Uzun cübbe, yıldızlı pelerin.', 400, { kor_t2: 3 }, { set: 'buyucu' }),
     K('muhafiz', 'zirh', 'Muhafız', 'Çelik göğüslük, kızıl pelerin.', 500, { kor_t2: 4, kor_t3: 2 }, { set: 'muhafiz' }),
-    K('bork', 'baslik', 'Keçe Börk', 'Sade keçe başlık.', 180, {}, { ikon: null }),
-    K('tolga', 'baslik', 'Tunç Tolga', 'Dövme tunç başlık.', 320, { kalip_zirh: 1 }, { ikon: null }),
-    K('kukulete', 'baslik', 'Yün Kukuleta', 'Kalın yün başlık.', 450, { kalip_zirh: 2 }, { ikon: null }),
-    K('kara_migfer', 'baslik', 'Kara Miğfer', 'Obsidiyenle sertleştirilmiş demir başlık.', 600, { kalip_zirh: 3, obsidiyen: 2 }, { ikon: null }),
+    K('bork', 'baslik', 'Keçe Börk', 'Sade keçe başlık.', 180, {}, { ikon: null, kat: 'bork' }),
+    K('tolga', 'baslik', 'Tunç Tolga', 'Dövme tunç başlık.', 320, { kalip_zirh: 1 }, { ikon: null, kat: 'tolga' }),
+    K('kukulete', 'baslik', 'Yün Kukuleta', 'Kalın yün başlık.', 450, { kalip_zirh: 2 }, { ikon: null, kat: 'kukuleta1' }),
+    K('kara_migfer', 'baslik', 'Kara Miğfer', 'Obsidiyenle sertleştirilmiş demir başlık.', 600, { kalip_zirh: 3, obsidiyen: 2 }, { ikon: null, kat: 'kara_migfer' }),
     K('keten_pelerin', 'pelerin', 'Keten Pelerin', 'Yol pelerini.', 150, {}, { ikon: null }),
     K('kilim_sal', 'pelerin', 'Kilim Pelerin', 'Dokuma yün pelerin.', 260, { kalip_zirh: 1 }, { ikon: null }),
     K('kurt_postu', 'pelerin', 'Post Pelerin', 'Kalın kürk pelerin.', 400, { kalip_zirh: 2 }, { ikon: null }),
     K('sancak', 'pelerin', 'Tuğlu Pelerin', 'Ağır, süslü pelerin.', 550, { kalip_zirh: 3 }, { ikon: null }),
     K('sargi', 'yuz', 'Bez Sargı', 'Sade yüz sargısı.', 90, {}, { ikon: null }),
     K('monokl', 'yuz', 'Mercek', 'Tek gözlük mercek.', 200, { kalip_silah: 1 }, { ikon: null }),
-    K('gozluk', 'yuz', 'Demirci Gözlüğü', 'Kıvılcıma karşı gözlük.', 300, { kalip_silah: 1 }, { ikon: null }),
+    K('gozluk', 'yuz', 'Demirci Gözlüğü', 'Kıvılcıma karşı gözlük.', 300, { kalip_silah: 1 }, { ikon: null, kat: 'gozluk' }),
     K('tunc_maske', 'yuz', 'Tunç Maske', 'Dövme tunç yüz maskesi.', 500, { kalip_silah: 2 }, { ikon: null })
   ];
   const KAT = Object.fromEntries(KATALOG.map(k => [k.id, k]));
