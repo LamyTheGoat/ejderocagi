@@ -265,7 +265,7 @@
      Çizim tek resimdir; burada kanatlar, gövde ve kuyruk olarak ayrılır ki kanat çırpsın, kuyruk salınsın.
      Maske (aynı ad, -m): kırmızı kanal pul, yeşil kanal süs. Gen renkleri yerli renkten farklıysa o bölgelerin tonu kaydırılır.
      Çizimi olmayan element kodla çizilen ejderhayı kullanır. Ölçüler kaynağın 1672x941 karesine göredir. */
-  const POZ = { ates: 1 }, POZ_W = 1672, POZ_H = 941, POZ_PM = 140, POZ_X = 836, POZ_Y = 420, POZ_Y0 = -0.43, RES = {};
+  const POZ = { ates: {} }, POZ_W = 1672, POZ_H = 941, POZ_PM = 140, POZ_X = 836, POZ_Y = 420, POZ_Y0 = -0.43, RES = {};
   const POZ_P = { kanatL: { k: [0, 60, 800, 450], y: [[0, 0], [700, 0], [700, 190], [800, 190], [800, 345], [690, 345], [690, 941], [0, 941]], m: [772, 245] },
     kanatR: { k: [872, 60, 1672, 450], y: [[1672, 0], [972, 0], [972, 190], [872, 190], [872, 345], [982, 345], [982, 941], [1672, 941]], m: [900, 245] },
     govde: { k: [690, 0, 985, 580], y: [[700, 0], [972, 0], [972, 190], [900, 190], [900, 345], [985, 345], [985, 580], [690, 580], [690, 345], [772, 345], [772, 190], [700, 190]], m: [836, 330] },
@@ -288,13 +288,13 @@
       const k = Math.min(1, a + b); hh += (a * f.dp + b * f.ds) / 360; s = clamp(s * (1 + (a * (f.kp - 1) + b * (f.ks - 1))), 0, 1); l = clamp(l + f.l * k * (f.l > 0 ? 1 - l : l) * 2.2, 0, 1);
       const q2 = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q2; q[i] = ton(p, q2, hh + 1 / 3) * 255; q[i + 1] = ton(p, q2, hh) * 255; q[i + 2] = ton(p, q2, hh - 1 / 3) * 255; }
     x.putImageData(I, 0, 0); }
-  function resimDoku(R, el, x, P, s) { const res = RES[el]; if (!res) return null; const o = 1280 / POZ_W * s, f = renkFarki(x), b = 8, ad = Object.keys(POZ_P), yer = {};
+  function resimDoku(R, el, x, P, s) { const res = RES[el]; if (!res) return null; const PP = Object.assign({}, POZ_P, POZ[el].p || {}), o = 1280 / POZ_W * s, f = renkFarki(x), b = 8, ad = Object.keys(PP), yer = {};
     const c0 = tuval(Math.round(POZ_W * o), Math.round(POZ_H * o), k => { k.imageSmoothingQuality = 'high'; k.drawImage(res.im, 0, 0, Math.round(POZ_W * o), Math.round(POZ_H * o)); });
     if (res.mk && (f.dp || f.ds || f.kp !== 1 || f.ks !== 1 || f.l)) boya(c0, res.mk, f);
     let px = b, py = b, satir = 0, W = 0; const en = q => Math.ceil((q.k[2] - q.k[0]) * o), boy = q => Math.ceil((q.k[3] - q.k[1]) * o), sinir = Math.ceil(1620 * o);
-    for (const a of ad) { const q = POZ_P[a]; if (px + en(q) + b > sinir && px > b) { px = b; py += satir + b; satir = 0; } yer[a] = [px, py]; px += en(q) + b; W = Math.max(W, px); satir = Math.max(satir, boy(q)); }
-    const H = py + satir + b, c = tuval(W, H, k => { for (const a of ad) { const q = POZ_P[a], t = yer[a]; k.save(); k.translate(t[0] - q.k[0] * o, t[1] - q.k[1] * o); k.beginPath(); q.y.forEach((n, i) => i ? k.lineTo(n[0] * o, n[1] * o) : k.moveTo(n[0] * o, n[1] * o)); k.closePath(); k.clip(); k.drawImage(c0, 0, 0); k.restore(); } });
-    const d = { tx: R.texture(c), resim: true, P, par: {} }; for (const a of ad) { const q = POZ_P[a], t = yer[a]; d.par[a] = [(t[0] + 0.5) / W, (t[1] + 0.5) / H, (t[0] + en(q) - 0.5) / W, (t[1] + boy(q) - 0.5) / H]; }
+    for (const a of ad) { const q = PP[a]; if (px + en(q) + b > sinir && px > b) { px = b; py += satir + b; satir = 0; } yer[a] = [px, py]; px += en(q) + b; W = Math.max(W, px); satir = Math.max(satir, boy(q)); }
+    const H = py + satir + b, c = tuval(W, H, k => { for (const a of ad) { const q = PP[a], t = yer[a]; k.save(); k.translate(t[0] - q.k[0] * o, t[1] - q.k[1] * o); k.beginPath(); q.y.forEach((n, i) => i ? k.lineTo(n[0] * o, n[1] * o) : k.moveTo(n[0] * o, n[1] * o)); k.closePath(); k.clip(); k.drawImage(c0, 0, 0); k.restore(); } });
+    const d = { tx: R.texture(c), resim: true, P, par: {}, pp: PP }; for (const a of ad) { const q = PP[a], t = yer[a]; d.par[a] = [(t[0] + 0.5) / W, (t[1] + 0.5) / H, (t[0] + en(q) - 0.5) / W, (t[1] + boy(q) - 0.5) / H]; }
     c0.width = c0.height = c.width = c.height = 0; return d; }
   const dokuSec = (R, x, g, s) => (x && RES[x.el] && resimDoku(R, x.el, x, paletOf(g), s)) || ejderDoku(R, paletOf(g), s);
   const onaltili = hex => { const r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; let h = 0; if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return { h: h * 60, s: mx ? d / mx : 0 }; };
@@ -447,7 +447,7 @@
         R.quad(tx, k(0, 1), k(1, 1), k(1, 0), k(0, 0), uv[0], uv[1], uv[2], uv[3], rk || renk, false, 0, true); };
       if (parla > 0) { const k = parla * a, cc = dk.P.iz, I = UV.isik; for (const yan of [-1, 1]) R.quad(AT, E(yan * 3.3 - 1.6, -2.6), E(yan * 3.3 + 1.6, -2.6), E(yan * 3.3 + 1.1, 1.0), E(yan * 3.3 - 1.1, 1.0), I[0], I[1], I[2], I[3], [cc[0] * k * 0.4, cc[1] * k * 0.4, cc[2] * k * 0.4, 1], true, 0, true); isik(ox, oy - 0.9 * s, 2.4 * s, [cc[0] * k * 0.2, cc[1] * k * 0.2, cc[2] * k * 0.2, 1]); }
       if (dk.resim) { /* gerçek çizim: kanat omuz çizgisinden eğilir (kök yerinde kalır, uç iner kalkar), kuyruk kökünden salınır */
-        const cirp = Math.sin(faz), W = (x, y) => [(x - POZ_X) / POZ_PM, (POZ_Y - y) / POZ_PM + POZ_Y0], dort = (ad, f) => { const q = POZ_P[ad], k = q.k, uv = dk.par[ad], n = (x, y) => { const v = f(x - q.m[0], q.m[1] - y), w = W(q.m[0], q.m[1]); return E(w[0] + v[0] / POZ_PM, w[1] + v[1] / POZ_PM); };
+        const cirp = Math.sin(faz), W = (x, y) => [(x - POZ_X) / POZ_PM, (POZ_Y - y) / POZ_PM + POZ_Y0], dort = (ad, f) => { const q = dk.pp[ad], k = q.k, uv = dk.par[ad], n = (x, y) => { const v = f(x - q.m[0], q.m[1] - y), w = W(q.m[0], q.m[1]); return E(w[0] + v[0] / POZ_PM, w[1] + v[1] / POZ_PM); };
           R.quad(tex, n(k[0], k[3]), n(k[2], k[3]), n(k[2], k[1]), n(k[0], k[1]), uv[0], uv[1], uv[2], uv[3], renk, false, 0, true); };
         for (const yan of [-1, 1]) { const ac = cirp * 0.34 + 0.04 + yunus * 0.1 + yan * yatis * 0.12, cc = Math.cos(ac), ss = Math.sin(ac); dort(yan < 0 ? 'kanatL' : 'kanatR', (lx, ly) => [lx * cc, ly + lx * yan * ss]); }
         const kd = Math.sin(faz * 0.5 + 1) * 0.1 - yatis * 0.4, kc = Math.cos(kd), ks = Math.sin(kd); dort('kuyruk', (lx, ly) => [lx * kc - ly * ks, lx * ks + ly * kc]); dort('govde', (lx, ly) => [lx, ly]);
