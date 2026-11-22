@@ -105,6 +105,20 @@
     hal(m) { mz.hal = m === 'bag' || m === 'veda' ? m : null; mz.halT = mz.hal ? Date.now() + 75000 : 0; mz.halGordu = false; },
     night(v) { nightV = v; if (!ok()) return; const t = now(); if (v) { tone('sine', 220, 110, t, 1.2, 0.07); [660, 880, 990, 1320].forEach((f, i) => tone('triangle', f, f, t + 0.25 + i * 0.13, 0.5, 0.035, i / 2 - 0.75)); } else [523, 659, 784].forEach((f, i) => tone('triangle', f, f, t + i * 0.09, 0.4, 0.04)); },
     step() { if (!ok() || st.battle) return; const t = now(); burst(t, 0.05, 900 + Math.random() * 500, 1.2, 0.05); burst(t, 0.03, 180, 0.8, 0.07, 'lowpass'); },
+    /* Gök Yarışı (sırtından uçuş): hıza bağlı rüzgâr uğultusu ve yarış sesleri; hepsi sentezdir, ses dosyası yoktur */
+    ruzgar(v) { if (!ctx) return; v = Math.max(0, Math.min(1.6, +v || 0)); if (!nodes.ruz) { if (!v) return; const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = nodes.pink; s.loop = true; f.type = 'bandpass'; f.frequency.value = 600; f.Q.value = 0.45; g.gain.value = 0; s.connect(f); f.connect(g); g.connect(gAmb); s.start(); nodes.ruz = { f, g }; }
+      const t = now(); nodes.ruz.g.gain.setTargetAtTime(v * 0.2, t, 0.25); nodes.ruz.f.frequency.setTargetAtTime(420 + v * 900, t, 0.3); },
+    ucus(k) { if (!ok()) return true; const t = now();
+      if (k === 'ring') { tone('triangle', 880, 880, t, 0.22, 0.06); tone('triangle', 1320, 1320, t + 0.06, 0.3, 0.05); tone('sine', 1760, 2640, t + 0.1, 0.22, 0.03); }
+      else if (k === 'hit') { tone('sine', 150, 55, t, 0.28, 0.16); burst(t, 0.25, 170, 0.8, 0.22, 'lowpass'); burst(t, 0.12, 1300, 0.7, 0.09); }
+      else if (k === 'wing') { burst(t, 0.42, 760, 0.5, 0.15); burst(t + 0.05, 0.5, 300, 0.6, 0.12, 'lowpass'); }
+      else if (k === 'cirp') { burst(t, 0.3, 420, 0.6, 0.045, 'lowpass'); }
+      else if (k === 'roar' || k === 'roarS') { const o = k === 'roarS' ? 1.7 : 1; tone('sawtooth', 150 * o, 72 * o, t, 0.6, 0.06); tone('sawtooth', 223 * o, 96 * o, t, 0.6, 0.04); burst(t, 0.6, 520, 0.5, 0.07); }
+      else if (k === 'drum') { tone('sine', 112, 48, t, 0.32, 0.2); burst(t, 0.08, 210, 0.8, 0.1, 'lowpass'); tone('sine', 112, 48, t + 0.22, 0.3, 0.16); }
+      else if (k === 'cheer') { burst(t, 0.9, 1900, 0.4, 0.06); [523, 659, 784].forEach((f, i) => tone('triangle', f, f, t + i * 0.08, 0.4, 0.04)); }
+      else if (k === 'win') { [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, t + i * 0.12, i === 3 ? 0.8 : 0.3, 0.055)); tone('sine', 262, 262, t + 0.36, 0.9, 0.05); }
+      else if (k === 'gasp' || k === 'miss') { tone('sine', 420, 190, t, 0.22, 0.05); }
+      else return false; return true; },
     ui() { if (ok()) { const t = now(); tone('triangle', 880, 1320, t, 0.09, 0.045); } },
     pop() { if (ok()) { const t = now(); tone('sine', 520, 1040, t, 0.12, 0.06); tone('sine', 1040, 1560, t + 0.06, 0.1, 0.035); } },
     chime() { if (ok()) { const t = now(); tone('triangle', 659, 659, t, 0.35, 0.05); tone('triangle', 988, 988, t + 0.09, 0.45, 0.045); } },

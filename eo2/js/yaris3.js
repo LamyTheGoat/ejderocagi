@@ -316,6 +316,7 @@
     for (const o of Y.obs) if (!o.hit && Math.abs(o.x - Y.pos) < 0.3 && Math.abs(o.x3 - u.x) > ENGEL_X) { o.hit = true; gec.push(o); }
     const h0 = Y.got, c0 = Y.hits; eski.hits(quiet); for (const q of gec) q.hit = false;
     if (Y.got > h0) { const r = Y.rings.find(q => q.hit && q.t3 === undefined); if (r) { r.t3 = u.t; kivilcim(r, 14); } u.sars = Math.max(u.sars, 0.25); }
+    for (const o of Y.obs) if (!o.hit && !o.gec3 && o.x < Y.pos - 0.15) { o.gec3 = 1; if (!quiet && Math.abs(o.x3 - u.x) < ENGEL_X * 1.7 && Math.abs(o.y - u.y) < 0.17 && typeof raceFx === 'function') { raceFx('KIL PAYI!', 'good'); u.sars = Math.max(u.sars, 0.3); } }
     if (Y.hits > c0) { const o = Y.obs.find(q => q.hit && q.t3 === undefined); if (o) { o.t3 = u.t; u.vx += (u.x >= o.x3 ? 1 : -1) * 7; } u.sars = 1; } }
   function kivilcim(h, n) { for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; U.parca.push({ x: h.x3 + Math.cos(a) * HALKA_R, z: Zm(h.y) + Math.sin(a) * HALKA_R, y: h.x * M, vx: Math.cos(a) * (3 + hs(i) * 5), vz: Math.sin(a) * (3 + hs(i + 9) * 5), t: 0, om: 0.5 + hs(i * 3) * 0.4 }); } }
 
@@ -327,7 +328,8 @@
     const atil = y.dashT > 0, hizli = atil || y.boost > 0.15 || y.slipSurgeT > 0, yavas = y.gustPenalty > 0.08 || y.blockT > 0;
     /* görsel durum: yatış, yunuslama, kanat temposu, kamera */
     u.yatis += (-u.vx / VX * 0.44 - u.yatis) * yak(dt, 9); u.yunus += (-u.vy / VY - u.yunus) * yak(dt, 6);
-    u.kanat += dt * (2.4 + Math.max(0, -u.vy / VY) * 6 + (atil ? 7 : 0) + (y.t < 0 ? 2 : 0));
+    const kn0 = Math.sin(u.kanat); u.kanat += dt * (2.4 + Math.max(0, -u.vy / VY) * 6 + (atil ? 7 : 0) + (y.t < 0 ? 2 : 0));
+    { const a = EO2.audio; if (a && a.ruzgar) { u.sesT = (u.sesT || 0) - dt; if (u.sesT <= 0) { u.sesT = 0.12; a.ruzgar(Y && !secimBitti() ? 0.35 + clamp(oran - 0.5, 0, 1.2) * 0.9 : 0.25); } if (kn0 > 0.2 && Math.sin(u.kanat) <= 0.2 && a.ucus) a.ucus('cirp'); } }
     u.kx += (u.x * 0.88 - u.kx) * yak(dt, 6); u.kz += (bz0 * 0.95 + 2.2 - u.kz) * yak(dt, 6);
     u.kd += (6.6 + clamp(oran - 1, -0.12, 1) * 3.2 - u.kd) * yak(dt, 3); u.kf += (1.5 - clamp(oran - 1, 0, 1) * 0.42 - u.kf) * yak(dt, 4); u.sars = Math.max(0, u.sars - dt * 1.6);
     for (const p of u.parca) { p.t += dt; p.x += p.vx * dt; p.z += p.vz * dt; } if (u.parca.length) u.parca = u.parca.filter(p => p.t < p.om);
@@ -379,6 +381,8 @@
     if (siradaki && ucusta) for (let i = 1; i <= 6; i++) { const q = lerp(y.pos + 0.26, siradaki.x, i / 7), k4 = Math.min(1, i / 4), p = iz(lerp(u.x, yolX(q, u.F), k4), lerp(bz0, Zm(yolY(q, u.F)), k4), (q + ofs) * M); if (!p) continue; const r = 0.5 * p[2], k = 0.55 + 0.45 * Math.sin(u.t * 7 - i * 0.9); koy(p[3], () => isik(p[0], p[1], r, [1 * k, 0.9 * k, 0.55 * k, 1])); }
     /* engeller: fırtına bulutu çakar, kaya ağır ağır döner; çarpılan söner */
     for (const o of y.obs) { const d = o.x * M - ky; if (d < 1 || d > 620) continue; const a = o.hit && o.t3 !== undefined ? clamp(1 - (u.t - o.t3) * 2.5, 0, 1) * 0.8 : 1; if (a < 0.02) continue; const z = Zm(o.y) + Math.sin(u.t * 1.3 + o.x * 2) * 0.3;
+      /* çarpışma yolundaki engel kızıl parlar */
+      if (ucusta && !o.hit && d < 34 && d > u.kd && Math.abs(o.x3 - u.x) < ENGEL_X && Math.abs(o.y - u.y) < 0.1) { const p = iz(o.x3, z, o.x * M); if (p) { const k = 0.5 + 0.5 * Math.sin(u.t * 16); koy(p[3] + 0.02, () => isik(p[0], p[1], 7 * p[2], [0.9 * k, 0.16 * k, 0.1 * k, 1])); } }
       if (o.k === 'bulut') { nesne('firtina', false, o.x3, z, o.x * M, 9.4, 4.7, { a, uzak: 640, yakin: 3, ayna: o.tur > 0 }); if (Math.sin(u.t * 9 + o.x * 3) > 0.8) { const p = iz(o.x3, z, o.x * M); if (p) koy(p[3] - 0.01, () => isik(p[0], p[1], 5.5 * p[2], [0.42 * a, 0.4 * a, 0.75 * a, 1])); } }
       else nesne('kaya' + o.tur, false, o.x3, z, o.x * M, 6.4, 6.4, { a, uzak: 640, yakin: 3, don: Math.sin(u.t * 0.4 + o.x) * 0.25 }); }
     /* bitiş kapısı */
@@ -477,6 +481,7 @@
       '<ul><li>' + y.got + ' / ' + y.rings.length + ' halka' + (y.hits ? ', ' + y.hits + ' çarpma' : ', hiç çarpmadan') + (y.dashes ? ', ' + y.dashes + ' atılım' : '') + (y.slipSurges ? ', ' + y.slipSurges + ' koridor ivmesi' : '') + '.</li><li>Deneme uçuşu: altın, ün ve istatistik verilmez.</li></ul>' +
       '<div style="display:flex;gap:.8em;flex-wrap:wrap;justify-content:center"><button type="button" class="btn" id="y3yine">Yeniden uç</button><button type="button" class="btn" id="y3bitir">Çık</button></div>';
     w.appendChild(k); Q('y3yine').addEventListener('click', () => { birakYaris(); kos(); }); Q('y3bitir').addEventListener('click', cik); }
+  const secimBitti = () => !Y || (Y.done && U && U.son > Y.sp * 2.5);
   function birakYaris() { if (typeof RC !== 'undefined' && RC && RC === Y) { RC.done = true; if (typeof raceUnbind === 'function') raceUnbind(); RC = null; } }
   function cik() { birakYaris(); kapat(); }
 
@@ -490,12 +495,14 @@
     onceki = A.scene() === 'gok3' ? 'meydan' : A.scene(); kam = A.S.camMode; if (G.close) G.close(); G.mesgul = true; EO2.gizli = true; app.classList.add('yarista');
     T = kur(A.R, d, race ? race.rivals : []); U = yeni(); Y = null;
     A.go('gok3'); await new Promise(r => setTimeout(r, 620));
-    eski = { draw: window.raceDraw, cut: window.raceCut, step: window.raceStep, hits: window.raceHits, res: window.raceResults, noCuts: window.__noCuts };
+    eski = { sfx: typeof EO2_BUS !== 'undefined' ? EO2_BUS.sfx : null, draw: window.raceDraw, cut: window.raceCut, step: window.raceStep, hits: window.raceHits, res: window.raceResults, noCuts: window.__noCuts };
     window.raceDraw = hud; window.raceCut = (t, a, b, r, then) => { if (typeof then === 'function') then(); }; window.__noCuts = 1; window.raceStep = adimSar; window.raceHits = carpSar; if (deneme) window.raceResults = denemeSonuc;
     window.EO2_MODAL = () => domKur(); window.EO2_MODAL_KAPAT = kapat;
+    /* yarış sesleri: race.js'in ses anahtarları uçuş boyunca sentez seslerine bağlanır */
+    if (typeof EO2_BUS !== 'undefined') { const onceki2 = eski.sfx; EO2_BUS.sfx = k => { const a = EO2.audio; if (a && a.ucus && a.ucus(k)) return; if (onceki2) onceki2(k); }; }
     window.addEventListener('keydown', tus, true); window.addEventListener('keyup', tus, true); kos(); }
   function kapat() { if (!eski) return; const A = EO2.api, w = Q('racem'); if (w) w.remove(); window.removeEventListener('keydown', tus, true); window.removeEventListener('keyup', tus, true);
-    window.raceDraw = eski.draw; window.raceCut = eski.cut; window.raceStep = eski.step; window.raceHits = eski.hits; window.raceResults = eski.res; window.__noCuts = eski.noCuts || 0; eski = null; window.EO2_MODAL = null; window.EO2_MODAL_KAPAT = null;
+    if (typeof EO2_BUS !== 'undefined') EO2_BUS.sfx = eski.sfx; if (EO2.audio && EO2.audio.ruzgar) EO2.audio.ruzgar(0); window.raceDraw = eski.draw; window.raceCut = eski.cut; window.raceStep = eski.step; window.raceHits = eski.hits; window.raceResults = eski.res; window.__noCuts = eski.noCuts || 0; eski = null; window.EO2_MODAL = null; window.EO2_MODAL_KAPAT = null;
     Y = null; U = null; secim = null; app.classList.remove('yarista'); EO2.gizli = false; G.mesgul = false; A.S.camMode = kam; A.go(onceki);
     setTimeout(() => { birak(A.R); if (G.redraw) G.redraw(); if (G.open) G.open('yaris'); }, 950); }
 
