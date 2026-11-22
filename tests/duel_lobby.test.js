@@ -63,8 +63,8 @@ test('lobi: kuyruk iki oyuncuyu eşleştirir; dövüş baştan sona oynanır, so
   const ra = a.last('duel_room_start'), rb = b.last('duel_room_start');
   assert.ok(ra && rb && ra.roomId === rb.roomId); assert.equal(ra.via, 'queue'); assert.equal(c.last('duel_room_start'), undefined);
   assert.equal(durum(c, '@alpha'), 'fight'); assert.equal(durum(c, '@gamma'), 'idle');
-  // dövüşteyken kuyruk/oda istenemez
-  server.onMessage(a, { type: 'duel_lobby', action: 'room_open' }); assert.equal(a.last('duel_error').code, 'duel_busy');
+  // dövüşteyken dövüş aranamaz
+  server.onMessage(a, { type: 'duel_lobby', action: 'queue' }); assert.equal(a.last('duel_error').code, 'duel_busy');
   for (let round = 1; round <= 30 && !a.last('duel_room_state')?.fight.over; round++) for (const s of [a, b]) server.onMessage(s, { type: 'duel_action', roomId: ra.roomId, round, action: 'pence' });
   const fa = a.last('duel_room_state').fight, fb = b.last('duel_room_state').fight;
   assert.equal(fa.over, true); assert.deepEqual(fa, fb);                 // tek kanonik durum
@@ -75,11 +75,14 @@ test('lobi: kuyruk iki oyuncuyu eşleştirir; dövüş baştan sona oynanır, so
   assert.equal(durum(c, '@alpha'), 'idle');                              // dövüş bitince meydana dönülür
 });
 
-test('lobi: sancak (açık oda) ilk katılanla başlar; kapalı ya da kendi odasına katılım reddedilir; kopan oyuncu lobiden düşer', () => {
+test('lobi: dövüş arayan kişiye lobiden katılınca dövüş hemen başlar; aramayana ya da kendine katılım reddedilir; eski room_open aramaya girer; kopan oyuncu lobiden düşer', () => {
   const { server, soket, gir, clients } = kur(), a = soket('@alpha'), b = soket('@beta'), c = soket('@gamma');
   gir(a); gir(b, 'Ayaz', 'buz'); gir(c, 'Sis', 'golge');
   server.onMessage(b, { type: 'duel_lobby', action: 'room_join', host: '@alpha' }); assert.equal(b.last('duel_error').code, 'room_closed');
-  server.onMessage(a, { type: 'duel_lobby', action: 'room_open' }); assert.equal(durum(b, '@alpha'), 'room');
+  server.onMessage(a, { type: 'duel_lobby', action: 'room_open' }); assert.equal(durum(b, '@alpha'), 'queue');   // eski "sancak dik" = dövüş ara
+  server.onMessage(a, { type: 'duel_lobby', action: 'room_close' }); assert.equal(durum(b, '@alpha'), 'idle');
+  server.onMessage(b, { type: 'duel_lobby', action: 'room_join', host: '@alpha' }); assert.equal(b.last('duel_error').code, 'room_closed');
+  server.onMessage(a, { type: 'duel_lobby', action: 'queue' }); assert.equal(durum(b, '@alpha'), 'queue');
   server.onMessage(a, { type: 'duel_lobby', action: 'room_join', host: '@alpha' }); assert.equal(a.last('duel_error').code, 'room_closed');
   server.onMessage(b, { type: 'duel_lobby', action: 'room_join', host: '@alpha' });
   const ra = a.last('duel_room_start'); assert.equal(ra.via, 'room'); assert.equal(ra.players[0].handle, '@alpha'); assert.equal(ra.players[1].handle, '@beta');

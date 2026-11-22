@@ -35,20 +35,18 @@
   /* ---------- yolculuk: karşılaşmalar hikâye sahnesidir ---------- */
   /* Sefer akışı oyunun güncel akışıdır (js/hub.js: startNodeSefer, buildSeferNodes): giriş ve yol seçimi, sarp geçit ya da kamp
      ateşi, bölgenin nadir keşfi, sonunda yaban ejderhası. Meydan mantığı yüklü değilse eski üç karşılaşmalı akış (seferCards) oynanır.
-     Aynı bölgeye ikinci seferde ocağın sancağı dikilir. */
+     Bölge sancakları kalktı (2026-11-22): sancak artık Kervan Yolu'nda rota ustalığıdır (eo2/js/topcu.js). Sefer yalnız keşiftir. */
   async function start(r, e) { const R = REGIONS[r], dugum = typeof buildSeferNodes === 'function';
     if (dugum && S.coopPartner) { toast('<b>Ortak sefer başladı</b><br>' + esc(S.coopPartner.handle) + ' (' + esc(S.coopPartner.dName) + ') keşifte sana eşlik ediyor (+20 altın keşif payı).'); S.gold += 20; S.coopPartner = null; }
     S.gold -= seferCost(r); S.st.seferler++;
-    if (dugum) { S.regionCount = S.regionCount || {}; S.regionCount[r] = (S.regionCount[r] || 0) + 1; if (S.regionCount[r] >= 2) { S.banners = S.banners || {}; S.banners[r] = { owner: S.handle || '@ejder_ocagi', guild: S.guild || 'Kızıl Ocak Birliği', tax: 5, mine: true }; } }
     e.task = { t: 'done', what: R.ad + ' seferine çıktı' }; e.dirt = clamp((e.dirt || 0) + (dugum ? 20 : 25), 0, 100);
     EX = { r, e, cards: seferCards(r), i: 0, wild: null, res: null }; saveGame(); G.close(); const N = EX.cards.length + 1, bg = 'bg-' + r, face = G.img(e);
     if (dugum) { const nodes = buildSeferNodes(r), tr = x => String(x).replace(/class="good"/g, 'class="iyi"').replace(/class="bad"/g, 'class="kotu"'), sahne = o => G.vn(Object.assign({ bg, face, dragon: true }, o));
-      const giris = nodes[0], yol = await sahne({ name: giris.title, k: 'Keşif patikası · 1 / 4', text: giris.desc, btns: giris.choices.map(c => ({ t: c.label, sub: c.tag, v: c.next })) });
+      const giris = nodes[0]; giris.desc = String(giris.desc).replace(/^Bölge Sancağı:[^.]*\.\s*/, ''); const yol = await sahne({ name: giris.title, k: 'Keşif patikası · 1 / 4', text: giris.desc, btns: giris.choices.map(c => ({ t: c.label, sub: c.tag, v: c.next })) });
       const D = nodes[yol] || nodes[1]; await sahne({ name: D.title, k: 'Keşif patikası · 2 / 4', text: D.desc, btns: [{ t: D.kind === 'hazard' ? esc(e.name) + ' ile geçidi aş' : 'Kamp ateşinde soluklan ve erzağı al', cls: 'altin' }] });
       const sonuc = D.Resolve(e); afterAction(true); await sahne({ name: D.title, k: 'Keşif patikası · 2 / 4', text: tr(sonuc.msg), btns: [{ t: 'Patikada ilerle', cls: 'altin' }] });
       const K = nodes[3]; if (K.localOpts && K.localOpts.length) { const v = await sahne({ name: K.title, k: 'Keşif patikası · 3 / 4', text: K.desc, btns: K.localOpts.map((o, i) => ({ t: o.t, v: i })) });
         const res = K.localOpts[v].fx(e, r); afterAction(true); await sahne({ name: K.title, k: 'Keşif patikası · 3 / 4', text: tr(res), btns: [{ t: 'Patikada ilerle', cls: 'altin' }] }); }
-      if (S.regionCount[r] === 2) toast('<b>' + R.ad + ' Sancağı</b> artık senin ocağının elinde!');
       return wild(); }
     for (; EX.i < EX.cards.length; EX.i++) { const C = EX.cards[EX.i], k = 'Sefer · karşılaşma ' + (EX.i + 1) + ' / ' + N;
       const v = await G.vn({ bg, face, dragon: true, name: R.ad, k, text: C.t, btns: C.o.map((o, i) => { const why = o.req ? o.req() : null; return { t: o.t, sub: why || '', off: why || null, v: i }; }) });
@@ -63,7 +61,7 @@
     const R = REGIONS[selR], lk = locked(R), hid = R.flag && !S.flags[R.flag], c = seferCost(selR);
     const escs = S.dragons.filter(d => canAct(d) && d.stage !== 'yavru'); if (UI.seferEsc && !escs.find(d => d.id === UI.seferEsc)) UI.seferEsc = null; if (!UI.seferEsc && escs.length) UI.seferEsc = escs[0].id; const e = byId(UI.seferEsc);
     scr.style.setProperty('--sahne', 'url("' + G.url('img/bg-' + selR + '.webp') + '")'); scr.classList.toggle('gizli-bolge', !!hid);
-    body.innerHTML = '<div class="sf-bilgi" style="--el:' + G.ELC[R.el] + '"><span class="ust">' + (hid ? 'Bilinmeyen bölge' : EL_AD[R.el] + ' bölgesi') + '</span><h2>' + (hid ? '???' : R.ad) + '</h2><p>' + (lk ? (hid ? 'Buranın yolunu bilen biri henüz çıkmadı.' : R.unReq + ' ün gerekiyor (sende ' + S.un + ').') : R.d) + '</p>' + (!lk && typeof getRegionBanner === 'function' ? (b => '<span class="etk">Sancak: ' + esc(b.guild) + (b.mine ? ' · senin' : ' · seferin ' + Math.min(2, (S.regionCount && S.regionCount[selR]) || 0) + ' / 2') + '</span>')(getRegionBanner(selR)) : '') +
+    body.innerHTML = '<div class="sf-bilgi" style="--el:' + G.ELC[R.el] + '"><span class="ust">' + (hid ? 'Bilinmeyen bölge' : EL_AD[R.el] + ' bölgesi') + '</span><h2>' + (hid ? '???' : R.ad) + '</h2><p>' + (lk ? (hid ? 'Buranın yolunu bilen biri henüz çıkmadı.' : R.unReq + ' ün gerekiyor (sende ' + S.un + ').') : R.d) + '</p>' + 
         '<button type="button" class="gbtn altin buyuk" data-go="' + selR + '" ' + (lk || !e || S.gold < c ? 'disabled' : '') + '>Yola çık<small>' + c + ' altın' + (!e ? ' · eskort yok' : S.gold < c ? ' · yetmiyor' : '') + '</small></button></div>' +
       (e ? '<div class="sf-eskort" style="--el:' + G.ELC[e.el] + '"><img alt="" src="' + G.img(e) + '"><div><span class="ust">Eskort</span><b>' + esc(e.name) + '</b></div></div>' : '<p class="ah-not sf-yok">Boşta bir genç ya da yetişkin ejderha yok.</p>') +
       (escs.length > 1 ? '<div class="sf-kadro">' + escs.map(d => '<button type="button" class="madalyon ejm" data-esc="' + d.id + '" aria-pressed="' + (d.id === UI.seferEsc) + '" title="' + esc(d.name) + '"><img alt="" src="' + G.img(d) + '" style="background:radial-gradient(circle at 50% 40%, color-mix(in srgb, ' + G.ELC[d.el] + ' 55%, #151a2c), #151a2c 80%)"></button>').join('') + '</div>' : '') +

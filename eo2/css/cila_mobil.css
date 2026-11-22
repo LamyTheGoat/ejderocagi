@@ -325,6 +325,10 @@
   #app .scr-b.kv .kv-yuva small { display: none; }
   #app .scr-b.kv .kv-akranlar { gap: .3em; }
   #app .scr-b.kv .kv-akranlar .madalyon span { display: none; }
+  /* Kervan Yolu (2026-11-22): ödül satırı kelime ortasından kırılmasın; düğme sütuna sığsın */
+  #app .scr-b.kv .yr-odul { flex-wrap: wrap; gap: .2em .8em; font-size: 1em; }
+  #app .scr-b.kv .yr-odul span { white-space: nowrap; }
+  #app .scr-b.kv .kv-bilgi > .gbtn { max-width: 100%; box-sizing: border-box; }
 }
 
 /* ================= telefon: parçalar birbirine binmez (2026-11-16, tools/check_binme.mjs) ================= */
