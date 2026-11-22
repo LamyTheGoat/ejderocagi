@@ -155,3 +155,6 @@
 /* Ejderha kartı (js/kart.js, 2026-11-20): Bilgi panelindeki düğme ve önizleme penceresi */
 .ah-kartbtn { margin-top: .6em; align-self: flex-start; }
 .ek-kart { display: grid; justify-items: center; gap: .6em; } .ek-kart img { width: min(100%, 22em); max-height: 62vh; aspect-ratio: 4 / 5; object-fit: contain; border-radius: .8em; box-shadow: 0 .6em 1.6em rgba(0, 0, 0, .45); } .ek-kart p { margin: 0; text-align: center; max-width: 30em; }
+/* Kervan Yolu (2026-11-22): sancağı alınmış rota madalyonu ve kutusu altın çerçeveyle ayrılır */
+.ui2 .madalyon.bolge-m.sancakli img { box-shadow: 0 0 0 2px #f3d88e, 0 0 .7em rgba(243, 216, 142, .55); }
+.ui2 .kv-yuva.sancakli { box-shadow: inset 0 0 0 2px #f3d88e, 0 .4em 1em rgba(4, 6, 16, .5); }

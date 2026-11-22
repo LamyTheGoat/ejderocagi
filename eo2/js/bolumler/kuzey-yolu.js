@@ -88,7 +88,7 @@ EO2.bolum.tanimla({
     ],
     rects: [[-40, -3.8, 33.6, 39.6], [3.8, 40, 33.6, 39.6]],   // derenin iki yakası: köprü dışında geçilmez
     npcs: [
-      { id: 'ky-kervanci', name: 'Kervancı', role: 'Kervan Kampı', set: 'avci', x: 7.0, y: 24.4, dir: 'down', act: 'panel:kuzey', lines: ['Kervan şafakta yola çıkar.', 'Seferden dönen terbiyeciler burada soluklanır.'] },
+      { id: 'ky-kervanci', name: 'Kervancı', role: 'Kervan Kampı', set: 'avci', x: 7.0, y: 24.4, dir: 'down', act: 'panel:kervan', lines: ['Kervan şafakta yola çıkar.', 'Seferden dönen terbiyeciler burada soluklanır.'] },
       { id: 'ky-devriye', name: 'Bekçi', role: 'Kuzey Yolu', set: 'muhafiz', x: -1.2, y: 10, dir: 'up', path: [[-1.2, 10], [-1.2, 31], [1.2, 31], [1.2, 10]], lines: ['Yol açık. Dereyi köprüden geç.'] },
     ] }; },
 });

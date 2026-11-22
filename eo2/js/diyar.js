@@ -1,10 +1,10 @@
-/* Ejder Ocağı 2.0 · Diyar: Dünya Boss'u (Kül Yutan), Damızlık ve Bölge Sancakları
+/* Ejder Ocağı 2.0 · Diyar: Dünya Boss'u (Kül Yutan), Damızlık ve Kervan Yolu
    Üçü de oyunun kervansaray meydanı mantığından gelir (js/hub.js) ve tek oyuncuda komşu ocaklarla (hazır akranlar) oynanır.
    Kül Yutan: haftada bir akın. Hasar, ödül ve katkı sıralaması HUB_ACT['hub-boss-atk'] ile aynıdır; haftanın dünya olayı
    (currentWorldEvent) ödülü çarpar.
    Damızlık: komşu ocakların damızlık ejderhasıyla ortak yumurta. Bedel, yakınlık indirimi, gen ve huy mirası
    HUB_ACT['hub-breed-do'] ile aynıdır.
-   Sancaklar: bir bölgeye iki kez sefer düzenleyen ocak sancağını diker (startNodeSefer); burada yalnız durum gösterilir. */
+   Kervan Yolu: kendi kervanını pusudan koruma döngüsü; eski bölge sancakları rota sancağına dönüştü (2026-11-22). */
 (function () {
   'use strict';
   const EO2 = window.EO2, G = EO2.game, OLD = G.OLD;
@@ -53,44 +53,28 @@
       S.eggs.push(egg); S.st.bred++; chron(my.name + ' ile ' + p.handle + '\'in ' + p.d.name + ' ejderhası eşleşti; yeni bir asil yumurta alındı!'); toast('<b>Ortak yumurta alındı!</b> ' + (egg.inK ? 'Kuluçka Ocağı\'na yerleştirildi.' : 'Yuva sepetine kondu.'));
       if (EO2.audio) EO2.audio.chime(); if (G.fx) G.fx.hearts('.yu-kalp2', 12); saveGame(); afterAction(); G.open('yuva'); }); } });
 
-  /* ---------- Bölge sancakları ---------- */
-  G.screen('sancak', { k: 'Diyar haritası', t: 'Sancaklar', cls: 'sn', bg: 'bg-harita', draw(body) { const ks = Object.keys(REGIONS).filter(r => !(REGIONS[r].flag && !S.flags[REGIONS[r].flag]));
-    body.innerHTML = '<div class="sn-bas"><span class="ust">Bölge hâkimiyeti</span><h2>Sancaklar</h2><p>Bir bölgeye iki kez sefer düzenleyen ocak kendi birliğinin sancağını diker.</p></div><div class="sn-liste">' + ks.map((r, i) => { const R = REGIONS[r], b = getRegionBanner(r), n = Math.min(2, (S.regionCount && S.regionCount[r]) || 0);
-      return '<article class="sn-kart' + (b.mine ? ' benim' : '') + '" style="--el:' + G.ELC[R.el] + ';animation-delay:' + (i * 0.05) + 's"><img alt="" src="' + G.url('img/bg-' + r + '.webp') + '"><div><b>' + R.ad + '</b><small>' + EL_AD[R.el] + ' bölgesi</small><span>Sancak: <strong>' + esc(b.guild) + '</strong> (' + esc(b.owner) + ')</span></div><em>' + (b.mine ? 'Senin sancağın' : 'Seferin ' + n + ' / 2') + '</em></article>'; }).join('') + '</div>'; } });
-
-  /* ---------- Kervan ---------- */
-  /* Konvoy kurma ve yola çıkarma HUB_ACT['lonca-route' | 'lonca-slot-coop' | 'lonca-fill-own' | 'hub-caravan-send'] ile aynıdır:
-     haftada bir kervan; yük altını rotanın yükü × dünya olayı × (1 + ortak muhafız başına %25), +3 ün, +1 Ejder Ziyafeti;
-     kendi sürüden muhafız +20 yorgunluk alır. Kapı şartı oyunun kendisidir (canEnterZindanOrTopcu).
-     Başka kervanlara baskın Topçu savaşıyla oynanır; Topçu kurulmadığı için burada yalnız liste olarak görünür. */
+  /* ---------- Kervan Yolu ----------
+     Tek döngü (Mehmet, 2026-11-22): eski "kervanı yola çıkar" düğmesi, "kervan baskını" ve bölge sancakları birleşti.
+     Rota seçilir, kervan yola çıkar, yoldaki pusu Topçu savaşıdır (eo2/js/topcu.js kervan). Hak, ödül ve rota sancağı
+     kuralları topcu.js'tedir (EO2.topcu.kervanDurum); bu ekran yalnız gösterir ve başlatır. Kapı şartı Topçu ile aynıdır (omuz ejderi). */
   const ROTA_BG = { kizil_vadi: 'kul', buzul_gecidi: 'buzul', mercan_kiyisi: 'mercan', firtina_bogazi: 'kayalik' };
-  G.screen('kervan', { k: 'Lonca kervan yolu', t: 'Kervan', cls: 'ar2 kv', bg: 'a:kervan', draw(body) { const H = ensureHub(), star = byId(S.star) || S.dragons.find(d => !d.dead) || null, ev = olay(), acik = typeof canEnterZindanOrTopcu !== 'function' || canEnterZindanOrTopcu();
-    const conv = H.caravanConvoy = H.caravanConvoy || { route: 'kizil_vadi', slot2: null, slot3: null }, rt = CARAVAN_ROUTES[conv.route] || CARAVAN_ROUTES.kizil_vadi, ortak = [conv.slot2, conv.slot3].filter(x => x && x.mode === 'coop').length;
-    const yuk = Math.round(rt.cargo * ((ev && ev.caravanMult) || 1) * (1 + ortak * 0.25)), P = H.peers || [], cvs = ensureCaravans();
-    const yuva = n => { const sl = conv['slot' + n]; return '<div class="kv-yuva"><span class="ust">' + n + '. muhafız</span>' + (sl ? '<b>' + esc(sl.dName) + '</b><small>' + (sl.mode === 'coop' ? esc(sl.handle) + ' · ortak, yük +%25' : 'kendi sürün · yorgunluk +20') + '</small><button type="button" class="gbtn kucuk" data-bosalt="' + n + '">Boşalt</button>'
-        : '<small>Boş. Komşu bir ocaktan ortak muhafız çağır:</small><div class="kv-akranlar">' + P.map((x, i) => '<button type="button" class="madalyon ejm" data-ortak="' + n + ':' + i + '" title="' + esc(x.handle) + '"><img alt="" src="' + G.img(x.d) + '"><span>' + esc(x.d.name) + '</span></button>').join('') + '</div>') + '</div>'; };
+  let secRota = null;
+  G.screen('kervan', { k: 'Kuzey Yolu · Kervan Kampı', t: 'Kervan Yolu', cls: 'ar2 kv', bg: 'a:kervan', draw(body) { const T = EO2.topcu, star = byId(S.star) || S.dragons.find(d => !d.dead) || null;
+    if (!T || !T.kervanDurum) { body.innerHTML = '<div class="ar-kilit bos"><p>Kervan yolu hazırlanıyor.</p></div>'; return; }
+    const D = T.kervanDurum(), kil = T.kilitli(), rotalar = Object.values(CARAVAN_ROUTES); if (!CARAVAN_ROUTES[secRota]) secRota = rotalar[0].id;
+    const rt = CARAVAN_ROUTES[secRota], z = D.zafer[rt.id] || 0, sancak = D.sancak(rt.id);
     body.innerHTML = (star ? '<div class="ar-ben" style="--el:' + G.ELC[star.el] + '"><img class="ar-ej" alt="" src="' + G.img(star) + '"><div class="ar-ad"><span class="ust">Kervan başı · ' + EL_AD[star.el] + '</span><h2>' + esc(star.name) + '</h2><small>Ocağın yıldızı konvoya önderlik eder</small></div></div>' : '') +
-      '<div class="kv-bilgi"><span class="ust">' + EL_AD[rt.el] + ' rotası' + (ev && ev.caravanMult ? ' · ' + esc(ev.ad) : '') + '</span><h2>' + rt.ad + '</h2><p>' + rt.desc + '</p>' +
-        '<div class="kv-yuvalar">' + yuva(2) + yuva(3) + '</div>' + (!conv.slot2 || !conv.slot3 ? '<button type="button" class="gbtn kucuk" data-suru="1">Boş yerleri kendi sürünle doldur</button>' : '') +
-        '<div class="yr-odul"><span>Yük <b class="au">' + yuk + ' altın</b></span><span>+3 ün</span><span>+1 Ejder Ziyafeti</span></div>' +
-        (acik ? '' : '<p class="kv-kilit">Kervan Yolu\'na çıkmak için önce yıldız ejderhanı Ebedi Gençlik İksiri ile kutsamalısın.</p>') +
-        '<button type="button" class="gbtn altin buyuk" data-yola="1" ' + (star && acik && !H.myCaravanSent ? '' : 'disabled') + '>' + (H.myCaravanSent ? 'Bu hafta kervan yola çıktı' : 'Kervanı yola çıkar') + '<small>haftada bir</small></button></div>' +
-      '<div class="kv-liste"><span class="ust">Yoldaki kervanlar</span>' + cvs.slice(0, 4).map(c => '<span' + (c.owner === ben() ? ' class="ben"' : '') + '>' + esc(c.guild) + ' · ' + esc(c.route) + ' <em>' + c.cargo + ' altın</em></span>').join('') + '</div>' +
-      '<div class="ar-alt"><div class="kadro">' + Object.values(CARAVAN_ROUTES).map(x => '<button type="button" class="madalyon bolge-m" data-rota="' + x.id + '" aria-pressed="' + (x.id === rt.id) + '"><img alt="" src="' + G.url('img/bg-' + (ROTA_BG[x.id] || 'kul') + '.webp') + '"><span>' + x.ad.replace(' Rotası', '') + '</span></button>').join('') + '</div></div>';
-    const kilit = () => { if (!acik) toast('Kervan Yolu\'na çıkmak için önce yıldız ejderhanı Ebedi Gençlik İksiri ile kutsamalısın.'); return !acik; };
-    on(body, '[data-rota]', b => { if (kilit()) return; conv.route = b.dataset.rota; render(); });
-    on(body, '[data-ortak]', b => { if (kilit()) return; const q = b.dataset.ortak.split(':'), x = P[+q[1]]; if (!x) return; conv['slot' + q[0]] = { mode: 'coop', peerIdx: +q[1], handle: x.handle, dName: x.d.name, el: x.d.el }; toast('<b>Ortak muhafız katıldı</b><br>' + esc(x.handle) + ' (' + esc(x.d.name) + ' · ' + EL_AD[x.d.el] + ') ' + q[0] + '. muhafız yerine geçti.'); saveGame(); render(); });
-    on(body, '[data-bosalt]', b => { conv['slot' + b.dataset.bosalt] = null; render(); });
-    on(body, '[data-suru]', () => { if (kilit()) return; const diger = S.dragons.filter(d => !star || d.id !== star.id), h = ben(); if (!conv.slot2) { const d2 = diger[0] || star; if (d2) conv.slot2 = { mode: 'own', dragonId: d2.id, handle: h, dName: d2.name, el: d2.el }; } if (!conv.slot3) { const d3 = diger[1] || diger[0] || star; if (d3) conv.slot3 = { mode: 'own', dragonId: d3.id, handle: h, dName: d3.name, el: d3.el }; } toast('<b>Sürü muhafızları dizildi</b><br>Boş yerler kendi süründen tamamlandı (yola çıkarken +20 yorgunluk alırlar).'); saveGame(); render(); });
-    on(body, '[data-yola]', async () => { if (kilit() || !star || H.myCaravanSent) return;
-      [conv.slot2, conv.slot3].forEach(sl => { if (sl && sl.mode === 'own' && sl.dragonId) { const d = byId(sl.dragonId); if (d) d.fat = clamp((d.fat || 0) + 20, 0, 100); } });
-      const els = new Set([star.el, conv.slot2 && conv.slot2.el, conv.slot3 && conv.slot3.el].filter(Boolean)), uclu = !!(conv.slot2 && conv.slot3 && els.size === 3); H.myCaravanSent = true; S.gold += yuk; S.un += 3; S.food.ziyafet = (S.food.ziyafet || 0) + 1;
-      let cevher = ri(1, 2) + (ortak > 0 ? 1 : 0); if (uclu) cevher *= 2; const dus = { [rt.ore]: cevher, kor_t2: uclu ? 2 : 1 }; if (chance(25)) dus.kor_t3 = 1; if (uclu && chance(35)) dus[chance(50) ? 'sahmeran' : 'kalgarot'] = 1;
-      const tas = typeof awardChibiStones === 'function' ? awardChibiStones(dus) : '';
-      cvs.unshift({ id: 'cv_me', guild: S.guild || 'Kızıl Ocak Birliği', owner: ben(), route: rt.ad, routeKey: rt.id, ore: rt.ore, cargo: yuk, foodReward: rt.food || 'ziyafet', guardName: star.name, guardEl: star.el, guardPower: Math.round((star.st.gu + star.st.da + star.st.ce) / 3), raidedBy: [] });
-      chron(star.name + ' eskortluğunda ' + rt.ad + ' kervanı yola çıktı (+' + yuk + ' altın' + (tas ? ', ' + tas : '') + ').'); saveGame(); G.hud(); if (EO2.audio) EO2.audio.chime();
-      await G.vn({ bg: 'a:kervan', face: G.img(star), dragon: true, name: esc(star.name), k: rt.ad + ' konvoyu', text: esc(star.name) + ' önderliğindeki kervan yola çıktı.', after: '<span class="etk iyi">+' + yuk + ' altın</span><span class="etk">+3 ün</span><span class="etk">+1 Ejder Ziyafeti</span>' + (tas ? '<span class="etk">' + tas + '</span>' : '') });
-      afterAction(); }); } });
+      '<div class="kv-bilgi"><span class="ust">' + EL_AD[rt.el] + ' rotası</span><h2>' + rt.ad + '</h2><p>' + rt.desc + ' Yolda üç haydut pusu kurar; topunla kervanını korursun.</p>' +
+        '<div class="kv-yuvalar"><div class="kv-yuva"><span class="ust">Bu hafta</span><b>' + D.kalan + ' kervan hakkın kaldı</b><small>Her hafta ' + D.hak + ' kervan hakkı gelir</small></div>' +
+          '<div class="kv-yuva' + (sancak ? ' sancakli' : '') + '"><span class="ust">Rota sancağı</span><b>' + (sancak ? 'Senin' : Math.min(z, D.usta) + ' / ' + D.usta + ' zafer') + '</b><small>' + (sancak ? 'Bu rotada altın %10 fazla' : D.usta + ' zaferde sancak senin, altın %10 fazla') + '</small></div></div>' +
+        '<div class="yr-odul"><span>Zaferde <b class="au">' + D.altin(rt.id) + ' altın</b></span><span>8 ün</span><span>' + esc(rt.oreAd || 'Cevher') + '</span><span>Harlı Kor Taşı</span></div>' +
+        (kil ? '<p class="kv-kilit">Kervan yoluna yalnız omuz ejderi olan bir topçu çıkabilir.</p>' : '') +
+        '<button type="button" class="gbtn altin buyuk" data-yola="1" ' + (!kil && D.kalan > 0 ? '' : 'disabled') + '>' + (D.kalan > 0 ? 'Kervanı yola çıkar' : 'Bu haftanın kervanları yola çıktı') + '<small>' + (D.kalan > 0 ? 'Topçu savaşı · tek aşama' : 'yeni hafta yeni kervan') + '</small></button>' +
+        (kil ? '<button type="button" class="gbtn" data-kilit="1">Omuz ejderi nasıl edinilir?</button>' : '') + '</div>' +
+      '<div class="ar-alt"><div class="kadro">' + rotalar.map(x => '<button type="button" class="madalyon bolge-m' + (D.sancak(x.id) ? ' sancakli' : '') + '" data-rota="' + x.id + '" aria-pressed="' + (x.id === rt.id) + '"' + (D.sancak(x.id) ? ' title="Sancak senin"' : '') + '><img alt="" src="' + G.url('img/bg-' + (ROTA_BG[x.id] || 'kul') + '.webp') + '"><span>' + x.ad.replace(' Rotası', '') + '</span></button>').join('') + '</div></div>';
+    on(body, '[data-rota]', b => { secRota = b.dataset.rota; render(); });
+    on(body, '[data-kilit]', () => T.kilitPen());
+    on(body, '[data-yola]', () => { if (kil || D.kalan <= 0) return; T.baslat('kervan', { rota: rt.id }); }); } });
 
   /* ---------- Kıraathane ---------- */
   /* Üç masa oyunu (Kor 21, Kervan Tavlası, Ejder Pokeri) oyunun kendi dosyasıdır (js/kiraathane.js): kurallar, rakibin oyunu ve
@@ -108,8 +92,8 @@
     const HAN = [['han', 'Han'], ['siralama', 'Ün Tablosu'], ['kiraathane', 'Kıraathane']]; G.navOf = Object.assign(G.navOf || {}, { han: HAN, siralama: HAN, kiraathane: HAN });
   }
 
-  const SEF = [['sefer', 'Harita Odası'], ['boss', 'Kül Yutan'], ['kervan', 'Kervan'], ['sancak', 'Sancaklar']], YUVA = [['ejderhalar', 'Ahır'], ['yuva', 'Yuva'], ['damizlik', 'Damızlık'], ['sus', 'Süs Dolabı']];
-  G.navOf = Object.assign(G.navOf || {}, { sefer: SEF, boss: SEF, kervan: SEF, sancak: SEF, ejderhalar: YUVA, yuva: YUVA, damizlik: YUVA, sus: YUVA });
+  const SEF = [['sefer', 'Harita Odası'], ['boss', 'Kül Yutan'], ['kervan', 'Kervan Yolu']], YUVA = [['ejderhalar', 'Ahır'], ['yuva', 'Yuva'], ['damizlik', 'Damızlık'], ['sus', 'Süs Dolabı']];
+  G.navOf = Object.assign(G.navOf || {}, { sefer: SEF, boss: SEF, kervan: SEF, ejderhalar: YUVA, yuva: YUVA, damizlik: YUVA, sus: YUVA });
   /* haftanın dünya olayı: görev defterinde ve HUD ipucunda görünsün diye dışarı verilir */
   G.dunyaOlayi = olay;
 })();

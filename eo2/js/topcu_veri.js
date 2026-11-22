@@ -217,8 +217,8 @@
         { ad: 'Derya Yılanı Abra', alt: 'Üçe bölünmüş kadırga', bg: I('abra/abra_arena_bg_v2.webp'), f: kadirga, deniz: 1238, ozel: deniz, tema: 'guverte', x0: 980, ipucu: 'Tsunamiden sonra kuyruk yüzgeci yüzeye çıkar. İki ayrı turda vur: Abra sersemler, başı iki kat hasar alır.',
           boss: d => ({ tip: 'abra', ad: 'Derya Yılanı Abra', unvan: 'Kadim derya leviathanı', hp: Math.round(4800 * d), x: 2040 }), moblar: () => [] }] },
   };
-  /* Kervan pususu (eski gameMode 'caravan'): tek aşama, üç haydut, bir ikmal sandığı, bir barut fıçısı */
-  const KERVAN = { ad: 'Kervan Baskını', alt: 'İpek Geçidi pususu', bg: 'assets/bg/kervan.webp', f: kapi, tema: 'kervan', ortam: 'toz', ipucu: 'Sandığı vurursan can ve öfke verir; fıçı patlar ve yanındakileri de yakar.',
+  /* Kervan pususu (eski gameMode 'caravan'): tek aşama, üç haydut, bir ikmal sandığı, bir barut fıçısı. Oyuncu kendi kervanını korur. */
+  const KERVAN = { ad: 'Kervan Pususu', alt: 'Yol pususu', bg: 'assets/bg/kervan.webp', f: kapi, tema: 'kervan', ortam: 'toz', ipucu: 'Sandığı vurursan can ve öfke verir; fıçı patlar ve yanındakileri de yakar.',
     moblar: () => [{ tip: 'drake', ad: 'Kervan Pusucusu Drake', hp: 720, x: 1760 }, { tip: 'cobra', ad: 'Bozkır Haydudu Engerek', hp: 680, x: 2180 }, { tip: 'wyvern', ad: 'Hava Akıncısı Wyvern', hp: 740, x: 2540, yuk: 590 }],
     props: [{ tip: 'araba', x: 1380 }, { tip: 'sandik', x: 960 }, { tip: 'fici', x: 1920 }] };
   /* zorluk: can ve hasar çarpanları eski oyunla aynı (Normal ×0,75 can ve ×0,80 hasar; Ağır ×1,0) */

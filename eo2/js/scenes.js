@@ -135,7 +135,7 @@
       shadows: [[0, 28.5, 3.4, 2.6, 0.35], [-4.7, 50.6, 1.7, 0.8, 0.7], [4.0, 52.2, 2.4, 1.0, 0.7], ...rocks.map(r => [r[0], r[1] + 0.1, 1.0, 0.45, 0.6])],
       mini: { paved: [[-2.9, 0, 2.9, 55]], strips: [[-9, 27, 9, 30]], blocks: [[-5.9, 49.8, -3.5, 51.2], [2.3, 51.2, 5.7, 52.8]], bg: '#6fb85e' },
       npcs: [
-        { id: 'kervanci', name: 'Kervancı', role: 'Kervan Kampı', set: 'avci', x: 1.9, y: 50.2, dir: 'down', act: 'panel:kuzey', lines: ['Kervan şafakta yola çıkar.', 'Seferden dönen terbiyeciler burada soluklanır.'] },
+        { id: 'kervanci', name: 'Kervancı', role: 'Kervan Kampı', set: 'avci', x: 1.9, y: 50.2, dir: 'down', act: 'panel:kervan', lines: ['Kervan şafakta yola çıkar.', 'Seferden dönen terbiyeciler burada soluklanır.'] },
         { id: 'devriye', name: 'Bekçi', role: 'Kuzey Yolu', set: 'muhafiz', x: -1.6, y: 12, dir: 'up', path: [[-1.6, 12], [-1.6, 23], [1.6, 23], [1.6, 12]], lines: ['Yol açık. Dereyi köprüden geç.'] },
       ] };
     D.yol = { L, build(h) {
